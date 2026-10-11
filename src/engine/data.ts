@@ -1,4 +1,4 @@
-import type { BuildDef, CardDef, CharacterDef, CompanionBonusDef, CreatureTypeDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
+import type { BuildDef, CardDef, CharacterDef, CompanionBonusDef, CreatureTypeDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
 export interface ContentSource {
@@ -12,6 +12,9 @@ export interface ContentSource {
   events: EventDef[];
   shop: ShopItemDef[];
   companionBonuses: CompanionBonusDef[];
+  spots: SpotDef[];
+  /** In play order. */
+  levels: LevelDef[];
 }
 
 /** Index content by id, throwing a readable error if anything is inconsistent. */
@@ -29,6 +32,8 @@ export function buildGameData(source: ContentSource): GameData {
     events: Object.fromEntries(source.events.map((e) => [e.id, e])),
     shop: source.shop,
     companionBonuses: Object.fromEntries(source.companionBonuses.map((b) => [b.id, b])),
+    spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
+    levels: source.levels,
   };
 }
 
@@ -172,6 +177,8 @@ export function validateContent(source: ContentSource): string[] {
     }
   }
 
+  validateLevels(source, typeIds, enemyIds, errors);
+
   const buildIds = new Set<string>();
   for (const build of source.builds) {
     checkDuplicate(buildIds, build.id, 'build');
@@ -188,4 +195,79 @@ export function validateContent(source: ContentSource): string[] {
   if (source.builds.length === 0) errors.push('There must be at least one build.');
 
   return errors;
+}
+
+/**
+ * Levels must be playable maps: columns 1..N with the boss alone in the last one, one mini-boss
+ * followed by at least two choices including a leave node, every node reachable from the start,
+ * every link going forward, and every fight able to find its creatures.
+ */
+function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: Set<string>, errors: string[]): void {
+  const spotIds = new Set<string>();
+  for (const spot of source.spots) {
+    if (spotIds.has(spot.id)) errors.push(`Duplicate fishing spot id "${spot.id}".`);
+    spotIds.add(spot.id);
+    if (!spot.waters.length) errors.push(`Fishing spot "${spot.id}" has no waters.`);
+    for (const type of spot.types ?? []) if (!typeIds.has(type)) errors.push(`Fishing spot "${spot.id}": unknown creature type "${type}".`);
+  }
+  if (source.levels.length === 0) errors.push('There must be at least one level.');
+  const hasEvents = source.events.some((e) => !e.treasure);
+  const hasTreasures = source.events.some((e) => e.treasure);
+
+  const nodeIds = new Set<string>();
+  for (const level of source.levels) {
+    const where = `Level "${level.id}"`;
+    if (!(Number.isInteger(level.tier) && level.tier >= 1)) errors.push(`${where}: tier must be a whole number ≥ 1.`);
+    const byId = new Map(level.nodes.map((n) => [n.id, n]));
+    for (const node of level.nodes) {
+      if (nodeIds.has(node.id)) errors.push(`Duplicate map node id "${node.id}".`);
+      nodeIds.add(node.id);
+    }
+
+    const lastColumn = Math.max(...level.nodes.map((n) => n.column));
+    for (let column = 1; column <= lastColumn; column++) {
+      if (!level.nodes.some((n) => n.column === column)) errors.push(`${where}: column ${column} has no node.`);
+    }
+    const bosses = level.nodes.filter((n) => n.kind === 'boss');
+    if (bosses.length !== 1) errors.push(`${where}: needs exactly one boss.`);
+    else if (level.nodes.some((n) => n.column === lastColumn && n.kind !== 'boss')) {
+      errors.push(`${where}: the boss must be alone in the last column.`);
+    }
+    const miniBosses = level.nodes.filter((n) => n.kind === 'miniBoss');
+    if (miniBosses.length !== 1) errors.push(`${where}: needs exactly one mini-boss.`);
+    for (const miniBoss of miniBosses) {
+      const after = miniBoss.next.map((id) => byId.get(id));
+      if (after.length < 2 || !after.some((n) => n?.kind === 'leave')) {
+        errors.push(`${where}: the mini-boss must lead to at least 2 nodes, one of them a leave node.`);
+      }
+    }
+
+    for (const node of level.nodes) {
+      const at = `${where} node "${node.id}"`;
+      const ends = node.kind === 'boss' || node.kind === 'leave';
+      if (ends && node.next.length) errors.push(`${at}: a ${node.kind} node can't lead anywhere.`);
+      if (!ends && !node.next.length) errors.push(`${at}: leads nowhere.`);
+      for (const id of node.next) {
+        const target = byId.get(id);
+        if (!target) errors.push(`${at}: links to unknown node "${id}" (links stay within a level).`);
+        else if (target.column <= node.column) errors.push(`${at}: links back or sideways to "${id}".`);
+      }
+      if (node.kind === 'fight' || node.kind === 'miniBoss' || node.kind === 'boss') {
+        for (const id of node.enemies ?? []) if (!enemyIds.has(id)) errors.push(`${at}: unknown enemy "${id}".`);
+        if (!node.enemies?.length && !node.spot) errors.push(`${at}: a fight needs a spot or enemies.`);
+        if (node.spot && !spotIds.has(node.spot)) errors.push(`${at}: unknown fishing spot "${node.spot}".`);
+        if (node.creatureType && !typeIds.has(node.creatureType)) errors.push(`${at}: unknown creature type "${node.creatureType}".`);
+      }
+      if (node.kind === 'event' && !hasEvents) errors.push(`${at}: there are no events to meet.`);
+      if (node.kind === 'treasure' && !hasTreasures) errors.push(`${at}: there are no treasure events.`);
+      if (node.kind === 'shop' && !source.shop.length) errors.push(`${at}: the shop has nothing to sell.`);
+    }
+
+    // Everything must be reachable from the start, which leads to the first column.
+    const reached = new Set(level.nodes.filter((n) => n.column === 1).map((n) => n.id));
+    for (const node of [...level.nodes].sort((a, b) => a.column - b.column)) {
+      if (reached.has(node.id)) for (const id of node.next) reached.add(id);
+    }
+    for (const node of level.nodes) if (!reached.has(node.id)) errors.push(`${where} node "${node.id}": can't be reached.`);
+  }
 }

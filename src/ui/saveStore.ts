@@ -7,7 +7,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const PROFILE_VERSION = 4;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -78,6 +78,7 @@ function upgradeSave(save: SavedGame): SavedGame | null {
     const companions = (save.run.companions as unknown as string[]).map((id) => ({ id, bond: 0 }));
     save = { ...save, version: 4, run: { ...save.run, companions } };
   }
+  // v4 runs were on a generated map, before hand-made levels: they can't be resumed.
   return save.version === SAVE_VERSION ? save : null;
 }
 

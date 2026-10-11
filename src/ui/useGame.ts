@@ -13,6 +13,9 @@ import {
   SESSION_SLOTS,
   takeFromHome,
   createRun,
+  enterNextLevel,
+  isLastLevel,
+  visitTreasure,
   recordEncounter,
   finishCombat,
   isMapComplete,
@@ -234,6 +237,13 @@ export function useGame(initialSeed: number) {
       screen.value = 'shop';
       return;
     }
+    if (kind === 'treasure') {
+      const visit = visitTreasure(run.value, nodeId, gameData);
+      run.value = visit.run;
+      eventId.value = visit.eventId;
+      screen.value = 'event';
+      return;
+    }
     if (kind === 'event') {
       const visit = visitEvent(run.value, nodeId, gameData);
       run.value = visit.run;
@@ -260,11 +270,15 @@ export function useGame(initialSeed: number) {
 
   function claimVictory() {
     if (!run.value || !combat.value || combat.value.phase !== 'won') return;
-    const finished = finishCombat(run.value, combat.value, gameData);
+    let finished = finishCombat(run.value, combat.value, gameData);
     combat.value = null;
     if (isMapComplete(finished)) {
-      bringHome(finished, 'won');
-      return;
+      // A level's boss is beaten: on to the next level, or the run is won.
+      if (isLastLevel(finished, gameData)) {
+        bringHome(finished, 'won');
+        return;
+      }
+      finished = enterNextLevel(finished, gameData);
     }
     const rewards = rollCardRewards(finished, gameData);
     run.value = rewards.run;
@@ -281,7 +295,7 @@ export function useGame(initialSeed: number) {
     if (!run.value || !combat.value || combat.value.phase !== 'fled') return;
     run.value = finishCombat(run.value, combat.value, gameData);
     combat.value = null;
-    // The boss getting away ends the run without a win: the bucket stays behind.
+    // A boss getting away ends the run without a win: the bucket stays behind.
     runEnd.value = 'fled';
     if (isMapComplete(run.value)) {
       endRun(run.value, false);

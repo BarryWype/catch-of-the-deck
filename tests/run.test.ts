@@ -3,7 +3,6 @@ import {
   addCardToDeck,
   applyEventChoice,
   buyShopItem,
-  SHOP_COLUMNS,
   EVENT_FIGHT_CHANCE,
   eventChoiceBlocked,
   escapeRateReduction,
@@ -13,7 +12,11 @@ import {
   SESSION_SLOTS,
   takeFromHome,
   createRun,
+  enterNextLevel,
+  isLastLevel,
   recordEncounter,
+  START_NODE_ID,
+  visitTreasure,
   finishCombat,
   isMapComplete,
   rollCardRewards,
@@ -25,15 +28,16 @@ import {
   visitShop,
   type RunState,
 } from '../src/engine';
-import { testData } from './fixtures';
+import { testData, withNodeKind } from './fixtures';
 
 describe('run', () => {
   it('starts with the starter deck at full HP, on the map start', () => {
     const run = createRun(5, testData, 'basic');
     expect(run.deck).toEqual(['strike', 'defend']);
     expect(run.hp).toBe(run.maxHp);
-    expect(run.position).toBe('0-0');
-    expect(run.visited).toEqual(['0-0']);
+    expect(run.position).toBe(START_NODE_ID);
+    expect(run.visited).toEqual([START_NODE_ID]);
+    expect(run.level).toBe(0);
   });
 
   it('offers 3 distinct non-starter cards, deterministically', () => {
@@ -64,7 +68,7 @@ describe('run', () => {
 });
 
 describe('starting builds', () => {
-  it('the build sets the starter deck; the map depends only on the seed', () => {
+  it('the build sets the starter deck; the map is the first level’s', () => {
     const basic = createRun(5, testData, 'basic');
     const angler = createRun(5, testData, 'angler');
     expect(angler.build).toBe('angler');
@@ -163,52 +167,51 @@ describe('capture record', () => {
 describe('travelling the map', () => {
   it('moves to the chosen node and starts its encounter', () => {
     const start = createRun(5, testData, 'basic');
-    const target = availableDestinations(start).at(-1)!;
-    const { run, combat } = travelTo(start, target.id, testData);
-    expect(run.position).toBe(target.id);
-    expect(run.visited).toEqual(['0-0', target.id]);
+    const { run, combat } = travelTo(start, '1a', testData);
+    expect(run.position).toBe('1a');
+    expect(run.visited).toEqual([START_NODE_ID, '1a']);
     expect(combat.enemies.map((e) => e.defId)).toEqual(['dummy']);
-    expect(start.position).toBe('0-0'); // input untouched
+    expect(start.position).toBe(START_NODE_ID); // input untouched
   });
 
-  it('the creature is drawn on arrival from encounters of the node\'s type and tier', () => {
-    const data = {
-      ...testData,
-      encounters: [
-        { id: 'a', name: 'A', enemies: ['dummy'] },
-        { id: 'b', name: 'B', enemies: ['dummy', 'dummy'] },
-        { id: 'shell', name: 'Shell', enemies: ['cycler'] },
-        { id: 'deep', name: 'Deep', tier: 2, enemies: ['dummy', 'dummy', 'dummy'] },
-      ],
-    };
-    const fights = new Set<string>();
-    for (let seed = 1; seed <= 40; seed++) {
-      const start = createRun(seed, data, 'basic');
-      for (const target of availableDestinations(start)) {
-        const { combat } = travelTo(start, target.id, data);
-        expect(combat.enemies.every((e) => data.enemies[e.defId].tags?.[0] === target.creatureType)).toBe(true);
-        if (target.creatureType === 'fish') fights.add(combat.enemies.map((e) => e.defId).join());
-      }
-    }
-    // Both tier-1 fish encounters come up, never the tier-2 one.
-    expect([...fights].sort()).toEqual(['dummy', 'dummy,dummy']);
+  it('fixed enemies are met as they are: the mini-boss, the boss, any fight', () => {
+    const start = createRun(5, testData, 'basic');
+    expect(travelTo(start, '1b', testData).combat.enemies.map((e) => e.defId)).toEqual(['cycler']);
+    const atOne = travelTo(start, '1a', testData).run;
+    expect(travelTo(atOne, '2', testData).combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
   });
 
   it('refuses nodes that are not adjacent to the current position', () => {
     const start = createRun(5, testData, 'basic');
-    expect(() => travelTo(start, '2-0', testData)).toThrow();
-    expect(() => travelTo(start, '0-0', testData)).toThrow();
+    expect(() => travelTo(start, '2', testData)).toThrow();
+    expect(() => travelTo(start, START_NODE_ID, testData)).toThrow();
   });
 
-  it('can walk any path to the end of the map', () => {
+  it('can walk to the boss, which ends the level', () => {
     let run: RunState = createRun(11, testData, 'basic');
-    let steps = 0;
-    while (!isMapComplete(run)) {
-      run = travelTo(run, availableDestinations(run)[0].id, testData).run;
-      steps++;
-    }
-    expect(steps).toBe(run.map.columns.length - 1);
-    expect(run.position.startsWith(`${run.map.columns.length - 1}-`)).toBe(true);
+    for (const id of ['1a', '2', '3a', '4']) run = travelTo(run, id, testData).run;
+    expect(isMapComplete(run)).toBe(true);
+  });
+});
+
+describe('levels', () => {
+  it('after a boss, the next level starts at its house; the last one wins the run', () => {
+    const run = { ...createRun(5, testData, 'basic'), position: '4', visited: ['start', '1a', '2', '3a', '4'], coins: 9, bucket: ['dummy'] };
+    expect(isLastLevel(run, testData)).toBe(false);
+    const next = enterNextLevel(run, testData);
+    expect(next).toMatchObject({ level: 1, position: START_NODE_ID, visited: [START_NODE_ID], coins: 9, bucket: ['dummy'] });
+    expect(availableDestinations(next).map((n) => n.id)).toEqual(['two-1']);
+    expect(next.map.columns[1][0].tier).toBe(2);
+    expect(isLastLevel(next, testData)).toBe(true);
+    expect(() => enterNextLevel(next, testData)).toThrow();
+  });
+
+  it('the leave node after the mini-boss is a dead end', () => {
+    const run = travelTo(travelTo(createRun(5, testData, 'basic'), '1a', testData).run, '2', testData).run;
+    const left = visitLeave(run, '3b');
+    expect(left.position).toBe('3b');
+    expect(isMapComplete(left)).toBe(true);
+    expect(() => visitLeave(run, '3a')).toThrow();
   });
 });
 
@@ -248,10 +251,7 @@ describe('events', () => {
     },
     equipment: { ...testData.equipment, duck: { id: 'duck', name: 'Duck', description: '', effects: [{ type: 'passerbyBonus' as const, bonusPercent: 50 }] } },
   };
-  const eventNode = (run: ReturnType<typeof createRun>) => {
-    const node = { ...run.map.columns[1][0], kind: 'event' as const, creatureType: null };
-    return { ...run, map: { columns: [run.map.columns[0], [node, ...run.map.columns[1].slice(1)], ...run.map.columns.slice(2)] } };
-  };
+  const eventNode = (run: RunState) => withNodeKind(run, '1a', 'event');
 
   it('visiting an event moves there and draws one; fights refuse event nodes and vice versa', () => {
     const run = eventNode(createRun(5, data, 'basic'));
@@ -293,6 +293,7 @@ describe('events', () => {
     const fights = visits.filter((v) => v.combat);
     expect(fights.length / visits.length).toBeGreaterThan(EVENT_FIGHT_CHANCE - 0.03);
     expect(fights.length / visits.length).toBeLessThan(EVENT_FIGHT_CHANCE + 0.03);
+    // Any creature of the level's tier.
     for (const v of fights) expect(v.combat!.enemies.map((e) => e.defId)).toEqual(['dummy']);
     expect(visits.every((v) => v.run.position === target.id)).toBe(true);
   });
@@ -314,35 +315,11 @@ describe('shop', () => {
   };
   const [heart, cut] = data.shop;
 
-  it('the harbour column has 3–4 nodes: one dead-end finish node, the rest shops every route can reach', () => {
-    for (let seed = 1; seed <= 60; seed++) {
-      const { columns } = createRun(seed, data, 'basic').map;
-      const [before, harbour, after] = [columns[SHOP_COLUMNS[0] - 1], columns[SHOP_COLUMNS[0]], columns[SHOP_COLUMNS[0] + 1]];
-      expect(harbour.length).toBeGreaterThanOrEqual(3);
-      expect(harbour.length).toBeLessThanOrEqual(4);
-      expect([...harbour.map((n) => n.kind)].sort()).toEqual(['leave', ...Array(harbour.length - 1).fill('shop')]);
-      const leave = harbour.find((n) => n.kind === 'leave')!;
-      expect(leave.next).toEqual([]);
-      for (const node of before) {
-        expect(node.next.some((id) => harbour.find((h) => h.id === id)?.kind === 'shop'), `seed ${seed} ${node.id}`).toBe(true);
-      }
-      for (const h of harbour) expect(before.some((n) => n.next.includes(h.id)), `seed ${seed} ${h.id}`).toBe(true);
-      for (const a of after) expect(harbour.some((n) => n.next.includes(a.id)), `seed ${seed} ${a.id}`).toBe(true);
-    }
-    // Content with nothing to sell has no harbour.
-    expect(createRun(5, testData, 'basic').map.columns[SHOP_COLUMNS[0]].every((n) => n.kind === 'fight')).toBe(true);
-  });
-
-  it('only a finish node can be visited as one', () => {
-    const run = createRun(5, data, 'basic');
-    const harbour = run.map.columns[SHOP_COLUMNS[0]];
-    const leave = harbour.find((n) => n.kind === 'leave')!;
-    const shop = harbour.find((n) => n.kind === 'shop')!;
-    const before = { ...run, position: run.map.columns[SHOP_COLUMNS[0] - 1].find((n) => n.next.includes(leave.id))!.id };
-    expect(visitLeave(before, leave.id).position).toBe(leave.id);
-    expect(() => visitShop(before, leave.id)).toThrow();
-    const nextToShop = { ...run, position: run.map.columns[SHOP_COLUMNS[0] - 1].find((n) => n.next.includes(shop.id))!.id };
-    expect(() => visitLeave(nextToShop, shop.id)).toThrow();
+  it('only a shop can be visited as one', () => {
+    const run = withNodeKind(createRun(5, data, 'basic'), '1a', 'shop');
+    expect(visitShop(run, '1a').position).toBe('1a');
+    expect(() => visitShop(run, '1b')).toThrow();
+    expect(() => travelTo(run, '1a', data)).toThrow();
   });
 
   it('a heart costs coins and heals up to max HP, as often as you can pay', () => {
@@ -361,5 +338,21 @@ describe('shop', () => {
     expect(after).toMatchObject({ deck: ['defend'], coins: 30 });
     expect(shopItemBlocked(cut, { ...after, deck: ['a', 'b'] }, visit)).toBe('Sold out.');
     expect(() => buyShopItem(run, { bought: {} }, 'cut', data)).toThrow();
+  });
+});
+
+describe('treasure', () => {
+  const chest = { id: 'chest', name: 'Chest', description: '', treasure: true, choices: [{ label: 'Take', effects: [{ type: 'gainCoins' as const, amount: 25 }] }] };
+  const rest = { id: 'rest', name: 'Rest', description: '', choices: [{ label: 'Rest', effects: [] }] };
+  const data = { ...testData, events: { chest, rest } };
+
+  it('treasure nodes draw treasure events, which never happen on event nodes', () => {
+    const run = withNodeKind(withNodeKind(createRun(5, data, 'basic'), '1a', 'treasure'), '1b', 'event');
+    expect(visitTreasure(run, '1a', data)).toMatchObject({ eventId: 'chest', run: { position: '1a' } });
+    expect(() => visitTreasure(run, '1b', data)).toThrow();
+    for (let seed = 0; seed < 30; seed++) {
+      const visit = visitEvent({ ...run, rng: seed }, '1b', data);
+      if (!visit.combat) expect(visit.eventId).toBe('rest');
+    }
   });
 });

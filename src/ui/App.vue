@@ -83,8 +83,10 @@ function newRunFromMenu() {
         <SessionSlots :brought="brought" :data="data" @remove="game.unbring" />
       </div>
     </div>
-    <div v-else-if="screen === 'map'" class="map-layout">
-      <MapView :run="run" :data="data" @travel="game.travel" />
+    <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
+    <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
+      <MapView v-if="screen === 'map'" :run="run" :data="data" @travel="game.travel" />
+      <ShopScreen v-else class="shop-panel" :run="run" :data="data" :visit="shopVisit" @buy="game.buy" @leave="game.leaveShop" />
       <Aquarium
         class="aquarium"
         :creatures="run.bucket"
@@ -108,31 +110,23 @@ function newRunFromMenu() {
       @restart="newRun"
     />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
-    <ShopScreen
-      v-else-if="screen === 'shop'"
-      :run="run"
-      :data="data"
-      :visit="shopVisit"
-      @buy="game.buy"
-      @leave="game.leaveShop"
-    />
     <section v-else-if="screen === 'leave'" class="complete">
-      <div class="leave-icon">🚪</div>
-      <h2>Finish the session?</h2>
+      <div class="leave-icon">🏠</div>
+      <h2>Head home?</h2>
       <p>
         This ends your run here. The {{ run.bucket.length }} creature{{ run.bucket.length === 1 ? '' : 's' }} in your
         bucket {{ run.bucket.length === 1 ? 'joins' : 'join' }} your home aquarium.
       </p>
       <div class="complete-actions">
         <button class="ghost" @click="game.cancelLeave">Go back</button>
-        <button @click="game.finishSession">Finish the session</button>
+        <button @click="game.finishSession">Head home</button>
       </div>
     </section>
     <RewardScreen v-else-if="screen === 'reward'" :choices="rewardChoices" :data="data" @choose="game.chooseReward" />
     <section v-else-if="screen === 'complete'" class="complete">
       <template v-if="runEnd !== 'fled'">
         <h2>{{ runEnd === 'won' ? 'Run complete!' : 'Heading home' }}</h2>
-        <p v-if="runEnd === 'won'">You cleared every fight on the map with {{ run.hp }} HP left.</p>
+        <p v-if="runEnd === 'won'">You beat every boss of the coast, from kid to elder, with {{ run.hp }} HP left.</p>
         <p v-else>You call it a day halfway along the shore, with {{ run.hp }} HP left.</p>
         <p>
           🪣 → 🏠 {{ run.bucket.length }} creature{{ run.bucket.length === 1 ? '' : 's' }} from your bucket
@@ -166,6 +160,7 @@ function newRunFromMenu() {
   padding-bottom: 12px;
 }
 .map-layout .aquarium { flex: 1; }
+.map-layout .shop-panel { flex-shrink: 0; padding-top: 2vh; }
 
 /* Build choices on top (scrolling if needed), the aquarium on the bottom half. */
 .build-layout {

@@ -8,7 +8,9 @@ import { encounters } from './encounters';
 import { enemies } from './enemies';
 import { equipment } from './equipment';
 import { events } from './events';
+import { levels } from './levels';
 import { shop } from './shop';
+import { spots } from './spots';
 
 export const contentSource: ContentSource = {
   character,
@@ -21,6 +23,8 @@ export const contentSource: ContentSource = {
   events,
   shop,
   companionBonuses,
+  spots,
+  levels,
 };
 
 /** Validated, id-indexed content. Throws at startup if any data is inconsistent. */

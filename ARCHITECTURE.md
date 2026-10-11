@@ -15,7 +15,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 ## State model
 
 - **`GameData`** (`engine/types.ts`): all content, indexed by id. It never changes during a game.
-- **`RunState`** (`engine/run.ts`): everything that lasts between fights: build, HP, deck, coins, equipment, map, position, and the **bucket** (see Aquariums).
+- **`RunState`** (`engine/run.ts`): everything that lasts between fights: build, HP, deck, coins, equipment, level, map, position, and the **bucket** (see Aquariums).
 - **`CombatState`** (`engine/types.ts`): one fight: player, enemies, card piles, turn, phase, log.
 - **Plain JSON only.** Both states are plain, JSON-serialisable data, which is what makes saving trivial.
 - **Immutable updates.** Engine functions never mutate their input: they `clone` it and return the new state. `applyAction` returns the very same object when an action is illegal.
@@ -26,11 +26,13 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 
 ```
 menu ──New run──▶ build ──Select──▶ map ──▶ fight ──win──▶ card reward ──▶ map …
-  ▲                                  │  └─▶ event (10%: a fight instead) ─▶ map
-  │                                  ├────▶ shop (column 10) ──▶ map
-  │                                  └────▶ 🚪 finish the session (column 10) ──confirm──▶ complete
-  │                                                                       └──Go back──▶ map
-  └──── Menu button (any screen) ◀── complete (boss beaten, session finished, or boss fled) / defeat
+  ▲                                  │  ├─▶ event (10%: a fight instead) ─▶ map
+  │                                  │  ├─▶ treasure ─▶ map
+  │                                  │  └─▶ shop ─▶ map
+  │                                  ├── boss beaten ─▶ card reward ─▶ next level's map (Kid → Adult → Elder)
+  │                                  └── ⌂ head home (after a mini-boss) ──confirm──▶ complete
+  │                                                                  └──Go back──▶ map
+  └──── Menu button (any screen) ◀── complete (Elder boss beaten, headed home, or a boss fled) / defeat
 ```
 
 - **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature. Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), and how many are in the home aquarium.
@@ -38,24 +40,32 @@ menu ──New run──▶ build ──Select──▶ map ──▶ fight ─�
 
 ## A run
 
-- **Map** (`engine/map.ts`), generated from the run seed in the style of Slay the Spire:
-  - **Size:** 21 columns. The start, the boss (last column) and any choke columns (`CHOKE_COLUMNS`, currently none) are single nodes that every route goes through.
-  - **Harbour column** (`SHOP_COLUMNS`, column 10, only when the content has shop items): a fixed column of 3–4 nodes in random lanes. One, drawn at random, is the **finish the session** node (`leave`); the rest are shops.
-    - **The finish node is a dead end:** no links out.
-    - **Links in and out** (`linkByLane`): each node links to the nodes in its own lane and the lanes either side. Every column-9 node is guaranteed at least one shop, so no route is forced to finish, and every node on both sides stays reachable. These are the only links on the map that may cross.
-  - **Paths:** between them, `MAP_PATHS` paths walk across `MAP_LANES` lanes. Each step stays in its lane or moves one lane up or down, and never crosses an existing link. Nodes are wherever a path passes.
-  - **Node kinds:** `start`, `fight`, `event`, `shop` or `leave`. About 30% of nodes are events (from `FIRST_EVENT_COLUMN` on, never more than `MAX_EVENTS_IN_A_ROW` along any route).
+- **Levels** (`content/levels.ts`): a run is three acts played in order, **Kid**, **Adult** and **Elder** (`RunState.level`), on the same family coast. Each age reaches more of it.
+  - **Shape:** 15 columns of nodes, a mini-boss in column 8, and the boss alone in column 16. The start (the grandparents' house) leads to every node of column 1.
+  - **Hand-made:** every node is written out: its `column`, its position on the art (`x`, `y`), its `kind` and its links (`next`). Editing a level is editing that list.
+  - **Node kinds:** `fight`, `event`, `shop`, `treasure`, `leave` (head home), `miniBoss` and `boss`.
+  - **Head home:** the mini-boss leads to at least two nodes, one of them a `leave` node. That's a dead end that ends the run as a success.
+  - **Next level:** beating a level's boss (`claimVictory`) moves the run to the next level's start (`enterNextLevel`), keeping everything else (HP, deck, bucket, coins). Beating the last boss wins the run.
+  - **Checked on startup:** `validateLevels` (`engine/data.ts`) refuses broken maps with a readable message:
+    - **Columns:** none missing, the boss alone in the last one, links only going forward.
+    - **Mini-boss:** exactly one, and it leads to a leave node.
+    - **Nodes:** every one reachable, and every fight with its creatures.
+  - **The map** (`engine/map.ts`): `buildLevelMap` turns a level into the `GameMap` the run plays, with the start node added.
+- **Fishing spots** (`content/spots.ts`, the legend: rock pools, jetty, reef…): a fight node's `spot` decides who it meets. `encountersFor` draws among encounters whose creatures live in the spot's `waters` (each creature's `water`) and, if the spot lists `types`, are of one of them, at the level's `tier`. When nothing fits, it widens: first any creature type from those waters, then any tier, then anything at the tier.
+  - **Narrowing a fight:** a node can add `creatureType` to meet only that type at its spot, or `enemies` to meet exactly those creatures. Mini-bosses and bosses use `enemies`.
 - **Fights:**
-  - **On the map:** a fight node shows a creature type and a depth tier, not a specific creature.
-  - **On arrival:** `travelTo` draws an encounter of that type and tier (`encountersFor`).
+  - **On the map:** a fight node shows its fishing spot, not a specific creature (bosses show their name).
+  - **On arrival:** `travelTo` draws an encounter from its spot at the level's tier (`encountersFor`). A companion gains a bond point at every fight.
 - **Events:**
-  - **On arrival:** `visitEvent` either starts a surprise fight (`EVENT_FIGHT_CHANCE`, 10%) or draws one of the events allowed at that column (`minColumn`).
+  - **On arrival:** `visitEvent` either starts a surprise fight against any creature of the level's tier (`EVENT_FIGHT_CHANCE`, 10%) or draws one of the events allowed at that column (`minColumn`).
+  - **Treasure nodes** (`visitTreasure`) draw among the events marked `treasure` instead, which never come up as ordinary events.
   - **Choices:** each choice is a list of `EventEffect`s, applied by `applyEventChoice` (`engine/events.ts`).
 - **Shop:**
   - **Visiting:** `visitShop`, then `buyShopItem` with a `ShopVisit` that tracks purchases for that visit (`engine/shop.ts`).
   - **Limits:** items can have a per-visit `limit`.
-- **Finish the session:**
-  - **Confirming:** clicking the 🚪 node opens a confirmation without moving (`leaveNodeId` in `useGame.ts`). **Go back** returns to the map; that prompt is never saved, so a resume lands on the map.
+  - **Paying:** the bucket stays in view under the shop, so creatures can be sold there to afford things.
+- **Head home** (the `leave` node after each mini-boss):
+  - **Confirming:** clicking the ⌂ node opens a confirmation without moving (`leaveNodeId` in `useGame.ts`). **Go back** returns to the map; that prompt is never saved, so a resume lands on the map.
   - **Finish:** `visitLeave` moves onto the node and the run ends as a success, so the bucket comes home.
 - **End of a fight** (`finishCombat`): carries HP over. A win also adds one to the floor counter and puts every enemy into the bucket, unless equipment sells it on the spot.
 
@@ -87,7 +97,7 @@ There are two separate collections of creatures. They never share creatures, exc
 | What | The creatures caught during the current run | The creatures brought back from won runs |
 | Where in code | `RunState.bucket` (creature ids) | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
-| Shown | Below the map (🪣 Bucket) | Menu background, build selection (🏠 Home aquarium) |
+| Shown | Below the map and the shop (🪣 Bucket) | Menu background, build selection (🏠 Home aquarium) |
 | Interactive | Yes: click a creature to sell it for coins | On the build screen only: click a creature to bring it for the session |
 
 **Lifecycle:**
@@ -149,12 +159,12 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 - **Where:** in the desktop app, in the app's data folder (`app.getPath('userData')`, e.g. `~/Library/Application Support/Slay the Fish`). In a browser, localStorage under `slay-the-fish:save` and `slay-the-fish:profile`.
 - **Desktop bridge:** `electron/preload.cjs` exposes `window.desktop.readData / writeData / deleteData(name)` and `quit()`. `electron/main.js` only accepts the names in `DATA_FILES`, so the page can't touch any other file.
 - **Safe writes:** a file is written to `name.json.tmp`, then renamed over the real one, so a crash mid-write can't corrupt it. Writes are queued one after another, so an older write can never land after a newer one.
-- **Versions** (`SAVE_VERSION`, currently 4, and `PROFILE_VERSION`, currently 4). When a saved shape changes:
+- **Versions** (`SAVE_VERSION`, currently 5, and `PROFILE_VERSION`, currently 4). When a saved shape changes:
   1. Bump the version.
   2. Convert older files in `upgradeSave` (or the profile's equivalent).
   3. A file that can't be upgraded is ignored rather than crashing: no Resume, or a fresh profile.
 
-  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond.
+  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond. Version 4 saves were on a generated map: they can't be resumed.
 - **Resume** restores every saved field, so the player returns to the same screen. Mid-fight saves include the hand, energy and Panic.
 
 ## Desktop app and releases
@@ -169,7 +179,12 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 
 - **Sprite sheets** are registered in `ui/sprites.ts` (`SHEETS`) and referenced from content as `{ sheet, index }` (1-based).
 - **Animated creature sheets** (`assets/creatures/NNN.png`, 6 frames × 4 rows: idle, attack, capture, flee) come from `scripts/generate-creature-sprites.mjs`.
-- **Map terrain patches** (`assets/terrain.png`, one 40×40 tile per creature type) come from `scripts/generate-map-terrain.mjs`. Each creature type points to its tile with `terrain` in `content/creatureTypes.ts`.
+- **The family coast** (`assets/coast.svg`, 1200×600) is the background of every level's map, from the map sketch. `MapView.vue` draws on top of it:
+  - **Reach:** the shading outside the level's reach (`reach`).
+  - **Links:** the links between nodes.
+  - **Nodes:** fights in their spot's colour with its code, ? / $ / T for events, shops and treasure, ⌂ for heading home, a diamond for the mini-boss and a ring for the boss.
+  - **Legend:** a **Legend** button shows it, built from the spots.
+- **Map terrain patches** (`assets/terrain.png`, from `scripts/generate-map-terrain.mjs`) were drawn under fights on the old generated map. Nothing uses them now; `terrain` in `content/creatureTypes.ts` is kept for later.
 - **Eggs** (`assets/eggs/<colour>.png`: idle row, then hatching row, 32×32 frames) are cut from `assets/egg.png` (art by VIERGACHT) by `scripts/extract-eggs.mjs`. They're used through `eggClip` in `ui/sprites.ts`.
 
 ## Testing
@@ -177,18 +192,18 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 - **Running them:** `npm test` (Vitest) and `npm run typecheck`.
 - **Engine tests** use `tests/fixtures.ts`, small content with fixed numbers, so rebalancing real content doesn't break them.
 - **Content tests** run against the real data.
-- **Determinism:** many map tests check rules across many seeds rather than one example.
+- **Levels:** `tests/map.test.ts` checks the real levels (shape, the head-home node, every fight finding creatures from its own spot at its tier) and the validation messages.
 - **Not covered:** the UI layer and `saveStore.ts` have no automated tests. They were checked by hand in the browser and with an Electron smoke test.
 
 ## Tuning knobs
 
 | Setting | Where | What it controls |
 |---|---|---|
-| `MAP_COLUMNS`, `MAP_LANES`, `MAP_PATHS`, `CHOKE_COLUMNS`, `SHOP_COLUMNS` | `engine/map.ts` | Map length, width, density, single-node columns, shop and finish-node column |
-| `EVENT_CHANCE`, `MAX_EVENTS_IN_A_ROW`, `FIRST_EVENT_COLUMN` | `engine/map.ts` | Share and spread of events |
+| Nodes, links, bosses, reach, tier | `content/levels.ts` | Each level's map and who you meet |
+| Waters and creature types per spot | `content/spots.ts` | Which creatures each fishing spot can bring |
 | `EVENT_FIGHT_CHANCE`, `CARD_REWARD_COUNT` | `engine/run.ts` | Surprise fights in events, card choices after a win |
 | `STARTING_HAND_SIZE`, `BASE_ENERGY`, `VULNERABLE_MULTIPLIER`, `WEAK_MULTIPLIER` | `engine/constants.ts` | Combat basics |
-| `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier` | `content/creatures.ts` | Per-creature balance |
+| `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier`, `water` | `content/creatures.ts` | Per-creature balance, and where it lives |
 | Item prices and limits | `content/shop.ts` | Shop |
 | Temperament bonuses, `COMPANION_SCALE_CAP`, `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales |
 | `BOND_BY_TIER`, `bondToFull`, `BOND_PER_ENCOUNTER`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |

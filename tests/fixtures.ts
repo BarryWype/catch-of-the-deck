@@ -1,4 +1,4 @@
-import { applyAction, buildGameData, createCombat, type CombatState, type CompanionEffect } from '../src/engine';
+import { applyAction, buildGameData, createCombat, type CombatState, type CompanionEffect, type GameMap, type MapNodeKind } from '../src/engine';
 
 /**
  * Test-only content with fixed numbers, so engine tests don't break when a
@@ -31,12 +31,12 @@ export const testData = buildGameData({
   ],
   enemies: [
     {
-      id: 'dummy', name: 'Dummy', hp: [100, 100], sellValue: 5, escapeAt: 1000, escapeStart: 4, escapeRate: 1, tags: ['fish'],
+      id: 'dummy', name: 'Dummy', hp: [100, 100], sellValue: 5, escapeAt: 1000, escapeStart: 4, escapeRate: 1, tags: ['fish'], water: 'salt',
       moves: [{ id: 'hit', name: 'Hit', effects: [{ type: 'dealDamage', amount: 10 }] }],
       pattern: { type: 'sequence', moves: ['hit'] },
     },
     {
-      id: 'cycler', name: 'Cycler', hp: [20, 30], escapeAt: 1000, escapeStart: 4, escapeRate: 1, tags: ['shell'],
+      id: 'cycler', name: 'Cycler', hp: [20, 30], escapeAt: 1000, escapeStart: 4, escapeRate: 1, tags: ['shell'], water: 'salt',
       moves: [
         { id: 'a', name: 'A', effects: [{ type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }] },
         { id: 'b', name: 'B', effects: [{ type: 'gainBlock', amount: 5 }] },
@@ -80,7 +80,38 @@ export const testData = buildGameData({
     { id: 'fish', name: 'Fish' },
     { id: 'shell', name: 'Shell' },
   ],
+  spots: [{ id: 'sea', name: 'Sea', color: '#000', waters: ['salt'], types: ['fish'] }],
+  // Two small levels: two first steps, a mini-boss leading to a leave node or on to the boss.
+  levels: [
+    {
+      id: 'one', name: 'One', tier: 1, start: { x: 0, y: 0 },
+      nodes: [
+        { id: '1a', column: 1, x: 10, y: 10, kind: 'fight', spot: 'sea', next: ['2'] },
+        { id: '1b', column: 1, x: 10, y: 20, kind: 'fight', enemies: ['cycler'], next: ['2'] },
+        { id: '2', column: 2, x: 20, y: 10, kind: 'miniBoss', enemies: ['gambler'], next: ['3a', '3b'] },
+        { id: '3a', column: 3, x: 30, y: 10, kind: 'fight', spot: 'sea', next: ['4'] },
+        { id: '3b', column: 3, x: 30, y: 20, kind: 'leave', next: [] },
+        { id: '4', column: 4, x: 40, y: 10, kind: 'boss', enemies: ['dummy'], next: [] },
+      ],
+    },
+    {
+      id: 'two', name: 'Two', tier: 2, start: { x: 0, y: 0 },
+      nodes: [
+        { id: 'two-1', column: 1, x: 10, y: 10, kind: 'fight', spot: 'sea', next: ['two-2'] },
+        { id: 'two-2', column: 2, x: 20, y: 10, kind: 'miniBoss', enemies: ['dummy'], next: ['two-3a', 'two-3b'] },
+        { id: 'two-3a', column: 3, x: 30, y: 10, kind: 'fight', spot: 'sea', next: ['two-4'] },
+        { id: 'two-3b', column: 3, x: 30, y: 20, kind: 'leave', next: [] },
+        { id: 'two-4', column: 4, x: 40, y: 10, kind: 'boss', enemies: ['cycler', 'cycler'], next: [] },
+      ],
+    },
+  ],
 });
+
+/** The run with node `id` of its map turned into `kind` (for event, shop and treasure tests). */
+export function withNodeKind<R extends { map: GameMap }>(run: R, id: string, kind: MapNodeKind): R {
+  const columns = run.map.columns.map((column) => column.map((n) => (n.id === id ? { ...n, kind } : n)));
+  return { ...run, map: { columns } };
+}
 
 export function setup(
   deck: string[],

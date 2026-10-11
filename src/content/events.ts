@@ -1,10 +1,10 @@
 import type { EventDef } from '../engine';
 
 /**
- * Map events, met instead of a fight on about 30% of the map from column 3 on
- * (see map.ts). Which one happens is drawn on arrival, among those whose
- * `minColumn` the node has reached. Each choice's `effects` are applied
- * in order; the effect text shown to the player is generated from them.
+ * Map events, met on the levels' event nodes (levels.ts). Which one happens is drawn on
+ * arrival, among those whose `minColumn` the node has reached. Events marked `treasure` are only
+ * met on treasure nodes instead. Each choice's `effects` are applied in order; the effect text
+ * shown to the player is generated from them.
  */
 export const events: EventDef[] = [
   {
@@ -33,6 +33,17 @@ export const events: EventDef[] = [
     choices: [
       { label: 'Pry it open', effects: [{ type: 'loseHp', amount: 5 }, { type: 'cardReward' }] },
       { label: 'Leave it', effects: [] },
+    ],
+  },
+  {
+    id: 'sunkenChest',
+    name: 'Sunken Chest',
+    icon: '💰',
+    treasure: true,
+    description: 'Half buried in the sand, an old chest. The lock gave up years ago.',
+    choices: [
+      { label: 'Take the coins', effects: [{ type: 'gainCoins', amount: 25 }] },
+      { label: 'Look for something useful', effects: [{ type: 'cardReward' }] },
     ],
   },
 ];

@@ -163,6 +163,18 @@ describe('content validation', () => {
     events: [],
     shop: [],
     companionBonuses: [],
+    spots: [],
+    levels: [
+      {
+        id: 'l', name: 'L', tier: 1, start: { x: 0, y: 0 },
+        nodes: [
+          { id: 'm', column: 1, x: 0, y: 0, kind: 'miniBoss', enemies: ['e'], next: ['out', 'f'] },
+          { id: 'out', column: 2, x: 0, y: 0, kind: 'leave', next: [] },
+          { id: 'f', column: 2, x: 0, y: 0, kind: 'fight', enemies: ['e'], next: ['b'] },
+          { id: 'b', column: 3, x: 0, y: 0, kind: 'boss', enemies: ['e'], next: [] },
+        ],
+      },
+    ],
   };
 
   it('accepts valid content', () => {

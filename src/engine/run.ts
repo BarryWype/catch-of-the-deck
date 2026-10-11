@@ -2,7 +2,7 @@ import { addBond, BOND_PER_ENCOUNTER, type HomeCreature } from './bond';
 import { createCombat } from './combat';
 import { bonusTotal, companionEffects } from './companions';
 import { instantSaleValue, saleValue } from './equipment';
-import { encountersFor, findNode, generateMap, typesAtTier, type GameMap, type MapNode } from './map';
+import { buildLevelMap, encountersFor, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
 import type { CombatState, GameData } from './types';
 import { clone } from './util';
@@ -17,6 +17,9 @@ export interface RunState {
   maxHp: number;
   deck: string[];
   floor: number;
+  /** Index in `GameData.levels` of the level being played (an act of the run). */
+  level: number;
+  /** That level's map. */
   map: GameMap;
   /** Id of the map node the player is standing on. */
   position: string;
@@ -41,13 +44,12 @@ export interface RunState {
 export const CARD_REWARD_COUNT = 3;
 /** Chance that an event turns out to be an ordinary fight. */
 export const EVENT_FIGHT_CHANCE = 0.1;
-export const START_NODE_ID = '0-0';
 /** How many home-aquarium creatures the player can bring along in the bucket. */
 export const SESSION_SLOTS = 3;
 
 /**
- * Start a run with the chosen build's starter deck, and `brought` (creatures taken from the
- * home aquarium, see `takeFromHome`) already in the bucket. The map depends only on the seed.
+ * Start a run on the first level, with the chosen build's starter deck, and `brought` (creatures
+ * taken from the home aquarium, see `takeFromHome`) already in the bucket.
  */
 export function createRun(seed: number, data: GameData, buildId: string, brought: readonly HomeCreature[] = []): RunState {
   const build = data.builds[buildId];
@@ -62,7 +64,8 @@ export function createRun(seed: number, data: GameData, buildId: string, brought
     maxHp,
     deck: [...build.starterDeck],
     floor: 1,
-    map: { columns: [] },
+    level: 0,
+    map: buildLevelMap(data.levels[0]),
     position: START_NODE_ID,
     visited: [START_NODE_ID],
     bucket: brought.map((c) => c.id),
@@ -70,11 +73,22 @@ export function createRun(seed: number, data: GameData, buildId: string, brought
     coins: 0,
     equipment: [...(build.startingEquipment ?? [])],
   };
-  run.map = generateMap(run, data);
   return run;
 }
 
-/** Nodes the player can travel to next (1–3, or none at the end of the map). */
+/** Is the run on its last level? Beating that level's boss wins the run. */
+export function isLastLevel(run: RunState, data: GameData): boolean {
+  return run.level >= data.levels.length - 1;
+}
+
+/** After a level's boss: the next level, back at the start of its map. Everything else carries over. */
+export function enterNextLevel(run: RunState, data: GameData): RunState {
+  if (isLastLevel(run, data)) throw new Error('There is no level after this one.');
+  const level = run.level + 1;
+  return { ...clone(run), level, map: buildLevelMap(data.levels[level]), position: START_NODE_ID, visited: [START_NODE_ID] };
+}
+
+/** Nodes the player can travel to next (none at the boss or a leave node, which end the level or the run). */
 export function availableDestinations(run: RunState): MapNode[] {
   const current = findNode(run.map, run.position);
   return (current?.next ?? []).map((id) => findNode(run.map, id)!);
@@ -84,25 +98,25 @@ export function isMapComplete(run: RunState): boolean {
   return availableDestinations(run).length === 0;
 }
 
-/** A copy of the run standing on an adjacent node of `kind`. Throws if there's no such node. */
-function moveTo(run: RunState, nodeId: string, kind: MapNode['kind']): { next: RunState; node: MapNode } {
+/** A copy of the run standing on an adjacent node of one of `kinds`. Throws if there's no such node. */
+function moveTo(run: RunState, nodeId: string, ...kinds: MapNode['kind'][]): { next: RunState; node: MapNode } {
   const node = availableDestinations(run).find((n) => n.id === nodeId);
-  if (!node || node.kind !== kind) throw new Error(`Can't travel to a ${kind} at "${nodeId}" from "${run.position}".`);
+  if (!node || !kinds.includes(node.kind)) throw new Error(`Can't travel to a ${kinds.join('/')} at "${nodeId}" from "${run.position}".`);
   const next = clone(run);
   next.position = node.id;
   next.visited.push(node.id);
   return { next, node };
 }
 
-/** Move to an adjacent fight and start it. Throws if the node isn't a reachable fight. */
+/** Move to an adjacent fight (mini-boss and boss included) and start it. Throws if the node isn't a reachable fight. */
 export function travelTo(run: RunState, nodeId: string, data: GameData): { run: RunState; combat: CombatState } {
-  const { next, node } = moveTo(run, nodeId, 'fight');
+  const { next, node } = moveTo(run, nodeId, 'fight', 'miniBoss', 'boss');
   return { run: next, combat: startFight(next, node, data) };
 }
 
 /**
- * Start the fight at `node` (advancing `next`'s RNG): an encounter of its creature
- * type and tier, which is only decided on arrival.
+ * Start the fight at `node` (advancing `next`'s RNG): an encounter from its fishing spot at its
+ * tier (`encountersFor`), only decided on arrival.
  */
 function startFight(next: RunState, node: MapNode, data: GameData): CombatState {
   const pool = encountersFor(node, data);
@@ -124,9 +138,9 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
 }
 
 /**
- * Move to an adjacent event. With `EVENT_FIGHT_CHANCE` it's an ordinary fight against a
- * creature type found at that depth; otherwise the event is drawn among those allowed at
- * that column.
+ * Move to an adjacent event. With `EVENT_FIGHT_CHANCE` it's an ordinary fight against any
+ * creature of the level's tier; otherwise the event is drawn among those allowed at that column
+ * (treasure events aside).
  */
 export function visitEvent(
   run: RunState,
@@ -135,14 +149,20 @@ export function visitEvent(
 ): { run: RunState; eventId: string; combat?: undefined } | { run: RunState; combat: CombatState; eventId?: undefined } {
   const { next, node } = moveTo(run, nodeId, 'event');
   if (nextFloat(next) < EVENT_FIGHT_CHANCE) {
-    const types = typesAtTier(node.tier, data);
-    const fightNode = { ...node, creatureType: types[nextInt(next, 0, types.length - 1)] };
-    return { run: next, combat: startFight(next, fightNode, data) };
+    return { run: next, combat: startFight(next, { ...node, kind: 'fight', spot: null, creatureType: null, enemies: null }, data) };
   }
   const ids = Object.values(data.events)
-    .filter((e) => node.column >= (e.minColumn ?? 0))
+    .filter((e) => !e.treasure && node.column >= (e.minColumn ?? 0))
     .map((e) => e.id);
   if (!ids.length) throw new Error(`No event can happen at column ${node.column}.`);
+  return { run: next, eventId: ids[nextInt(next, 0, ids.length - 1)] };
+}
+
+/** Move to an adjacent treasure: one of the treasure events, drawn on arrival. */
+export function visitTreasure(run: RunState, nodeId: string, data: GameData): { run: RunState; eventId: string } {
+  const { next } = moveTo(run, nodeId, 'treasure');
+  const ids = Object.values(data.events).filter((e) => e.treasure).map((e) => e.id);
+  if (!ids.length) throw new Error('There is no treasure event.');
   return { run: next, eventId: ids[nextInt(next, 0, ids.length - 1)] };
 }
 

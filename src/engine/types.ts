@@ -185,6 +185,8 @@ export interface EventDef {
   icon?: string;
   /** Only drawn on map columns from this one on. Anywhere events can be if omitted. */
   minColumn?: number;
+  /** Only met on treasure nodes, never as an ordinary event. */
+  treasure?: boolean;
   choices: EventChoice[];
 }
 
@@ -258,6 +260,58 @@ export interface EnemyDef {
   temperament?: string;
   /** Bond points to be fully bonded once it lives in the home aquarium (see bond.ts). Defaults to 100. */
   bondToFull?: number;
+  /** 'fresh', 'salt' or 'brackish': which fishing spots it can be met at (`SpotDef.waters`). */
+  water?: string;
+}
+
+/** A kind of fishing spot on the map (the legend: rock pools, jetty, reef…). It decides who a fight there meets. */
+export interface SpotDef {
+  /** Short code shown on the map node, e.g. 'RP'. */
+  id: string;
+  name: string;
+  /** Node colour. Display-only. */
+  color: string;
+  /** Creatures living in these waters (`EnemyDef.water`) can be met here… */
+  waters: string[];
+  /** …if they're one of these creature types. Any type if omitted. */
+  types?: string[];
+}
+
+export type LevelNodeKind = 'fight' | 'event' | 'shop' | 'treasure' | 'leave' | 'miniBoss' | 'boss';
+
+/** One node of a hand-made level map. */
+export interface LevelNodeDef {
+  /** Unique across every level. */
+  id: string;
+  /** 1 = the first step from home. Links (`next`) always go to a later column. */
+  column: number;
+  /** Position on the coast art (1200×600). Display-only. */
+  x: number;
+  y: number;
+  kind: LevelNodeKind;
+  /** Fights: the fishing spot, which picks the creatures (see `encountersFor`). */
+  spot?: string;
+  /** Fights: only creatures of this type. */
+  creatureType?: string;
+  /** Fights: exactly these creatures, instead of drawing them. Mini-bosses and bosses use it. */
+  enemies?: string[];
+  /** Name shown on the map, e.g. "Lighthouse Point" for a boss. Display-only. */
+  label?: string;
+  /** Ids of the nodes this one leads to. Empty for the boss and for leave nodes, which end the level or the run. */
+  next: string[];
+}
+
+/** One act of a run, played on its own hand-made map. */
+export interface LevelDef {
+  id: string;
+  name: string;
+  /** Creature tier its fights draw from (1 = shallow, 3 = deep). */
+  tier: number;
+  /** Where the run starts on the art (the grandparents' house). Display-only. */
+  start: { x: number; y: number };
+  /** The area in reach this level, as an SVG path on the art; outside is shaded. Everything if omitted. Display-only. */
+  reach?: string;
+  nodes: LevelNodeDef[];
 }
 
 /** `swim` back and forth, `drift` slowly up and down, or crawl along the `bottom`. */
@@ -284,6 +338,9 @@ export interface GameData {
   shop: ShopItemDef[];
   /** Keyed by temperament id. */
   companionBonuses: Record<string, CompanionBonusDef>;
+  spots: Record<string, SpotDef>;
+  /** Played in order, one per act of a run. */
+  levels: LevelDef[];
 }
 
 // ---------------------------------------------------------------------------
