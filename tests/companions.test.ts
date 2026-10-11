@@ -13,22 +13,25 @@ import {
 import { gameData } from '../src/content';
 import { endTurn, play, repeat, setup, testData } from './fixtures';
 
+/** Brought creatures with no bond yet. */
+const pets = (...ids: string[]) => ids.map((id) => ({ id, bond: 0 }));
+
 const trigger = (on: Extract<CompanionEffect, { type: 'trigger' }>['on'], effect: Extract<CompanionEffect, { type: 'trigger' }>['effect']) =>
   ({ type: 'trigger', on, effect }) as const;
 
 describe('companion bonus scaling', () => {
   it('counts different species only: 1 species ×1, 2 species ×2, 3 species ×2 plus the full-school extra', () => {
-    expect(companionEffects(['shellA'], testData)).toContainEqual({ type: 'bonusBlock', amount: 1 });
-    expect(companionEffects(['shellA', 'shellA'], testData)).toContainEqual({ type: 'bonusBlock', amount: 1 });
-    expect(companionEffects(['shellA', 'shellB'], testData)).toContainEqual({ type: 'bonusBlock', amount: 2 });
-    const school = companionEffects(['shellA', 'shellB', 'shellC'], testData);
+    expect(companionEffects(pets('shellA'), testData)).toContainEqual({ type: 'bonusBlock', amount: 1 });
+    expect(companionEffects(pets('shellA', 'shellA'), testData)).toContainEqual({ type: 'bonusBlock', amount: 1 });
+    expect(companionEffects(pets('shellA', 'shellB'), testData)).toContainEqual({ type: 'bonusBlock', amount: 2 });
+    const school = companionEffects(pets('shellA', 'shellB', 'shellC'), testData);
     expect(school).toContainEqual({ type: 'bonusBlock', amount: 2 });
     expect(school).toContainEqual({ type: 'keepBlock', amount: 2 });
-    expect(activeBonuses(['shellA', 'shellB', 'shellC'], testData)[0].species).toBe(3);
+    expect(activeBonuses(pets('shellA', 'shellB', 'shellC'), testData)[0].species).toBe(3);
   });
 
   it('creatures without a temperament bonus give nothing', () => {
-    expect(companionEffects(['dummy', 'cycler'], testData)).toEqual([]);
+    expect(companionEffects(pets('dummy', 'cycler'), testData)).toEqual([]);
   });
 
   it('every real temperament has a bonus, and every bonus can be described', () => {
@@ -41,27 +44,27 @@ describe('companion bonus scaling', () => {
 
 describe('companions in a run', () => {
   it('only brought creatures are companions; captures are angry and give nothing', () => {
-    const run = createRun(5, testData, 'basic', ['shellA']);
-    expect(run.companions).toEqual(['shellA']);
+    const run = createRun(5, testData, 'basic', pets('shellA'));
+    expect(run.companions).toEqual(pets('shellA'));
     expect(run.maxHp).toBe(85);
     expect(run.hp).toBe(85);
     const fight = travelTo(run, availableDestinations(run)[0].id, testData);
     const after = finishCombat(fight.run, { ...fight.combat, phase: 'won' }, testData);
     expect(after.bucket.length).toBeGreaterThan(1);
-    expect(after.companions).toEqual(['shellA']);
+    expect(after.companions.map((c) => c.id)).toEqual(['shellA']);
   });
 
   it('fights get the scaled bonuses', () => {
-    const run = createRun(5, testData, 'basic', ['shellA', 'shellB']);
+    const run = createRun(5, testData, 'basic', pets('shellA', 'shellB'));
     const { combat } = travelTo(run, availableDestinations(run)[0].id, testData);
     expect(combat.bonuses).toContainEqual({ type: 'bonusBlock', amount: 2 });
   });
 
   it('selling a companion ends its bonus; sales get the sell bonus, rounded up', () => {
-    const run = { ...createRun(5, testData, 'basic', ['shellA']), bucket: ['shellA', 'dummy'] };
+    const run = { ...createRun(5, testData, 'basic', pets('shellA')), bucket: ['shellA', 'dummy'] };
     const soldCapture = sellCreature(run, 1, testData);
     expect(soldCapture.coins).toBe(6); // 5 + 10%, rounded up
-    expect(soldCapture.companions).toEqual(['shellA']);
+    expect(soldCapture.companions).toEqual(pets('shellA'));
     const soldCompanion = sellCreature(run, 0, testData);
     expect(soldCompanion.companions).toEqual([]);
     expect(soldCompanion.bucket).toEqual(['dummy']);

@@ -85,7 +85,7 @@ There are two separate collections of creatures. They never share creatures, exc
 | | **Bucket** | **Home aquarium** |
 |---|---|---|
 | What | The creatures caught during the current run | The creatures brought back from won runs |
-| Where in code | `RunState.bucket` | `Profile.homeAquarium` (`ui/saveStore.ts`) |
+| Where in code | `RunState.bucket` (creature ids) | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
 | Shown | Below the map (🪣 Bucket) | Menu background, build selection (🏠 Home aquarium) |
 | Interactive | Yes: click a creature to sell it for coins | On the build screen only: click a creature to bring it for the session |
@@ -103,6 +103,15 @@ There are two separate collections of creatures. They never share creatures, exc
    - **Eggs:** each egg holds one creature id and is saved in `Profile.eggs`. `EggTray.vue` shows the eggs at the bottom of the window between runs (menu, build selection, end screen), playing the idle animation.
    - **Hatching:** clicking an egg plays the hatching animation. Then `hatchEgg` moves its creature into the home aquarium, and the creature is shown in the centre with a halo and streamers until the next click.
    - **Colours:** all eggs are beige for now. Planned rarity order: beige → white → purple → gold.
+
+**Bond** (`engine/bond.ts`): each creature in the home aquarium has its own bond points, from 0 to its `bondToFull`. That value comes from its tier (100, 200 or 400, `BOND_BY_TIER` in `content/creatures.ts`) unless the creature sets its own.
+- **Levels:** level 1 at 20%, level 2 at 50%, level 3 (fully bonded) at 100% (`BOND_LEVELS`). The aquarium shows a ♥ badge with the level (gold when fully bonded), and the full progress on hover or click.
+- **Brought along:** a companion gains `BOND_PER_ENCOUNTER` (1) point every time a fight starts during the run, event fights included (`startFight`). It keeps them only if the run succeeds, since a lost run loses the bucket. This is the only way past level 1. The run keeps each companion's bond (`RunState.companions` are `HomeCreature`s), so the right individual comes back.
+- **Left at home:** `restAtHome` adds `BOND_AT_HOME` (2) after every run that ends, but never past level 1, and never takes any away.
+- **New arrivals:** creatures caught during a run start at 0; hatchlings start at level 1 (`hatchling`).
+- **Order at a run's end** (`endRun` in `useGame.ts`): the creatures at home rest, then a successful run brings its bucket home, then eggs are laid.
+- **Picking companions:** the build screen picks individuals by their index in the home aquarium (`takeFromHome`), not by species, so you choose which Clownfish to bring.
+- **Effects:** none yet. Bond is only tracked and shown for now.
 
 **Creature book** (`Profile.creatureBook`, id → `'seen' | 'captured'`): `recordEncounter` (engine, `run.ts`) updates it from the combat state. A watcher on `combat` in `useGame.ts` writes the profile whenever something new is learnt:
 - **Seen:** as soon as a fight starts, whatever the outcome.
@@ -140,12 +149,12 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 - **Where:** in the desktop app, in the app's data folder (`app.getPath('userData')`, e.g. `~/Library/Application Support/Slay the Fish`). In a browser, localStorage under `slay-the-fish:save` and `slay-the-fish:profile`.
 - **Desktop bridge:** `electron/preload.cjs` exposes `window.desktop.readData / writeData / deleteData(name)` and `quit()`. `electron/main.js` only accepts the names in `DATA_FILES`, so the page can't touch any other file.
 - **Safe writes:** a file is written to `name.json.tmp`, then renamed over the real one, so a crash mid-write can't corrupt it. Writes are queued one after another, so an older write can never land after a newer one.
-- **Versions** (`SAVE_VERSION`, currently 3, and `PROFILE_VERSION`, currently 3). When a saved shape changes:
+- **Versions** (`SAVE_VERSION`, currently 4, and `PROFILE_VERSION`, currently 4). When a saved shape changes:
   1. Bump the version.
   2. Convert older files in `upgradeSave` (or the profile's equivalent).
   3. A file that can't be upgraded is ignored rather than crashing: no Resume, or a fresh profile.
 
-  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs.
+  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond.
 - **Resume** restores every saved field, so the player returns to the same screen. Mid-fight saves include the hand, energy and Panic.
 
 ## Desktop app and releases
@@ -182,5 +191,6 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 | `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier` | `content/creatures.ts` | Per-creature balance |
 | Item prices and limits | `content/shop.ts` | Shop |
 | Temperament bonuses, `COMPANION_SCALE_CAP`, `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales |
+| `BOND_BY_TIER`, `bondToFull`, `BOND_PER_ENCOUNTER`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |
 
 Percentages in equipment and event effects are whole numbers (20 = 20%), and results are **rounded up**: the Reliable Reel's rate cut, the Sharp Spear's sale bonus, passerby bonuses.

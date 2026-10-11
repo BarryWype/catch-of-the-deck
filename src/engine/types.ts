@@ -256,6 +256,8 @@ export interface EnemyDef {
   habitat?: Habitat;
   /** Picks its companion bonus (`GameData.companionBonuses`) when brought from the home aquarium. */
   temperament?: string;
+  /** Bond points to be fully bonded once it lives in the home aquarium (see bond.ts). Defaults to 100. */
+  bondToFull?: number;
 }
 
 /** `swim` back and forth, `drift` slowly up and down, or crawl along the `bottom`. */

@@ -102,6 +102,9 @@ export function validateContent(source: ContentSource): string[] {
       errors.push(`${where}: escape bar must have 0 < escapeStart ≤ escapeAt.`);
     }
     if (!(enemy.escapeRate >= 0)) errors.push(`${where}: escapeRate must be ≥ 0.`);
+    if (enemy.bondToFull !== undefined && !(Number.isInteger(enemy.bondToFull) && enemy.bondToFull > 0)) {
+      errors.push(`${where}: bondToFull must be a whole number > 0.`);
+    }
     if (!((enemy.breedChance ?? 0) >= 0 && (enemy.breedChance ?? 0) <= 1)) {
       errors.push(`${where}: breedChance must be between 0 and 1.`);
     }

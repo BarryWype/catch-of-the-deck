@@ -202,5 +202,8 @@ The fisherman uses three strips of 48×48 frames in `src/ui/assets/`. They are r
 - add animation to cards when played (drag and drop)
 - rework the spear build: add blood mechanic per fish on the stringer
 - rework cards per build
+- add concept of using bait, using fish in the aquarium/bucket to create bait
 - rework difficulty: life, stamina bar, damage
 - re-use the blood mechanic with other builds
+- add "fish tag" to protect a companion (purchased)
+- increase the companion bonus depending on the bond level

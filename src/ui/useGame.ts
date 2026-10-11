@@ -7,6 +7,8 @@ import {
   findNode,
   applyAction,
   bringCatchHome,
+  hatchling,
+  restAtHome,
   layEggs,
   SESSION_SLOTS,
   takeFromHome,
@@ -23,6 +25,7 @@ import {
   type CombatAction,
   type CombatState,
   type Discovery,
+  type HomeCreature,
   type RunState,
   type ShopVisit,
 } from '../engine';
@@ -58,8 +61,8 @@ export function useGame(initialSeed: number) {
   /** The run that Resume would pick up, if any. */
   const savedGame = shallowRef<SavedGame | null>(null);
   loadSavedGame().then((save) => (savedGame.value = save));
-  /** Creatures brought home from won runs; shown on the menu and build screens. */
-  const homeAquarium = ref<string[]>([]);
+  /** Creatures brought home from won runs or hatched, with their bond; shown on the menu and build screens. */
+  const homeAquarium = ref<HomeCreature[]>([]);
   /** Every creature met so far, seen or captured; shown in the creature book. */
   const creatureBook = shallowRef<Readonly<Record<string, Discovery>>>({});
   /** Eggs laid in the home aquarium, waiting to be clicked: the creature id inside each. */
@@ -92,31 +95,38 @@ export function useGame(initialSeed: number) {
     saveProfile();
   });
 
-  /** On the build screen: home-aquarium creatures picked to start the run in the bucket. */
-  const brought = ref<string[]>([]);
-  /** The home aquarium minus what's been picked, as the build screen shows it. */
-  const homeLeft = computed(() => takeFromHome(homeAquarium.value, brought.value));
+  /** On the build screen: indices in `homeAquarium` of the creatures picked to start the run in the bucket. */
+  const broughtSlots = ref<number[]>([]);
+  /** The picked creatures, and the home aquarium without them, as the build screen shows them. */
+  const picked = computed(() => takeFromHome(homeAquarium.value, broughtSlots.value));
+  const brought = computed(() => picked.value.brought);
+  const homeLeft = computed(() => picked.value.home);
 
   /** Pick the creature at `slot` of `homeLeft` to bring along, if a session slot is free. */
   function bring(slot: number) {
-    const id = homeLeft.value[slot];
-    if (id !== undefined && brought.value.length < SESSION_SLOTS) brought.value = [...brought.value, id];
+    const index = homeAquarium.value.findIndex((c) => c === homeLeft.value[slot]);
+    if (index >= 0 && broughtSlots.value.length < SESSION_SLOTS) broughtSlots.value = [...broughtSlots.value, index];
   }
 
   /** Put the creature in session slot `index` back in the home aquarium. */
   function unbring(index: number) {
-    brought.value = brought.value.filter((_, i) => i !== index);
+    broughtSlots.value = broughtSlots.value.filter((_, i) => i !== index);
   }
 
   /** How many eggs were laid when the last run ended, for the end screens. */
   const newEggs = ref(0);
 
-  /** Every run end: pairs in the home aquarium may lay an egg. */
-  function breed(finished: RunState) {
-    const laid = layEggs(homeAquarium.value, finished, gameData);
-    newEggs.value = laid.length;
-    if (!laid.length) return;
+  /**
+   * Every run end (not an abandoned one): creatures that stayed home bond a little, a successful
+   * run brings its bucket home, then pairs may lay an egg (so new catches can breed straight away).
+   */
+  function endRun(finished: RunState, success: boolean) {
+    let home = restAtHome(homeAquarium.value, gameData);
+    if (success) home = bringCatchHome(home, finished);
+    const laid = layEggs(home, finished, gameData);
+    homeAquarium.value = home;
     eggs.value = [...eggs.value, ...laid];
+    newEggs.value = laid.length;
     saveProfile();
   }
 
@@ -125,16 +135,14 @@ export function useGame(initialSeed: number) {
     const id = eggs.value[index];
     if (id === undefined) return;
     eggs.value = eggs.value.filter((_, i) => i !== index);
-    homeAquarium.value = [...homeAquarium.value, id];
+    homeAquarium.value = [...homeAquarium.value, hatchling(id, gameData)];
     saveProfile();
   }
 
   /** End the run successfully: the bucket joins the home aquarium. */
   function bringHome(finished: RunState, how: 'won' | 'left') {
     run.value = finished;
-    homeAquarium.value = bringCatchHome(homeAquarium.value, finished);
-    saveProfile();
-    breed(finished);
+    endRun(finished, true);
     runEnd.value = how;
     screen.value = 'complete';
   }
@@ -180,6 +188,7 @@ export function useGame(initialSeed: number) {
     combat.value = null;
     savedGame.value = null;
     homeAquarium.value = [];
+    broughtSlots.value = [];
     creatureBook.value = {};
     eggs.value = [];
     clearSavedGame();
@@ -195,7 +204,7 @@ export function useGame(initialSeed: number) {
     seed.value = newSeed;
     run.value = null;
     combat.value = null;
-    brought.value = [];
+    broughtSlots.value = [];
     screen.value = 'build';
   }
 
@@ -205,7 +214,7 @@ export function useGame(initialSeed: number) {
     run.value = createRun(seed.value, gameData, buildId, brought.value);
     if (brought.value.length) {
       homeAquarium.value = homeLeft.value;
-      brought.value = [];
+      broughtSlots.value = [];
       saveProfile();
     }
     screen.value = 'map';
@@ -246,7 +255,7 @@ export function useGame(initialSeed: number) {
   function dispatch(action: CombatAction) {
     if (!combat.value) return;
     combat.value = applyAction(combat.value, action, gameData);
-    if (combat.value.phase === 'lost' && run.value) breed(run.value);
+    if (combat.value.phase === 'lost' && run.value) endRun(run.value, false);
   }
 
   function claimVictory() {
@@ -275,7 +284,7 @@ export function useGame(initialSeed: number) {
     // The boss getting away ends the run without a win: the bucket stays behind.
     runEnd.value = 'fled';
     if (isMapComplete(run.value)) {
-      breed(run.value);
+      endRun(run.value, false);
       screen.value = 'complete';
     } else {
       screen.value = 'map';

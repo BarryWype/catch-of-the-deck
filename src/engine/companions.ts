@@ -27,9 +27,9 @@ function scale(effect: CompanionEffect, factor: number): CompanionEffect {
 }
 
 /** The bonuses these companions give, in order of first appearance. */
-export function activeBonuses(companions: readonly string[], data: GameData): ActiveBonus[] {
+export function activeBonuses(companions: readonly { id: string }[], data: GameData): ActiveBonus[] {
   const species = new Map<string, Set<string>>();
-  for (const id of companions) {
+  for (const { id } of companions) {
     const temperament = data.enemies[id]?.temperament;
     if (!temperament || !data.companionBonuses[temperament]) continue;
     if (!species.has(temperament)) species.set(temperament, new Set());
@@ -44,7 +44,7 @@ export function activeBonuses(companions: readonly string[], data: GameData): Ac
   });
 }
 
-export function companionEffects(companions: readonly string[], data: GameData): CompanionEffect[] {
+export function companionEffects(companions: readonly { id: string }[], data: GameData): CompanionEffect[] {
   return activeBonuses(companions, data).flatMap((b) => b.effects);
 }
 

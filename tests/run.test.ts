@@ -91,7 +91,12 @@ describe('capture record', () => {
 
   it('a won run brings its bucket home, on top of what is already there', () => {
     const run = { ...createRun(5, testData, 'basic'), bucket: ['dummy', 'cycler'] };
-    expect(bringCatchHome(['gambler'], run)).toEqual(['gambler', 'dummy', 'cycler']);
+    const home = [{ id: 'gambler', bond: 7 }];
+    expect(bringCatchHome(home, run)).toEqual([
+      { id: 'gambler', bond: 7 },
+      { id: 'dummy', bond: 0 },
+      { id: 'cycler', bond: 0 },
+    ]);
     expect(run.bucket).toEqual(['dummy', 'cycler']); // input untouched
   });
 
@@ -110,7 +115,7 @@ describe('capture record', () => {
 
   it('only species with at least two in the home aquarium lay eggs, at their breed chance', () => {
     const data = { ...testData, enemies: { ...testData.enemies, dummy: { ...testData.enemies.dummy, breedChance: 0.1 } } };
-    const home = ['dummy', 'dummy', 'dummy', 'cycler', 'cycler'];
+    const home = ['dummy', 'dummy', 'dummy', 'cycler', 'cycler'].map((id) => ({ id, bond: 0 }));
     let eggs = 0;
     for (let seed = 0; seed < 2000; seed++) {
       const laid = layEggs(home, createRun(seed, data, 'basic'), data);
@@ -122,12 +127,19 @@ describe('capture record', () => {
   });
 
   it('creatures brought from the home aquarium start the run in the bucket', () => {
-    const home = ['dummy', 'cycler', 'dummy'];
-    expect(takeFromHome(home, ['dummy', 'cycler'])).toEqual(['dummy']);
+    const home = [
+      { id: 'dummy', bond: 1 },
+      { id: 'cycler', bond: 2 },
+      { id: 'dummy', bond: 3 },
+    ];
+    // Picks a specific creature, not just a species: the second dummy, with its bond.
+    expect(takeFromHome(home, [2, 1])).toEqual({ home: [{ id: 'dummy', bond: 1 }], brought: [home[2], home[1]] });
     expect(home).toHaveLength(3); // input untouched
-    expect(() => takeFromHome(home, ['gambler'])).toThrow();
-    expect(createRun(5, testData, 'basic', ['dummy', 'cycler']).bucket).toEqual(['dummy', 'cycler']);
-    expect(() => createRun(5, testData, 'basic', Array(SESSION_SLOTS + 1).fill('dummy'))).toThrow();
+    expect(() => takeFromHome(home, [5])).toThrow();
+    const run = createRun(5, testData, 'basic', [home[2], home[1]]);
+    expect(run.bucket).toEqual(['dummy', 'cycler']);
+    expect(run.companions).toEqual([home[2], home[1]]);
+    expect(() => createRun(5, testData, 'basic', Array(SESSION_SLOTS + 1).fill(home[0]))).toThrow();
   });
 
   it('a creature that got away is not captured', () => {

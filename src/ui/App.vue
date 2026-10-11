@@ -71,7 +71,8 @@ function newRunFromMenu() {
       <div class="home-row">
         <Aquarium
           class="aquarium"
-          :creatures="homeLeft"
+          :creatures="homeLeft.map((c) => c.id)"
+          :bonds="homeLeft.map((c) => c.bond)"
           :data="data"
           action="bring"
           :bring-blocked="brought.length >= SESSION_SLOTS ? 'All session slots are taken.' : undefined"
@@ -88,6 +89,7 @@ function newRunFromMenu() {
         class="aquarium"
         :creatures="run.bucket"
         :companions="run.companions.length"
+        :bonds="run.companions.map((c) => c.bond)"
         :data="data"
         title="Bucket"
         icon="🪣"

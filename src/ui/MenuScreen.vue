@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import type { Discovery, GameData } from '../engine';
+import type { Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CreatureBook from './CreatureBook.vue';
 
 defineProps<{
   canResume: boolean;
-  homeAquarium: string[];
+  homeAquarium: HomeCreature[];
   creatureBook: Readonly<Record<string, Discovery>>;
   data: GameData;
 }>();
@@ -59,7 +59,11 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 
 <template>
   <section class="menu" :class="{ viewing }">
-    <Aquarium class="backdrop" :creatures="homeAquarium" :data="data" :interactive="false" title="Home aquarium" icon="🏠" />
+    <Aquarium
+      class="backdrop"
+      :creatures="homeAquarium.map((c) => c.id)"
+      :bonds="homeAquarium.map((c) => c.bond)"
+      :data="data" :interactive="false" title="Home aquarium" icon="🏠" />
 
     <div v-if="!viewing" class="panel">
       <h2>Slay the Fish</h2>
@@ -95,7 +99,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
         <button autofocus @click="options?.close()">Done</button>
       </footer>
     </dialog>
-    <CreatureBook :data="data" :home-aquarium="homeAquarium" :discovered="creatureBook" />
+    <CreatureBook :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" />
   </section>
 </template>
 

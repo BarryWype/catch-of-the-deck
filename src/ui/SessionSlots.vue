@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { activeBonuses, describeCompanionEffect, FULL_SCHOOL, SESSION_SLOTS, type GameData } from '../engine';
+import { activeBonuses, bondLevel, describeCompanionEffect, FULL_SCHOOL, SESSION_SLOTS, type GameData, type HomeCreature } from '../engine';
 import SpriteView from './SpriteView.vue';
 
 /** The creatures picked from the home aquarium to start the run in the bucket, one per slot. */
-const props = defineProps<{ brought: string[]; data: GameData }>();
+const props = defineProps<{ brought: HomeCreature[]; data: GameData }>();
 const emit = defineEmits<{ remove: [index: number] }>();
 
 const slots = computed(() =>
   Array.from({ length: SESSION_SLOTS }, (_, i) => {
-    const creature = props.brought[i] === undefined ? undefined : props.data.enemies[props.brought[i]];
+    const picked = props.brought[i];
+    const creature = picked && props.data.enemies[picked.id];
     if (!creature) return null;
-    return { creature, bonus: creature.temperament ? props.data.companionBonuses[creature.temperament] : undefined };
+    return {
+      creature,
+      bond: bondLevel(picked, props.data),
+      bonus: creature.temperament ? props.data.companionBonuses[creature.temperament] : undefined,
+    };
   }),
 );
 
@@ -29,7 +34,7 @@ const bonuses = computed(() =>
         <SpriteView v-if="slot.creature.sprite" :sprite="slot.creature.sprite" :size="48" />
         <span class="name">
           {{ slot.creature.name }}
-          <small v-if="slot.bonus">{{ slot.bonus.icon }} {{ slot.bonus.temperamentName }}</small>
+          <small v-if="slot.bonus">{{ slot.bonus.icon }} {{ slot.bonus.temperamentName }}<template v-if="slot.bond"> · ♥{{ slot.bond }}</template></small>
         </span>
         <button class="ghost remove" :aria-label="`Put ${slot.creature.name} back in the aquarium`" title="Back to the aquarium" @click="emit('remove', i)">
           ✕
@@ -46,7 +51,7 @@ const bonuses = computed(() =>
     </ul>
     <p class="help">
       Brought creatures give their bonus for the run; different species of the same kind add up. They come back only
-      if the run succeeds. Creatures caught during the run are angry and give nothing.
+      if the run succeeds, with a stronger bond. Creatures caught during the run are angry and give nothing.
     </p>
   </section>
 </template>

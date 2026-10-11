@@ -1,3 +1,4 @@
+import { addBond, BOND_PER_ENCOUNTER, type HomeCreature } from './bond';
 import { createCombat } from './combat';
 import { bonusTotal, companionEffects } from './companions';
 import { instantSaleValue, saleValue } from './equipment';
@@ -29,9 +30,9 @@ export interface RunState {
   /**
    * The creatures brought from the home aquarium, which give their companion bonus. Always the
    * first entries of `bucket`, in the same order (captures are added after them, and selling one
-   * removes it from both).
+   * removes it from both). Their bond grows with every fight (`BOND_PER_ENCOUNTER`).
    */
-  companions: string[];
+  companions: HomeCreature[];
   coins: number;
   /** Equipment ids carried this run. */
   equipment: string[];
@@ -48,7 +49,7 @@ export const SESSION_SLOTS = 3;
  * Start a run with the chosen build's starter deck, and `brought` (creatures taken from the
  * home aquarium, see `takeFromHome`) already in the bucket. The map depends only on the seed.
  */
-export function createRun(seed: number, data: GameData, buildId: string, brought: readonly string[] = []): RunState {
+export function createRun(seed: number, data: GameData, buildId: string, brought: readonly HomeCreature[] = []): RunState {
   const build = data.builds[buildId];
   if (!build) throw new Error(`Unknown build "${buildId}"`);
   if (brought.length > SESSION_SLOTS) throw new Error(`Can't bring more than ${SESSION_SLOTS} creatures`);
@@ -64,8 +65,8 @@ export function createRun(seed: number, data: GameData, buildId: string, brought
     map: { columns: [] },
     position: START_NODE_ID,
     visited: [START_NODE_ID],
-    bucket: [...brought],
-    companions: [...brought],
+    bucket: brought.map((c) => c.id),
+    companions: brought.map((c) => ({ ...c })),
     coins: 0,
     equipment: [...(build.startingEquipment ?? [])],
   };
@@ -107,6 +108,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   const pool = encountersFor(node, data);
   const encounter = pool[nextInt(next, 0, pool.length - 1)];
   const combatSeed = nextInt(next, 0, 0x7fffffff);
+  next.companions = next.companions.map((c) => addBond(c, BOND_PER_ENCOUNTER, data));
   return createCombat(
     {
       seed: combatSeed,
@@ -186,24 +188,24 @@ export function sellCreature(run: RunState, slot: number, data: GameData): RunSt
   };
 }
 
-/** The home aquarium without the creatures brought for a run: one copy removed per id. */
-export function takeFromHome(home: readonly string[], brought: readonly string[]): string[] {
-  const rest = [...home];
-  for (const id of brought) {
-    const at = rest.indexOf(id);
-    if (at < 0) throw new Error(`No "${id}" in the home aquarium`);
-    rest.splice(at, 1);
-  }
-  return rest;
+/** Split the home aquarium into what stays and the creatures at `slots` (indices), brought for a run. */
+export function takeFromHome(
+  home: readonly HomeCreature[],
+  slots: readonly number[],
+): { home: HomeCreature[]; brought: HomeCreature[] } {
+  for (const slot of slots) if (!home[slot]) throw new Error(`Nothing in the home aquarium at slot ${slot}`);
+  return { home: home.filter((_, i) => !slots.includes(i)), brought: slots.map((slot) => home[slot]) };
 }
 
 /**
  * The home aquarium after a successful run (boss beaten, or the session finished at a leave node):
- * everything still in the bucket joins it. A lost or abandoned run never calls this, so its
- * bucket is lost.
+ * everything still in the bucket joins it. Companions come back with the bond they gained on the
+ * way; creatures caught on the way start with no bond. A lost or abandoned run never calls this, so its bucket,
+ * companions included, is lost.
  */
-export function bringCatchHome(home: readonly string[], run: RunState): string[] {
-  return [...home, ...run.bucket];
+export function bringCatchHome(home: readonly HomeCreature[], run: RunState): HomeCreature[] {
+  const caught = run.bucket.slice(run.companions.length).map((id) => ({ id, bond: 0 }));
+  return [...home, ...run.companions.map((c) => ({ ...c })), ...caught];
 }
 
 /**
@@ -211,10 +213,10 @@ export function bringCatchHome(home: readonly string[], run: RunState): string[]
  * two creatures rolls its `breedChance` once. Returns the creature id inside each new egg.
  * Rolls use the finished run's RNG, in the order species first appear.
  */
-export function layEggs(home: readonly string[], run: RunState, data: GameData): string[] {
+export function layEggs(home: readonly HomeCreature[], run: RunState, data: GameData): string[] {
   const rng = { rng: run.rng };
   const counts = new Map<string, number>();
-  for (const id of home) counts.set(id, (counts.get(id) ?? 0) + 1);
+  for (const { id } of home) counts.set(id, (counts.get(id) ?? 0) + 1);
   return [...counts]
     .filter(([id, count]) => count >= 2 && nextFloat(rng) < (data.enemies[id]?.breedChance ?? 0))
     .map(([id]) => id);

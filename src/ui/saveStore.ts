@@ -1,4 +1,4 @@
-import type { CombatState, Discovery, RunState, ShopVisit } from '../engine';
+import type { CombatState, Discovery, HomeCreature, RunState, ShopVisit } from '../engine';
 import type { Screen } from './useGame';
 
 /**
@@ -7,8 +7,8 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 3;
-export const PROFILE_VERSION = 3;
+export const SAVE_VERSION = 4;
+export const PROFILE_VERSION = 4;
 
 /** Everything needed to pick a run up exactly where it was left. */
 export interface SavedGame {
@@ -25,8 +25,8 @@ export interface SavedGame {
 /** What the player keeps from run to run. */
 export interface Profile {
   version: number;
-  /** Creature ids brought home from won runs (duplicates allowed). */
-  homeAquarium: string[];
+  /** Creatures brought home from won runs or hatched, each with its own bond. */
+  homeAquarium: HomeCreature[];
   /** Every creature ever met, by id; missing means never encountered. */
   creatureBook: Record<string, Discovery>;
   /** Eggs waiting to be hatched: the creature id inside each. */
@@ -73,6 +73,11 @@ function upgradeSave(save: SavedGame): SavedGame | null {
     };
     save = { ...save, version: 3, run: { ...save.run, companions: [] }, combat };
   }
+  // v3 companions were plain creature ids, before bonds.
+  if (save.version === 3) {
+    const companions = (save.run.companions as unknown as string[]).map((id) => ({ id, bond: 0 }));
+    save = { ...save, version: 4, run: { ...save.run, companions } };
+  }
   return save.version === SAVE_VERSION ? save : null;
 }
 
@@ -93,11 +98,17 @@ export function clearSavedGame() {
 function upgradeProfile(profile: Profile): Profile | null {
   // v1 had no creature book: whatever is in the home aquarium was captured.
   if (profile.version === 1) {
-    const creatureBook = Object.fromEntries(profile.homeAquarium.map((id) => [id, 'captured' as const]));
+    const ids = profile.homeAquarium as unknown as string[];
+    const creatureBook = Object.fromEntries(ids.map((id) => [id, 'captured' as const]));
     profile = { ...profile, version: 2, creatureBook };
   }
   // v2 had no eggs.
   if (profile.version === 2) profile = { ...profile, version: 3, eggs: [] };
+  // v3 home aquariums were plain creature ids, before bonds.
+  if (profile.version === 3) {
+    const homeAquarium = (profile.homeAquarium as unknown as string[]).map((id) => ({ id, bond: 0 }));
+    profile = { ...profile, version: 4, homeAquarium };
+  }
   return profile.version === PROFILE_VERSION ? profile : null;
 }
 

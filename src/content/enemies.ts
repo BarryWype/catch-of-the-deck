@@ -1,6 +1,6 @@
 import type { EnemyDef, Habitat } from '../engine';
 import { behaviors, type BehaviorId } from './behaviors';
-import { creatures, type CreatureDef } from './creatures';
+import { BOND_BY_TIER, creatures, type CreatureDef } from './creatures';
 
 /** Default aquarium movement per temperament (anything not listed swims). */
 const HABITAT_BY_TEMPERAMENT: Partial<Record<BehaviorId, Habitat>> = {
@@ -20,6 +20,7 @@ function toEnemy(creature: CreatureDef): EnemyDef {
     hp: creature.hp,
     sellValue: creature.sellValue,
     breedChance: creature.breedChance,
+    bondToFull: creature.bondToFull ?? BOND_BY_TIER[creature.tier],
     escapeAt: creature.escapeAt,
     escapeStart: creature.escapeStart,
     escapeRate: creature.escapeRate,

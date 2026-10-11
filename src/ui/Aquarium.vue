@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { describeCompanionEffect, type GameData, type Habitat } from '../engine';
+import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import SpriteView from './SpriteView.vue';
 import { animatedSheetFor, creatureClip } from './sprites';
@@ -24,8 +24,10 @@ const props = withDefaults(
      * the rest were caught and are angry. Omit outside a run.
      */
     companions?: number;
+    /** Bond points of each creature, in the same order (home aquarium, or a bucket's companions). */
+    bonds?: number[];
   }>(),
-  { interactive: true, title: 'Aquarium', icon: '🐠', action: 'sell', bringBlocked: undefined, companions: undefined },
+  { interactive: true, title: 'Aquarium', icon: '🐠', action: 'sell', bringBlocked: undefined, companions: undefined, bonds: undefined },
 );
 const emit = defineEmits<{ sell: [slot: number]; bring: [slot: number] }>();
 
@@ -82,9 +84,18 @@ const residents = computed(() => {
       style: placement(habitat, hash(key)),
       bonus: def?.temperament ? props.data.companionBonuses[def.temperament] : undefined,
       angry: props.companions !== undefined && slot >= props.companions,
+      bond: bondOf(id, props.bonds?.[slot]),
     };
   });
 });
+
+/** Bond level and progress, or undefined when this aquarium doesn't track bonds. */
+function bondOf(id: string, points: number | undefined) {
+  if (points === undefined) return undefined;
+  const level = bondLevel({ id, bond: points }, props.data);
+  const text = `Bond level ${level}${level === MAX_BOND_LEVEL ? ' (fully bonded)' : ''} · ${points}/${bondToFull(id, props.data)}`;
+  return { level, text };
+}
 
 const selectedKey = ref<string | null>(null);
 const selected = computed(() => residents.value.find((r) => r.key === selectedKey.value));
@@ -145,7 +156,7 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
         class="resident"
         :class="[r.habitat, { selected: r.key === selectedKey, interactive }]"
         :style="r.style"
-        :title="`${r.name}${interactive && action === 'sell' ? ` (🪙 ${r.sellValue})` : ''}${r.angry ? ' 💢 angry' : ''}`"
+        :title="`${r.name}${interactive && action === 'sell' ? ` (🪙 ${r.sellValue})` : ''}${r.angry ? ' 💢 angry' : ''}${r.bond ? ` · ${r.bond.text}` : ''}`"
         :role="interactive ? 'button' : undefined"
         :tabindex="interactive ? 0 : undefined"
         @click="interactive && (selectedKey = r.key)"
@@ -157,12 +168,17 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
             <SpriteView v-else-if="r.sprite" :sprite="r.sprite" :size="SIZE * (2 / 3)" />
             <span v-else class="emoji">{{ r.portrait }}</span>
           </div>
-          <span v-if="r.angry" class="angry" aria-hidden="true">💢</span>
         </div>
+        <!-- Outside .facing, which mirrors the sprite, so the badges read the right way. -->
+        <span v-if="r.angry" class="angry" aria-hidden="true">💢</span>
+        <span v-else-if="r.bond?.level" class="bond" :class="{ full: r.bond.level === MAX_BOND_LEVEL }" aria-hidden="true">
+          ♥{{ r.bond.level }}
+        </span>
       </div>
 
       <div v-if="selected" class="sell-panel" @keydown.esc="selectedKey = null">
         <strong>{{ selected.name }}</strong>
+        <span v-if="selected.bond" class="bond-text">♥ {{ selected.bond.text }}</span>
         <template v-if="action === 'sell'">
           <span v-if="selected.angry" class="mood">💢 Angry: caught this run, no bonus</span>
           <span v-else-if="companions !== undefined && selected.bonus" class="mood">
@@ -297,6 +313,20 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
 .sell-panel { max-width: 260px; text-align: center; }
 .sell-panel .bonus { font-size: 0.78rem; }
 .sell-panel .bonus p, .sell-panel .mood { margin: 2px 0 0; color: var(--muted); font-size: 0.75rem; }
+.bond {
+  position: absolute;
+  top: -2px;
+  right: 14px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: rgb(201 74 120 / 0.85);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+.bond.full { background: #d9a520; }
+.sell-panel .bond-text { color: #f08bb0; font-size: 0.75rem; }
 .angry { position: absolute; top: -4px; right: 18px; font-size: 1rem; pointer-events: none; }
 .sell-panel .blocked { color: var(--muted); font-size: 0.75rem; }
 .sell-panel .actions { display: flex; gap: 6px; margin-top: 4px; }
