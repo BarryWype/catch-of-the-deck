@@ -75,8 +75,14 @@ export function validateContent(source: ContentSource): string[] {
   for (const item of source.equipment) {
     checkDuplicate(equipmentIds, item.id, 'equipment');
     for (const effect of item.effects) {
-      const percent = effect.type === 'slowEscape' ? effect.percent : effect.bonusPercent;
-      if (!(percent >= 0)) errors.push(`Equipment "${item.id}": effect "${effect.type}" needs a percentage ≥ 0.`);
+      const value = 'percent' in effect ? effect.percent : 'bonusPercent' in effect ? effect.bonusPercent : effect.amount;
+      if (!(value >= 0)) errors.push(`Equipment "${item.id}": effect "${effect.type}" needs a value ≥ 0.`);
+      if (effect.type === 'extraCatch') {
+        checkTags(`Equipment "${item.id}"`, effect.types);
+        for (const spot of effect.spots ?? []) {
+          if (!source.spots.some((s) => s.id === spot)) errors.push(`Equipment "${item.id}": unknown fishing spot "${spot}".`);
+        }
+      }
     }
   }
 
@@ -188,8 +194,11 @@ export function validateContent(source: ContentSource): string[] {
       if (!cardIds.has(id)) errors.push(`${where}: starter deck references unknown card "${id}".`);
     }
     checkTags(where, build.strongAgainst);
-    for (const id of build.startingEquipment ?? []) {
-      if (!equipmentIds.has(id)) errors.push(`${where}: starting equipment references unknown equipment "${id}".`);
+    for (const id of build.startingItems ?? []) {
+      if (!equipmentIds.has(id)) errors.push(`${where}: starting items reference unknown equipment "${id}".`);
+    }
+    if (build.level !== undefined && !source.levels.some((l) => l.id === build.level)) {
+      errors.push(`${where}: unknown level "${build.level}".`);
     }
   }
   if (source.builds.length === 0) errors.push('There must be at least one build.');

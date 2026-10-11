@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SESSION_SLOTS } from '../engine';
+import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
 import Aquarium from './Aquarium.vue';
 import BuildSelect from './BuildSelect.vue';
 import CombatView from './CombatView.vue';
@@ -24,7 +24,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, runEnd } = game;
+const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, pickedBuild, runEnd } = game;
 
 function newRun() {
   game.newRun(randomSeed());
@@ -65,9 +65,21 @@ function newRunFromMenu() {
       @resume="game.resume"
       @new-run="newRunFromMenu"
       @reset="game.resetProgress"
+      @debug-start="(level, kind) => game.debugStartAt(level, kind, randomSeed())"
     />
-    <div v-else-if="screen === 'build' || !run" class="build-layout">
-      <BuildSelect class="build-choices" :data="data" @choose="game.chooseBuild" />
+    <!-- After the build: pick up to SESSION_SLOTS creatures from home to bring along. -->
+    <div v-else-if="screen === 'companions' && pickedBuild" class="build-layout">
+      <header class="companions-head">
+        <button class="ghost" @click="game.backToBuild">← Back</button>
+        <div>
+          <h2>Who comes along?</h2>
+          <p>
+            {{ data.builds[pickedBuild.build]?.name }}
+            <template v-if="pickedBuild.item"> · {{ data.equipment[pickedBuild.item]?.name }}</template>
+            — click creatures in your home aquarium to bring up to {{ SESSION_SLOTS }}, or go alone.
+          </p>
+        </div>
+      </header>
       <div class="home-row">
         <Aquarium
           class="aquarium"
@@ -80,9 +92,13 @@ function newRunFromMenu() {
           icon="🏠"
           @bring="game.bring"
         />
-        <SessionSlots :brought="brought" :data="data" @remove="game.unbring" />
+        <div class="slots-column">
+          <SessionSlots :brought="brought" :data="data" @remove="game.unbring" />
+          <button class="start-fishing" @click="game.startRun">Start fishing</button>
+        </div>
       </div>
     </div>
+    <BuildSelect v-else-if="screen === 'build' || !run" :data="data" @choose="game.chooseBuild" @back="game.toMenu" />
     <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
       <MapView v-if="screen === 'map'" :run="run" :data="data" @travel="game.travel" />
@@ -104,6 +120,7 @@ function newRunFromMenu() {
       :data="data"
       :equipment="run.equipment"
       :new-eggs="newEggs"
+      :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? 'too big to keep') : null"
       @action="game.dispatch"
       @claim-victory="game.claimVictory"
       @leave="game.leaveFight"
@@ -146,7 +163,7 @@ function newRunFromMenu() {
   </main>
 
   <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
-  <EggTray v-if="['menu', 'build', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
+  <EggTray v-if="['menu', 'build', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
 </template>
 
 <style scoped>
@@ -162,7 +179,7 @@ function newRunFromMenu() {
 .map-layout .aquarium { flex: 1; }
 .map-layout .shop-panel { flex-shrink: 0; padding-top: 2vh; }
 
-/* Build choices on top (scrolling if needed), the aquarium on the bottom half. */
+/* Choosing companions: a header, then the home aquarium and the session slots. */
 .build-layout {
   display: flex;
   flex-direction: column;
@@ -170,8 +187,14 @@ function newRunFromMenu() {
   height: calc(100vh - 64px);
   padding-bottom: 12px;
 }
-.build-layout .build-choices { flex: 1; min-height: 0; overflow-y: auto; }
-.build-layout .home-row { display: flex; flex: 0 0 50vh; gap: 12px; }
+.build-layout .home-row { display: flex; flex: 1; min-height: 0; gap: 12px; }
+.companions-head { display: flex; gap: 16px; align-items: center; padding-top: 8px; }
+.companions-head h2 { margin: 0; }
+.companions-head p { margin: 4px 0 0; color: var(--muted); }
+.slots-column { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.slots-column .session-slots { flex: 1; min-height: 0; }
+.start-fishing { padding: 16px; border-radius: 12px; background: #2d8a4e; color: #fff; font-size: 1.15rem; font-weight: 800; }
+.start-fishing:hover { background: #36a35d; }
 .build-layout .aquarium { flex: 1; min-width: 0; }
 
 .complete { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 15vh; }

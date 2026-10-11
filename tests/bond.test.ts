@@ -36,7 +36,7 @@ describe('bond', () => {
     run = travelTo(run, availableDestinations(run)[0].id, data).run;
     expect(run.companions).toEqual([{ id: 'cycler', bond: 11 }, { id: 'dummy', bond: 100 }]);
     run = { ...run, bucket: [...run.bucket, 'gambler'] };
-    expect(bringCatchHome([], run)).toEqual([
+    expect(bringCatchHome([], run, data)).toEqual([
       { id: 'cycler', bond: 11 },
       { id: 'dummy', bond: 100 },
       { id: 'gambler', bond: 0 },

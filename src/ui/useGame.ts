@@ -15,6 +15,10 @@ import {
   createRun,
   enterNextLevel,
   isLastLevel,
+  buildLevelMap,
+  START_NODE_ID,
+  startingBuilds,
+  isReleaseFight,
   visitTreasure,
   recordEncounter,
   finishCombat,
@@ -44,7 +48,7 @@ import {
   type SavedGame,
 } from './saveStore';
 
-export type Screen = 'menu' | 'build' | 'map' | 'combat' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
+export type Screen = 'menu' | 'build' | 'companions' | 'map' | 'combat' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
 
 /**
  * Thin glue between Vue and the engine: holds the current immutable states in
@@ -64,7 +68,7 @@ export function useGame(initialSeed: number) {
   /** The run that Resume would pick up, if any. */
   const savedGame = shallowRef<SavedGame | null>(null);
   loadSavedGame().then((save) => (savedGame.value = save));
-  /** Creatures brought home from won runs or hatched, with their bond; shown on the menu and build screens. */
+  /** Creatures brought home from won runs or hatched, with their bond; shown on the menu and companions screens. */
   const homeAquarium = ref<HomeCreature[]>([]);
   /** Every creature met so far, seen or captured; shown in the creature book. */
   const creatureBook = shallowRef<Readonly<Record<string, Discovery>>>({});
@@ -92,15 +96,15 @@ export function useGame(initialSeed: number) {
   // Fill the creature book as soon as a fight starts, and again once it's won.
   watch(combat, (state) => {
     if (!state) return;
-    const book = recordEncounter(creatureBook.value, state);
+    const book = recordEncounter(creatureBook.value, state, !!run.value && isReleaseFight(run.value));
     if (book === creatureBook.value) return;
     creatureBook.value = book;
     saveProfile();
   });
 
-  /** On the build screen: indices in `homeAquarium` of the creatures picked to start the run in the bucket. */
+  /** On the companions screen: indices in `homeAquarium` of the creatures picked to start the run in the bucket. */
   const broughtSlots = ref<number[]>([]);
-  /** The picked creatures, and the home aquarium without them, as the build screen shows them. */
+  /** The picked creatures, and the home aquarium without them, as the companions screen shows them. */
   const picked = computed(() => takeFromHome(homeAquarium.value, broughtSlots.value));
   const brought = computed(() => picked.value.brought);
   const homeLeft = computed(() => picked.value.home);
@@ -125,7 +129,7 @@ export function useGame(initialSeed: number) {
    */
   function endRun(finished: RunState, success: boolean) {
     let home = restAtHome(homeAquarium.value, gameData);
-    if (success) home = bringCatchHome(home, finished);
+    if (success) home = bringCatchHome(home, finished, gameData);
     const laid = layEggs(home, finished, gameData);
     homeAquarium.value = home;
     eggs.value = [...eggs.value, ...laid];
@@ -152,7 +156,7 @@ export function useGame(initialSeed: number) {
 
   // Autosave after every change; a lost or finished run deletes the save.
   watch([run, combat, screen, rewardChoices, eventId, shopVisit], () => {
-    if (!run.value || screen.value === 'menu' || screen.value === 'build') return;
+    if (!run.value || screen.value === 'menu' || screen.value === 'build' || screen.value === 'companions') return;
     if (screen.value === 'complete' || combat.value?.phase === 'lost') {
       savedGame.value = null;
       clearSavedGame();
@@ -211,16 +215,50 @@ export function useGame(initialSeed: number) {
     screen.value = 'build';
   }
 
-  function chooseBuild(buildId: string) {
+  /** The build and starting item picked on the build screen, until the run starts. */
+  const pickedBuild = ref<{ build: string; item?: string } | null>(null);
+
+  /** Build picked: next, choose who to bring along (skipped when the home aquarium is empty). */
+  function chooseBuild(build: string, item?: string) {
+    pickedBuild.value = { build, item };
+    if (homeAquarium.value.length) screen.value = 'companions';
+    else startRun();
+  }
+
+  /** Back from choosing companions to the build screen. */
+  function backToBuild() {
+    screen.value = 'build';
+  }
+
+  function startRun() {
+    if (!pickedBuild.value) return;
+    const { build, item } = pickedBuild.value;
     // The brought creatures leave the home aquarium now: like the rest of the bucket, they only
     // come back if the run is successful.
-    run.value = createRun(seed.value, gameData, buildId, brought.value);
+    run.value = createRun(seed.value, gameData, build, brought.value, item);
     if (brought.value.length) {
       homeAquarium.value = homeLeft.value;
       broughtSlots.value = [];
       saveProfile();
     }
+    pickedBuild.value = null;
     screen.value = 'map';
+  }
+
+  /**
+   * Debug only (the menu's dev buttons): a fresh run with the first build, put on level
+   * `levelIndex` next to its mini-boss or boss, and straight into that fight.
+   */
+  function debugStartAt(levelIndex: number, kind: 'miniBoss' | 'boss', newSeed: number) {
+    seed.value = newSeed;
+    combat.value = null;
+    const fresh = createRun(newSeed, gameData, startingBuilds(gameData)[0].id);
+    const map = buildLevelMap(gameData.levels[levelIndex]);
+    const nodes = map.columns.flat();
+    const target = nodes.find((n) => n.kind === kind)!;
+    const before = nodes.find((n) => n.next.includes(target.id))!;
+    run.value = { ...fresh, level: levelIndex, map, position: before.id, visited: [START_NODE_ID, before.id] };
+    travel(target.id);
   }
 
   function travel(nodeId: string) {
@@ -360,6 +398,9 @@ export function useGame(initialSeed: number) {
     shopVisit,
     dispatch,
     chooseBuild,
+    backToBuild,
+    startRun,
+    pickedBuild,
     travel,
     claimVictory,
     leaveFight,
@@ -371,6 +412,7 @@ export function useGame(initialSeed: number) {
     cancelLeave,
     sell,
     newRun,
+    debugStartAt,
     savedGame,
     homeAquarium,
     creatureBook,

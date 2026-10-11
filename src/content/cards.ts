@@ -6,7 +6,7 @@ import { FORAGING_TARGETS, ROD_TARGETS, SPEAR_TARGETS } from './builds';
  * (set `description` to override it). See README → "Adding a card".
  *
  * A damage `bonus` adds damage per hit against the listed creature types,
- * e.g. `bonus: { against: ROD_TARGETS, amount: 4 }`.
+ * e.g. `bonus: { against: ROD_TARGETS }`.
  *
  * Panic (the escape bar) is how each build plays differently:
  * - Rod fishing manages line tension: hard reels hit big but make the fish
@@ -39,7 +39,7 @@ export const cards: CardDef[] = [
     rarity: 'starter',
     cost: 1,
     target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: ROD_TARGETS, amount: 4 } }],
+    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: ROD_TARGETS } }],
   },
   {
     id: 'setTheHook',
@@ -50,7 +50,7 @@ export const cards: CardDef[] = [
     cost: 2,
     target: 'enemy',
     effects: [
-      { type: 'dealDamage', amount: 7, bonus: { against: ROD_TARGETS, amount: 4 } },
+      { type: 'dealDamage', amount: 7, bonus: { against: ROD_TARGETS } },
       { type: 'applyStatus', status: 'vulnerable', amount: 2 },
       { type: 'changeEscape', amount: -8 },
     ],
@@ -65,7 +65,7 @@ export const cards: CardDef[] = [
     rarity: 'starter',
     cost: 1,
     target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: SPEAR_TARGETS, amount: 4 } }],
+    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: SPEAR_TARGETS } }],
   },
   {
     id: 'harpoon',
@@ -76,7 +76,7 @@ export const cards: CardDef[] = [
     cost: 2,
     target: 'enemy',
     effects: [
-      { type: 'dealDamage', amount: 10, bonus: { against: SPEAR_TARGETS, amount: 6 } },
+      { type: 'dealDamage', amount: 10, bonus: { against: SPEAR_TARGETS } },
       { type: 'changeEscapeRate', amount: -2 },
     ],
   },
@@ -90,7 +90,7 @@ export const cards: CardDef[] = [
     rarity: 'starter',
     cost: 1,
     target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: FORAGING_TARGETS, amount: 4 } }],
+    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: FORAGING_TARGETS } }],
   },
   {
     id: 'crabNet',
@@ -101,7 +101,7 @@ export const cards: CardDef[] = [
     cost: 2,
     target: 'enemy',
     effects: [
-      { type: 'dealDamage', amount: 7, bonus: { against: FORAGING_TARGETS, amount: 4 } },
+      { type: 'dealDamage', amount: 7, bonus: { against: FORAGING_TARGETS } },
       { type: 'applyStatus', status: 'weak', amount: 2 },
       { type: 'applyStatus', status: 'snared', amount: 1 },
     ],
@@ -118,7 +118,7 @@ export const cards: CardDef[] = [
     target: 'enemy',
     build: 'rod',
     effects: [
-      { type: 'dealDamage', amount: 9, bonus: { against: ROD_TARGETS, amount: 4 } },
+      { type: 'dealDamage', amount: 9, bonus: { against: ROD_TARGETS } },
       { type: 'changeEscape', amount: 8 },
     ],
   },
@@ -158,7 +158,7 @@ export const cards: CardDef[] = [
     target: 'enemy',
     build: 'rod',
     effects: [
-      { type: 'dealDamage', amount: 18, bonus: { against: ROD_TARGETS, amount: 6 } },
+      { type: 'dealDamage', amount: 18, bonus: { against: ROD_TARGETS } },
       { type: 'changeEscape', amount: 15 },
     ],
   },
@@ -174,7 +174,7 @@ export const cards: CardDef[] = [
     target: 'enemy',
     build: 'spear',
     effects: [
-      { type: 'dealDamage', amount: 9, bonus: { against: SPEAR_TARGETS, amount: 4 } },
+      { type: 'dealDamage', amount: 9, bonus: { against: SPEAR_TARGETS } },
       { type: 'changeEscape', amount: 6 },
     ],
   },
@@ -188,7 +188,7 @@ export const cards: CardDef[] = [
     target: 'enemy',
     build: 'spear',
     effects: [
-      { type: 'dealDamage', amount: 5, bonus: { against: SPEAR_TARGETS, amount: 4 } },
+      { type: 'dealDamage', amount: 5, bonus: { against: SPEAR_TARGETS } },
       { type: 'changeEscapeRate', amount: -2 },
     ],
   },
@@ -213,7 +213,7 @@ export const cards: CardDef[] = [
     target: 'enemy',
     build: 'spear',
     effects: [
-      { type: 'dealDamage', amount: 6, hits: 3, bonus: { against: SPEAR_TARGETS, amount: 3 } },
+      { type: 'dealDamage', amount: 6, hits: 3, bonus: { against: SPEAR_TARGETS } },
       { type: 'changeEscape', amount: 10 },
     ],
   },
@@ -229,7 +229,7 @@ export const cards: CardDef[] = [
     target: 'enemy',
     build: 'foraging',
     effects: [
-      { type: 'dealDamage', amount: 2, bonus: { against: FORAGING_TARGETS, amount: 2 } },
+      { type: 'dealDamage', amount: 2, bonus: { against: FORAGING_TARGETS } },
       { type: 'applyStatus', status: 'snared', amount: 2 },
     ],
   },

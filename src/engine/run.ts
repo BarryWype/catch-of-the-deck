@@ -1,10 +1,11 @@
-import { addBond, BOND_PER_ENCOUNTER, type HomeCreature } from './bond';
+import { addBond, BOND_PER_ENCOUNTER, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
 import { bonusTotal, companionEffects } from './companions';
-import { instantSaleValue, saleValue } from './equipment';
-import { buildLevelMap, encountersFor, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
+import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
+import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
-import type { CombatState, GameData } from './types';
+import { isAlive } from './effects';
+import type { BuildDef, CombatState, EnemyState, GameData } from './types';
 import { clone } from './util';
 
 /** Everything that persists between fights. */
@@ -48,12 +49,20 @@ export const EVENT_FIGHT_CHANCE = 0.1;
 export const SESSION_SLOTS = 3;
 
 /**
- * Start a run on the first level, with the chosen build's starter deck, and `brought` (creatures
- * taken from the home aquarium, see `takeFromHome`) already in the bucket.
+ * Start a run on the first level, with the chosen build's starter deck, its chosen starting
+ * `item`, and `brought` (creatures taken from the home aquarium, see `takeFromHome`) already in
+ * the bucket.
  */
-export function createRun(seed: number, data: GameData, buildId: string, brought: readonly HomeCreature[] = []): RunState {
+export function createRun(
+  seed: number,
+  data: GameData,
+  buildId: string,
+  brought: readonly HomeCreature[] = [],
+  item: string | undefined = data.builds[buildId]?.startingItems?.[0],
+): RunState {
   const build = data.builds[buildId];
   if (!build) throw new Error(`Unknown build "${buildId}"`);
+  if (item !== undefined && !build.startingItems?.includes(item)) throw new Error(`"${item}" isn't a starting item of ${buildId}`);
   if (brought.length > SESSION_SLOTS) throw new Error(`Can't bring more than ${SESSION_SLOTS} creatures`);
   const maxHp = data.character.maxHp + bonusTotal(companionEffects(brought, data), 'bonusMaxHp');
   const run: RunState = {
@@ -71,9 +80,24 @@ export function createRun(seed: number, data: GameData, buildId: string, brought
     bucket: brought.map((c) => c.id),
     companions: brought.map((c) => ({ ...c })),
     coins: 0,
-    equipment: [...(build.startingEquipment ?? [])],
+    equipment: item === undefined ? [] : [item],
   };
   return run;
+}
+
+/** Builds that can be picked at the start of a run: those available from the first level. */
+export function startingBuilds(data: GameData): BuildDef[] {
+  const first = data.levels[0]?.id;
+  return Object.values(data.builds).filter((b) => (b.level ?? first) === first);
+}
+
+/**
+ * Is the run standing on a mini-boss or boss? Those are let go after the fight: too big, too
+ * fierce or protected to keep. They never reach the bucket, nor get sold on the spot.
+ */
+export function isReleaseFight(run: RunState): boolean {
+  const kind = findNode(run.map, run.position)?.kind;
+  return kind === 'miniBoss' || kind === 'boss';
 }
 
 /** Is the run on its last level? Beating that level's boss wins the run. */
@@ -127,7 +151,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
     {
       seed: combatSeed,
       deck: next.deck,
-      enemies: encounter.enemies,
+      enemies: [...encounter.enemies, ...extraCatch(next, node, data)],
       playerHp: next.hp,
       playerMaxHp: next.maxHp,
       equipment: next.equipment,
@@ -135,6 +159,30 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
     },
     data,
   );
+}
+
+/**
+ * Creatures `extraCatch` equipment drags into an ordinary fight (never a mini-boss or boss): for
+ * each such effect whose `spots` include the fight's, a roll at its chance, then one creature of
+ * its types at the fight's tier, from the fishing spot's waters when there is one.
+ */
+function extraCatch(next: RunState, node: MapNode, data: GameData): string[] {
+  if (node.kind !== 'fight') return [];
+  const extra: string[] = [];
+  for (const effect of equipmentEffects(next.equipment, data)) {
+    if (effect.type !== 'extraCatch') continue;
+    if (effect.spots && !effect.spots.includes(node.spot ?? '')) continue;
+    if (nextFloat(next) >= effect.percent / 100) continue;
+    const pool = data.encounters
+      .filter((e) => e.enemies.length === 1 && encounterTier(e) === node.tier)
+      .map((e) => data.enemies[e.enemies[0]])
+      .filter((enemy) => enemy && effect.types.includes(enemy.tags?.[0] ?? ''));
+    const spot = node.spot ? data.spots[node.spot] : undefined;
+    const local = pool.filter((enemy) => spot?.waters.includes(enemy.water ?? ''));
+    const options = local.length ? local : pool;
+    if (options.length) extra.push(options[nextInt(next, 0, options.length - 1)].id);
+  }
+  return extra;
 }
 
 /**
@@ -177,17 +225,19 @@ export function visitShop(run: RunState, nodeId: string): RunState {
 }
 
 /**
- * Carry the fight's outcome into the run: HP, floor, and (on a win) the creatures
- * captured, which go into the bucket unless equipment sells them on the spot.
+ * Carry the fight's outcome into the run: HP, floor (on a win), and the creatures captured,
+ * even in a fight another creature then fled: they go into the bucket unless equipment sells
+ * them on the spot. Mini-bosses and bosses are let go instead (`isReleaseFight`).
  */
 export function finishCombat(run: RunState, combat: CombatState, data: GameData): RunState {
   const next = { ...clone(run), hp: Math.max(0, combat.player.hp) };
   if (combat.phase === 'lost') return next;
   next.hp = Math.min(next.maxHp, next.hp + bonusTotal(combat.bonuses, 'healAfterFight'));
-  if (combat.phase !== 'won') return next;
-  next.floor++;
+  if (combat.phase === 'won') next.floor++;
+  if (isReleaseFight(run)) return next;
   const sellBonus = bonusTotal(combat.bonuses, 'sellBonus');
-  for (const enemy of combat.enemies) {
+  // Everything caught counts, even when another creature then got away.
+  for (const enemy of combat.enemies.filter((e) => combat.phase === 'won' || !isAlive(e))) {
     const sale = instantSaleValue(enemy.defId, run.equipment, data, sellBonus);
     if (sale === null) next.bucket.push(enemy.defId);
     else next.coins += sale;
@@ -220,11 +270,12 @@ export function takeFromHome(
 /**
  * The home aquarium after a successful run (boss beaten, or the session finished at a leave node):
  * everything still in the bucket joins it. Companions come back with the bond they gained on the
- * way; creatures caught on the way start with no bond. A lost or abandoned run never calls this, so its bucket,
+ * way; creatures caught on the way start with no bond, or with `bondOnCapture` equipment's. A lost or abandoned run never calls this, so its bucket,
  * companions included, is lost.
  */
-export function bringCatchHome(home: readonly HomeCreature[], run: RunState): HomeCreature[] {
-  const caught = run.bucket.slice(run.companions.length).map((id) => ({ id, bond: 0 }));
+export function bringCatchHome(home: readonly HomeCreature[], run: RunState, data: GameData): HomeCreature[] {
+  const bond = equipmentEffects(run.equipment, data).reduce((sum, e) => (e.type === 'bondOnCapture' ? sum + e.amount : sum), 0);
+  const caught = run.bucket.slice(run.companions.length).map((id) => ({ id, bond: Math.min(bond, bondToFull(id, data)) }));
   return [...home, ...run.companions.map((c) => ({ ...c })), ...caught];
 }
 
@@ -246,17 +297,19 @@ export function layEggs(home: readonly HomeCreature[], run: RunState, data: Game
 export type Discovery = 'seen' | 'captured';
 
 /**
- * The creature book after `combat`: its creatures are seen, and captured once the fight is won.
+ * The creature book after `combat`: its creatures are seen, and captured once caught (or the
+ * fight won), unless they were `released` (a mini-boss or boss, see `isReleaseFight`).
  * Returns `book` itself when nothing new was learnt.
  */
 export function recordEncounter(
   book: Readonly<Record<string, Discovery>>,
   combat: CombatState,
+  released = false,
 ): Readonly<Record<string, Discovery>> {
-  const status: Discovery = combat.phase === 'won' ? 'captured' : 'seen';
-  const updates = combat.enemies.filter((e) => book[e.defId] !== 'captured' && book[e.defId] !== status);
+  const statusOf = (e: EnemyState): Discovery => ((combat.phase === 'won' || !isAlive(e)) && !released ? 'captured' : 'seen');
+  const updates = combat.enemies.filter((e) => book[e.defId] !== 'captured' && book[e.defId] !== statusOf(e));
   if (!updates.length) return book;
-  return { ...book, ...Object.fromEntries(updates.map((e) => [e.defId, status])) };
+  return { ...book, ...Object.fromEntries(updates.map((e) => [e.defId, statusOf(e)])) };
 }
 
 /** Offer `count` distinct non-starter cards: shared ones plus those of the run's build. */

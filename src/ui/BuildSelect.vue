@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { creatureTypeNames, describeCard, type BuildDef, type GameData } from '../engine';
+import { creatureTypeNames, describeCard, startingBuilds, type BuildDef, type GameData } from '../engine';
 import CardView from './CardView.vue';
 import SpriteView from './SpriteView.vue';
 
+/** The whole screen: the builds a run can start with, each with its details and starting items. */
 const props = defineProps<{ data: GameData }>();
-const emit = defineEmits<{ choose: [buildId: string] }>();
+const emit = defineEmits<{ choose: [buildId: string, itemId: string | undefined]; back: [] }>();
 
 const tagNames = computed(() => creatureTypeNames(props.data));
+const builds = computed(() => startingBuilds(props.data));
+
+/** The starting item picked under each build (its first one until the player picks). */
+const picked = ref<Record<string, string | undefined>>({});
+const itemOf = (build: BuildDef) => picked.value[build.id] ?? build.startingItems?.[0];
 
 /** The starter deck as distinct cards with counts, in deck order. */
 function deckSummary(build: BuildDef) {
@@ -15,127 +21,85 @@ function deckSummary(build: BuildDef) {
   for (const id of build.starterDeck) counts.set(id, (counts.get(id) ?? 0) + 1);
   return [...counts].map(([id, count]) => ({ card: props.data.cards[id], count }));
 }
-
-/** The build shown in the details dialog. */
-const detail = ref<BuildDef | null>(null);
-const dialog = ref<HTMLDialogElement>();
-
-function openDetails(build: BuildDef) {
-  detail.value = build;
-  dialog.value?.showModal();
-}
-
-/** Clicks on the dimmed backdrop land on the <dialog> itself; clicks inside land on its content. */
-function onDialogClick(event: MouseEvent) {
-  if (event.target === dialog.value) dialog.value?.close();
-}
 </script>
 
 <template>
   <section class="build-select">
-    <h2>Choose how you'll fish</h2>
+    <header class="intro">
+      <button class="ghost back" @click="emit('back')">← Back</button>
+      <h2>Choose how you'll fish</h2>
+      <p>You start as a kid on the shore. More ways to fish open up as you grow.</p>
+    </header>
 
     <div class="builds">
-      <article v-for="build in data.builds" :key="build.id" class="build">
-        <button class="image" :aria-label="`${build.name}: see details`" @click="openDetails(build)">
-          <SpriteView v-if="build.sprite" :sprite="build.sprite" :size="96" class="icon" />
-          <span class="hint">Details</span>
-        </button>
-        <h3>{{ build.name }}</h3>
-        <button class="select" @click="emit('choose', build.id)">Select</button>
-      </article>
-    </div>
-
-    <dialog ref="dialog" class="details" @click="onDialogClick" @close="detail = null">
-      <template v-if="detail">
+      <article v-for="build in builds" :key="build.id" class="build" :aria-labelledby="`build-${build.id}`">
         <header>
-          <SpriteView v-if="detail.sprite" :sprite="detail.sprite" :size="72" class="icon" />
+          <SpriteView v-if="build.sprite" :sprite="build.sprite" :size="88" class="icon" />
           <div>
-            <h3>{{ detail.name }}</h3>
-            <p class="description">{{ detail.description }}</p>
+            <h3 :id="`build-${build.id}`">{{ build.name }}</h3>
+            <p class="description">{{ build.description }}</p>
           </div>
         </header>
 
         <div class="strong">
           <span class="label">Strong against</span>
-          <span v-for="tag in detail.strongAgainst" :key="tag" class="chip">{{ tagNames[tag] ?? tag }}</span>
+          <span v-for="tag in build.strongAgainst" :key="tag" class="chip">{{ tagNames[tag] ?? tag }}</span>
         </div>
 
-        <h4>Starter deck</h4>
+        <h4>Starter deck · {{ build.starterDeck.length }} cards</h4>
         <div class="deck">
-          <div v-for="{ card, count } in deckSummary(detail)" :key="card.id" class="deck-card">
+          <div v-for="{ card, count } in deckSummary(build)" :key="card.id" class="deck-card">
             <CardView :card="card" :description="describeCard(card, { tagNames })" />
             <span class="count">×{{ count }}</span>
           </div>
         </div>
 
-        <template v-if="detail.startingEquipment?.length">
-          <h4>Starting equipment</h4>
-          <ul class="equipment">
-            <li v-for="id in detail.startingEquipment" :key="id">
-              <span class="equipment-icon">{{ data.equipment[id]?.icon ?? '🎒' }}</span>
-              <span><b>{{ data.equipment[id]?.name }}</b>: {{ data.equipment[id]?.description }}</span>
-            </li>
-          </ul>
+        <template v-if="build.startingItems?.length">
+          <h4>Starting item · pick one</h4>
+          <div class="items" role="radiogroup" :aria-label="`${build.name} starting item`">
+            <label v-for="id in build.startingItems" :key="id" class="item" :class="{ selected: itemOf(build) === id }">
+              <input type="radio" :name="`item-${build.id}`" :value="id" :checked="itemOf(build) === id" @change="picked[build.id] = id" />
+              <span class="item-icon">{{ data.equipment[id]?.icon ?? '🎒' }}</span>
+              <span>
+                <b>{{ data.equipment[id]?.name }}</b>
+                <small>{{ data.equipment[id]?.description }}</small>
+              </span>
+            </label>
+          </div>
         </template>
 
-        <footer>
-          <button class="ghost" @click="dialog?.close()">Close</button>
-          <button @click="emit('choose', detail.id)">Select {{ detail.name }}</button>
-        </footer>
-      </template>
-    </dialog>
+        <button class="choose" @click="emit('choose', build.id, itemOf(build))">
+          Fish with {{ build.name }}<template v-if="itemOf(build)"> + {{ data.equipment[itemOf(build)!]?.name }}</template>
+        </button>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.build-select { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0 12px; }
-.build-select h2 { margin: 0; }
+.build-select { display: flex; flex-direction: column; gap: 16px; padding: 12px 0 24px; }
+.intro { position: relative; text-align: center; }
+.back { position: absolute; top: 0; left: 0; }
+.intro h2 { margin: 0; font-size: 1.8rem; }
+.intro p { margin: 4px 0 0; color: var(--muted); }
 
-.builds { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-.build { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px; }
-.build h3 { margin: 0; font-size: 1.1rem; }
-.image {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 140px;
-  height: 140px;
-  padding: 0;
-  border-radius: 16px;
-  border: 2px solid #2c3a4a;
-  background: linear-gradient(180deg, #1f3448, #17283a);
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.image:hover,
-.image:focus-visible { border-color: var(--highlight); transform: translateY(-2px); }
-.hint {
-  position: absolute;
-  bottom: 6px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--muted);
-}
-.select { width: 140px; }
-.icon { filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.5)); }
-
-/* Details dialog */
-.details {
-  width: min(560px, calc(100vw - 32px));
-  padding: 20px 24px;
+.builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; }
+.build {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
   border: 2px solid #2c3a4a;
   border-radius: 16px;
   background: linear-gradient(180deg, #1f3448, #17283a);
-  color: var(--text);
 }
-.details::backdrop { background: rgb(5 8 12 / 0.65); }
-.details header { display: flex; gap: 14px; align-items: center; }
-.details h3 { margin: 0; font-size: 1.4rem; }
-.details h4 { margin: 14px 0 6px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.build header { display: flex; gap: 14px; align-items: center; }
+.build h3 { margin: 0; font-size: 1.4rem; }
+.build h4 { margin: 6px 0 0; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .description { margin: 4px 0 0; color: var(--muted); }
-.details footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.icon { flex: none; filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.5)); }
 
-.strong { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+.strong { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .label { font-size: 0.8rem; color: var(--muted); }
 .chip { padding: 2px 10px; border-radius: 10px; background: #2f5a3a; font-size: 0.8rem; font-weight: 600; }
 
@@ -153,8 +117,24 @@ function onDialogClick(event: MouseEvent) {
   font-weight: 800;
 }
 
-.equipment { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; color: var(--muted); }
-.equipment li { display: flex; gap: 6px; align-items: flex-start; }
-.equipment b { color: var(--text); }
-.equipment-icon { font-size: 1.1rem; line-height: 1.1; }
+.items { display: flex; flex-direction: column; gap: 6px; }
+.item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 2px solid #2c3a4a;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.15);
+  cursor: pointer;
+}
+.item:hover { border-color: #4a5a6a; }
+.item.selected { border-color: var(--highlight); background: rgb(245 215 110 / 0.08); }
+.item:has(input:focus-visible) { outline: 2px solid var(--highlight); outline-offset: 2px; }
+.item input { position: absolute; opacity: 0; pointer-events: none; }
+.item-icon { font-size: 1.5rem; line-height: 1; }
+.item b { display: block; }
+.item small { color: var(--muted); font-size: 0.8rem; }
+
+.choose { margin-top: auto; padding: 12px; font-size: 1rem; }
 </style>

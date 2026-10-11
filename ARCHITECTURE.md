@@ -25,7 +25,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 ## Screen flow
 
 ```
-menu ──New run──▶ build ──Select──▶ map ──▶ fight ──win──▶ card reward ──▶ map …
+menu ──New run──▶ build ──Fish with…──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ card reward ──▶ map …
   ▲                                  │  ├─▶ event (10%: a fight instead) ─▶ map
   │                                  │  ├─▶ treasure ─▶ map
   │                                  │  └─▶ shop ─▶ map
@@ -35,8 +35,12 @@ menu ──New run──▶ build ──Select──▶ map ──▶ fight ─�
   └──── Menu button (any screen) ◀── complete (Elder boss beaten, headed home, or a boss fled) / defeat
 ```
 
-- **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature. Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), and how many are in the home aquarium.
-- **Build selection:** one tile per build. The image opens a details dialog (description, strong-against types, starter deck, equipment). The home aquarium fills the bottom half of the screen, with three session slots (`SessionSlots.vue`) on its right: clicking a creature offers **Bring for the session**, and ✕ puts it back.
+- **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). **Temporary, development builds only** (`import.meta.env.DEV`): a 🛠 Debug panel on the left starts a fresh run straight into each act's mini-boss or boss fight (`debugStartAt`). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature. Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), and how many are in the home aquarium.
+- **Build selection** (`BuildSelect.vue`, its own screen, **← Back** at the top left returns to the menu): the builds a run can start with (`startingBuilds`), side by side.
+  - **Which builds:** a run starts as the Kid, so only builds without a later `level` are offered (Rod fishing and Foraging; Spear fishing is set to `adult`).
+  - **Shown:** each build's description, strong-against types, full starter deck, and its **starting items** (`startingItems`). The player picks one, the first by default.
+  - **Next:** **Fish with…** goes to the companions screen.
+- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature offers **Bring for the session**, and ✕ puts it back. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the builds. With an empty home aquarium this step is skipped.
 
 ## A run
 
@@ -67,7 +71,12 @@ menu ──New run──▶ build ──Select──▶ map ──▶ fight ─�
 - **Head home** (the `leave` node after each mini-boss):
   - **Confirming:** clicking the ⌂ node opens a confirmation without moving (`leaveNodeId` in `useGame.ts`). **Go back** returns to the map; that prompt is never saved, so a resume lands on the map.
   - **Finish:** `visitLeave` moves onto the node and the run ends as a success, so the bucket comes home.
-- **End of a fight** (`finishCombat`): carries HP over. A win also adds one to the floor counter and puts every enemy into the bucket, unless equipment sells it on the spot.
+- **End of a fight** (`finishCombat`): carries HP over. A win also adds one to the floor counter. Every creature caught goes into the bucket, unless equipment sells it on the spot. That includes creatures caught before another one got away.
+- **Caught mid-fight:** in a fight with several creatures, one caught before the others leaves the battlefield once its capture animation has played (`CombatView.vue`), with a "🪣 … caught!" note. The engine keeps it in the fight state until the end, and `finishCombat` puts it in the bucket.
+- **Mini-bosses and bosses are let go** (`isReleaseFight`: the run stands on one):
+  - **No catch:** a win never adds them to the bucket or sells them, and the creature book only marks them seen (`recordEncounter`'s `released`).
+  - **On screen:** they swim away (the flee animation) instead of the capture net.
+  - **Why:** the victory text gives the node's `releaseReason`, e.g. "Blue crab is too feisty to keep, so you let it go."
 
 ## Combat and the Panic bar
 
@@ -98,10 +107,10 @@ There are two separate collections of creatures. They never share creatures, exc
 | Where in code | `RunState.bucket` (creature ids) | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
 | Shown | Below the map and the shop (🪣 Bucket) | Menu background, build selection (🏠 Home aquarium) |
-| Interactive | Yes: click a creature to sell it for coins | On the build screen only: click a creature to bring it for the session |
+| Interactive | Yes: click a creature to sell it for coins | On the companions screen only: click a creature to bring it for the session |
 
 **Lifecycle:**
-1. **New run:** on the build screen the player can pick up to `SESSION_SLOTS` (3) home-aquarium creatures (`useGame` `brought`). When the build is chosen, `takeFromHome` removes them from the home aquarium (and the profile is written), and `createRun` starts the bucket with them. They follow the bucket's rules from then on, so they're lost if the run is.
+1. **New run:** on the companions screen the player can pick up to `SESSION_SLOTS` (3) home-aquarium creatures (`useGame` `brought`). When the run starts, `takeFromHome` removes them from the home aquarium (and the profile is written), and `createRun` starts the bucket with them. They follow the bucket's rules from then on, so they're lost if the run is.
 2. **During the run:**
    - **Captures:** captured creatures go into the bucket. With **Sharp Spear** they're sold on the spot instead and never reach it.
    - **Selling:** the player can sell creatures from the bucket at any time.
@@ -120,18 +129,18 @@ There are two separate collections of creatures. They never share creatures, exc
 - **Left at home:** `restAtHome` adds `BOND_AT_HOME` (2) after every run that ends, but never past level 1, and never takes any away.
 - **New arrivals:** creatures caught during a run start at 0; hatchlings start at level 1 (`hatchling`).
 - **Order at a run's end** (`endRun` in `useGame.ts`): the creatures at home rest, then a successful run brings its bucket home, then eggs are laid.
-- **Picking companions:** the build screen picks individuals by their index in the home aquarium (`takeFromHome`), not by species, so you choose which Clownfish to bring.
+- **Picking companions:** the companions screen picks individuals by their index in the home aquarium (`takeFromHome`), not by species, so you choose which Clownfish to bring.
 - **Effects:** none yet. Bond is only tracked and shown for now.
 
 **Creature book** (`Profile.creatureBook`, id → `'seen' | 'captured'`): `recordEncounter` (engine, `run.ts`) updates it from the combat state. A watcher on `combat` in `useGame.ts` writes the profile whenever something new is learnt:
-- **Seen:** as soon as a fight starts, whatever the outcome.
+- **Seen:** as soon as a fight starts, whatever the outcome. Mini-bosses and bosses stay seen, since they're let go.
 - **Captured:** once the fight is won, even if the run is lost later or the creature is sold. A captured creature never goes back to seen.
 
 Anything meant to last between runs (score, unlocks, statistics) belongs in the **profile**, never in `RunState`.
 
 ## Companions: bonuses from brought creatures
 
-Creatures brought from the home aquarium on the build screen (`RunState.companions`, always the first entries of the bucket) give a bonus from their **temperament** for the whole run. Creatures captured during the run are **angry** (💢 in the bucket) and give nothing. Selling a companion ends its bonus; the max HP it gave stays.
+Creatures brought from the home aquarium on the companions screen (`RunState.companions`, always the first entries of the bucket) give a bonus from their **temperament** for the whole run. Creatures captured during the run are **angry** (💢 in the bucket) and give nothing. Selling a companion ends its bonus; the max HP it gave stays.
 
 - **Content:** `content/companions.ts`, one `CompanionBonusDef` per temperament. `effects` hold the amounts for one species; `fullSchool` is the extra at 3 species.
 - **Scaling** (`engine/companions.ts`, `activeBonuses`): only **different species** count, so two Clownfish are one reef fish.
@@ -184,6 +193,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
   - **Links:** the links between nodes.
   - **Nodes:** fights in their spot's colour with its code, ? / $ / T for events, shops and treasure, ⌂ for heading home, a diamond for the mini-boss and a ring for the boss.
   - **Legend:** a **Legend** button shows it, built from the spots.
+  - **Zoom:** the map shows the level's reach (the dotted line) plus a small margin (`view`). It fills the screen's width, up to 62% of the window's height. Kid is zoomed in on the shore, and the map zooms out as the ages reach further (Elder shows the whole coast).
 - **Map terrain patches** (`assets/terrain.png`, from `scripts/generate-map-terrain.mjs`) were drawn under fights on the old generated map. Nothing uses them now; `terrain` in `content/creatureTypes.ts` is kept for later.
 - **Eggs** (`assets/eggs/<colour>.png`: idle row, then hatching row, 32×32 frames) are cut from `assets/egg.png` (art by VIERGACHT) by `scripts/extract-eggs.mjs`. They're used through `eggClip` in `ui/sprites.ts`.
 
@@ -202,10 +212,20 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 | Nodes, links, bosses, reach, tier | `content/levels.ts` | Each level's map and who you meet |
 | Waters and creature types per spot | `content/spots.ts` | Which creatures each fishing spot can bring |
 | `EVENT_FIGHT_CHANCE`, `CARD_REWARD_COUNT` | `engine/run.ts` | Surprise fights in events, card choices after a win |
-| `STARTING_HAND_SIZE`, `BASE_ENERGY`, `VULNERABLE_MULTIPLIER`, `WEAK_MULTIPLIER` | `engine/constants.ts` | Combat basics |
+| `STARTING_HAND_SIZE`, `BASE_ENERGY`, `VULNERABLE_MULTIPLIER`, `WEAK_MULTIPLIER`, `STRONG_BONUS_PERCENT` | `engine/constants.ts` | Combat basics, and the extra damage of cards against their build's creature types |
 | `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier`, `water` | `content/creatures.ts` | Per-creature balance, and where it lives |
 | Item prices and limits | `content/shop.ts` | Shop |
+| `startingItems`, `level` per build; item effects | `content/builds.ts`, `content/equipment.ts` | Which builds start a run, and the items to pick from |
 | Temperament bonuses, `COMPANION_SCALE_CAP`, `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales |
 | `BOND_BY_TIER`, `bondToFull`, `BOND_PER_ENCOUNTER`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |
 
-Percentages in equipment and event effects are whole numbers (20 = 20%), and results are **rounded up**: the Reliable Reel's rate cut, the Sharp Spear's sale bonus, passerby bonuses.
+Percentages in equipment and event effects are whole numbers (20 = 20%), and results are **rounded up**: the Reliable Reel's rate cut, the Strong Rod's extra pull, the Sharp Spear's sale bonus, passerby bonuses.
+
+**Equipment effects** (`EquipmentEffect`, applied by the engine):
+- **`slowEscape`:** the Reliable Reel.
+- **`strongerPull`:** the Strong Rod. Player effects that lower Panic lower it a share more (`CombatState.pullPercent`).
+- **`sellOnCapture`:** the Sharp Spear.
+- **`passerbyBonus`:** the Rubber Duck.
+- **`bondOnCapture`:** the Soft Net. Catches come home with that bond (`bringCatchHome`).
+- **`extraCatch`:** the Crab Hook. An ordinary fight at one of its `spots` (rock pools, estuary, stream, beach, cliff rocks) sometimes drags in one more creature of the listed types at the same tier, from the spot's waters when possible (`startFight`). Never on a mini-boss or a boss.
+- **The Handline** has no effect yet.

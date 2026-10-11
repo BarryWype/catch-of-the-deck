@@ -29,7 +29,9 @@ function play() {
   }, 1000 / fps);
 }
 
-watch(() => [props.clip.url, props.clip.row, props.playKey], play, { immediate: true });
+// Separate sources, compared one by one: the parent builds a new clip object on every render,
+// which must not restart a one-shot animation that already played.
+watch([() => props.clip.url, () => props.clip.row, () => props.playKey], play, { immediate: true });
 onBeforeUnmount(() => clearInterval(timer));
 
 const style = computed(() => ({

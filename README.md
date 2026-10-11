@@ -41,7 +41,7 @@ You play a young fisherman setting off on their fishing journey from the grandpa
 | Spear fishing | Rock fish, Big fish, Tentacled | 5 Sharp Stick, 4 Bucket, 1 Harpoon |
 | Foraging | Crustacean, Shellfish, Critter | 5 Small Net, 4 Bucket, 1 Crab Net |
 
-Every creature has a type (shown under its name, and as the icon of map events). Build cards deal bonus damage to their types and glow **Effective!** when the bonus applies.
+Every creature has a type (shown under its name, and as the icon of map events). Build cards deal 20% more damage to their types and glow **Effective!** when the bonus applies.
 
 - A run takes place on a map that you cross from left to right: a starting point, 20 fights and a boss at the end. Column 10 is a harbour of 3–4 nodes: 🛒 shops, plus one 🚪 "finish the session" node, a dead end where you can end the run and take your bucket home. Your position is marked **A**, and the destinations you can reach next are highlighted in yellow. Each event shows a creature type (🐠 small fish, 🦀 crustacean…), tinted green when your build is strong against it; the actual creature is drawn from that type when you get there. Everything comes from the run seed. Hover over an event to see its type.
 - You start each turn with 5 cards and 3 energy. Click a card to play it. With several enemies, click the card and then the enemy you want to hit.
@@ -115,7 +115,7 @@ Effect reference:
 
 `target` can be `'target'` (the default: the chosen enemy, or the player when an enemy acts), `'self'`, `'allEnemies'`, or `'randomEnemy'` (re-rolled for every hit).
 
-To make a card stronger against some creature types, add a `bonus` to its damage: `{ type: 'dealDamage', amount: 5, bonus: { against: ['crustacean', 'shellfish'], amount: 4 } }`. The bonus is added to every hit before Strength and Vulnerable. `src/content/builds.ts` exports each build's type list (`ROD_TARGETS`, `SPEAR_TARGETS`, `FORAGING_TARGETS`) for reuse.
+To make a card stronger against some creature types, add a `bonus` to its damage: `{ type: 'dealDamage', amount: 5, bonus: { against: ['crustacean', 'shellfish'] } }`. Every hit then deals 20% more against them (`STRONG_BONUS_PERCENT`, rounded), after Strength, Weak and Vulnerable. `src/content/builds.ts` exports each build's type list (`ROD_TARGETS`, `SPEAR_TARGETS`, `FORAGING_TARGETS`) for reuse.
 
 To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), the types it's `strongAgainst` (shown on the selection screen), and a gear sprite.
 
@@ -130,7 +130,7 @@ Enemies are the 144 creatures in `src/ui/assets/fishes.png`, listed in **`src/co
 ```
 
 - `no` is the creature's number in `fish_names.pdf`, which is also its position in the sprite sheet (left to right, top to bottom). The sprite is picked automatically from it.
-- `type` is the creature type, one of those in `src/content/creatureTypes.ts`: `smallFish`, `sportFish`, `bigFish`, `rockFish`, `deepSea`, `crustacean`, `shellfish`, `tentacled` or `critter`. Build cards get bonus damage against some types.
+- `type` is the creature type, one of those in `src/content/creatureTypes.ts`: `smallFish`, `sportFish`, `bigFish`, `rockFish`, `deepSea`, `crustacean`, `shellfish`, `tentacled` or `critter`. Build cards deal 20% more damage against some types.
 - `tier` (1–3) sets how deep in the map it appears: the fight columns are split into three equal bands, shallow to deep.
 - `hp` is a `[min, max]` range, rolled each fight.
 - `strength` (optional) is Strength the creature starts every fight with. It is shown on screen and adds to every hit.

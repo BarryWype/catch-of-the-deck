@@ -73,9 +73,9 @@ describe('playing cards', () => {
 });
 
 describe('creature type bonus', () => {
-  it('adds bonus damage on every hit against a matching creature type', () => {
+  it('deals 20% more on every hit against a matching creature type, rounded', () => {
     const s = play(setup(repeat('hook', 5)), 'hook'); // dummy is a 'fish'
-    expect(s.enemies[0].hp).toBe(100 - 2 * (5 + 4));
+    expect(s.enemies[0].hp).toBe(100 - 2 * 6);
   });
 
   it('does nothing against other types', () => {
@@ -84,7 +84,7 @@ describe('creature type bonus', () => {
     expect(s.enemies[0].hp).toBe(s0.enemies[0].hp - 2 * 5);
   });
 
-  it('is added before Strength and Vulnerable', () => {
+  it('applies after Strength and Vulnerable', () => {
     let s = setup(['flex', 'bash', 'hook', 'defend', 'defend']);
     s = play(s, 'flex'); // +2 Strength
     s = play(s, 'bash'); // (8 + 2) = 10, then Vulnerable
@@ -92,8 +92,8 @@ describe('creature type bonus', () => {
     s = applyAction(s, { type: 'endTurn' }, testData);
     expect(s.enemies[0].statuses.vulnerable).toBe(1);
     s = { ...s, piles: { ...s.piles, hand: [{ uid: 'h', defId: 'hook' }] } };
-    s = play(s, 'hook'); // 2 × floor((5 + 4 + 2) × 1.5) = 2 × 16
-    expect(s.enemies[0].hp).toBe(90 - 32);
+    s = play(s, 'hook'); // 2 × round(floor((5 + 2) × 1.5) × 1.2) = 2 × 12
+    expect(s.enemies[0].hp).toBe(90 - 24);
   });
 
   it('enemies carry their tags into the fight', () => {

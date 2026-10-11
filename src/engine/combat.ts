@@ -76,6 +76,8 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
     if (effect.type !== 'slowEscape') continue;
     for (const enemy of state.enemies) enemy.escapeRate -= escapeRateReduction(enemy.escapeRate, effect.percent);
   }
+  const pull = equipmentEffects(config.equipment ?? [], data).reduce((sum, e) => (e.type === 'strongerPull' ? sum + e.percent : sum), 0);
+  if (pull) state.pullPercent = pull;
   const companionSlow = bonusTotal(state.bonuses, 'slowEscape');
   if (companionSlow) {
     for (const enemy of state.enemies) enemy.escapeRate -= escapeRateReduction(enemy.escapeRate, companionSlow);

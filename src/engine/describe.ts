@@ -1,5 +1,5 @@
-import { bonusAgainst, calculateDamage } from './damage';
-import { ESCAPE_BAR_NAME } from './constants';
+import { calculateDamage, isStrongAgainst } from './damage';
+import { ESCAPE_BAR_NAME, STRONG_BONUS_PERCENT } from './constants';
 import { STATUS_META } from './statuses';
 import type { CardDef, Effect, EffectTarget, Statuses } from './types';
 
@@ -22,14 +22,14 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
     case 'dealDamage': {
       const target = effect.target ?? 'target';
       const defender = target === 'target' ? opts.defender : undefined;
-      const bonus = bonusAgainst(effect.bonus, target === 'target' ? opts.defenderTags : undefined);
-      const real = calculateDamage(effect.amount + bonus + (opts.bonusDamage ?? 0), opts.attacker, defender);
+      const strong = isStrongAgainst(effect.bonus, target === 'target' ? opts.defenderTags : undefined);
+      const real = calculateDamage(effect.amount + (opts.bonusDamage ?? 0), opts.attacker, defender, strong);
       // The printed amount, then the real one in brackets when modifiers change it.
       const dmg = real === effect.amount ? `${real}` : `${effect.amount} (${real})`;
       const times = (effect.hits ?? 1) > 1 ? ` ${effect.hits} times` : '';
       // Always named, so a bracketed real number never appears without its reason.
       const extra = effect.bonus
-        ? ` (+${effect.bonus.amount} vs ${effect.bonus.against.map((t) => opts.tagNames?.[t] ?? t).join(', ')})`
+        ? ` (+${STRONG_BONUS_PERCENT}% vs ${effect.bonus.against.map((t) => opts.tagNames?.[t] ?? t).join(', ')})`
         : '';
       if (target === 'allEnemies') return `Deal ${dmg} damage to ALL enemies${times}${extra}.`;
       if (target === 'randomEnemy') return `Deal ${dmg} damage to a random enemy${times}${extra}.`;
@@ -75,7 +75,7 @@ export function describeEffects(effects: Effect[], opts: DescribeOptions = {}): 
 
 /** Does any of the card's damage get a type bonus against an enemy with these tags? */
 export function isCardEffectiveAgainst(card: CardDef, tags: readonly string[]): boolean {
-  return card.effects.some((e) => e.type === 'dealDamage' && bonusAgainst(e.bonus, tags) > 0);
+  return card.effects.some((e) => e.type === 'dealDamage' && isStrongAgainst(e.bonus, tags));
 }
 
 /** Card rules text: the explicit `description` override, or generated from effects. */

@@ -1,4 +1,4 @@
-import { applyAction, buildGameData, createCombat, type CombatState, type CompanionEffect, type GameMap, type MapNodeKind } from '../src/engine';
+import { applyAction, buildGameData, createCombat, type CombatState, type CompanionEffect, type GameData, type GameMap, type MapNodeKind } from '../src/engine';
 
 /**
  * Test-only content with fixed numbers, so engine tests don't break when a
@@ -26,7 +26,7 @@ export const testData = buildGameData({
     { id: 'lure', name: 'Lure', type: 'skill', rarity: 'common', cost: 0, target: 'none', build: 'angler', effects: [{ type: 'drawCards', amount: 1 }] },
     {
       id: 'hook', name: 'Hook', type: 'attack', rarity: 'starter', cost: 1, target: 'enemy',
-      effects: [{ type: 'dealDamage', amount: 5, hits: 2, bonus: { against: ['fish'], amount: 4 } }],
+      effects: [{ type: 'dealDamage', amount: 5, hits: 2, bonus: { against: ['fish'] } }],
     },
   ],
   enemies: [
@@ -68,7 +68,7 @@ export const testData = buildGameData({
   encounters: [{ id: 'dummy', name: 'Dummy', enemies: ['dummy'] }],
   builds: [
     { id: 'basic', name: 'Basic', description: '', starterDeck: ['strike', 'defend'], strongAgainst: [] },
-    { id: 'angler', name: 'Angler', description: '', starterDeck: ['hook', 'defend'], strongAgainst: ['fish'], startingEquipment: ['reel'] },
+    { id: 'angler', name: 'Angler', description: '', starterDeck: ['hook', 'defend'], strongAgainst: ['fish'], startingItems: ['reel'] },
   ],
   events: [],
   shop: [],
@@ -115,7 +115,7 @@ export function withNodeKind<R extends { map: GameMap }>(run: R, id: string, kin
 
 export function setup(
   deck: string[],
-  opts: { enemies?: string[]; seed?: number; hp?: number; equipment?: string[]; bonuses?: CompanionEffect[] } = {},
+  opts: { enemies?: string[]; seed?: number; hp?: number; equipment?: string[]; bonuses?: CompanionEffect[]; data?: GameData } = {},
 ): CombatState {
   return createCombat(
     {
@@ -127,15 +127,15 @@ export function setup(
       equipment: opts.equipment,
       bonuses: opts.bonuses,
     },
-    testData,
+    opts.data ?? testData,
   );
 }
 
 /** Play the first card in hand with the given definition id. */
-export function play(state: CombatState, defId: string, targetId = 'e0'): CombatState {
+export function play(state: CombatState, defId: string, targetId = 'e0', data: GameData = testData): CombatState {
   const card = state.piles.hand.find((c) => c.defId === defId);
   if (!card) throw new Error(`No "${defId}" in hand: ${state.piles.hand.map((c) => c.defId).join(', ')}`);
-  return applyAction(state, { type: 'playCard', cardUid: card.uid, targetId }, testData);
+  return applyAction(state, { type: 'playCard', cardUid: card.uid, targetId }, data);
 }
 
 export function endTurn(state: CombatState): CombatState {

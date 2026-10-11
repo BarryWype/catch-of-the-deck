@@ -28,8 +28,17 @@ import {
   type PlayerAnimation,
 } from './sprites';
 
-/** `newEggs`: eggs laid at home when the run ends here (see useGame `breed`). */
-const props = defineProps<{ state: CombatState; data: GameData; equipment: string[]; newEggs: number }>();
+/**
+ * `newEggs`: eggs laid at home when the run ends here (see useGame `breed`).
+ * `releaseReason`: set for mini-bosses and bosses, which swim away instead of being caught.
+ */
+const props = defineProps<{
+  state: CombatState;
+  data: GameData;
+  equipment: string[];
+  newEggs: number;
+  releaseReason: string | null;
+}>();
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; restart: [] }>();
 
 /** A card waiting for the player to click an enemy. */
@@ -68,6 +77,40 @@ const animations = reactive<Record<string, { name: AnimationName | PlayerAnimati
 function animate(id: string, name: AnimationName | PlayerAnimation) {
   animations[id] = { name, key: (animations[id]?.key ?? 0) + 1 };
 }
+
+/**
+ * Creatures caught (or let go) while others still fight leave the battlefield once their
+ * capture / flee animation has played; the engine keeps them for the bucket (`finishCombat`).
+ * The last one stays, under the end-of-fight overlay.
+ */
+const LEAVE_DELAY_MS = 900;
+const gone = reactive(new Set<string>());
+/** Short "caught" notes, one per creature that left mid-fight. */
+const caughtNotes = ref<{ id: string; text: string }[]>([]);
+const leaveTimers: ReturnType<typeof setTimeout>[] = [];
+onBeforeUnmount(() => leaveTimers.forEach(clearTimeout));
+function leaveBattlefield(enemy: EnemyState) {
+  leaveTimers.push(
+    setTimeout(() => {
+      if (props.state.phase !== 'playerTurn') return;
+      gone.add(enemy.id);
+      const text = props.releaseReason ? `${enemy.name} swims away` : `🪣 ${enemy.name} caught!`;
+      caughtNotes.value = [...caughtNotes.value, { id: enemy.id, text }];
+      leaveTimers.push(setTimeout(() => (caughtNotes.value = caughtNotes.value.filter((n) => n.id !== enemy.id)), 1800));
+    }, LEAVE_DELAY_MS),
+  );
+}
+const shownEnemies = computed(() => props.state.enemies.filter((e) => !gone.has(e.id)));
+// A new fight (new seed) starts with everyone back on the battlefield.
+watch(
+  () => props.state.seed,
+  () => {
+    gone.clear();
+    caughtNotes.value = [];
+  },
+);
+/** Names of the creatures caught before one got away (they're kept). */
+const caughtBeforeEscape = computed(() => props.state.enemies.filter((e) => !isAlive(e)).map((e) => e.name));
 
 /** Let the creature's lunge land before the fisherman flinches. */
 const HURT_DELAY_MS = 300;
@@ -112,7 +155,8 @@ watch(
       const before = previous.enemies.find((e) => e.id === enemy.id);
       if (!before) continue;
       if (!isAlive(enemy) && isAlive(before)) {
-        animate(enemy.id, 'capture');
+        animate(enemy.id, props.releaseReason ? 'flee' : 'capture');
+        if (state.phase === 'playerTurn') leaveBattlefield(enemy);
       } else if (state.phase === 'fled' && previous.phase !== 'fled' && enemy.escape >= enemy.escapeAt) {
         animate(enemy.id, 'flee');
       } else if (state.phase === 'lost' && previous.phase !== 'lost' && isAlive(enemy)) {
@@ -183,9 +227,9 @@ function endTurn() {
         :animation-key="animations[PLAYER_ID]?.key"
         @animation-done="onAnimationDone(PLAYER_ID)"
       />
-      <div class="enemies">
+      <TransitionGroup tag="div" name="leave" class="enemies">
         <CombatantView
-          v-for="enemy in state.enemies"
+          v-for="enemy in shownEnemies"
           :key="enemy.id"
           :combatant="enemy"
           :portrait="data.enemies[enemy.defId].portrait ?? '👹'"
@@ -199,7 +243,10 @@ function endTurn() {
           @select="onEnemyClick(enemy)"
           @animation-done="onAnimationDone(enemy.id)"
         />
-      </div>
+      </TransitionGroup>
+      <TransitionGroup tag="ul" name="note" class="caught-notes" aria-live="polite">
+        <li v-for="note in caughtNotes" :key="note.id">{{ note.text }}</li>
+      </TransitionGroup>
       <ol class="log">
         <li v-for="(line, i) in recentLog" :key="state.log.length - i">{{ line }}</li>
       </ol>
@@ -237,12 +284,21 @@ function endTurn() {
         <template v-if="state.phase === 'won'">
           <h2>Victory!</h2>
           <p>You won in {{ state.turn }} turn{{ state.turn === 1 ? '' : 's' }} with {{ state.player.hp }} HP left.</p>
-          <p v-if="instantSale !== null">Sold on the spot for 🪙 {{ instantSale }}.</p>
+          <p v-if="releaseReason">
+            {{ [...new Set(state.enemies.map((e) => e.name))].join(' and ') }} {{ state.enemies.length > 1 ? 'are' : 'is' }}
+            {{ releaseReason }}, so you let {{ state.enemies.length > 1 ? 'them' : 'it' }} go.
+          </p>
+          <p v-else-if="instantSale !== null">Sold on the spot for 🪙 {{ instantSale }}.</p>
           <button @click="emit('claimVictory')">Choose a reward</button>
         </template>
         <template v-else-if="state.phase === 'fled'">
           <h2>It got away!</h2>
-          <p>{{ state.enemies.find((e) => e.escape >= e.escapeAt)?.name }} broke free on turn {{ state.turn }}. No catch this time.</p>
+          <p>
+            {{ state.enemies.find((e) => e.escape >= e.escapeAt)?.name }} broke free on turn {{ state.turn }}.
+            <template v-if="!caughtBeforeEscape.length">No catch this time.</template>
+            <template v-else-if="releaseReason">You let the others go.</template>
+            <template v-else>{{ caughtBeforeEscape.join(', ') }} stay{{ caughtBeforeEscape.length === 1 ? 's' : '' }} in your bucket.</template>
+          </p>
           <button @click="emit('leave')">Back to the map</button>
         </template>
         <template v-else>
@@ -271,6 +327,27 @@ function endTurn() {
   background: linear-gradient(180deg, #1d2c3f 0%, #17324a 55%, #12283b 100%);
 }
 .enemies { display: flex; gap: 24px; }
+/* A caught creature fades out of the battlefield; the others slide over. */
+.enemies > .leave-leave-active { transition: opacity 0.4s ease, transform 0.4s ease; }
+.enemies > .leave-leave-to { opacity: 0; transform: translateY(12px) scale(0.9); }
+.enemies > .leave-move { transition: transform 0.4s ease; }
+.caught-notes {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
+  list-style: none;
+  pointer-events: none;
+}
+.caught-notes li { padding: 6px 14px; border-radius: 999px; background: rgb(20 24 32 / 0.9); font-weight: 700; color: var(--highlight); }
+.note-enter-active, .note-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.note-enter-from, .note-leave-to { opacity: 0; transform: translateY(-8px); }
 
 .log {
   position: absolute;

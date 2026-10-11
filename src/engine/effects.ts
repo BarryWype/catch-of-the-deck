@@ -1,6 +1,6 @@
 import { bonusTotal } from './companions';
 import { ESCAPE_BAR_NAME, PLAYER_ID } from './constants';
-import { applyDamage, bonusAgainst, calculateDamage, tagsOf } from './damage';
+import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
 import { drawCards } from './piles';
 import { nextInt } from './rng';
 import { addStatus, STATUS_META } from './statuses';
@@ -64,8 +64,8 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
           const fromPlayer = source.id === PLAYER_ID;
           const companionBonus = fromPlayer && !ctx.raw ? bonusTotal(state.bonuses, 'bonusDamage') : 0;
-          const base = effect.amount + bonusAgainst(effect.bonus, tagsOf(t)) + companionBonus;
-          let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses);
+          const base = effect.amount + companionBonus;
+          let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses, isStrongAgainst(effect.bonus, tagsOf(t)));
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
           const enemyAttack = !fromPlayer && t.id === PLAYER_ID;
           if (enemyAttack && state.bonusTracker.dodged < bonusTotal(state.bonuses, 'dodgeAttacks')) {
@@ -104,7 +104,8 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (!('escape' in t)) continue;
         const enemy = t as EnemyState;
         const calming = source.id === PLAYER_ID && effect.amount < 0 && !ctx.raw;
-        const change = effect.amount - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
+        const pull = calming ? Math.ceil((-effect.amount * (state.pullPercent ?? 0)) / 100) : 0;
+        const change = effect.amount - pull - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
         enemy.escape = Math.max(0, Math.min(enemy.escapeAt, enemy.escape + change));
         addLog(state, `${enemy.name} ${change >= 0 ? 'panics' : 'calms down'} (${ESCAPE_BAR_NAME} ${enemy.escape}/${enemy.escapeAt}).`);
       }

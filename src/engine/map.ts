@@ -20,6 +20,8 @@ export interface MapNode {
   creatureType: string | null;
   enemies: string[] | null;
   label: string | null;
+  /** Why a mini-boss or boss is let go after the fight (see `isReleaseFight`). */
+  releaseReason: string | null;
   /** Ids of the nodes reachable from here. */
   next: string[];
 }
@@ -42,6 +44,7 @@ export function buildLevelMap(level: LevelDef): GameMap {
     creatureType: n.creatureType ?? null,
     enemies: n.enemies ? [...n.enemies] : null,
     label: n.label ?? null,
+    releaseReason: n.releaseReason ?? null,
     next: [...n.next],
   }));
   const firstColumn = Math.min(...nodes.map((n) => n.column));
@@ -55,6 +58,7 @@ export function buildLevelMap(level: LevelDef): GameMap {
     creatureType: null,
     enemies: null,
     label: null,
+    releaseReason: null,
     next: nodes.filter((n) => n.column === firstColumn).map((n) => n.id),
   };
   const columns: MapNode[][] = [[start]];

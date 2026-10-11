@@ -10,7 +10,14 @@ defineProps<{
   creatureBook: Readonly<Record<string, Discovery>>;
   data: GameData;
 }>();
-const emit = defineEmits<{ resume: []; newRun: []; reset: [] }>();
+const emit = defineEmits<{ resume: []; newRun: []; reset: []; debugStart: [levelIndex: number, kind: 'miniBoss' | 'boss'] }>();
+
+/** Temporary shortcuts for testing the bosses; only in development (`npm run dev`, `electron:dev`). */
+const debug = import.meta.env.DEV;
+const DEBUG_STARTS = [0, 1, 2].flatMap((level) => [
+  { level, kind: 'miniBoss' as const, label: `Act ${level + 1} · mini-boss` },
+  { level, kind: 'boss' as const, label: `Act ${level + 1} · boss` },
+]);
 
 /** Exit only exists in the desktop app; a browser tab can't quit itself. */
 const desktop = window.desktop;
@@ -76,6 +83,10 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
       </nav>
     </div>
     <button v-else class="show-menu" @click="viewing = false">☰ Menu</button>
+    <nav v-if="debug && !viewing" class="debug" aria-label="Debug shortcuts">
+      <strong>🛠 Debug</strong>
+      <button v-for="d in DEBUG_STARTS" :key="d.label" class="ghost" @click="emit('debugStart', d.level, d.kind)">{{ d.label }}</button>
+    </nav>
     <button v-if="!viewing" class="ghost reset" @click="confirmReset?.showModal()">Reset progression</button>
 
     <dialog ref="confirmReset" class="confirm" @click="$event.target === confirmReset && confirmReset?.close()">
@@ -162,5 +173,22 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 .option small { display: block; color: var(--muted); font-size: 0.75rem; }
 .option input { width: 20px; height: 20px; accent-color: var(--highlight); cursor: pointer; }
 
+.debug {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px dashed #c94a4a;
+  border-radius: 10px;
+  background: rgb(15 18 25 / 0.75);
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+}
+.debug strong { color: #f08b8b; }
+.debug button { padding: 6px 10px; font-size: 0.8rem; background: rgb(15 18 25 / 0.6); color: var(--text); }
 .show-menu { position: absolute; top: 12px; right: 16px; z-index: 1; padding: 8px 14px; }
 </style>

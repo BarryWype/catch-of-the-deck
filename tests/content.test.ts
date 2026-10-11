@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { contentSource, gameData } from '../src/content';
 import { creatures } from '../src/content/creatures';
 import { gear } from '../src/content/gear';
-import { creatureTypeNames, describeCard, validateContent, type ContentSource } from '../src/engine';
+import { creatureTypeNames, describeCard, startingBuilds, validateContent, type ContentSource } from '../src/engine';
 
 describe('game content', () => {
   it('passes validation', () => {
@@ -51,25 +51,25 @@ describe('game content', () => {
     expect(describeCard(gameData.cards.scatterBait)).toBe("Lower ALL enemies' Panic by 8.");
     expect(describeCard(gameData.cards.tireItOut)).toBe('Its Panic rises 3 slower each turn. Exhaust.');
     expect(describeCard(gameData.cards.tangleNet, { tagNames, defenderTags: ['crustacean'] })).toBe(
-      'Deal 2 (4) damage (+2 vs Crustacean, Shellfish, Critter). Apply 2 Snared.',
+      'Deal 2 damage (+20% vs Crustacean, Shellfish, Critter). Apply 2 Snared.',
     );
     expect(describeCard(gameData.cards.grandmasSandwich)).toBe('Gain 2 Energy. Exhaust.');
-    expect(describeCard(gameData.cards.cast, { tagNames })).toBe('Deal 5 damage (+4 vs Sport fish, Small fish, Deep sea).');
+    expect(describeCard(gameData.cards.cast, { tagNames })).toBe('Deal 5 damage (+20% vs Sport fish, Small fish, Deep sea).');
     // Against a matching creature the real number (bonus and modifiers included) follows in brackets.
     expect(describeCard(gameData.cards.cast, { tagNames, defenderTags: ['smallFish'] })).toBe(
-      'Deal 5 (9) damage (+4 vs Sport fish, Small fish, Deep sea).',
+      'Deal 5 (6) damage (+20% vs Sport fish, Small fish, Deep sea).',
     );
     expect(describeCard(gameData.cards.cast, { tagNames, defenderTags: ['sportFish'], attacker: { strength: 1 } })).toBe(
-      'Deal 5 (10) damage (+4 vs Sport fish, Small fish, Deep sea).',
+      'Deal 5 (7) damage (+20% vs Sport fish, Small fish, Deep sea).',
     );
     expect(describeCard(gameData.cards.stick, { tagNames, defenderTags: ['smallFish'] })).toBe(
-      'Deal 5 damage (+4 vs Rock fish, Big fish, Tentacled).',
+      'Deal 5 damage (+20% vs Rock fish, Big fish, Tentacled).',
     );
     expect(describeCard(gameData.cards.cast, { tagNames, attacker: { weak: 1 } })).toBe(
-      'Deal 5 (3) damage (+4 vs Sport fish, Small fish, Deep sea).',
+      'Deal 5 (3) damage (+20% vs Sport fish, Small fish, Deep sea).',
     );
     expect(describeCard(gameData.cards.cast, { tagNames, defenderTags: ['crustacean'] })).toBe(
-      'Deal 5 damage (+4 vs Sport fish, Small fish, Deep sea).',
+      'Deal 5 damage (+20% vs Sport fish, Small fish, Deep sea).',
     );
   });
 });
@@ -130,17 +130,18 @@ describe('creatures', () => {
 });
 
 describe('equipment', () => {
-  it('each build starts with one piece of equipment', () => {
-    expect(Object.fromEntries(Object.values(gameData.builds).map((b) => [b.id, b.startingEquipment]))).toEqual({
-      rod: ['reliableReel'],
+  it('each build offers its starting items; only Kid builds can start a run', () => {
+    expect(Object.fromEntries(Object.values(gameData.builds).map((b) => [b.id, b.startingItems]))).toEqual({
+      rod: ['reliableReel', 'strongRod', 'handline'],
       spear: ['sharpSpear'],
-      foraging: ['rubberDuck'],
+      foraging: ['rubberDuck', 'softNet', 'crabHook'],
     });
+    expect(startingBuilds(gameData).map((b) => b.id)).toEqual(['rod', 'foraging']);
   });
 
-  it('catches unknown starting equipment', () => {
-    const bad = { ...contentSource, builds: contentSource.builds.map((b, i) => (i ? b : { ...b, startingEquipment: ['ghost'] })) };
-    expect(validateContent(bad)).toHaveLength(1);
+  it('catches unknown starting items and levels', () => {
+    const bad = { ...contentSource, builds: contentSource.builds.map((b, i) => (i ? b : { ...b, startingItems: ['ghost'], level: 'teen' })) };
+    expect(validateContent(bad)).toHaveLength(2);
   });
 });
 
@@ -200,7 +201,7 @@ describe('content validation', () => {
     const bad: ContentSource = {
       ...base,
       enemies: [{ ...base.enemies[0], tags: ['ghostType'] }],
-      cards: [{ ...base.cards[0], effects: [{ type: 'dealDamage', amount: 1, bonus: { against: ['typo'], amount: 2 } }] }],
+      cards: [{ ...base.cards[0], effects: [{ type: 'dealDamage', amount: 1, bonus: { against: ['typo'] } }] }],
       builds: [{ ...base.builds[0], strongAgainst: ['nope'] }],
     };
     expect(validateContent(bad)).toHaveLength(3);

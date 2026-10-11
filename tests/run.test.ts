@@ -14,6 +14,7 @@ import {
   createRun,
   enterNextLevel,
   isLastLevel,
+  isReleaseFight,
   recordEncounter,
   START_NODE_ID,
   visitTreasure,
@@ -28,7 +29,7 @@ import {
   visitShop,
   type RunState,
 } from '../src/engine';
-import { testData, withNodeKind } from './fixtures';
+import { play, repeat, setup, testData, withNodeKind } from './fixtures';
 
 describe('run', () => {
   it('starts with the starter deck at full HP, on the map start', () => {
@@ -96,7 +97,7 @@ describe('capture record', () => {
   it('a won run brings its bucket home, on top of what is already there', () => {
     const run = { ...createRun(5, testData, 'basic'), bucket: ['dummy', 'cycler'] };
     const home = [{ id: 'gambler', bond: 7 }];
-    expect(bringCatchHome(home, run)).toEqual([
+    expect(bringCatchHome(home, run, testData)).toEqual([
       { id: 'gambler', bond: 7 },
       { id: 'dummy', bond: 0 },
       { id: 'cycler', bond: 0 },
@@ -144,6 +145,16 @@ describe('capture record', () => {
     expect(run.bucket).toEqual(['dummy', 'cycler']);
     expect(run.companions).toEqual([home[2], home[1]]);
     expect(() => createRun(5, testData, 'basic', Array(SESSION_SLOTS + 1).fill(home[0]))).toThrow();
+  });
+
+  it('creatures caught before another one got away still reach the bucket', () => {
+    const run = createRun(5, testData, 'basic');
+    const fight = travelTo(run, '1a', testData);
+    const caught = { ...fight.combat.enemies[0], hp: 0 };
+    const escaped = { ...fight.combat.enemies[0], id: 'e1', defId: 'cycler', escape: 1000 };
+    const fled = { ...fight.combat, phase: 'fled' as const, enemies: [caught, escaped] };
+    expect(finishCombat(fight.run, fled, testData).bucket).toEqual(['dummy']);
+    expect(recordEncounter({}, fled)).toEqual({ dummy: 'captured', cycler: 'seen' });
   });
 
   it('a creature that got away is not captured', () => {
@@ -206,6 +217,17 @@ describe('levels', () => {
     expect(() => enterNextLevel(next, testData)).toThrow();
   });
 
+  it('mini-bosses and bosses are let go: never in the bucket, never sold, only seen', () => {
+    const atOne = travelTo({ ...createRun(5, testData, 'basic'), equipment: ['spear'] }, '1a', testData).run;
+    const miniBoss = travelTo(atOne, '2', testData);
+    expect(isReleaseFight(miniBoss.run)).toBe(true);
+    expect(isReleaseFight(atOne)).toBe(false);
+    const won = { ...miniBoss.combat, phase: 'won' as const };
+    expect(finishCombat(miniBoss.run, won, testData)).toMatchObject({ bucket: [], coins: 0, floor: 2 });
+    expect(recordEncounter({}, won, true)).toEqual({ gambler: 'seen' });
+    expect(recordEncounter({}, won)).toEqual({ gambler: 'captured' });
+  });
+
   it('the leave node after the mini-boss is a dead end', () => {
     const run = travelTo(travelTo(createRun(5, testData, 'basic'), '1a', testData).run, '2', testData).run;
     const left = visitLeave(run, '3b');
@@ -216,9 +238,43 @@ describe('levels', () => {
 });
 
 describe('equipment', () => {
-  it('the build sets the starting equipment', () => {
+  it('the run starts with the starting item picked, the build’s first by default', () => {
     expect(createRun(5, testData, 'angler').equipment).toEqual(['reel']);
     expect(createRun(5, testData, 'basic').equipment).toEqual([]);
+    expect(() => createRun(5, testData, 'angler', [], 'spear')).toThrow();
+  });
+
+  const withItems = {
+    ...testData,
+    equipment: {
+      ...testData.equipment,
+      rod: { id: 'rod', name: 'Rod', description: '', effects: [{ type: 'strongerPull' as const, percent: 25 }] },
+      net: { id: 'net', name: 'Net', description: '', effects: [{ type: 'bondOnCapture' as const, amount: 30 }] },
+      hook: { id: 'hook', name: 'Hook', description: '', effects: [{ type: 'extraCatch' as const, percent: 100, types: ['shell'], spots: ['sea'] }] },
+    },
+    encounters: [...testData.encounters, { id: 'cycler', name: 'Cycler', enemies: ['cycler'] }],
+  };
+
+  it('strongerPull makes calming cards lower Panic more, rounded up', () => {
+    const combat = setup(['calm', ...repeat('strike', 4)], { enemies: ['shellA'], equipment: ['rod'], data: withItems });
+    expect(play(combat, 'calm', 'e0', withItems).enemies[0].escape).toBe(50 - 10 - 3);
+  });
+
+  it('bondOnCapture: catches come home with that bond, companions keep theirs', () => {
+    const run = { ...createRun(5, withItems, 'basic', [{ id: 'dummy', bond: 7 }]), equipment: ['net'], bucket: ['dummy', 'cycler'] };
+    expect(bringCatchHome([], run, withItems)).toEqual([
+      { id: 'dummy', bond: 7 },
+      { id: 'cycler', bond: 30 },
+    ]);
+  });
+
+  it('extraCatch drags one more creature of its types into ordinary fights at its spots only', () => {
+    const run = { ...createRun(5, withItems, 'basic'), equipment: ['hook'] };
+    expect(travelTo(run, '1a', withItems).combat.enemies.map((e) => e.defId)).toEqual(['dummy', 'cycler']);
+    const atMiniBoss = travelTo(travelTo(run, '1a', withItems).run, '2', withItems);
+    expect(atMiniBoss.combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
+    // Only at its spots: 1b has fixed enemies and no spot.
+    expect(travelTo(run, '1b', withItems).combat.enemies.map((e) => e.defId)).toEqual(['cycler']);
   });
 
   it('a slowEscape cuts the escape rate by its share, at least 1, rounded up', () => {

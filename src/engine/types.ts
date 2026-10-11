@@ -14,10 +14,9 @@ export type Statuses = Partial<Record<StatusId, number>>;
  */
 export type EffectTarget = 'target' | 'self' | 'allEnemies' | 'randomEnemy';
 
-/** Extra damage per hit against enemies carrying any of the `against` tags (creature types). */
+/** Hits deal `STRONG_BONUS_PERCENT` more damage against enemies carrying any of the `against` tags (creature types). */
 export interface DamageBonus {
   against: string[];
-  amount: number;
 }
 
 /** The reusable building blocks that every card and enemy move is made of. */
@@ -75,8 +74,10 @@ export interface BuildDef {
   strongAgainst: string[];
   /** Display-only art. */
   sprite?: SpriteRef;
-  /** Equipment ids the run starts with. */
-  startingEquipment?: string[];
+  /** Equipment the player picks one of to start the run with (the first if none is picked). */
+  startingItems?: string[];
+  /** Id of the level from which the build can be picked; the first level if omitted. */
+  level?: string;
 }
 
 /** What a piece of equipment does. Percentages are whole numbers (20 = 20%). */
@@ -85,8 +86,17 @@ export type EquipmentEffect =
   | { type: 'slowEscape'; percent: number }
   /** Captured creatures are sold on the spot, for this much more, instead of going into the bucket. */
   | { type: 'sellOnCapture'; bonusPercent: number }
-  /** Enthusiastic passersby pay this much more per fish. Passerby encounters aren't in the game yet. */
-  | { type: 'passerbyBonus'; bonusPercent: number };
+  /** Enthusiastic passersby pay this much more per fish. */
+  | { type: 'passerbyBonus'; bonusPercent: number }
+  /** Player effects that lower a creature's Panic lower it by this much more (rounded up). */
+  | { type: 'strongerPull'; percent: number }
+  /** Creatures caught during the run come home with this many bond points. */
+  | { type: 'bondOnCapture'; amount: number }
+  /**
+   * Each ordinary fight (at one of `spots`, if given) has this chance to bring one more creature of
+   * one of `types`, from the same tier.
+   */
+  | { type: 'extraCatch'; percent: number; types: string[]; spots?: string[] };
 
 /** An object carried for the whole run, with passive effects. */
 export interface EquipmentDef {
@@ -297,6 +307,11 @@ export interface LevelNodeDef {
   enemies?: string[];
   /** Name shown on the map, e.g. "Lighthouse Point" for a boss. Display-only. */
   label?: string;
+  /**
+   * Mini-bosses and bosses are let go after the fight; this says why, e.g. "a protected species"
+   * (shown as "<creature> is <reason>, so you let it go."). Display-only.
+   */
+  releaseReason?: string;
   /** Ids of the nodes this one leads to. Empty for the boss and for leave nodes, which end the level or the run. */
   next: string[];
 }
@@ -403,6 +418,8 @@ export interface CombatState {
   bonuses: CompanionEffect[];
   /** What the once-per-turn / once-per-fight bonuses need to remember. */
   bonusTracker: BonusTracker;
+  /** Extra share, in percent, of every Panic reduction from the player (`strongerPull` equipment). */
+  pullPercent?: number;
 }
 
 export interface BonusTracker {

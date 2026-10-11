@@ -97,14 +97,54 @@ function tooltipFor(node: MapNode): { name: string; hint?: string; detail?: stri
   }
 }
 
-// The map keeps the art's 2:1 shape: its size comes from CSS, its scale from the rendered width.
+/** Margin kept around the reach line, in art units. */
+const VIEW_PADDING = 14;
+/** The map is never shorter than this; a level wider than the screen then scrolls sideways. */
+const MIN_HEIGHT = 260;
+
+/**
+ * The part of the art shown: the level's reach (the dotted line) and a little around it, so the
+ * map zooms out as the ages reach further. All of it when the level has no reach.
+ */
+const view = computed(() => {
+  const numbers = level.value?.reach?.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [];
+  if (numbers.length < 4) return { x: 0, y: 0, width: ART_WIDTH, height: ART_HEIGHT };
+  const xs = numbers.filter((_, i) => i % 2 === 0);
+  const ys = numbers.filter((_, i) => i % 2 === 1);
+  const x = Math.max(0, Math.min(...xs) - VIEW_PADDING);
+  const y = Math.max(0, Math.min(...ys) - VIEW_PADDING);
+  return {
+    x,
+    y,
+    width: Math.min(ART_WIDTH, Math.max(...xs) + VIEW_PADDING) - x,
+    height: Math.min(ART_HEIGHT, Math.max(...ys) + VIEW_PADDING) - y,
+  };
+});
+
+// As wide as the screen allows, and at most 62% of the window's height.
+const screenEl = ref<HTMLElement>();
 const scroller = ref<HTMLElement>();
-const svg = ref<SVGSVGElement>();
-const scale = ref(1);
+const available = ref(ART_WIDTH);
+const windowHeight = ref(window.innerHeight);
+const resizeObserver = new ResizeObserver(([entry]) => (available.value = entry.contentRect.width));
+const onResize = () => (windowHeight.value = window.innerHeight);
+onMounted(() => {
+  const parent = screenEl.value?.parentElement;
+  if (parent) resizeObserver.observe(parent);
+  window.addEventListener('resize', onResize);
+});
+onBeforeUnmount(() => {
+  resizeObserver.disconnect();
+  window.removeEventListener('resize', onResize);
+});
+const size = computed(() => {
+  const ratio = view.value.width / view.value.height;
+  const width = Math.max(MIN_HEIGHT * ratio, Math.min(available.value, windowHeight.value * 0.62 * ratio));
+  return { width, height: width / ratio };
+});
+/** Screen pixels per art unit. */
+const scale = computed(() => size.value.width / view.value.width);
 const scrollLeft = ref(0);
-const resizeObserver = new ResizeObserver(() => (scale.value = (svg.value?.clientWidth ?? ART_WIDTH) / ART_WIDTH));
-onMounted(() => svg.value && resizeObserver.observe(svg.value));
-onBeforeUnmount(() => resizeObserver.disconnect());
 
 /** When the map is wider than the screen, keep the current position near the left, with what's next in view. */
 watch(
@@ -112,7 +152,7 @@ watch(
   async () => {
     await nextTick();
     const here = findNode(props.run.map, props.run.position);
-    if (here) scroller.value?.scrollTo({ left: here.x * scale.value - 120, behavior: 'smooth' });
+    if (here) scroller.value?.scrollTo({ left: (here.x - view.value.x) * scale.value - 120, behavior: 'smooth' });
   },
   { immediate: true },
 );
@@ -122,19 +162,19 @@ const hovered = ref<MapNode | null>(null);
 const tooltip = computed(() => {
   const node = hovered.value;
   if (!node) return null;
-  const below = node.y < 90;
+  const below = node.y - view.value.y < 70;
   const offset = (node.kind === 'boss' ? 22 : RADIUS + 6) * scale.value;
   return {
     ...tooltipFor(node),
-    left: node.x * scale.value - scrollLeft.value,
-    top: node.y * scale.value + (below ? offset : -offset),
+    left: (node.x - view.value.x) * scale.value - scrollLeft.value,
+    top: (node.y - view.value.y) * scale.value + (below ? offset : -offset),
     below,
   };
 });
 
 /** Labels near the right edge extend leftwards, so they stay on the map. */
 function labelAnchor(node: MapNode) {
-  return node.x > ART_WIDTH - 140 ? 'end' : 'middle';
+  return node.x > view.value.x + view.value.width - 140 ? 'end' : 'middle';
 }
 
 const showLegend = ref(false);
@@ -145,7 +185,7 @@ function choose(node: MapNode) {
 </script>
 
 <template>
-  <section class="map-screen">
+  <section ref="screenEl" class="map-screen">
     <ul v-if="equipment.length || bonuses.length" class="equipment" aria-label="Equipment and companion bonuses">
       <li v-for="item in equipment" :key="item.id" class="item" tabindex="0" :aria-label="`${item.name}: ${item.description}`">
         <span class="icon">{{ item.icon ?? '🎒' }}</span>
@@ -187,7 +227,14 @@ function choose(node: MapNode) {
     </ul>
 
     <div ref="scroller" class="map-scroll" @scroll="scrollLeft = scroller?.scrollLeft ?? 0">
-      <svg ref="svg" class="map" :viewBox="`0 0 ${ART_WIDTH} ${ART_HEIGHT}`" role="group" :aria-label="`Map: ${level?.name}`">
+      <svg
+        class="map"
+        :width="size.width"
+        :height="size.height"
+        :viewBox="`${view.x} ${view.y} ${view.width} ${view.height}`"
+        role="group"
+        :aria-label="`Map: ${level?.name}`"
+      >
         <defs>
           <pattern id="out-of-reach" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="8" stroke="#0E1A20" stroke-width="3" stroke-opacity="0.35" />
@@ -373,9 +420,9 @@ function choose(node: MapNode) {
 .sym.diamond { width: 11px; height: 11px; margin: 0 2px; border: 2px solid #fff; border-radius: 0; background: #c4531c; transform: rotate(45deg); }
 .sym.boss { border: 3px solid #c4531c; background: #fff; }
 
-/* The art's 2:1 shape, as tall as there's room for; scrolls sideways when the screen is narrow. */
+/* Sized from the level's view (see `size`); scrolls sideways when the screen is narrow. */
 .map-scroll { max-width: 100%; overflow-x: auto; border-radius: 12px; }
-.map { display: block; height: max(320px, min(62vh, 50vw)); aspect-ratio: 2 / 1; }
+.map { display: block; }
 
 .edge { stroke: #2e2d27; stroke-width: 1.6; stroke-opacity: 0.55; }
 .edge.from-home { stroke-dasharray: 3 4; }

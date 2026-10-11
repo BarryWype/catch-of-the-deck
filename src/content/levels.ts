@@ -11,6 +11,8 @@ import type { LevelDef } from '../engine';
  *   to only meet one type there, or `enemies` to meet exactly those creatures.
  * - `next`: the nodes it leads to (later columns only). Leave nodes and the boss lead nowhere: a
  *   leave node ends the run with the bucket brought home, the boss leads to the next level.
+ * - `releaseReason` (mini-bosses and bosses): they're let go after the fight, never kept; this
+ *   says why ("<creature> is <reason>, so you let it go.").
  * - `x`, `y`: where it's drawn on the coast art.
  * The game checks the levels on startup (validateLevels in engine/data.ts) and explains any mistake.
  */
@@ -43,11 +45,11 @@ export const levels: LevelDef[] = [
       { id: 'kid-6c', column: 6, x: 478, y: 318, kind: 'fight', spot: 'RP', next: ['kid-7a', 'kid-7b'] },
       { id: 'kid-7a', column: 7, x: 546, y: 262, kind: 'fight', spot: 'BE', next: ['kid-8'] },
       { id: 'kid-7b', column: 7, x: 546, y: 305, kind: 'fight', spot: 'ES', next: ['kid-8'] },
-      { id: 'kid-8', column: 8, x: 614, y: 262, kind: 'miniBoss', label: 'Estuary', enemies: ['blueCrab'], next: ['kid-9a', 'kid-9b', 'kid-9c', 'kid-9d'] },
+      { id: 'kid-8', column: 8, x: 614, y: 262, kind: 'miniBoss', label: 'Estuary', enemies: ['blueCrab'], releaseReason: 'too feisty to keep', next: ['kid-9a', 'kid-9b', 'kid-9c', 'kid-9d'] },
       { id: 'kid-9a', column: 9, x: 682, y: 190, kind: 'event', next: ['kid-10a'] },
       { id: 'kid-9b', column: 9, x: 682, y: 245, kind: 'fight', spot: 'ES', next: ['kid-10a', 'kid-10b'] },
       { id: 'kid-9c', column: 9, x: 682, y: 300, kind: 'fight', spot: 'ES', next: ['kid-10b'] },
-      { id: 'kid-9d', column: 9, x: 724, y: 336, kind: 'leave', next: [] },
+      { id: 'kid-9d', column: 9, x: 716, y: 218, kind: 'leave', next: [] },
       { id: 'kid-10a', column: 10, x: 750, y: 270, kind: 'fight', spot: 'BE', next: ['kid-11a', 'kid-11b', 'kid-11c'] },
       { id: 'kid-10b', column: 10, x: 750, y: 318, kind: 'fight', spot: 'RP', next: ['kid-11c'] },
       { id: 'kid-11a', column: 11, x: 818, y: 205, kind: 'event', next: ['kid-12a'] },
@@ -63,7 +65,7 @@ export const levels: LevelDef[] = [
       { id: 'kid-15a', column: 15, x: 1090, y: 232, kind: 'treasure', next: ['kid-16'] },
       { id: 'kid-15b', column: 15, x: 1090, y: 300, kind: 'fight', spot: 'JT', next: ['kid-16'] },
       { id: 'kid-15c', column: 15, x: 1090, y: 330, kind: 'fight', spot: 'RP', next: ['kid-16'] },
-      { id: 'kid-16', column: 16, x: 1158, y: 292, kind: 'boss', label: 'Lighthouse Point', enemies: ['commonLobster'], next: [] },
+      { id: 'kid-16', column: 16, x: 1158, y: 292, kind: 'boss', label: 'Lighthouse Point', enemies: ['commonLobster'], releaseReason: 'a protected species here', next: [] },
     ],
   },
   {
@@ -92,10 +94,10 @@ export const levels: LevelDef[] = [
       { id: 'adult-7a', column: 7, x: 546, y: 118, kind: 'fight', spot: 'LK', next: ['adult-8'] },
       { id: 'adult-7b', column: 7, x: 546, y: 370, kind: 'fight', spot: 'BY', next: ['adult-8'] },
       { id: 'adult-7c', column: 7, x: 546, y: 430, kind: 'fight', spot: 'RF', next: ['adult-8'] },
-      { id: 'adult-8', column: 8, x: 614, y: 365, kind: 'miniBoss', label: 'Middle of the bay', enemies: ['commonOctopus'], next: ['adult-9a', 'adult-9b', 'adult-9c', 'adult-9d'] },
+      { id: 'adult-8', column: 8, x: 614, y: 365, kind: 'miniBoss', label: 'Middle of the bay', enemies: ['commonOctopus'], releaseReason: 'a protected species', next: ['adult-9a', 'adult-9b', 'adult-9c', 'adult-9d'] },
       { id: 'adult-9a', column: 9, x: 682, y: 172, kind: 'fight', spot: 'RV', next: ['adult-10a'] },
       { id: 'adult-9b', column: 9, x: 682, y: 245, kind: 'fight', spot: 'ES', next: ['adult-10a'] },
-      { id: 'adult-9c', column: 9, x: 730, y: 318, kind: 'leave', next: [] },
+      { id: 'adult-9c', column: 9, x: 726, y: 258, kind: 'leave', next: [] },
       { id: 'adult-9d', column: 9, x: 682, y: 420, kind: 'fight', spot: 'RF', next: ['adult-10b', 'adult-10c'] },
       { id: 'adult-10a', column: 10, x: 750, y: 138, kind: 'fight', spot: 'RV', next: ['adult-11a'] },
       { id: 'adult-10b', column: 10, x: 750, y: 380, kind: 'fight', spot: 'BY', next: ['adult-11b', 'adult-11c'] },
@@ -114,7 +116,7 @@ export const levels: LevelDef[] = [
       { id: 'adult-15a', column: 15, x: 1090, y: 280, kind: 'treasure', next: ['adult-16'] },
       { id: 'adult-15b', column: 15, x: 1090, y: 370, kind: 'fight', spot: 'BY', next: ['adult-16'] },
       { id: 'adult-15c', column: 15, x: 1090, y: 440, kind: 'fight', spot: 'RF', next: ['adult-16'] },
-      { id: 'adult-16', column: 16, x: 1158, y: 428, kind: 'boss', label: 'Reef edge', enemies: ['giantMorayEel'], next: [] },
+      { id: 'adult-16', column: 16, x: 1158, y: 428, kind: 'boss', label: 'Reef edge', enemies: ['giantMorayEel'], releaseReason: 'far too aggressive to keep', next: [] },
     ],
   },
   {
@@ -139,9 +141,9 @@ export const levels: LevelDef[] = [
       { id: 'elder-7a', column: 7, x: 546, y: 116, kind: 'fight', spot: 'LK', next: ['elder-8'] },
       { id: 'elder-7b', column: 7, x: 546, y: 478, kind: 'fight', spot: 'OS', next: ['elder-8'] },
       { id: 'elder-7c', column: 7, x: 546, y: 540, kind: 'fight', spot: 'OS', next: ['elder-8'] },
-      { id: 'elder-8', column: 8, x: 614, y: 300, kind: 'miniBoss', label: 'Estuary crossing', enemies: ['starrySturgeon'], next: ['elder-9a', 'elder-9b', 'elder-9c', 'elder-9d'] },
+      { id: 'elder-8', column: 8, x: 614, y: 300, kind: 'miniBoss', label: 'Estuary crossing', enemies: ['starrySturgeon'], releaseReason: 'a protected species', next: ['elder-9a', 'elder-9b', 'elder-9c', 'elder-9d'] },
       { id: 'elder-9a', column: 9, x: 682, y: 190, kind: 'fight', spot: 'RV', next: ['elder-10a'] },
-      { id: 'elder-9b', column: 9, x: 730, y: 330, kind: 'leave', next: [] },
+      { id: 'elder-9b', column: 9, x: 720, y: 262, kind: 'leave', next: [] },
       { id: 'elder-9c', column: 9, x: 682, y: 470, kind: 'fight', spot: 'OS', next: ['elder-10b', 'elder-10c'] },
       { id: 'elder-9d', column: 9, x: 682, y: 545, kind: 'fight', spot: 'DP', next: ['elder-10c'] },
       { id: 'elder-10a', column: 10, x: 750, y: 140, kind: 'fight', spot: 'RV', next: ['elder-11a', 'elder-11b'] },
@@ -162,7 +164,7 @@ export const levels: LevelDef[] = [
       { id: 'elder-15a', column: 15, x: 1090, y: 262, kind: 'event', next: ['elder-16'] },
       { id: 'elder-15b', column: 15, x: 1090, y: 470, kind: 'fight', spot: 'OS', next: ['elder-16'] },
       { id: 'elder-15c', column: 15, x: 1090, y: 540, kind: 'fight', spot: 'DP', next: ['elder-16'] },
-      { id: 'elder-16', column: 16, x: 1158, y: 545, kind: 'boss', label: 'The drop-off', enemies: ['atlanticGiantSquid'], next: [] },
+      { id: 'elder-16', column: 16, x: 1158, y: 545, kind: 'boss', label: 'The drop-off', enemies: ['atlanticGiantSquid'], releaseReason: 'far too big to keep', next: [] },
     ],
   },
 ];

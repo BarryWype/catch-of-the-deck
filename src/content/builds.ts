@@ -9,7 +9,11 @@ export const ROD_TARGETS: CreatureType[] = ['sportFish', 'smallFish', 'deepSea']
 export const SPEAR_TARGETS: CreatureType[] = ['rockFish', 'bigFish', 'tentacled'];
 export const FORAGING_TARGETS: CreatureType[] = ['crustacean', 'shellfish', 'critter'];
 
-/** Starting builds, chosen before the first fight. Each sets the starter deck and equipment. */
+/**
+ * Starting builds, chosen before the first fight. Each sets the starter deck and offers starting
+ * items to pick one from (`startingItems`, equipment.ts). A build with a `level` can only be picked
+ * from that level on; runs start on the first level (Kid), so those aren't offered yet.
+ */
 export const builds: BuildDef[] = [
   {
     id: 'rod',
@@ -18,7 +22,7 @@ export const builds: BuildDef[] = [
     starterDeck: ['cast', 'cast', 'cast', 'cast', 'cast', 'bucket', 'bucket', 'bucket', 'bucket', 'setTheHook'],
     strongAgainst: ROD_TARGETS,
     sprite: { sheet: 'gear', index: 1 },
-    startingEquipment: ['reliableReel'],
+    startingItems: ['reliableReel', 'strongRod', 'handline'],
   },
   {
     id: 'spear',
@@ -27,7 +31,8 @@ export const builds: BuildDef[] = [
     starterDeck: ['stick', 'stick', 'stick', 'stick', 'stick', 'bucket', 'bucket', 'bucket', 'bucket', 'harpoon'],
     strongAgainst: SPEAR_TARGETS,
     sprite: { sheet: 'gear', index: 29 },
-    startingEquipment: ['sharpSpear'],
+    startingItems: ['sharpSpear'],
+    level: 'adult',
   },
   {
     id: 'foraging',
@@ -36,6 +41,6 @@ export const builds: BuildDef[] = [
     starterDeck: ['smallNet', 'smallNet', 'smallNet', 'smallNet', 'smallNet', 'bucket', 'bucket', 'bucket', 'bucket', 'crabNet'],
     strongAgainst: FORAGING_TARGETS,
     sprite: { sheet: 'gear', index: 23 },
-    startingEquipment: ['rubberDuck'],
+    startingItems: ['rubberDuck', 'softNet', 'crabHook'],
   },
 ];
