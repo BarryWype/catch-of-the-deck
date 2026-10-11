@@ -47,3 +47,18 @@ button.ghost { background: transparent; color: var(--muted); border: 1px solid #
 .topbar h1 { margin: 0; font-size: 1.3rem; letter-spacing: 0.04em; }
 .run-info { display: flex; align-items: center; gap: 16px; font-size: 0.9rem; flex-wrap: wrap; }
 .seed { color: var(--muted); cursor: help; }
+
+/* Confirmation dialogs (<dialog class="confirm">). */
+.confirm {
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px 24px;
+  border: 2px solid #4a2a2a;
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+}
+.confirm::backdrop { background: rgb(5 8 12 / 0.65); }
+.confirm h3 { margin: 0 0 8px; }
+.confirm p { margin: 0; color: var(--muted); }
+.confirm footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.danger { background: #c94a4a; color: #fff; }

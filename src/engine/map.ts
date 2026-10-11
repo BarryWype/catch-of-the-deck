@@ -1,4 +1,5 @@
-import type { EncounterDef, GameData, LevelDef, LevelNodeKind } from './types';
+import { nextFloat, nextInt, shuffleInPlace, type RngHolder } from './rng';
+import type { CoastDef, EncounterDef, GameData, LevelDef, LevelNodeKind } from './types';
 
 /** The node every level's map starts on (the grandparents' house). */
 export const START_NODE_ID = 'start';
@@ -31,9 +32,69 @@ export interface GameMap {
   columns: MapNode[][];
 }
 
-/** The map of a level, from its content. The start leads to every node of the first column. */
-export function buildLevelMap(level: LevelDef): GameMap {
-  const nodes: MapNode[] = level.nodes.map((n) => ({
+/** A coast feature laid out for a run: its left edge on the map. */
+export interface CoastPlacement {
+  feature: string;
+  x: number;
+}
+
+/** Tries to find a free place for each feature before leaving it out of the run. */
+const PLACEMENT_TRIES = 40;
+/** Space kept between features, in art pixels. */
+const FEATURE_GAP = 4;
+/** Each feature is placed up to this many times, where there's room, so the coast fills up. */
+const FEATURE_COPIES = 2;
+
+type Rect = { x: number; y: number; width: number; height: number };
+const overlaps = (a: Rect, b: Rect, gap: number) =>
+  a.x < b.x + b.width + gap && b.x < a.x + a.width + gap && a.y < b.y + b.height + gap && b.y < a.y + a.height + gap;
+
+/**
+ * The run's coast: every feature slid to a random place along its `range`, without covering
+ * another one or a reserved area, then copies of them wherever there's still room. A feature that
+ * finds no room is left out. Every level of the run is played on this same coast.
+ */
+export function layoutCoast(holder: RngHolder, coast: CoastDef): CoastPlacement[] {
+  const taken: Rect[] = [...coast.reserved];
+  const placements: CoastPlacement[] = [];
+  const passes = Array.from({ length: FEATURE_COPIES }, () => shuffleInPlace(holder, [...coast.features]));
+  for (const feature of passes.flat()) {
+    for (let attempt = 0; attempt < PLACEMENT_TRIES; attempt++) {
+      const rect = { x: nextInt(holder, feature.range[0], feature.range[1]), y: feature.y, width: feature.crop.width, height: feature.crop.height };
+      if (taken.some((other) => overlaps(other, rect, FEATURE_GAP))) continue;
+      taken.push(rect);
+      placements.push({ feature: feature.id, x: rect.x });
+      break;
+    }
+  }
+  return placements.sort((a, b) => a.x - b.x);
+}
+
+/** The map of a level: hand-made, or generated on the run's coast. */
+export function buildLevelMap(data: GameData, levelIndex: number, coast: CoastPlacement[], holder: RngHolder): GameMap {
+  const level = data.levels[levelIndex];
+  return level.nodes ? handMadeMap(level, level.nodes) : generateLevelMap(level, levelIndex, coast, data, holder);
+}
+
+function startNode(level: LevelDef, next: string[]): MapNode {
+  return {
+    id: START_NODE_ID,
+    column: 0,
+    ...level.start,
+    kind: 'start',
+    tier: 0,
+    spot: null,
+    creatureType: null,
+    enemies: null,
+    label: null,
+    releaseReason: null,
+    next,
+  };
+}
+
+/** A hand-made map, from the level's nodes. The start leads to every node of the first column. */
+function handMadeMap(level: LevelDef, levelNodes: NonNullable<LevelDef['nodes']>): GameMap {
+  const nodes: MapNode[] = levelNodes.map((n) => ({
     id: n.id,
     column: n.column,
     x: n.x,
@@ -48,23 +109,151 @@ export function buildLevelMap(level: LevelDef): GameMap {
     next: [...n.next],
   }));
   const firstColumn = Math.min(...nodes.map((n) => n.column));
-  const start: MapNode = {
-    id: START_NODE_ID,
-    column: 0,
-    ...level.start,
-    kind: 'start',
-    tier: 0,
+  const start = startNode(
+    level,
+    nodes.filter((n) => n.column === firstColumn).map((n) => n.id),
+  );
+  const columns: MapNode[][] = [[start]];
+  for (const node of nodes) (columns[node.column] ??= []).push(node);
+  for (const column of columns) column?.sort((a, b) => a.y - b.y);
+  return { columns: columns.filter(Boolean) };
+}
+
+/** Columns of nodes between the start and the mini-boss, and again between the mini-boss and the boss. */
+export const COLUMNS_PER_HALF = 7;
+/** Each of those columns has this many nodes (fewer if there's no room, or few features nearby). */
+const MIN_NODES = 2;
+const MAX_NODES = 4;
+/** Closest two nodes of a column may be, vertically, in art pixels. */
+const NODE_GAP = 24;
+/** Chance that a node also links to the next node down in the following column. */
+const EXTRA_LINK_CHANCE = 0.3;
+/** Chance that a fight turns into an event. */
+const SURPRISE_EVENT_CHANCE = 0.1;
+
+/**
+ * A generated level. Columns 1–7 go from the start to the mini-boss (column 8), columns 9–15 on to
+ * the boss (column 16). Each column takes 2–4 of the coast features within its stretch of the
+ * map as fights at their spot; when it runs short, events fill in. A level's `firstColumn`
+ * replaces column 1 with the same fights every run. After the mini-boss come a
+ * shop and the leave node; there's another shop before it, and a treasure before the boss.
+ */
+function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlacement[], data: GameData, holder: RngHolder): GameMap {
+  const { miniBoss, boss, escape, eventBand = [10, level.height - 10] } = level;
+  if (!miniBoss || !boss || !escape) throw new Error(`Level "${level.id}" has neither nodes nor a mini-boss, boss and escape.`);
+
+  // Where this level stops along the coast.
+  const stops = coast.flatMap((placement) => {
+    const feature = data.coast.features.find((f) => f.id === placement.feature);
+    const visit = feature?.visits[levelIndex];
+    if (!feature || !visit) return [];
+    const at = visit.node ?? feature.node;
+    return [{ left: placement.x, right: placement.x + feature.crop.width, x: placement.x + at.x, y: feature.y + at.y, spot: visit.spot, label: visit.label }];
+  });
+
+  const node = (id: string, column: number, x: number, y: number, kind: LevelNodeKind, extra: Partial<MapNode> = {}): MapNode => ({
+    id,
+    column,
+    x,
+    y,
+    kind,
+    tier: level.tier,
     spot: null,
     creatureType: null,
     enemies: null,
     label: null,
     releaseReason: null,
-    next: nodes.filter((n) => n.column === firstColumn).map((n) => n.id),
+    next: [],
+    ...extra,
+  });
+  const fixedFight = (id: string, column: number, kind: 'miniBoss' | 'boss', def: NonNullable<LevelDef['boss']>) =>
+    node(id, column, def.x, def.y, kind, { enemies: [...def.enemies], label: def.label, releaseReason: def.releaseReason });
+
+  const columns: MapNode[][] = [];
+  const halves = [
+    [level.start.x, miniBoss.x],
+    [miniBoss.x, boss.x],
+  ];
+  halves.forEach(([from, to], half) => {
+    const step = (to - from) / (COLUMNS_PER_HALF + 1);
+    for (let c = 1; c <= COLUMNS_PER_HALF; c++) {
+      const column = half * (COLUMNS_PER_HALF + 1) + c;
+      const [left, right] = [from + step * (c - 0.5), from + step * (c + 0.5)];
+      const afterMiniBoss = column === COLUMNS_PER_HALF + 2;
+      const taken = afterMiniBoss ? [escape.y] : [];
+      const free = (y: number) => taken.every((t) => Math.abs(t - y) >= NODE_GAP);
+      const centre = from + step * c;
+      // Features whose node falls in this column, or wide ones (a lake…) stretching across it.
+      if (column === 1 && level.firstColumn) {
+        columns[column] = level.firstColumn
+          .map((s) => node('', column, s.x, s.y, 'fight', { spot: s.spot, label: s.label }))
+          .sort((a, b) => a.y - b.y)
+          .map((n, i) => ({ ...n, id: `${level.id}-1${'abcdefgh'[i]}` }));
+        continue;
+      }
+      const near = stops.filter((s) => (s.x >= left && s.x < right) || (s.left <= centre && s.right >= centre));
+      // Lanes beyond the features at hand become events: allow one, beyond the minimum.
+      const count = Math.min(nextInt(holder, MIN_NODES, MAX_NODES), Math.max(MIN_NODES, near.length + 1));
+      const nodes: Omit<MapNode, 'id'>[] = [];
+      for (const stop of shuffleInPlace(holder, near)) {
+        if (nodes.length === count) break;
+        if (!free(stop.y)) continue;
+        taken.push(stop.y);
+        const x = stop.x >= left && stop.x < right ? stop.x : centre;
+        nodes.push(node('', column, x, stop.y, 'fight', { spot: stop.spot, label: stop.label }));
+      }
+      const heights = Array.from({ length: Math.floor((eventBand[1] - eventBand[0]) / 4) + 1 }, (_, i) => eventBand[0] + i * 4);
+      for (const y of shuffleInPlace(holder, heights)) {
+        if (nodes.length === count) break;
+        if (!free(y)) continue;
+        taken.push(y);
+        nodes.push(node('', column, centre, y, 'event'));
+      }
+      const ids = 'abcdefgh';
+      const built = nodes.sort((a, b) => a.y - b.y).map((n, i) => ({ ...n, id: `${level.id}-${column}${ids[i]}` }));
+      if (afterMiniBoss) built.push(node(`${level.id}-home`, column, escape.x, escape.y, 'leave'));
+      columns[column] = built.sort((a, b) => a.y - b.y);
+    }
+  });
+  columns[COLUMNS_PER_HALF + 1] = [fixedFight(`${level.id}-miniBoss`, COLUMNS_PER_HALF + 1, 'miniBoss', miniBoss)];
+  const last = 2 * (COLUMNS_PER_HALF + 1);
+  columns[last] = [fixedFight(`${level.id}-boss`, last, 'boss', boss)];
+
+  // Shops, the treasure and a few surprise events, in place of fights.
+  const pick = (from: number, to: number) => {
+    const options = columns.slice(from, to + 1).flat().filter((n) => n.kind === 'fight' || n.kind === 'event');
+    return options[nextInt(holder, 0, options.length - 1)];
   };
-  const columns: MapNode[][] = [[start]];
-  for (const node of nodes) (columns[node.column] ??= []).push(node);
-  for (const column of columns) column?.sort((a, b) => a.y - b.y);
-  return { columns: columns.filter(Boolean) };
+  const becomes = (n: MapNode | undefined, kind: LevelNodeKind) => n && Object.assign(n, { kind, spot: null, label: null });
+  becomes(pick(3, COLUMNS_PER_HALF), 'shop');
+  becomes(pick(COLUMNS_PER_HALF + 2, COLUMNS_PER_HALF + 2), 'shop');
+  becomes(pick(last - 4, last - 1), 'treasure');
+  const surprises = columns.slice(level.firstColumn ? 2 : 1).flat();
+  for (const n of surprises) if (n.kind === 'fight' && nextFloat(holder) < SURPRISE_EVENT_CHANCE) becomes(n, 'event');
+
+  for (let column = 1; column < last; column++) link(columns[column], columns[column + 1], holder);
+  columns[0] = [startNode(level, columns[1].map((n) => n.id))];
+  return { columns };
+}
+
+/**
+ * Links a column to the next without crossings: each node to the one at the same relative height
+ * (sometimes also the one below), then anything left without a way in. Leave nodes lead nowhere.
+ */
+function link(from: MapNode[], to: MapNode[], holder: RngHolder) {
+  const sources = from.filter((n) => n.kind !== 'leave');
+  const along = (i: number, n: number, m: number) => (n === 1 ? Math.round((m - 1) / 2) : Math.round((i * (m - 1)) / (n - 1)));
+  sources.forEach((source, i) => {
+    const j = along(i, sources.length, to.length);
+    source.next.push(to[j].id);
+    const nextStarts = i + 1 < sources.length ? along(i + 1, sources.length, to.length) : to.length;
+    if (j + 1 < to.length && nextStarts >= j + 1 && nextFloat(holder) < EXTRA_LINK_CHANCE) source.next.push(to[j + 1].id);
+  });
+  // The mini-boss leads everywhere next, the leave node included.
+  if (sources.length === 1 && sources[0].kind === 'miniBoss') sources[0].next = to.map((n) => n.id);
+  to.forEach((target, j) => {
+    if (!sources.some((s) => s.next.includes(target.id)) && target.kind !== 'leave') sources[along(j, to.length, sources.length)].next.push(target.id);
+  });
 }
 
 export function encounterTier(encounter: EncounterDef): number {

@@ -197,9 +197,8 @@ The fisherman uses three strips of 48×48 frames in `src/ui/assets/`. They are r
 
 # TODO
 
-- mini boss level 9
-- add 7 boss and mini boss so we get 151 creature ... ;)
-- add animation to cards when played (drag and drop)
+- add 7 bosses and mini bosses so we get 151 creatures ... ;)
+- add randomness on the map. Keep starting creek, river and estuary at fixed spot, but move pond(s), lake, add stream(s), rocks, beach, jetty, cliffs, ...
 - rework the spear build: add blood mechanic per fish on the stringer
 - rework cards per build
 - add concept of using bait, using fish in the aquarium/bucket to create bait

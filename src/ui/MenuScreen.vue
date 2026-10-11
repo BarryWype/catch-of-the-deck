@@ -180,19 +180,6 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 }
 .reset:hover { color: var(--text); }
 
-.confirm {
-  width: min(420px, calc(100vw - 32px));
-  padding: 20px 24px;
-  border: 2px solid #4a2a2a;
-  border-radius: 16px;
-  background: var(--panel);
-  color: var(--text);
-}
-.confirm::backdrop { background: rgb(5 8 12 / 0.65); }
-.confirm h3 { margin: 0 0 8px; }
-.confirm p { margin: 0; color: var(--muted); }
-.confirm footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-.danger { background: #c94a4a; color: #fff; }
 
 .options { border-color: #2c3a4a; }
 .option { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; cursor: pointer; }

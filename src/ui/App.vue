@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
 import Aquarium from './Aquarium.vue';
 import BuildSelect from './BuildSelect.vue';
@@ -36,6 +37,19 @@ function newRunFromMenu() {
   game.newRun(firstRun ? initialSeed() : randomSeed());
   firstRun = false;
 }
+
+/** Starting over while a run is in progress (one with a save) asks first: that run is lost. */
+const confirmNewRun = ref<HTMLDialogElement>();
+let pendingNewRun = newRun;
+function askNewRun(start: () => void) {
+  if (!savedGame.value) return start();
+  pendingNewRun = start;
+  confirmNewRun.value?.showModal();
+}
+function startNewRun() {
+  confirmNewRun.value?.close();
+  pendingNewRun();
+}
 </script>
 
 <template>
@@ -51,7 +65,7 @@ function newRunFromMenu() {
       </template>
       <span class="seed" title="Open with ?seed=N in the URL to replay this run">Seed {{ seed }}</span>
       <button class="ghost" @click="game.toMenu">Menu</button>
-      <button class="ghost" @click="newRun">New run</button>
+      <button class="ghost" @click="askNewRun(newRun)">New run</button>
     </div>
   </header>
 
@@ -63,7 +77,7 @@ function newRunFromMenu() {
       :creature-book="creatureBook"
       :data="data"
       @resume="game.resume"
-      @new-run="newRunFromMenu"
+      @new-run="askNewRun(newRunFromMenu)"
       @reset="game.resetProgress"
       @debug-start="(level, kind) => game.debugStartAt(level, kind, randomSeed())"
     />
@@ -161,6 +175,15 @@ function newRunFromMenu() {
       </div>
     </section>
   </main>
+
+  <dialog ref="confirmNewRun" class="confirm" @click="$event.target === confirmNewRun && confirmNewRun?.close()">
+    <h3>Start a new run?</h3>
+    <p>You'll lose your current run, and the creatures in your bucket with it. Your home aquarium stays as it is.</p>
+    <footer>
+      <button class="ghost" autofocus @click="confirmNewRun?.close()">Cancel</button>
+      <button class="danger" @click="startNewRun">Abandon run</button>
+    </footer>
+  </dialog>
 
   <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
   <EggTray v-if="['menu', 'build', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />

@@ -167,7 +167,7 @@ describe('content validation', () => {
     spots: [],
     levels: [
       {
-        id: 'l', name: 'L', tier: 1, start: { x: 0, y: 0 },
+        id: 'l', name: 'L', tier: 1, start: { x: 0, y: 0 }, height: 100,
         nodes: [
           { id: 'm', column: 1, x: 0, y: 0, kind: 'miniBoss', enemies: ['e'], next: ['out', 'f'] },
           { id: 'out', column: 2, x: 0, y: 0, kind: 'leave', next: [] },
@@ -176,6 +176,7 @@ describe('content validation', () => {
         ],
       },
     ],
+    coast: { features: [], reserved: [] },
   };
 
   it('accepts valid content', () => {

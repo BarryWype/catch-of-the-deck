@@ -11,6 +11,7 @@ import {
   PLAYER_ID,
   previewIntent,
   escapeRise,
+  validateAction,
   type CardInstance,
   type CombatAction,
   type CombatState,
@@ -41,8 +42,32 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; restart: [] }>();
 
-/** A card waiting for the player to click an enemy. */
+/** A card waiting for the player to click an enemy (keyboard play). */
 const selectedUid = ref<string | null>(null);
+
+/**
+ * A card dragged out of the hand, from pointer down to release. A card played on an enemy stays in
+ * the hand with an arrow to the pointer (`aimed`); the others follow the pointer and are played by
+ * dropping them on the battlefield.
+ */
+interface Drag {
+  uid: string;
+  aimed: boolean;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  /** Where the arrow starts: the top middle of the card. */
+  fromX: number;
+  fromY: number;
+  moved: boolean;
+  /** The enemy under the pointer, when the card can be played on it. */
+  targetId: string | null;
+  overBattlefield: boolean;
+}
+const DRAG_THRESHOLD_PX = 6;
+const drag = ref<Drag | null>(null);
+const battlefield = ref<HTMLElement>();
 
 /** Coins from creatures sold on the spot by equipment (null when they go to the aquarium). */
 const instantSale = computed(() => {
@@ -194,11 +219,99 @@ function typeLabel(enemy: EnemyState) {
   return enemy.tags.map((t) => tagNames.value[t] ?? t).join(' · ');
 }
 
+/** Copies of played cards flying to their target (or flaring where they were dropped). */
+const playedCards = ref<{ key: number; defId: string; text: string; rect: DOMRect; dx: number; dy: number; aimed: boolean }[]>([]);
+let playedKey = 0;
+
 function play(cardUid: string, targetId?: string) {
   selectedUid.value = null;
+  const card = props.state.piles.hand.find((c) => c.uid === cardUid);
+  const cardEl = document.querySelector(`[data-card-uid="${cardUid}"]`);
+  const targetEl = targetId && document.querySelector(`[data-enemy-id="${targetId}"]`);
+  if (card && cardEl) {
+    const rect = cardEl.getBoundingClientRect();
+    const to = targetEl ? targetEl.getBoundingClientRect() : undefined;
+    playedCards.value.push({
+      key: ++playedKey,
+      defId: card.defId,
+      text: cardText(card),
+      rect,
+      dx: to ? to.left + to.width / 2 - (rect.left + rect.width / 2) : 0,
+      dy: to ? to.top + to.height / 2 - (rect.top + rect.height / 2) : 0,
+      aimed: !!to,
+    });
+  }
   emit('action', { type: 'playCard', cardUid, targetId });
 }
 
+function onCardPointerDown(card: CardInstance, event: PointerEvent) {
+  if (event.button !== 0 || !isCardPlayable(props.state, card.uid, props.data)) return;
+  event.preventDefault();
+  selectedUid.value = null;
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  drag.value = {
+    uid: card.uid,
+    aimed: props.data.cards[card.defId].target === 'enemy',
+    startX: event.clientX,
+    startY: event.clientY,
+    x: event.clientX,
+    y: event.clientY,
+    fromX: rect.left + rect.width / 2,
+    fromY: rect.top,
+    moved: false,
+    targetId: null,
+    overBattlefield: false,
+  };
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', stopDrag);
+}
+
+function onPointerMove(event: PointerEvent) {
+  const d = drag.value;
+  if (!d) return;
+  d.x = event.clientX;
+  d.y = event.clientY;
+  d.moved ||= Math.hypot(d.x - d.startX, d.y - d.startY) > DRAG_THRESHOLD_PX;
+  const enemyEl = document.elementFromPoint(d.x, d.y)?.closest<HTMLElement>('[data-enemy-id]');
+  const id = enemyEl?.dataset.enemyId;
+  const action = { type: 'playCard' as const, cardUid: d.uid, targetId: id };
+  d.targetId = d.aimed && id && validateAction(props.state, action, props.data) === null ? id : null;
+  const field = battlefield.value?.getBoundingClientRect();
+  d.overBattlefield = !!field && d.y >= field.top && d.y <= field.bottom && d.x >= field.left && d.x <= field.right;
+}
+
+function onPointerUp() {
+  const d = drag.value;
+  stopDrag();
+  if (!d?.moved) return;
+  if (d.aimed && d.targetId) play(d.uid, d.targetId);
+  else if (!d.aimed && d.overBattlefield) play(d.uid);
+}
+
+function stopDrag() {
+  drag.value = null;
+  window.removeEventListener('pointermove', onPointerMove);
+  window.removeEventListener('pointerup', onPointerUp);
+  window.removeEventListener('pointercancel', stopDrag);
+}
+onBeforeUnmount(stopDrag);
+
+/** The aiming arrow: leaves the card upwards and bends towards the pointer. */
+const arrowPath = computed(() => {
+  const d = drag.value;
+  if (!d?.aimed || !d.moved) return null;
+  return `M ${d.fromX} ${d.fromY} Q ${d.fromX} ${d.y} ${d.x} ${d.y}`;
+});
+
+/** The card being dragged onto the battlefield follows the pointer. */
+function dragStyle(card: CardInstance) {
+  const d = drag.value;
+  if (d?.uid !== card.uid || d.aimed || !d.moved) return undefined;
+  return { transform: `translate(${d.x - d.startX}px, ${d.y - d.startY}px) rotate(${(d.x - d.startX) / 40}deg) scale(1.05)` };
+}
+
+/** Keyboard play (Enter / Space on a card): mouse and touch drag instead. */
 function onCardClick(card: CardInstance) {
   if (!isCardPlayable(props.state, card.uid, props.data)) return;
   const def = props.data.cards[card.defId];
@@ -211,6 +324,11 @@ function onEnemyClick(enemy: EnemyState) {
   if (selectedUid.value && isAlive(enemy)) play(selectedUid.value, enemy.id);
 }
 
+const hint = computed(() => {
+  if (drag.value?.moved) return drag.value.aimed ? 'Drop it on a creature…' : 'Drop it on the battlefield…';
+  return selectedUid.value ? 'Choose a target…' : null;
+});
+
 function endTurn() {
   selectedUid.value = null;
   emit('action', { type: 'endTurn' });
@@ -218,8 +336,8 @@ function endTurn() {
 </script>
 
 <template>
-  <div class="combat">
-    <section class="battlefield">
+  <div class="combat" :class="{ dragging: drag?.moved, 'on-target': !!drag?.targetId }">
+    <section ref="battlefield" class="battlefield" :class="{ 'drop-zone': drag?.moved && !drag.aimed, 'drop-ready': drag?.moved && !drag.aimed && drag.overBattlefield }">
       <CombatantView
         :combatant="state.player"
         :portrait="data.character.portrait ?? '🧑'"
@@ -239,7 +357,9 @@ function endTurn() {
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(state, enemy, data)"
           :escape-bar="{ escape: enemy.escape, escapeAt: enemy.escapeAt, escapeRate: escapeRise(enemy) }"
-          :targetable="!!selectedUid && isAlive(enemy)"
+          :data-enemy-id="enemy.id"
+          :targetable="(!!selectedUid || (!!drag?.aimed && drag.moved)) && isAlive(enemy)"
+          :class="{ aimed: drag?.targetId === enemy.id }"
           @select="onEnemyClick(enemy)"
           @animation-done="onAnimationDone(enemy.id)"
         />
@@ -265,11 +385,15 @@ function endTurn() {
           :card="data.cards[card.defId]"
           :description="cardText(card)"
           :playable="isCardPlayable(state, card.uid, data)"
-          :selected="selectedUid === card.uid"
+          :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
           :effective="isEffective(card)"
-          @click="onCardClick(card)"
+          :data-card-uid="card.uid"
+          :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
+          :style="dragStyle(card)"
+          @pointerdown="onCardPointerDown(card, $event)"
+          @click="$event.detail === 0 && onCardClick(card)"
         />
-        <p v-if="selectedUid" class="hint">Choose a target…</p>
+        <p v-if="hint" class="hint">{{ hint }}</p>
       </div>
 
       <div class="side">
@@ -278,6 +402,26 @@ function endTurn() {
         <div class="pile" title="Exhausted cards">🔥 Exhaust {{ state.piles.exhaust.length }}</div>
       </div>
     </section>
+
+    <svg v-if="arrowPath" class="aim" :class="{ locked: !!drag?.targetId }" aria-hidden="true">
+      <defs>
+        <marker id="aim-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" />
+        </marker>
+      </defs>
+      <path :d="arrowPath" marker-end="url(#aim-head)" />
+    </svg>
+
+    <div
+      v-for="card in playedCards"
+      :key="card.key"
+      class="played-card"
+      :class="card.aimed ? 'thrown' : 'flared'"
+      :style="{ left: `${card.rect.left}px`, top: `${card.rect.top}px`, '--dx': `${card.dx}px`, '--dy': `${card.dy}px` }"
+      @animationend="playedCards = playedCards.filter((c) => c.key !== card.key)"
+    >
+      <CardView :card="data.cards[card.defId]" :description="card.text" />
+    </div>
 
     <div v-if="state.phase !== 'playerTurn' && overlayVisible" class="overlay">
       <div class="panel">
@@ -375,7 +519,41 @@ function endTurn() {
   align-items: flex-end;
   flex-wrap: wrap;
 }
-.hint { position: absolute; top: -6px; margin: 0; color: var(--highlight); font-weight: 600; }
+.hint { position: absolute; top: -6px; margin: 0; color: var(--highlight); font-weight: 600; pointer-events: none; }
+
+.hand :deep(.card) { touch-action: none; user-select: none; }
+.hand :deep(.card.held) { position: relative; z-index: 5; transition: none; pointer-events: none; box-shadow: 0 18px 30px rgb(0 0 0 / 0.6); }
+.combat.dragging, .combat.dragging :deep(*) { cursor: grabbing !important; }
+.combat.on-target, .combat.on-target :deep(*) {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' fill='none' stroke='%23f5d76e' stroke-width='2.5'%3E%3Ccircle cx='16' cy='16' r='10'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23f5d76e'/%3E%3Cpath d='M16 1v8M16 23v8M1 16h8M23 16h8'/%3E%3C/svg%3E") 16 16, crosshair !important;
+}
+.battlefield.drop-zone { outline: 2px dashed rgb(245 215 110 / 0.35); outline-offset: -6px; }
+.battlefield.drop-ready { outline-color: var(--highlight); background: linear-gradient(180deg, #22364c 0%, #1b3b56 55%, #152e44 100%); }
+.enemies :deep(.aimed) { transform: scale(1.04); box-shadow: 0 0 0 2px var(--highlight), 0 0 24px rgb(245 215 110 / 0.35); }
+
+.aim { position: fixed; inset: 0; z-index: 20; width: 100vw; height: 100vh; pointer-events: none; overflow: visible; }
+.aim { color: #c9d3df; }
+.aim.locked { color: var(--highlight); }
+.aim path { fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 12; animation: aim-march 0.5s linear infinite; }
+.aim marker path { fill: currentColor; stroke: none; animation: none; }
+@keyframes aim-march { to { stroke-dashoffset: -14; } }
+
+.played-card { position: fixed; z-index: 15; pointer-events: none; }
+.played-card :deep(.card) { transition: none; }
+.played-card.thrown { animation: card-thrown 0.38s cubic-bezier(0.5, 0, 0.75, 0.4) forwards; }
+.played-card.flared { animation: card-flared 0.4s ease-out forwards; }
+@keyframes card-thrown {
+  0% { transform: none; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.35) rotate(18deg); opacity: 0.2; }
+}
+@keyframes card-flared {
+  0% { transform: scale(1.05); filter: brightness(1); }
+  40% { transform: scale(1.15); filter: brightness(1.6) drop-shadow(0 0 18px rgb(245 215 110 / 0.8)); opacity: 1; }
+  100% { transform: translateY(-40px) scale(1.25); filter: brightness(2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .played-card.thrown, .played-card.flared { animation-duration: 0.01s; }
+}
 
 .energy {
   display: grid;

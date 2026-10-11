@@ -10,17 +10,32 @@ import {
   type MapNode,
   type RunState,
 } from '../engine';
-import coastUrl from './assets/coast.svg';
+import basemapUrl from './assets/map/basemap.png';
+import seaUrl from './assets/map/sea.png';
 
 const props = defineProps<{ run: RunState; data: GameData }>();
 const emit = defineEmits<{ travel: [nodeId: string] }>();
 
-/** The coast art's coordinates, which node positions in content/levels.ts use. */
-const ART_WIDTH = 1200;
-const ART_HEIGHT = 600;
+/** The coast art's coordinates, which content/levels.ts and coast.ts use. The open sea goes below it. */
+const ART_WIDTH = 1000;
+const COAST_HEIGHT = 150;
+/** Every map layer image (coast features, sea features) is this size. */
+const LAYER = { width: 1000, height: 150 };
 const RADIUS = 12;
+/** Node markers keep the same size on screen whatever the zoom: 1 = RADIUS pixels. */
+const NODE_SIZE = 0.9;
+
+const layerUrls = import.meta.glob<string>('./assets/map/**/*.png', { eager: true, query: '?url', import: 'default' });
 
 const level = computed(() => props.data.levels[props.run.level]);
+/** The coast features laid out for the run, as drawn: those this age stops at. */
+const features = computed(() =>
+  props.run.coast.flatMap((placement) => {
+    const def = props.data.coast.features.find((f) => f.id === placement.feature);
+    const url = def && layerUrls[`./assets/map/${def.image}`];
+    return def?.visits[props.run.level] && url ? [{ ...def, x: placement.x, url }] : [];
+  }),
+);
 const nodes = computed(() => props.run.map.columns.flat());
 const destinations = computed(() => new Set(availableDestinations(props.run).map((n) => n.id)));
 const visited = computed(() => new Set(props.run.visited));
@@ -92,55 +107,33 @@ function tooltipFor(node: MapNode): { name: string; hint?: string; detail?: stri
     default: {
       const spot = node.spot ? props.data.spots[node.spot] : undefined;
       const type = node.creatureType ? props.data.creatureTypes[node.creatureType]?.name : undefined;
-      return { name: spot?.name ?? 'Fight', detail: node.enemies ? creatureNames(node) : type, hint: strong };
+      const detail = node.enemies ? creatureNames(node) : [node.label && spot?.name, type].filter(Boolean).join(' · ');
+      return { name: node.label ?? spot?.name ?? 'Fight', detail: detail || undefined, hint: strong };
     }
   }
 }
 
-/** Margin kept around the reach line, in art units. */
-const VIEW_PADDING = 14;
 /** The map is never shorter than this; a level wider than the screen then scrolls sideways. */
-const MIN_HEIGHT = 260;
+const MIN_HEIGHT = 300;
 
-/**
- * The part of the art shown: the level's reach (the dotted line) and a little around it, so the
- * map zooms out as the ages reach further. All of it when the level has no reach.
- */
-const view = computed(() => {
-  const numbers = level.value?.reach?.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [];
-  if (numbers.length < 4) return { x: 0, y: 0, width: ART_WIDTH, height: ART_HEIGHT };
-  const xs = numbers.filter((_, i) => i % 2 === 0);
-  const ys = numbers.filter((_, i) => i % 2 === 1);
-  const x = Math.max(0, Math.min(...xs) - VIEW_PADDING);
-  const y = Math.max(0, Math.min(...ys) - VIEW_PADDING);
-  return {
-    x,
-    y,
-    width: Math.min(ART_WIDTH, Math.max(...xs) + VIEW_PADDING) - x,
-    height: Math.min(ART_HEIGHT, Math.max(...ys) + VIEW_PADDING) - y,
-  };
-});
+/** The part of the art shown: the whole width, and as far out to sea as the age goes, so the map zooms out as you grow. */
+const view = computed(() => ({ x: 0, y: 0, width: ART_WIDTH, height: level.value?.height ?? COAST_HEIGHT }));
 
-// As wide as the screen allows, and at most 62% of the window's height.
-const screenEl = ref<HTMLElement>();
+/** Share of the screen under the top bar the map takes, above the bucket. */
+const MAP_SHARE = 0.6;
+/** The top bar, and the gap and padding of the map layout (App.vue), in pixels. */
+const CHROME_HEIGHT = 88;
+
+// MAP_SHARE of the screen's height, scrolling sideways when that's wider than the screen.
 const scroller = ref<HTMLElement>();
-const available = ref(ART_WIDTH);
 const windowHeight = ref(window.innerHeight);
-const resizeObserver = new ResizeObserver(([entry]) => (available.value = entry.contentRect.width));
 const onResize = () => (windowHeight.value = window.innerHeight);
-onMounted(() => {
-  const parent = screenEl.value?.parentElement;
-  if (parent) resizeObserver.observe(parent);
-  window.addEventListener('resize', onResize);
-});
-onBeforeUnmount(() => {
-  resizeObserver.disconnect();
-  window.removeEventListener('resize', onResize);
-});
+onMounted(() => window.addEventListener('resize', onResize));
+onBeforeUnmount(() => window.removeEventListener('resize', onResize));
 const size = computed(() => {
   const ratio = view.value.width / view.value.height;
-  const width = Math.max(MIN_HEIGHT * ratio, Math.min(available.value, windowHeight.value * 0.62 * ratio));
-  return { width, height: width / ratio };
+  const height = Math.max(MIN_HEIGHT, (windowHeight.value - CHROME_HEIGHT) * MAP_SHARE);
+  return { width: height * ratio, height };
 });
 /** Screen pixels per art unit. */
 const scale = computed(() => size.value.width / view.value.width);
@@ -162,8 +155,8 @@ const hovered = ref<MapNode | null>(null);
 const tooltip = computed(() => {
   const node = hovered.value;
   if (!node) return null;
-  const below = node.y - view.value.y < 70;
-  const offset = (node.kind === 'boss' ? 22 : RADIUS + 6) * scale.value;
+  const below = (node.y - view.value.y) * scale.value < 70;
+  const offset = (node.kind === 'boss' ? 22 : RADIUS + 6) * NODE_SIZE;
   return {
     ...tooltipFor(node),
     left: (node.x - view.value.x) * scale.value - scrollLeft.value,
@@ -174,7 +167,7 @@ const tooltip = computed(() => {
 
 /** Labels near the right edge extend leftwards, so they stay on the map. */
 function labelAnchor(node: MapNode) {
-  return node.x > view.value.x + view.value.width - 140 ? 'end' : 'middle';
+  return node.x > view.value.x + view.value.width - 140 / scale.value ? 'end' : 'middle';
 }
 
 const showLegend = ref(false);
@@ -185,7 +178,7 @@ function choose(node: MapNode) {
 </script>
 
 <template>
-  <section ref="screenEl" class="map-screen">
+  <section class="map-screen">
     <ul v-if="equipment.length || bonuses.length" class="equipment" aria-label="Equipment and companion bonuses">
       <li v-for="item in equipment" :key="item.id" class="item" tabindex="0" :aria-label="`${item.name}: ${item.description}`">
         <span class="icon">{{ item.icon ?? '🎒' }}</span>
@@ -235,18 +228,21 @@ function choose(node: MapNode) {
         role="group"
         :aria-label="`Map: ${level?.name}`"
       >
-        <defs>
-          <pattern id="out-of-reach" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="8" stroke="#0E1A20" stroke-width="3" stroke-opacity="0.35" />
-          </pattern>
-        </defs>
-        <image :href="coastUrl" :width="ART_WIDTH" :height="ART_HEIGHT" />
-
-        <!-- Shade what this age can't reach yet. -->
-        <g v-if="level?.reach" class="reach" aria-hidden="true">
-          <path :d="`M0 0 H${ART_WIDTH} V${ART_HEIGHT} H0 Z ${level.reach}`" fill="#0E1A20" fill-opacity="0.38" fill-rule="evenodd" />
-          <path :d="`M0 0 H${ART_WIDTH} V${ART_HEIGHT} H0 Z ${level.reach}`" fill="url(#out-of-reach)" fill-rule="evenodd" opacity="0.5" />
-          <path :d="level.reach" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="8 6" opacity="0.9" />
+        <g class="art" aria-hidden="true">
+          <image :href="basemapUrl" :width="ART_WIDTH" :height="COAST_HEIGHT" />
+          <image v-if="view.height > COAST_HEIGHT" :href="seaUrl" :y="COAST_HEIGHT" :width="ART_WIDTH" :height="COAST_HEIGHT" />
+          <!-- Each feature: its crop of its layer image, slid to where the run placed it. -->
+          <svg
+            v-for="(f, i) in features"
+            :key="i"
+            :x="f.x"
+            :y="f.y"
+            :width="f.crop.width"
+            :height="f.crop.height"
+            :viewBox="`${f.crop.x} ${f.crop.y} ${f.crop.width} ${f.crop.height}`"
+          >
+            <image :href="f.url" :width="LAYER.width" :height="LAYER.height" />
+          </svg>
         </g>
 
         <line
@@ -265,7 +261,7 @@ function choose(node: MapNode) {
           :key="node.id"
           class="node"
           :class="[node.kind, nodeState(node), { strong: isStrong(node) }]"
-          :transform="`translate(${node.x} ${node.y})`"
+          :transform="`translate(${node.x} ${node.y}) scale(${NODE_SIZE / scale})`"
           :role="destinations.has(node.id) ? 'button' : undefined"
           :tabindex="destinations.has(node.id) ? 0 : undefined"
           :aria-label="tooltipFor(node).name"
@@ -293,7 +289,7 @@ function choose(node: MapNode) {
             <text class="symbol" dominant-baseline="central" text-anchor="middle">{{ SYMBOLS[node.kind] }}</text>
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
-          <text v-if="node.label" class="label" :text-anchor="labelAnchor(node)" :x="labelAnchor(node) === 'end' ? 18 : 0" :y="node.kind === 'boss' ? -28 : -22">
+          <text v-if="node.label && (node.kind === 'miniBoss' || node.kind === 'boss')" class="label" :text-anchor="labelAnchor(node)" :x="labelAnchor(node) === 'end' ? 18 : 0" :y="node.kind === 'boss' ? -28 : -22">
             {{ node.kind === 'boss' ? 'boss' : 'mini-boss' }} · {{ node.label }}
           </text>
         </g>
@@ -423,8 +419,9 @@ function choose(node: MapNode) {
 /* Sized from the level's view (see `size`); scrolls sideways when the screen is narrow. */
 .map-scroll { max-width: 100%; overflow-x: auto; border-radius: 12px; }
 .map { display: block; }
+.art image { image-rendering: pixelated; }
 
-.edge { stroke: #2e2d27; stroke-width: 1.6; stroke-opacity: 0.55; }
+.edge { stroke: #2e2d27; stroke-width: 1.6; stroke-opacity: 0.55; vector-effect: non-scaling-stroke; }
 .edge.from-home { stroke-dasharray: 3 4; }
 .edge.travelled { stroke: #fff; stroke-width: 3; stroke-opacity: 0.9; }
 .edge.open { stroke: var(--highlight); stroke-width: 3; stroke-opacity: 1; stroke-dasharray: 6 5; }

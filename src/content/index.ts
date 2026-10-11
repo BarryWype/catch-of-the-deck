@@ -3,6 +3,7 @@ import { builds } from './builds';
 import { cards } from './cards';
 import { companionBonuses } from './companions';
 import { character } from './character';
+import { coast } from './coast';
 import { creatureTypes } from './creatureTypes';
 import { encounters } from './encounters';
 import { enemies } from './enemies';
@@ -25,6 +26,7 @@ export const contentSource: ContentSource = {
   companionBonuses,
   spots,
   levels,
+  coast,
 };
 
 /** Validated, id-indexed content. Throws at startup if any data is inconsistent. */

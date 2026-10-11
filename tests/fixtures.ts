@@ -84,7 +84,7 @@ export const testData = buildGameData({
   // Two small levels: two first steps, a mini-boss leading to a leave node or on to the boss.
   levels: [
     {
-      id: 'one', name: 'One', tier: 1, start: { x: 0, y: 0 },
+      id: 'one', name: 'One', tier: 1, start: { x: 0, y: 0 }, height: 100,
       nodes: [
         { id: '1a', column: 1, x: 10, y: 10, kind: 'fight', spot: 'sea', next: ['2'] },
         { id: '1b', column: 1, x: 10, y: 20, kind: 'fight', enemies: ['cycler'], next: ['2'] },
@@ -95,7 +95,7 @@ export const testData = buildGameData({
       ],
     },
     {
-      id: 'two', name: 'Two', tier: 2, start: { x: 0, y: 0 },
+      id: 'two', name: 'Two', tier: 2, start: { x: 0, y: 0 }, height: 100,
       nodes: [
         { id: 'two-1', column: 1, x: 10, y: 10, kind: 'fight', spot: 'sea', next: ['two-2'] },
         { id: 'two-2', column: 2, x: 20, y: 10, kind: 'miniBoss', enemies: ['dummy'], next: ['two-3a', 'two-3b'] },
@@ -105,6 +105,7 @@ export const testData = buildGameData({
       ],
     },
   ],
+  coast: { features: [], reserved: [] },
 });
 
 /** The run with node `id` of its map turned into `kind` (for event, shop and treasure tests). */

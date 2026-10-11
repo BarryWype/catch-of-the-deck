@@ -1,4 +1,4 @@
-import type { BuildDef, CardDef, CharacterDef, CompanionBonusDef, CreatureTypeDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
+import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
 export interface ContentSource {
@@ -15,6 +15,7 @@ export interface ContentSource {
   spots: SpotDef[];
   /** In play order. */
   levels: LevelDef[];
+  coast: CoastDef;
 }
 
 /** Index content by id, throwing a readable error if anything is inconsistent. */
@@ -34,6 +35,7 @@ export function buildGameData(source: ContentSource): GameData {
     companionBonuses: Object.fromEntries(source.companionBonuses.map((b) => [b.id, b])),
     spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
     levels: source.levels,
+    coast: source.coast,
   };
 }
 
@@ -207,9 +209,10 @@ export function validateContent(source: ContentSource): string[] {
 }
 
 /**
- * Levels must be playable maps: columns 1..N with the boss alone in the last one, one mini-boss
- * followed by at least two choices including a leave node, every node reachable from the start,
- * every link going forward, and every fight able to find its creatures.
+ * Hand-made levels must be playable maps: columns 1..N with the boss alone in the last one, one
+ * mini-boss followed by at least two choices including a leave node, every node reachable from
+ * the start, every link going forward, and every fight able to find its creatures. Generated
+ * levels need their mini-boss, boss and escape, and the coast features valid spots.
  */
 function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: Set<string>, errors: string[]): void {
   const spotIds = new Set<string>();
@@ -223,26 +226,47 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
   const hasEvents = source.events.some((e) => !e.treasure);
   const hasTreasures = source.events.some((e) => e.treasure);
 
+  const featureIds = new Set<string>();
+  for (const feature of source.coast.features) {
+    const at = `Coast feature "${feature.id}"`;
+    if (featureIds.has(feature.id)) errors.push(`Duplicate coast feature id "${feature.id}".`);
+    featureIds.add(feature.id);
+    if (feature.range[0] > feature.range[1]) errors.push(`${at}: its range is empty.`);
+    if (feature.visits.length > source.levels.length) errors.push(`${at}: more visits than levels.`);
+    for (const visit of feature.visits) if (visit && !spotIds.has(visit.spot)) errors.push(`${at}: unknown fishing spot "${visit.spot}".`);
+  }
+
   const nodeIds = new Set<string>();
   for (const level of source.levels) {
     const where = `Level "${level.id}"`;
     if (!(Number.isInteger(level.tier) && level.tier >= 1)) errors.push(`${where}: tier must be a whole number ≥ 1.`);
-    const byId = new Map(level.nodes.map((n) => [n.id, n]));
-    for (const node of level.nodes) {
+    if (!(level.height > 0)) errors.push(`${where}: height must be > 0.`);
+    if (!level.nodes) {
+      if (!level.miniBoss || !level.boss || !level.escape) errors.push(`${where}: needs either nodes, or a miniBoss, a boss and an escape.`);
+      for (const stop of level.firstColumn ?? []) if (!spotIds.has(stop.spot)) errors.push(`${where}: unknown fishing spot "${stop.spot}".`);
+      for (const fight of [level.miniBoss, level.boss]) {
+        for (const id of fight?.enemies ?? []) if (!enemyIds.has(id)) errors.push(`${where}: unknown enemy "${id}".`);
+      }
+      if (!hasEvents || !hasTreasures || !source.shop.length) errors.push(`${where}: generated maps need events, treasure events and a shop.`);
+      continue;
+    }
+    const nodes = level.nodes;
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    for (const node of nodes) {
       if (nodeIds.has(node.id)) errors.push(`Duplicate map node id "${node.id}".`);
       nodeIds.add(node.id);
     }
 
-    const lastColumn = Math.max(...level.nodes.map((n) => n.column));
+    const lastColumn = Math.max(...nodes.map((n) => n.column));
     for (let column = 1; column <= lastColumn; column++) {
-      if (!level.nodes.some((n) => n.column === column)) errors.push(`${where}: column ${column} has no node.`);
+      if (!nodes.some((n) => n.column === column)) errors.push(`${where}: column ${column} has no node.`);
     }
-    const bosses = level.nodes.filter((n) => n.kind === 'boss');
+    const bosses = nodes.filter((n) => n.kind === 'boss');
     if (bosses.length !== 1) errors.push(`${where}: needs exactly one boss.`);
-    else if (level.nodes.some((n) => n.column === lastColumn && n.kind !== 'boss')) {
+    else if (nodes.some((n) => n.column === lastColumn && n.kind !== 'boss')) {
       errors.push(`${where}: the boss must be alone in the last column.`);
     }
-    const miniBosses = level.nodes.filter((n) => n.kind === 'miniBoss');
+    const miniBosses = nodes.filter((n) => n.kind === 'miniBoss');
     if (miniBosses.length !== 1) errors.push(`${where}: needs exactly one mini-boss.`);
     for (const miniBoss of miniBosses) {
       const after = miniBoss.next.map((id) => byId.get(id));
@@ -251,7 +275,7 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
       }
     }
 
-    for (const node of level.nodes) {
+    for (const node of nodes) {
       const at = `${where} node "${node.id}"`;
       const ends = node.kind === 'boss' || node.kind === 'leave';
       if (ends && node.next.length) errors.push(`${at}: a ${node.kind} node can't lead anywhere.`);
@@ -273,10 +297,10 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
     }
 
     // Everything must be reachable from the start, which leads to the first column.
-    const reached = new Set(level.nodes.filter((n) => n.column === 1).map((n) => n.id));
-    for (const node of [...level.nodes].sort((a, b) => a.column - b.column)) {
+    const reached = new Set(nodes.filter((n) => n.column === 1).map((n) => n.id));
+    for (const node of [...nodes].sort((a, b) => a.column - b.column)) {
       if (reached.has(node.id)) for (const id of node.next) reached.add(id);
     }
-    for (const node of level.nodes) if (!reached.has(node.id)) errors.push(`${where} node "${node.id}": can't be reached.`);
+    for (const node of nodes) if (!reached.has(node.id)) errors.push(`${where} node "${node.id}": can't be reached.`);
   }
 }

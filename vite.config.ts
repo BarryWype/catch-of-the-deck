@@ -11,6 +11,9 @@ export default defineConfig({
   base: './',
   plugins: [vue()],
   server: {
+    // Fixed, and away from Vite's default 5173 (often taken by ddev), so `electron:dev` can find it.
+    port: 5190,
+    strictPort: true,
     watch: wslOnWindowsDrive ? { usePolling: true, interval: 300 } : undefined,
   },
   test: {

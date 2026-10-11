@@ -2,7 +2,7 @@ import { addBond, BOND_PER_ENCOUNTER, bondToFull, type HomeCreature } from './bo
 import { createCombat } from './combat';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
-import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
+import { buildLevelMap, encountersFor, encounterTier, findNode, layoutCoast, START_NODE_ID, type CoastPlacement, type GameMap, type MapNode } from './map';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
 import { isAlive } from './effects';
 import type { BuildDef, CombatState, EnemyState, GameData } from './types';
@@ -20,6 +20,8 @@ export interface RunState {
   floor: number;
   /** Index in `GameData.levels` of the level being played (an act of the run). */
   level: number;
+  /** The coast features laid out for this run, shared by every level. */
+  coast: CoastPlacement[];
   /** That level's map. */
   map: GameMap;
   /** Id of the map node the player is standing on. */
@@ -74,7 +76,8 @@ export function createRun(
     deck: [...build.starterDeck],
     floor: 1,
     level: 0,
-    map: buildLevelMap(data.levels[0]),
+    coast: [],
+    map: { columns: [] },
     position: START_NODE_ID,
     visited: [START_NODE_ID],
     bucket: brought.map((c) => c.id),
@@ -82,6 +85,8 @@ export function createRun(
     coins: 0,
     equipment: item === undefined ? [] : [item],
   };
+  run.coast = layoutCoast(run, data.coast);
+  run.map = buildLevelMap(data, 0, run.coast, run);
   return run;
 }
 
@@ -108,8 +113,9 @@ export function isLastLevel(run: RunState, data: GameData): boolean {
 /** After a level's boss: the next level, back at the start of its map. Everything else carries over. */
 export function enterNextLevel(run: RunState, data: GameData): RunState {
   if (isLastLevel(run, data)) throw new Error('There is no level after this one.');
-  const level = run.level + 1;
-  return { ...clone(run), level, map: buildLevelMap(data.levels[level]), position: START_NODE_ID, visited: [START_NODE_ID] };
+  const next = { ...clone(run), level: run.level + 1, position: START_NODE_ID, visited: [START_NODE_ID] };
+  next.map = buildLevelMap(data, next.level, next.coast, next);
+  return next;
 }
 
 /** Nodes the player can travel to next (none at the boss or a leave node, which end the level or the run). */

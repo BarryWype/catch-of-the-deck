@@ -295,7 +295,7 @@ export interface LevelNodeDef {
   id: string;
   /** 1 = the first step from home. Links (`next`) always go to a later column. */
   column: number;
-  /** Position on the coast art (1200×600). Display-only. */
+  /** Position on the map art. Display-only. */
   x: number;
   y: number;
   kind: LevelNodeKind;
@@ -316,7 +316,29 @@ export interface LevelNodeDef {
   next: string[];
 }
 
-/** One act of a run, played on its own hand-made map. */
+/** A mini-boss or boss of a generated level: always at the same place. */
+export interface FixedFightDef {
+  x: number;
+  y: number;
+  label: string;
+  enemies: string[];
+  /** Why it's let go after the fight (see `LevelNodeDef.releaseReason`). */
+  releaseReason: string;
+}
+
+/** A fight node of a generated level that's always there, e.g. on the base map's own rocks. */
+export interface FixedStopDef {
+  x: number;
+  y: number;
+  spot: string;
+  label: string;
+}
+
+/**
+ * One act of a run. Its map is either hand-made (`nodes`) or generated each run on the coast
+ * (`generateLevelMap`): from the start to the fixed mini-boss and on to the fixed boss, through
+ * the coast features laid out for the run (`layoutCoast`).
+ */
 export interface LevelDef {
   id: string;
   name: string;
@@ -324,9 +346,51 @@ export interface LevelDef {
   tier: number;
   /** Where the run starts on the art (the grandparents' house). Display-only. */
   start: { x: number; y: number };
-  /** The area in reach this level, as an SVG path on the art; outside is shaded. Everything if omitted. Display-only. */
-  reach?: string;
-  nodes: LevelNodeDef[];
+  /** How much of the map art this age sees, from the top: older ages fish further out at sea. */
+  height: number;
+  /** A hand-made map. */
+  nodes?: LevelNodeDef[];
+  /** Generated maps: the mini-boss, the boss, and the leave node offered after the mini-boss. */
+  miniBoss?: FixedFightDef;
+  boss?: FixedFightDef;
+  escape?: { x: number; y: number };
+  /** Generated maps: fights making up column 1 every run, instead of drawing it from the coast. */
+  firstColumn?: FixedStopDef[];
+  /** Generated maps: the band of the art (top, bottom) where filler events may go. */
+  eventBand?: [number, number];
+}
+
+/** What a level does at a coast feature: its fishing spot, and the node's name. */
+export interface CoastVisitDef {
+  spot: string;
+  label: string;
+  /** Where the node sits, relative to the feature's top-left, when not at `CoastFeatureDef.node`. */
+  node?: { x: number; y: number };
+}
+
+/**
+ * A piece of coast (a beach, a pond, a harbour…) placed somewhere along the map each run. It
+ * keeps its height on the art and slides sideways only.
+ */
+export interface CoastFeatureDef {
+  id: string;
+  /** Its art: an image in ui/assets/map, and where in that image the feature is. Display-only. */
+  image: string;
+  crop: { x: number; y: number; width: number; height: number };
+  /** Its top edge on the map. */
+  y: number;
+  /** The range its left edge may take on the map. */
+  range: [number, number];
+  /** Where its node sits, relative to its top-left. */
+  node: { x: number; y: number };
+  /** What each level (by index: kid, adult, elder) does there; null when that age doesn't stop there. */
+  visits: (CoastVisitDef | null)[];
+}
+
+export interface CoastDef {
+  features: CoastFeatureDef[];
+  /** Areas of the map no feature may cover (the house, the river delta, the lighthouse…). */
+  reserved: { x: number; y: number; width: number; height: number }[];
 }
 
 /** `swim` back and forth, `drift` slowly up and down, or crawl along the `bottom`. */
@@ -356,6 +420,7 @@ export interface GameData {
   spots: Record<string, SpotDef>;
   /** Played in order, one per act of a run. */
   levels: LevelDef[];
+  coast: CoastDef;
 }
 
 // ---------------------------------------------------------------------------
