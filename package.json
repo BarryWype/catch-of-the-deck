@@ -1,7 +1,7 @@
 {
   "name": "spire-slice",
   "private": true,
-  "version": "0.0.9",
+  "version": "0.0.10",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -48,7 +48,8 @@
     ],
     "mac": {
       "target": "dmg",
-      "identity": null,
+      "identity": "-",
+      "hardenedRuntime": false,
       "artifactName": "slay-the-fish-mac-${arch}.${ext}"
     },
     "win": {

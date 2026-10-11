@@ -14,7 +14,7 @@ Older versions are on the [releases page](https://github.com/BarryWype/slay-the-
 
 The app isn't code-signed yet, so the first launch shows a warning:
 
-- **macOS**: right-click the app and choose **Open**, then **Open** again.
+- **macOS**: open the app once and dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway** next to "Slay the Fish" (on older macOS, right-click the app and choose **Open** instead). If macOS says the app "is damaged" (releases up to v0.0.9), run `xattr -cr "/Applications/Slay the Fish.app"` in Terminal, then open it again.
 - **Windows**: on the SmartScreen prompt, click **More info**, then **Run anyway**.
 - **Linux**: make the file executable (`chmod +x slay-the-fish-linux.AppImage`), then run it.
 
