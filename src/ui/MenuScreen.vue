@@ -12,8 +12,27 @@ defineProps<{
 }>();
 const emit = defineEmits<{ resume: []; newRun: []; reset: []; debugStart: [levelIndex: number, kind: 'miniBoss' | 'boss'] }>();
 
-/** Temporary shortcuts for testing the bosses; only in development (`npm run dev`, `electron:dev`). */
-const debug = import.meta.env.DEV;
+/**
+ * Temporary shortcuts for testing the bosses, shown when "Show debug panel" is ticked in the
+ * options. The choice is a per-device convenience, kept in localStorage.
+ */
+const DEBUG_KEY = 'slay-the-fish:debug-panel';
+function readDebug() {
+  try {
+    return localStorage.getItem(DEBUG_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+const debug = ref(readDebug());
+function setDebug(on: boolean) {
+  debug.value = on;
+  try {
+    localStorage.setItem(DEBUG_KEY, String(on));
+  } catch {
+    // Storage blocked: the panel just won't be remembered.
+  }
+}
 const DEBUG_STARTS = [0, 1, 2].flatMap((level) => [
   { level, kind: 'miniBoss' as const, label: `Act ${level + 1} · mini-boss` },
   { level, kind: 'boss' as const, label: `Act ${level + 1} · boss` },
@@ -105,6 +124,13 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
           <small>{{ desktop ? 'Remembered next time you open the game.' : 'Press Esc to leave it.' }}</small>
         </span>
         <input type="checkbox" role="switch" :checked="fullscreen" @change="setFullscreen(($event.target as HTMLInputElement).checked)" />
+      </label>
+      <label class="option">
+        <span>
+          Show debug panel
+          <small>Shortcuts on the menu to jump straight to each mini-boss and boss.</small>
+        </span>
+        <input type="checkbox" role="switch" :checked="debug" @change="setDebug(($event.target as HTMLInputElement).checked)" />
       </label>
       <footer>
         <button autofocus @click="options?.close()">Done</button>
