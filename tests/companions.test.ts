@@ -5,7 +5,11 @@ import {
   companionEffects,
   createRun,
   describeCompanionEffect,
+  enterNextLevel,
   finishCombat,
+  rerollReward,
+  rewardOptions,
+  skipReward,
   sellCreature,
   travelTo,
   type CompanionEffect,
@@ -164,5 +168,37 @@ describe('companion bonuses in combat', () => {
     let s = setup(repeat('strike', 10), { enemies: ['shellA'], bonuses: [trigger('combatStart', { type: 'applyStatus', status: 'poison', amount: 20, target: 'allEnemies' })] });
     s = endTurn(s);
     expect(s.phase).toBe('won');
+  });
+});
+
+describe('Eel companions: skipping and rerolling card rewards', () => {
+  const eels = ['ribbonEel', 'europeanConger', 'harlequinSnakeEel'];
+  const runWith = (species: number) => createRun(5, gameData, 'rod', pets(...eels.slice(0, species)));
+
+  it('without them, a card reward must be taken', () => {
+    expect(rewardOptions(runWith(0), gameData)).toEqual({ skips: 0, rerolls: 0 });
+    expect(() => skipReward(runWith(0), gameData)).toThrow();
+  });
+
+  it('give 2 skips per level with 1 species, 3 with 2, and 3 skips plus 3 rerolls with 3', () => {
+    expect(rewardOptions(runWith(1), gameData)).toEqual({ skips: 2, rerolls: 0 });
+    expect(rewardOptions(runWith(2), gameData)).toEqual({ skips: 3, rerolls: 0 });
+    expect(rewardOptions(runWith(3), gameData)).toEqual({ skips: 3, rerolls: 3 });
+  });
+
+  it('are used up on a level and come back on the next one', () => {
+    let run = skipReward(skipReward(runWith(1), gameData), gameData);
+    expect(rewardOptions(run, gameData).skips).toBe(0);
+    expect(() => skipReward(run, gameData)).toThrow();
+    run = enterNextLevel(run, gameData);
+    expect(rewardOptions(run, gameData).skips).toBe(2);
+  });
+
+  it('a reroll offers other cards and uses one up', () => {
+    const offered = ['doubleCast', 'playTheLine', 'tireItOut'];
+    const { run, choices } = rerollReward(runWith(3), gameData, offered);
+    expect(choices).toHaveLength(3);
+    expect(choices.filter((id) => offered.includes(id))).toEqual([]);
+    expect(rewardOptions(run, gameData).rerolls).toBe(2);
   });
 });

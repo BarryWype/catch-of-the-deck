@@ -1,5 +1,5 @@
 import { bonusTotal } from './companions';
-import { BASE_ENERGY, PLAYER_ID, STARTING_HAND_SIZE } from './constants';
+import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, PLAYER_BLOCK_NAME, PLAYER_HP_NAME, PLAYER_ID, STARTING_HAND_SIZE } from './constants';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { fireTriggers, isAlive, resolveEffect } from './effects';
 import { chooseIntent, executeIntent } from './intents';
@@ -38,6 +38,7 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
       statuses: {},
       energy: 0,
       maxEnergy: BASE_ENERGY,
+      patience: 0,
     },
     enemies: [],
     piles: {
@@ -101,6 +102,7 @@ export function validateAction(state: CombatState, action: CombatAction, data: G
   const def = data.cards[card.defId];
   if (!def) return `Unknown card "${card.defId}".`;
   if (def.cost > state.player.energy) return 'Not enough energy.';
+  if ((def.patienceCost ?? 0) > state.player.patience) return 'Not enough patience.';
   if (def.target === 'enemy') {
     const target = state.enemies.find((e) => e.id === action.targetId);
     if (!target || !isAlive(target)) return 'Choose a living enemy to target.';
@@ -113,7 +115,7 @@ export function isCardPlayable(state: CombatState, cardUid: string, data: GameDa
   if (state.phase !== 'playerTurn') return false;
   const card = state.piles.hand.find((c) => c.uid === cardUid);
   const def = card && data.cards[card.defId];
-  return !!def && def.cost <= state.player.energy;
+  return !!def && def.cost <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
 }
 
 /**
@@ -141,10 +143,14 @@ export function replayCombat(config: CombatConfig, actions: CombatAction[], data
 
 // --- internals (operate on the private working copy) -----------------------
 
+/** Block the player keeps into their next turn (companion bonuses). */
+function keptBlock(state: CombatState): number {
+  return bonusTotal(state.bonuses, 'keepBlock') + state.bonusTracker.carriedBlock;
+}
+
 function startPlayerTurn(state: CombatState): void {
   state.turn++;
-  const kept = bonusTotal(state.bonuses, 'keepBlock') + state.bonusTracker.carriedBlock;
-  state.player.block = Math.min(state.player.block, kept);
+  state.player.block = Math.min(state.player.block, keptBlock(state));
   state.bonusTracker.carriedBlock = 0;
   state.bonusTracker.attacksThisTurn = 0;
   state.player.energy = state.player.maxEnergy;
@@ -159,6 +165,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   const [card] = state.piles.hand.splice(index, 1);
   const def = data.cards[card.defId];
   state.player.energy -= def.cost;
+  state.player.patience -= def.patienceCost ?? 0;
   addLog(state, `${state.player.name} plays ${def.name}.`);
 
   const tracker = state.bonusTracker;
@@ -191,7 +198,17 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   else state.piles.discard.push(card);
 }
 
+/** Adds Patience, up to `MAX_PATIENCE`; returns how much was really added. */
+function gainPatience(state: CombatState, amount: number, reason: string): number {
+  const gained = Math.min(amount, MAX_PATIENCE - state.player.patience);
+  if (gained <= 0) return 0;
+  state.player.patience += gained;
+  addLog(state, `${state.player.name} ${reason} (+${gained} Patience).`);
+  return gained;
+}
+
 function endTurn(state: CombatState, data: GameData): void {
+  gainPatience(state, state.player.energy, 'waits patiently');
   discardHand(state);
   tickStatuses(state.player);
   if (checkCombatEnd(state)) return;
@@ -201,7 +218,7 @@ function endTurn(state: CombatState, data: GameData): void {
     enemy.block = 0;
     executeIntent(state, enemy, data);
     if (checkCombatEnd(state)) return;
-    if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + escapeRise(enemy));
+    if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + escapeRise(enemy, state.player.patience));
     if (checkCombatEnd(state)) return;
   }
   for (const enemy of state.enemies) {
@@ -212,6 +229,11 @@ function endTurn(state: CombatState, data: GameData): void {
   // Poison can finish a creature off.
   if (checkCombatEnd(state)) return;
 
+  // Hold the creatures didn't wear through, and that isn't kept for next turn, turns into Patience.
+  const unused = Math.max(0, state.player.block - keptBlock(state));
+  const held = gainPatience(state, Math.floor(unused / HOLD_PER_PATIENCE), `keeps a steady ${PLAYER_BLOCK_NAME.toLowerCase()}`);
+  state.player.block -= held * HOLD_PER_PATIENCE;
+
   startPlayerTurn(state);
 }
 
@@ -220,7 +242,7 @@ function checkCombatEnd(state: CombatState): boolean {
   const escaped = state.enemies.find((e) => isAlive(e) && e.escape >= e.escapeAt);
   if (state.player.hp <= 0) {
     state.phase = 'lost';
-    addLog(state, 'Defeat...');
+    addLog(state, `Out of ${PLAYER_HP_NAME.toLowerCase()}...`);
   } else if (escaped) {
     state.phase = 'fled';
     addLog(state, `${escaped.name} got away!`);

@@ -3,18 +3,21 @@ import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { pickWeighted } from './rng';
-import type { CombatState, EnemyMove, EnemyState, GameData } from './types';
+import type { CombatState, EnemyMove, EnemyState, GameData, MoveTag } from './types';
 import { addLog } from './util';
 
-export type IntentKind = 'attack' | 'defend' | 'buff' | 'debuff';
+export type IntentKind = 'attack' | 'pull' | 'defend' | 'buff' | 'debuff';
 
 /** What the UI shows above an enemy: icons plus the numbers they'll really deal. */
 export interface IntentPreview {
   moveName: string;
+  tag: MoveTag;
   description: string;
   kinds: IntentKind[];
   damage?: number;
   hits?: number;
+  /** How hard it pulls on the line (before the player's Hold). */
+  pull?: number;
   block?: number;
 }
 
@@ -64,7 +67,8 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   if (!move) return null;
   const preview: IntentPreview = {
     moveName: move.name,
-    description: describeEffects(move.effects),
+    tag: move.tag,
+    description: describeEffects(move.effects, { byCreature: true }),
     kinds: [],
   };
   const addKind = (k: IntentKind) => {
@@ -76,6 +80,10 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
         addKind('attack');
         preview.damage ??= calculateDamage(effect.amount, enemy.statuses, state.player.statuses);
         preview.hits ??= effect.hits ?? 1;
+        break;
+      case 'pull':
+        addKind('pull');
+        preview.pull = (preview.pull ?? 0) + effect.amount;
         break;
       case 'gainBlock':
         addKind('defend');

@@ -47,7 +47,7 @@ describe('game content', () => {
   it('generates readable rules text', () => {
     const tagNames = creatureTypeNames(gameData);
     expect(describeCard(gameData.cards.doubleCast)).toBe('Deal 5 damage 2 times.');
-    expect(describeCard(gameData.cards.playTheLine)).toBe('Lower its Panic by 10. Gain 4 Block.');
+    expect(describeCard(gameData.cards.playTheLine)).toBe('Lower its Panic by 10. Gain 4 Hold.');
     expect(describeCard(gameData.cards.scatterBait)).toBe("Lower ALL enemies' Panic by 8.");
     expect(describeCard(gameData.cards.tireItOut)).toBe('Its Panic rises 3 slower each turn. Exhaust.');
     expect(describeCard(gameData.cards.tangleNet, { tagNames, defenderTags: ['crustacean'] })).toBe(
@@ -156,7 +156,7 @@ describe('content validation', () => {
   const base: ContentSource = {
     character: { name: 'C', maxHp: 10, home: { name: 'Home' } },
     cards: [{ id: 'a', name: 'A', type: 'attack', rarity: 'common', cost: 1, target: 'enemy', effects: [{ type: 'dealDamage', amount: 1 }] }],
-    enemies: [{ id: 'e', name: 'E', hp: [5, 5], escapeAt: 50, escapeStart: 25, escapeRate: 10, moves: [{ id: 'm', name: 'M', effects: [] }], pattern: { type: 'sequence', moves: ['m'] } }],
+    enemies: [{ id: 'e', name: 'E', hp: [5, 5], escapeAt: 50, escapeStart: 25, escapeRate: 10, moves: [{ id: 'm', name: 'M', tag: 'pull', effects: [{ type: 'pull', amount: 1 }] }], pattern: { type: 'sequence', moves: ['m'] } }],
     encounters: [{ id: 'x', name: 'X', enemies: ['e'] }],
     builds: [{ id: 'b', name: 'B', description: '', starterDeck: ['a'], strongAgainst: [] }],
     creatureTypes: [{ id: 't', name: 'T' }],
@@ -181,6 +181,13 @@ describe('content validation', () => {
 
   it('accepts valid content', () => {
     expect(validateContent(base)).toEqual([]);
+  });
+
+  it('catches moves whose tag doesn\'t match their effects, and cards that pull', () => {
+    const strikeWithoutDamage = { ...base.enemies[0], moves: [{ id: 'm', name: 'M', tag: 'strike' as const, effects: [{ type: 'pull' as const, amount: 1 }] }] };
+    expect(validateContent({ ...base, enemies: [strikeWithoutDamage] })).toEqual([expect.stringContaining('a strike move needs a "dealDamage" effect')]);
+    const pullingCard = { ...base.cards[0], effects: [...base.cards[0].effects, { type: 'pull' as const, amount: 1 }] };
+    expect(validateContent({ ...base, cards: [pullingCard] })).toEqual([expect.stringContaining('only creature moves can pull')]);
   });
 
   it('catches untargeted cards with targeted effects', () => {

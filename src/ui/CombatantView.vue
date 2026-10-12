@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { isAlive, type Combatant, type IntentPreview, type SpriteRef } from '../engine';
+import { isAlive, PLAYER_ID, type Combatant, type IntentPreview, type SpriteRef } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import HealthBar from './HealthBar.vue';
 import IntentBadge from './IntentBadge.vue';
@@ -49,7 +49,7 @@ defineEmits<{ select: []; animationDone: [] }>();
     <div class="name">{{ combatant.name }}</div>
     <div v-if="subtitle" class="subtitle">{{ subtitle }}</div>
     <PanicBar v-if="escapeBar" v-bind="escapeBar" />
-    <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" />
+    <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" :grit="combatant.id === PLAYER_ID" />
     <StatusList :statuses="combatant.statuses" />
   </div>
 </template>

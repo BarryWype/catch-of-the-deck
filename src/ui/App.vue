@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
+import { findNode, isReleaseFight, PLAYER_HP_NAME, SESSION_SLOTS } from '../engine';
 import Aquarium from './Aquarium.vue';
 import BuildSelect from './BuildSelect.vue';
 import CombatView from './CombatView.vue';
@@ -25,7 +25,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, pickedBuild, runEnd } = game;
+const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, pickedBuild, runEnd, rewardLeft } = game;
 
 function newRun() {
   game.newRun(randomSeed());
@@ -59,7 +59,7 @@ function startNewRun() {
       <template v-if="run && screen !== 'build'">
         <span>{{ data.builds[run.build]?.name }}</span>
         <span>Floor {{ run.floor }}</span>
-        <span>❤️ {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
+        <span :title="PLAYER_HP_NAME">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
         <span title="Coins">🪙 {{ run.coins }}</span>
         <span>🂠 Deck {{ run.deck.length }}</span>
       </template>
@@ -153,12 +153,21 @@ function startNewRun() {
         <button @click="game.finishSession">Head home</button>
       </div>
     </section>
-    <RewardScreen v-else-if="screen === 'reward'" :choices="rewardChoices" :data="data" @choose="game.chooseReward" />
+    <RewardScreen
+      v-else-if="screen === 'reward'"
+      :choices="rewardChoices"
+      :data="data"
+      :skips="rewardLeft.skips"
+      :rerolls="rewardLeft.rerolls"
+      @choose="game.chooseReward"
+      @skip="game.skipCardReward"
+      @reroll="game.rerollCardReward"
+    />
     <section v-else-if="screen === 'complete'" class="complete">
       <template v-if="runEnd !== 'fled'">
         <h2>{{ runEnd === 'won' ? 'Run complete!' : 'Heading home' }}</h2>
-        <p v-if="runEnd === 'won'">You beat every boss of the coast, from kid to elder, with {{ run.hp }} HP left.</p>
-        <p v-else>You call it a day halfway along the shore, with {{ run.hp }} HP left.</p>
+        <p v-if="runEnd === 'won'">You beat every boss of the coast, from kid to elder, with {{ run.hp }} {{ PLAYER_HP_NAME }} left.</p>
+        <p v-else>You call it a day halfway along the shore, with {{ run.hp }} {{ PLAYER_HP_NAME }} left.</p>
         <p>
           🪣 → 🏠 {{ run.bucket.length }} creature{{ run.bucket.length === 1 ? '' : 's' }} from your bucket
           {{ run.bucket.length === 1 ? 'joins' : 'join' }} your home aquarium.

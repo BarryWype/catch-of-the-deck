@@ -2,6 +2,9 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { gameData } from '../content';
 import {
   addCardToDeck,
+  rerollReward,
+  rewardOptions,
+  skipReward,
   applyEventChoice,
   buyShopItem,
   findNode,
@@ -382,9 +385,25 @@ export function useGame(initialSeed: number) {
     screen.value = 'map';
   }
 
-  function chooseReward(cardId: string | null) {
-    if (run.value && cardId) run.value = addCardToDeck(run.value, cardId, gameData);
+  function chooseReward(cardId: string) {
+    if (run.value) run.value = addCardToDeck(run.value, cardId, gameData);
     screen.value = 'map';
+  }
+
+  /** Skips and rerolls of the card reward left this level (Eel companions). */
+  const rewardLeft = computed(() => (run.value ? rewardOptions(run.value, gameData) : { skips: 0, rerolls: 0 }));
+
+  function skipCardReward() {
+    if (!run.value) return;
+    run.value = skipReward(run.value, gameData);
+    screen.value = 'map';
+  }
+
+  function rerollCardReward() {
+    if (!run.value) return;
+    const rerolled = rerollReward(run.value, gameData, rewardChoices.value);
+    run.value = rerolled.run;
+    rewardChoices.value = rerolled.choices;
   }
 
   return {
@@ -405,6 +424,9 @@ export function useGame(initialSeed: number) {
     claimVictory,
     leaveFight,
     chooseReward,
+    rewardLeft,
+    skipCardReward,
+    rerollCardReward,
     chooseEvent,
     buy,
     leaveShop,

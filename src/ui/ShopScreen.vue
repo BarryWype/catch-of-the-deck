@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { creatureTypeNames, describeCard, shopItemBlocked, type GameData, type RunState, type ShopItemDef, type ShopVisit } from '../engine';
+import { creatureTypeNames, describeCard, PLAYER_HP_NAME, shopItemBlocked, type GameData, type RunState, type ShopItemDef, type ShopVisit } from '../engine';
 import CardView from './CardView.vue';
 
 const props = defineProps<{ run: RunState; data: GameData; visit: ShopVisit }>();
@@ -11,7 +11,7 @@ const tagNames = computed(() => creatureTypeNames(props.data));
 const removing = ref<ShopItemDef | null>(null);
 
 function effectText(item: ShopItemDef) {
-  return item.effect.type === 'heal' ? `Restore ${item.effect.amount} HP.` : 'Remove a card from your deck.';
+  return item.effect.type === 'heal' ? `Restore ${item.effect.amount} ${PLAYER_HP_NAME}.` : 'Remove a card from your deck.';
 }
 
 function onBuy(item: ShopItemDef) {
@@ -30,7 +30,7 @@ function onPickCard(index: number) {
   <section class="shop">
     <div class="icon">🛒</div>
     <h2>Bait &amp; Tackle Shop</h2>
-    <p class="wallet">You have 🪙 {{ run.coins }} · ❤️ {{ run.hp }}/{{ run.maxHp }}</p>
+    <p class="wallet">You have 🪙 {{ run.coins }} · 💪 {{ PLAYER_HP_NAME }} {{ run.hp }}/{{ run.maxHp }}</p>
 
     <template v-if="removing">
       <p>Choose a card to remove for 🪙 {{ removing.price }}.</p>

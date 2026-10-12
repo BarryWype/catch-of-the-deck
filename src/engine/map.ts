@@ -43,7 +43,7 @@ const PLACEMENT_TRIES = 40;
 /** Space kept between features, in art pixels. */
 const FEATURE_GAP = 4;
 /** Each feature is placed up to this many times, where there's room, so the coast fills up. */
-const FEATURE_COPIES = 2;
+const FEATURE_COPIES = 4;
 
 type Rect = { x: number; y: number; width: number; height: number };
 const overlaps = (a: Rect, b: Rect, gap: number) =>
@@ -121,7 +121,7 @@ function handMadeMap(level: LevelDef, levelNodes: NonNullable<LevelDef['nodes']>
 
 /** Columns of nodes between the start and the mini-boss, and again between the mini-boss and the boss. */
 export const COLUMNS_PER_HALF = 7;
-/** Each of those columns has this many nodes (fewer if there's no room, or few features nearby). */
+/** Each of those columns has this many nodes, as features allow; events fill in only up to the minimum. */
 const MIN_NODES = 2;
 const MAX_NODES = 4;
 /** Closest two nodes of a column may be, vertically, in art pixels. */
@@ -134,7 +134,7 @@ const SURPRISE_EVENT_CHANCE = 0.1;
 /**
  * A generated level. Columns 1–7 go from the start to the mini-boss (column 8), columns 9–15 on to
  * the boss (column 16). Each column takes 2–4 of the coast features within its stretch of the
- * map as fights at their spot; when it runs short, events fill in. A level's `firstColumn`
+ * map as fights at their spot; when it has fewer than 2, events fill in. A level's `firstColumn`
  * replaces column 1 with the same fights every run. After the mini-boss come a
  * shop and the leave node; there's another shop before it, and a treasure before the boss.
  */
@@ -192,8 +192,7 @@ function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlace
         continue;
       }
       const near = stops.filter((s) => (s.x >= left && s.x < right) || (s.left <= centre && s.right >= centre));
-      // Lanes beyond the features at hand become events: allow one, beyond the minimum.
-      const count = Math.min(nextInt(holder, MIN_NODES, MAX_NODES), Math.max(MIN_NODES, near.length + 1));
+      const count = nextInt(holder, MIN_NODES, MAX_NODES);
       const nodes: Omit<MapNode, 'id'>[] = [];
       for (const stop of shuffleInPlace(holder, near)) {
         if (nodes.length === count) break;
@@ -203,8 +202,9 @@ function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlace
         nodes.push(node('', column, x, stop.y, 'fight', { spot: stop.spot, label: stop.label }));
       }
       const heights = Array.from({ length: Math.floor((eventBand[1] - eventBand[0]) / 4) + 1 }, (_, i) => eventBand[0] + i * 4);
+      // Events only fill the column up to the minimum, when it's short of features.
       for (const y of shuffleInPlace(holder, heights)) {
-        if (nodes.length === count) break;
+        if (nodes.length >= MIN_NODES) break;
         if (!free(y)) continue;
         taken.push(y);
         nodes.push(node('', column, centre, y, 'event'));
@@ -228,10 +228,15 @@ function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlace
   becomes(pick(3, COLUMNS_PER_HALF), 'shop');
   becomes(pick(COLUMNS_PER_HALF + 2, COLUMNS_PER_HALF + 2), 'shop');
   becomes(pick(last - 4, last - 1), 'treasure');
-  const surprises = columns.slice(level.firstColumn ? 2 : 1).flat();
-  for (const n of surprises) if (n.kind === 'fight' && nextFloat(holder) < SURPRISE_EVENT_CHANCE) becomes(n, 'event');
-
   for (let column = 1; column < last; column++) link(columns[column], columns[column + 1], holder);
+
+  // Surprise events, never right before or after another event.
+  const nodes = columns.flat();
+  const nextToEvent = (n: MapNode) =>
+    nodes.some((other) => other.kind === 'event' && (other.next.includes(n.id) || n.next.includes(other.id)));
+  for (const n of columns.slice(level.firstColumn ? 2 : 1).flat()) {
+    if (n.kind === 'fight' && nextFloat(holder) < SURPRISE_EVENT_CHANCE && !nextToEvent(n)) becomes(n, 'event');
+  }
   columns[0] = [startNode(level, columns[1].map((n) => n.id))];
   return { columns };
 }

@@ -356,7 +356,7 @@ describe('events', () => {
 
   it('blocks choices that cannot be paid for', () => {
     const run = { ...createRun(5, data, 'basic'), hp: 5 };
-    expect(eventChoiceBlocked(data.events.spot.choices[2], run)).toBe('Not enough HP.');
+    expect(eventChoiceBlocked(data.events.spot.choices[2], run)).toBe('Not enough Grit.');
     expect(() => applyEventChoice(run, 'spot', 2, data)).toThrow();
   });
 });
@@ -384,7 +384,7 @@ describe('shop', () => {
     expect(after).toMatchObject({ hp: 70, coins: 15 });
     ({ run: after, visit } = buyShopItem(after, visit, 'heart', data));
     expect(after).toMatchObject({ hp: 80, coins: 5 });
-    expect(shopItemBlocked(heart, after, visit)).toBe('Already at full HP.');
+    expect(shopItemBlocked(heart, after, visit)).toBe('Already at full Grit.');
     expect(shopItemBlocked(heart, { ...after, hp: 50 }, visit)).toBe('Not enough coins.');
   });
 

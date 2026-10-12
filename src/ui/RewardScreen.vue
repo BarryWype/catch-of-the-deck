@@ -3,8 +3,9 @@ import { computed } from 'vue';
 import { creatureTypeNames, describeCard, type GameData } from '../engine';
 import CardView from './CardView.vue';
 
-const props = defineProps<{ choices: string[]; data: GameData }>();
-const emit = defineEmits<{ choose: [cardId: string | null] }>();
+/** `skips`, `rerolls`: how many are left this level (Eel companions); otherwise a card must be taken. */
+const props = defineProps<{ choices: string[]; data: GameData; skips: number; rerolls: number }>();
+const emit = defineEmits<{ choose: [cardId: string]; skip: []; reroll: [] }>();
 const tagNames = computed(() => creatureTypeNames(props.data));
 </script>
 
@@ -20,13 +21,17 @@ const tagNames = computed(() => creatureTypeNames(props.data));
         @click="emit('choose', id)"
       />
     </div>
-    <button class="ghost" @click="emit('choose', null)">Skip</button>
+    <div v-if="skips || rerolls" class="options">
+      <button v-if="rerolls" class="ghost" @click="emit('reroll')">🔄 Reroll ({{ rerolls }} left this level)</button>
+      <button v-if="skips" class="ghost" @click="emit('skip')">Skip ({{ skips }} left this level)</button>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .reward { display: flex; flex-direction: column; align-items: center; gap: 28px; padding-top: 10vh; }
 .reward h2 { margin: 0; }
+.options { display: flex; gap: 12px; }
 .choices { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
 .choices :deep(.card) { transform: scale(1.15); }
 .choices :deep(.card:hover) { transform: scale(1.15) translateY(-10px); }

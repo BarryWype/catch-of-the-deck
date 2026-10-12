@@ -21,8 +21,8 @@ export const cards: CardDef[] = [
   // --- Starter: shared ------------------------------------------------------
   {
     id: 'bucket',
-    name: 'Bucket',
-    art: '🪣',
+    name: 'Hold',
+    art: '✊',
     type: 'skill',
     rarity: 'starter',
     cost: 1,

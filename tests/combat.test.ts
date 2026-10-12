@@ -256,7 +256,9 @@ describe('tug of war', () => {
     const s0 = setup(repeat('defend', 10), { enemies: ['gambler'] });
     expect(s0.enemies[0]).toMatchObject({ escape: 4, escapeAt: 1000, escapeRate: 1 });
     const s: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], escapeRate: 10 }] };
-    expect(endTurn(endTurn(s)).enemies[0].escape).toBe(24);
+    // No energy left over, so no Patience to slow it.
+    const noPatience = (state: CombatState) => endTurn({ ...state, player: { ...state.player, energy: 0 } });
+    expect(noPatience(noPatience(s)).enemies[0].escape).toBe(24);
   });
 
   it('a creature that pulls the line all the way escapes, ending the fight', () => {
@@ -283,7 +285,8 @@ describe('tug of war', () => {
     expect(pinned.enemies[0].escapeRate).toBe(0);
     const snared = play(s, 'snare');
     expect(endTurn(snared).enemies[0].escape).toBe(4);
-    expect(endTurn(endTurn(snared)).enemies[0].escape).toBe(9);
+    // Then +5, slowed 60% by the 6 Patience from the two turns' unused energy.
+    expect(endTurn(endTurn(snared)).enemies[0].escape).toBe(4 + 2);
   });
 
   it('a creature whose escape bar is pushed to 0 is captured like a beaten one', () => {
@@ -291,5 +294,88 @@ describe('tug of war', () => {
     const s: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], escape: 0 }] };
     expect(isAlive(s.enemies[0])).toBe(false);
     expect(validateAction(s, { type: 'playCard', cardUid: s.piles.hand[0].uid, targetId: 'e0' }, testData)).not.toBeNull();
+  });
+});
+
+describe('patience', () => {
+  const withRate = (s: CombatState, escapeRate: number): CombatState => ({ ...s, enemies: [{ ...s.enemies[0], escapeRate }] });
+
+  it('energy left unused at the end of a turn becomes Patience, kept for the fight', () => {
+    let s = setup(repeat('strike', 10), { enemies: ['gambler'] });
+    expect(s.player.patience).toBe(0);
+    s = endTurn(play(s, 'strike')); // 2 energy left
+    expect(s.player.patience).toBe(2);
+    s = endTurn(play(play(play(s, 'strike'), 'strike'), 'strike')); // none left
+    expect(s.player.patience).toBe(2);
+  });
+
+  it('each point slows the escape bar by 10% of the rate, rounded up, from the turn it is gained', () => {
+    const s = withRate(setup(repeat('defend', 10), { enemies: ['gambler'] }), 10);
+    // 3 energy unused: 30% slower, so +7 instead of +10.
+    expect(endTurn(s).enemies[0].escape).toBe(4 + 7);
+    // At the cap of 5, it rises half as fast.
+    expect(endTurn({ ...s, player: { ...s.player, patience: 5 } }).enemies[0].escape).toBe(4 + 5);
+  });
+
+  it('Hold left after the creatures act becomes Patience, 3 for 1, up to 5', () => {
+    const s = setup(repeat('defend', 10), { enemies: ['gambler'] });
+    // Gambler opens with a 1-damage strike or a 0 pull: 2 Defends leave 9 or 10 Hold → 3 Patience, on top of 1 unused energy.
+    const after = endTurn(play(play(s, 'defend'), 'defend'));
+    expect(after.player.patience).toBe(4);
+    expect(after.player.block).toBe(0);
+    expect(endTurn({ ...s, player: { ...s.player, block: 30 } }).player.patience).toBe(5);
+  });
+
+  it('cards with a patienceCost need, and spend, that much Patience', () => {
+    const data = {
+      ...testData,
+      cards: { ...testData.cards, wait: { id: 'wait', name: 'Wait', type: 'skill' as const, rarity: 'common' as const, cost: 0, patienceCost: 2, target: 'none' as const, effects: [{ type: 'gainBlock' as const, amount: 1 }] } },
+    };
+    const s = setup(repeat('wait', 10), { data });
+    const card = s.piles.hand[0].uid;
+    expect(validateAction(s, { type: 'playCard', cardUid: card }, data)).toBe('Not enough patience.');
+    const patient = { ...s, player: { ...s.player, patience: 3 } };
+    expect(applyAction(patient, { type: 'playCard', cardUid: card }, data).player.patience).toBe(1);
+  });
+});
+
+describe('strikes and pulls', () => {
+  const data = {
+    ...testData,
+    enemies: {
+      ...testData.enemies,
+      tugger: {
+        ...testData.enemies.dummy,
+        id: 'tugger',
+        moves: [{ id: 'tug', name: 'Tug', tag: 'pull' as const, effects: [{ type: 'pull' as const, amount: 8 }] }],
+        pattern: { type: 'sequence' as const, moves: ['tug'] },
+      },
+    },
+  };
+  const fight = (block: number) => {
+    const s = setup(repeat('ponder', 10), { enemies: ['tugger'], data });
+    // Rate 0, so only the pull moves the bar; no energy left over, so no Patience either.
+    const ready: CombatState = { ...s, player: { ...s.player, energy: 0, block }, enemies: [{ ...s.enemies[0], escapeRate: 0 }] };
+    return applyAction(ready, { type: 'endTurn' }, data);
+  };
+
+  it('a pull the Hold takes in full leaves the escape bar alone', () => {
+    expect(fight(10).enemies[0].escape).toBe(4);
+  });
+
+  it('what gets past the Hold raises the escape bar', () => {
+    expect(fight(3).enemies[0].escape).toBe(4 + 5);
+    expect(fight(0).enemies[0].escape).toBe(4 + 8);
+  });
+
+  it('a strike past the Hold wears down Grit', () => {
+    const s = setup(repeat('ponder', 10));
+    const hit = endTurn({ ...s, player: { ...s.player, energy: 0, block: 4 } });
+    expect(hit.player.hp).toBe(80 - 6);
+  });
+
+  it('the intent shows the tag and how hard it pulls', () => {
+    const s = setup(repeat('ponder', 10), { enemies: ['tugger'], data });
+    expect(previewIntent(s, s.enemies[0], data)).toMatchObject({ tag: 'pull', kinds: ['pull'], pull: 8 });
   });
 });

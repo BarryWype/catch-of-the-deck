@@ -1,3 +1,4 @@
+import { PLAYER_HP_NAME } from './constants';
 import { equipmentEffects } from './equipment';
 import type { RunState } from './run';
 import type { EventChoice, EventEffect, GameData } from './types';
@@ -20,9 +21,9 @@ export function healAmount(run: RunState, percent: number): number {
 export function describeEventEffect(effect: EventEffect, run: RunState, data: GameData): string {
   switch (effect.type) {
     case 'heal':
-      return `Heal ${healAmount(run, effect.percent)} HP.`;
+      return `Recover ${healAmount(run, effect.percent)} ${PLAYER_HP_NAME}.`;
     case 'loseHp':
-      return `Lose ${effect.amount} HP.`;
+      return `Lose ${effect.amount} ${PLAYER_HP_NAME}.`;
     case 'gainCoins':
       return `Gain 🪙 ${effect.amount}.`;
     case 'coinsPerCreature': {
@@ -37,7 +38,7 @@ export function describeEventEffect(effect: EventEffect, run: RunState, data: Ga
 /** Why a choice can't be picked right now, or null if it can. */
 export function eventChoiceBlocked(choice: EventChoice, run: RunState): string | null {
   const hpLoss = choice.effects.reduce((sum, e) => sum + (e.type === 'loseHp' ? e.amount : 0), 0);
-  if (hpLoss >= run.hp) return 'Not enough HP.';
+  if (hpLoss >= run.hp) return `Not enough ${PLAYER_HP_NAME}.`;
   return null;
 }
 

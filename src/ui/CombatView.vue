@@ -11,6 +11,10 @@ import {
   PLAYER_ID,
   previewIntent,
   escapeRise,
+  HOLD_PER_PATIENCE,
+  MAX_PATIENCE,
+  PATIENCE_ESCAPE_PERCENT,
+  PLAYER_HP_NAME,
   validateAction,
   type CardInstance,
   type CombatAction,
@@ -189,7 +193,7 @@ watch(
       } else if (enemy.moveHistory.length > before.moveHistory.length) {
         const moveId = enemy.moveHistory[enemy.moveHistory.length - 1];
         const move = props.data.enemies[enemy.defId].moves.find((m) => m.id === moveId);
-        if (move?.effects.some((e) => e.type === 'dealDamage')) animate(enemy.id, 'attack');
+        if (move?.effects.some((e) => e.type === 'dealDamage' || e.type === 'pull')) animate(enemy.id, 'attack');
       }
     }
   },
@@ -356,7 +360,7 @@ function endTurn() {
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(state, enemy, data)"
-          :escape-bar="{ escape: enemy.escape, escapeAt: enemy.escapeAt, escapeRate: escapeRise(enemy) }"
+          :escape-bar="{ escape: enemy.escape, escapeAt: enemy.escapeAt, escapeRate: escapeRise(enemy, state.player.patience) }"
           :data-enemy-id="enemy.id"
           :targetable="(!!selectedUid || (!!drag?.aimed && drag.moved)) && isAlive(enemy)"
           :class="{ aimed: drag?.targetId === enemy.id }"
@@ -375,6 +379,14 @@ function endTurn() {
     <section class="controls">
       <div class="side">
         <div class="energy" title="Energy">{{ state.player.energy }}/{{ state.player.maxEnergy }}</div>
+        <div class="patience" tabindex="0" aria-describedby="patience-tip">
+          <span class="patience-count" :class="{ empty: !state.player.patience }">⏳ Patience {{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
+          <div id="patience-tip" class="patience-tip" role="tooltip">
+            Every energy point not used at the end of the turn generate a patience point. Every {{ HOLD_PER_PATIENCE }} Hold left after
+            the creatures' turn gives one too. Reduce the escape rate of creatures by {{ PATIENCE_ESCAPE_PERCENT }}% per point, up to
+            {{ MAX_PATIENCE }} points.
+          </div>
+        </div>
         <div class="pile" title="Draw pile">🂠 Draw {{ state.piles.draw.length }}</div>
       </div>
 
@@ -427,7 +439,7 @@ function endTurn() {
       <div class="panel">
         <template v-if="state.phase === 'won'">
           <h2>Victory!</h2>
-          <p>You won in {{ state.turn }} turn{{ state.turn === 1 ? '' : 's' }} with {{ state.player.hp }} HP left.</p>
+          <p>You won in {{ state.turn }} turn{{ state.turn === 1 ? '' : 's' }} with {{ state.player.hp }} {{ PLAYER_HP_NAME }} left.</p>
           <p v-if="releaseReason">
             {{ [...new Set(state.enemies.map((e) => e.name))].join(' and ') }} {{ state.enemies.length > 1 ? 'are' : 'is' }}
             {{ releaseReason }}, so you let {{ state.enemies.length > 1 ? 'them' : 'it' }} go.
@@ -446,8 +458,8 @@ function endTurn() {
           <button @click="emit('leave')">Back to the map</button>
         </template>
         <template v-else>
-          <h2>Defeat</h2>
-          <p>You fell on turn {{ state.turn }}.</p>
+          <h2>Out of grit</h2>
+          <p>You gave up on turn {{ state.turn }}: the creatures wore you down.</p>
           <p v-if="newEggs" class="new-eggs">🥚 {{ newEggs === 1 ? 'An egg was' : `${newEggs} eggs were` }} laid in your home aquarium!</p>
           <button @click="emit('restart')">Start a new run</button>
         </template>
@@ -568,6 +580,30 @@ function endTurn() {
   box-shadow: 0 0 16px rgb(242 182 66 / 0.45);
 }
 .pile { font-size: 0.85rem; color: var(--muted); }
+.patience { position: relative; cursor: help; }
+.patience:focus { outline: none; }
+.patience-count { display: block; padding: 2px 10px; border-radius: 999px; background: #2a3f5a; color: #bfe3ff; font-size: 0.85rem; font-weight: 700; }
+.patience-count.empty { opacity: 0.55; }
+.patience:focus-visible .patience-count { outline: 2px solid var(--highlight); }
+.patience-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  width: 240px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(20 24 32 / 0.95);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.45);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+.patience:hover .patience-tip,
+.patience:focus-visible .patience-tip { visibility: visible; opacity: 1; }
 .end-turn { padding: 12px 18px; font-size: 1rem; }
 
 .overlay {

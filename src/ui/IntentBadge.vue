@@ -4,7 +4,8 @@ import type { IntentKind, IntentPreview } from '../engine';
 
 const props = defineProps<{ intent: IntentPreview }>();
 
-const ICONS: Record<IntentKind, string> = { attack: '🗡️', defend: '🛡️', buff: '💢', debuff: '🌀' };
+const ICONS: Record<IntentKind, string> = { attack: '🗡️', pull: '🎣', defend: '🛡️', buff: '💢', debuff: '🌀' };
+const TAG_NAMES = { strike: 'Strike', pull: 'Pull' } as const;
 const damageText = computed(() => {
   const { damage, hits } = props.intent;
   if (damage === undefined) return '';
@@ -13,13 +14,13 @@ const damageText = computed(() => {
 </script>
 
 <template>
-  <div class="intent" :title="`${intent.moveName}: ${intent.description}`">
+  <div class="intent" :title="`${intent.moveName} (${TAG_NAMES[intent.tag]}): ${intent.description}`">
     <div class="icons">
       <span v-for="kind in intent.kinds" :key="kind" class="icon" :class="kind">
-        {{ ICONS[kind] }}<b v-if="kind === 'attack'">{{ damageText }}</b>
+        {{ ICONS[kind] }}<b v-if="kind === 'attack'">{{ damageText }}</b><b v-else-if="kind === 'pull'">{{ intent.pull }}</b>
       </span>
     </div>
-    <div class="move">{{ intent.moveName }}</div>
+    <div class="move"><span class="tag" :class="intent.tag">{{ TAG_NAMES[intent.tag] }}</span> {{ intent.moveName }}</div>
   </div>
 </template>
 
@@ -40,4 +41,8 @@ const damageText = computed(() => {
 .icon.buff { background: #234a2e; }
 .icon.debuff { background: #4a2347; }
 .move { font-size: 0.7rem; color: var(--muted); }
+.icon.pull { background: #1f4a4a; }
+.tag { padding: 0 5px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; }
+.tag.strike { background: #8a2f36; }
+.tag.pull { background: #2a6b6b; }
 </style>

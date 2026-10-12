@@ -1,4 +1,5 @@
-import { ESCAPE_BAR_NAME } from './constants';
+import { ESCAPE_BAR_NAME, PATIENCE_ESCAPE_PERCENT } from './constants';
+import { escapeRateReduction } from './equipment';
 import type { Combatant, EnemyState, StatusId } from './types';
 
 export interface StatusMeta {
@@ -68,7 +69,12 @@ export function isDebuff(id: StatusId, amount: number): boolean {
   return STATUS_META[id].kind === 'debuff' || amount < 0;
 }
 
-/** How much the escape bar rises on the creature's next turn. */
-export function escapeRise(enemy: EnemyState): number {
-  return getStatus(enemy, 'snared') > 0 ? 0 : enemy.escapeRate;
+/**
+ * How much the escape bar rises on the creature's next turn: its `escapeRate`, slowed by the
+ * player's Patience (`PATIENCE_ESCAPE_PERCENT` per point).
+ */
+export function escapeRise(enemy: EnemyState, patience = 0): number {
+  if (getStatus(enemy, 'snared') > 0) return 0;
+  const percent = Math.min(100, patience * PATIENCE_ESCAPE_PERCENT);
+  return percent ? enemy.escapeRate - escapeRateReduction(enemy.escapeRate, percent) : enemy.escapeRate;
 }

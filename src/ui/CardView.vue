@@ -35,6 +35,7 @@ const parts = computed(() =>
     :aria-disabled="!playable"
   >
     <span class="cost">{{ card.cost }}</span>
+    <span v-if="card.patienceCost" class="patience-cost" :title="`Also costs ${card.patienceCost} Patience`">⏳{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
     <span class="art">{{ card.art ?? TYPE_ICON[card.type] }}</span>
     <span class="type">{{ card.type }}</span>
@@ -88,6 +89,18 @@ const parts = computed(() =>
   color: #1b1d24;
   font-weight: 800;
   line-height: 26px;
+}
+.patience-cost {
+  position: absolute;
+  top: 22px;
+  left: -10px;
+  padding: 0 5px;
+  border-radius: 10px;
+  border: 2px solid #fff6;
+  background: #2a3f5a;
+  color: #bfe3ff;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 .name { font-weight: 700; font-size: 0.95rem; margin: 2px 0 6px 12px; }
 .rarity-uncommon .name { color: #8ecbff; }

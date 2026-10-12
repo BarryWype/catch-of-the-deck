@@ -32,30 +32,30 @@ export const testData = buildGameData({
   enemies: [
     {
       id: 'dummy', name: 'Dummy', hp: [100, 100], sellValue: 5, escapeAt: 1000, escapeStart: 4, escapeRate: 1, tags: ['fish'], water: 'salt',
-      moves: [{ id: 'hit', name: 'Hit', effects: [{ type: 'dealDamage', amount: 10 }] }],
+      moves: [{ id: 'hit', name: 'Hit', tag: 'strike', effects: [{ type: 'dealDamage', amount: 10 }] }],
       pattern: { type: 'sequence', moves: ['hit'] },
     },
     {
       id: 'cycler', name: 'Cycler', hp: [20, 30], escapeAt: 1000, escapeStart: 4, escapeRate: 1, tags: ['shell'], water: 'salt',
       moves: [
-        { id: 'a', name: 'A', effects: [{ type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }] },
-        { id: 'b', name: 'B', effects: [{ type: 'gainBlock', amount: 5 }] },
-        { id: 'c', name: 'C', effects: [{ type: 'dealDamage', amount: 3 }] },
+        { id: 'a', name: 'A', tag: 'pull', effects: [{ type: 'pull', amount: 0 }, { type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }] },
+        { id: 'b', name: 'B', tag: 'pull', effects: [{ type: 'pull', amount: 0 }, { type: 'gainBlock', amount: 5 }] },
+        { id: 'c', name: 'C', tag: 'strike', effects: [{ type: 'dealDamage', amount: 3 }] },
       ],
       pattern: { type: 'sequence', moves: ['a', 'b', 'c'], loopFrom: 1 },
     },
     {
       id: 'gambler', name: 'Gambler', hp: [30, 30], escapeAt: 1000, escapeStart: 4, escapeRate: 1,
       moves: [
-        { id: 'x', name: 'X', effects: [{ type: 'dealDamage', amount: 1 }] },
-        { id: 'y', name: 'Y', effects: [{ type: 'gainBlock', amount: 1 }] },
+        { id: 'x', name: 'X', tag: 'strike', effects: [{ type: 'dealDamage', amount: 1 }] },
+        { id: 'y', name: 'Y', tag: 'pull', effects: [{ type: 'pull', amount: 0 }, { type: 'gainBlock', amount: 1 }] },
       ],
       pattern: { type: 'weighted', weights: { x: 1, y: 1 }, maxConsecutive: 1 },
     },
     // Three species of one temperament, to test companion bonuses.
     ...['shellA', 'shellB', 'shellC'].map((id) => ({
       id, name: id, hp: [10, 10] as [number, number], sellValue: 10, escapeAt: 100, escapeStart: 50, escapeRate: 1, temperament: 'shelled',
-      moves: [{ id: 'm', name: 'M', effects: [] }], pattern: { type: 'sequence' as const, moves: ['m'] },
+      moves: [{ id: 'm', name: 'M', tag: 'pull' as const, effects: [{ type: 'pull' as const, amount: 0 }] }], pattern: { type: 'sequence' as const, moves: ['m'] },
     })),
   ],
   companionBonuses: [

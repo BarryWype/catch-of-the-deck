@@ -29,7 +29,9 @@ export type Effect =
   /** Move a creature's escape bar: negative calms it toward capture (0), positive panics it toward fleeing. */
   | { type: 'changeEscape'; amount: number; target?: EffectTarget }
   /** Permanently change how fast a creature's escape bar rises each turn (never below 0). */
-  | { type: 'changeEscapeRate'; amount: number; target?: EffectTarget };
+  | { type: 'changeEscapeRate'; amount: number; target?: EffectTarget }
+  /** Creature moves only: it pulls on the line. The player's Hold takes it first; the rest raises its escape bar. */
+  | { type: 'pull'; amount: number };
 
 export type CardType = 'attack' | 'skill' | 'power';
 export type CardRarity = 'starter' | 'common' | 'uncommon' | 'rare';
@@ -40,6 +42,8 @@ export interface CardDef {
   type: CardType;
   rarity: CardRarity;
   cost: number;
+  /** Patience points it also costs (see `PlayerState.patience`). */
+  patienceCost?: number;
   /** `enemy` = the player must pick an enemy to play it on. */
   target: 'enemy' | 'none';
   effects: Effect[];
@@ -149,6 +153,13 @@ export type CompanionEffect =
   | { type: 'healAfterFight'; amount: number }
   /** Creatures sell for this percentage more during the run (bucket and on-the-spot sales). */
   | { type: 'sellBonus'; amount: number }
+  /**
+   * Card rewards the player may skip, and reroll (new cards offered), on each level.
+   * `bySpecies` gives the amount for 1, 2, 3… species instead of scaling `amount` (its last
+   * entry covers more species).
+   */
+  | { type: 'rewardSkips'; amount: number; bySpecies?: number[] }
+  | { type: 'rewardRerolls'; amount: number; bySpecies?: number[] }
   /** Resolve `effect` as the player whenever `on` happens. Its numbers ignore Strength and other modifiers. */
   | { type: 'trigger'; on: CompanionTrigger; effect: Effect };
 
@@ -222,9 +233,16 @@ export interface CreatureTypeDef {
   terrain?: SpriteRef;
 }
 
+/**
+ * What a creature's move does to the angler: a `strike` wears down their Grit (it deals damage),
+ * a `pull` drags on the line to escape (it has a `pull` effect). The player's Hold soaks both.
+ */
+export type MoveTag = 'strike' | 'pull';
+
 export interface EnemyMove {
   id: string;
   name: string;
+  tag: MoveTag;
   effects: Effect[];
 }
 
@@ -439,6 +457,11 @@ export interface Combatant {
 export interface PlayerState extends Combatant {
   energy: number;
   maxEnergy: number;
+  /**
+   * Patience: one point per energy left unused at the end of a turn, kept for the whole fight.
+   * It slows every creature's escape bar (`escapeRise`) and pays for cards' `patienceCost`.
+   */
+  patience: number;
 }
 
 export interface EnemyState extends Combatant {

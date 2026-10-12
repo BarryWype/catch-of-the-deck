@@ -80,8 +80,8 @@ export const creatures: CreatureDef[] = [
     temperament: 'predator',
     moves: {
       moves: [
-        { id: 'frenzy', name: 'Frenzy', effects: [{ type: 'dealDamage', amount: 3, hits: 3 }] },
-        { id: 'smellBlood', name: 'Smell Blood', effects: [{ type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }] },
+        { id: 'frenzy', name: 'Shred the Bait', tag: 'strike', effects: [{ type: 'dealDamage', amount: 3, hits: 3 }] },
+        { id: 'smellBlood', name: 'Smell Blood', tag: 'pull', effects: [{ type: 'pull', amount: 4 }, { type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }] },
       ],
       pattern: { type: 'sequence', moves: ['frenzy', 'frenzy', 'smellBlood'] },
     },
@@ -126,9 +126,9 @@ export const creatures: CreatureDef[] = [
     temperament: 'predator',
     moves: {
       moves: [
-        { id: 'snap', name: 'Snap', effects: [{ type: 'dealDamage', amount: 11 }] },
-        { id: 'thrash', name: 'Thrash', effects: [{ type: 'dealDamage', amount: 7 }, { type: 'gainBlock', amount: 5 }] },
-        { id: 'lurk', name: 'Lurk in the Reeds', effects: [{ type: 'applyStatus', status: 'strength', amount: 3, target: 'self' }, { type: 'gainBlock', amount: 6 }] },
+        { id: 'snap', name: 'Snap the Lure', tag: 'strike', effects: [{ type: 'dealDamage', amount: 11 }] },
+        { id: 'thrash', name: 'Tail Hit', tag: 'strike', effects: [{ type: 'dealDamage', amount: 7 }, { type: 'gainBlock', amount: 5 }] },
+        { id: 'lurk', name: 'Lurk in the Reeds', tag: 'pull', effects: [{ type: 'pull', amount: 7 }, { type: 'applyStatus', status: 'strength', amount: 3, target: 'self' }, { type: 'gainBlock', amount: 4 }] },
       ],
       pattern: { type: 'weighted', firstMove: 'snap', weights: { snap: 25, thrash: 30, lurk: 45 }, maxConsecutive: 1 },
     },

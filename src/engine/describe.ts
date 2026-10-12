@@ -1,5 +1,5 @@
 import { calculateDamage, isStrongAgainst } from './damage';
-import { ESCAPE_BAR_NAME, STRONG_BONUS_PERCENT } from './constants';
+import { ESCAPE_BAR_NAME, PLAYER_BLOCK_NAME, PLAYER_HP_NAME, STRONG_BONUS_PERCENT } from './constants';
 import { STATUS_META } from './statuses';
 import type { CardDef, Effect, EffectTarget, Statuses } from './types';
 
@@ -14,6 +14,8 @@ export interface DescribeOptions {
   tagNames?: Record<string, string>;
   /** Extra damage per hit from companion bonuses (`bonusDamage`). */
   bonusDamage?: number;
+  /** The effects are a creature's move: its damage wears down the player's Grit. */
+  byCreature?: boolean;
 }
 
 /** Human-readable rules text for one effect primitive. */
@@ -33,11 +35,14 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
         : '';
       if (target === 'allEnemies') return `Deal ${dmg} damage to ALL enemies${times}${extra}.`;
       if (target === 'randomEnemy') return `Deal ${dmg} damage to a random enemy${times}${extra}.`;
-      if (target === 'self') return `Take ${dmg} damage${times}.`;
+      if (target === 'self') return `Lose ${dmg} ${PLAYER_HP_NAME}${times}.`;
+      if (opts.byCreature) return `Strikes ${dmg}${times}: what your ${PLAYER_BLOCK_NAME} doesn't take wears down your ${PLAYER_HP_NAME}.`;
       return `Deal ${dmg} damage${times}${extra}.`;
     }
     case 'gainBlock':
-      return `Gain ${effect.amount} Block.`;
+      return `Gain ${effect.amount} ${opts.byCreature ? 'Block' : PLAYER_BLOCK_NAME}.`;
+    case 'pull':
+      return `Pulls ${effect.amount}: what your ${PLAYER_BLOCK_NAME} doesn't take raises its ${ESCAPE_BAR_NAME}.`;
     case 'applyStatus': {
       const name = STATUS_META[effect.status].name;
       const n = Math.abs(effect.amount);

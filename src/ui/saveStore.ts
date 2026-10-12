@@ -7,7 +7,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 8;
 export const PROFILE_VERSION = 4;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -78,6 +78,13 @@ function upgradeSave(save: SavedGame): SavedGame | null {
     const companions = (save.run.companions as unknown as string[]).map((id) => ({ id, bond: 0 }));
     save = { ...save, version: 4, run: { ...save.run, companions } };
   }
+  // v6 fights had no Patience.
+  if (save.version === 6) {
+    const combat = save.combat && { ...save.combat, player: { ...save.combat.player, patience: 0 } };
+    save = { ...save, version: 7, combat };
+  }
+  // v7 runs had no reward skips or rerolls.
+  if (save.version === 7) save = { ...save, version: 8, run: { ...save.run, rewardSkipsUsed: 0, rewardRerollsUsed: 0 } };
   // v4 runs were on a generated map, before hand-made levels, and v5 runs on the hand-made coast,
   // before coast features: they can't be resumed.
   return save.version === SAVE_VERSION ? save : null;

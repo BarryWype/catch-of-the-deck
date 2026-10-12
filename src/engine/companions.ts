@@ -1,4 +1,4 @@
-import { ESCAPE_BAR_NAME } from './constants';
+import { ESCAPE_BAR_NAME, PLAYER_BLOCK_NAME, PLAYER_HP_NAME } from './constants';
 import { describeEffect } from './describe';
 import type { CompanionBonusDef, CompanionEffect, CompanionTrigger, GameData } from './types';
 
@@ -7,8 +7,8 @@ import type { CompanionBonusDef, CompanionEffect, CompanionTrigger, GameData } f
  * bonus for the run. Creatures captured along the way are angry and give nothing.
  *
  * Only different species count: two Clownfish are one reef fish. With n species of a
- * temperament, each `amount` is multiplied by min(n, COMPANION_SCALE_CAP), and at
- * FULL_SCHOOL species its `fullSchool` effects are added too.
+ * temperament, each `amount` is multiplied by min(n, COMPANION_SCALE_CAP) (or read from the
+ * effect's `bySpecies`), and at FULL_SCHOOL species its `fullSchool` effects are added too.
  */
 export const COMPANION_SCALE_CAP = 2;
 export const FULL_SCHOOL = 3;
@@ -21,7 +21,11 @@ export interface ActiveBonus {
   effects: CompanionEffect[];
 }
 
-function scale(effect: CompanionEffect, factor: number): CompanionEffect {
+function scale(effect: CompanionEffect, species: number): CompanionEffect {
+  if ('bySpecies' in effect && effect.bySpecies?.length) {
+    return { ...effect, amount: effect.bySpecies[Math.min(species, effect.bySpecies.length) - 1] };
+  }
+  const factor = Math.min(species, COMPANION_SCALE_CAP);
   if (effect.type === 'trigger') return { ...effect, effect: { ...effect.effect, amount: effect.effect.amount * factor } };
   return { ...effect, amount: effect.amount * factor };
 }
@@ -37,8 +41,7 @@ export function activeBonuses(companions: readonly { id: string }[], data: GameD
   }
   return [...species].map(([temperament, ids]) => {
     const def = data.companionBonuses[temperament];
-    const factor = Math.min(ids.size, COMPANION_SCALE_CAP);
-    const effects = def.effects.map((e) => scale(e, factor));
+    const effects = def.effects.map((e) => scale(e, ids.size));
     if (ids.size >= FULL_SCHOOL) effects.push(...def.fullSchool);
     return { def, species: ids.size, effects };
   });
@@ -59,17 +62,19 @@ const TRIGGER_TEXT: Record<CompanionTrigger, string> = {
   firstAttackEachFight: 'Your first attack each fight',
   fullBlock: 'When you fully block an attack',
   hitByEnemy: 'When an enemy hits you',
-  firstBelowHalfHp: 'The first time you drop below 50% HP in a fight',
+  firstBelowHalfHp: `The first time you drop below 50% ${PLAYER_HP_NAME} in a fight`,
 };
+
+const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
 
 /** Rules text for one companion effect. */
 export function describeCompanionEffect(effect: CompanionEffect): string {
   const a = 'amount' in effect ? effect.amount : 0;
   switch (effect.type) {
     case 'bonusBlock':
-      return `Whenever you gain Block, gain ${a} more.`;
+      return `Whenever you gain ${PLAYER_BLOCK_NAME}, gain ${a} more.`;
     case 'keepBlock':
-      return `Keep up to ${a} Block for your next turn.`;
+      return `Keep up to ${a} ${PLAYER_BLOCK_NAME} for your next turn.`;
     case 'bonusDamage':
       return `+${a} damage on every hit.`;
     case 'firstAttackDamage':
@@ -81,11 +86,15 @@ export function describeCompanionEffect(effect: CompanionEffect): string {
     case 'slowEscape':
       return `Enemies' ${ESCAPE_BAR_NAME} rises ${a}% slower.`;
     case 'bonusMaxHp':
-      return `+${a} max HP.`;
+      return `+${a} max ${PLAYER_HP_NAME}.`;
     case 'healAfterFight':
-      return `Heal ${a} HP after each fight.`;
+      return `Recover ${a} ${PLAYER_HP_NAME} after each fight.`;
     case 'sellBonus':
       return `Creatures sell for ${a}% more.`;
+    case 'rewardSkips':
+      return `Skip a card reward ${times(a)} per level.`;
+    case 'rewardRerolls':
+      return `Reroll a card reward ${times(a)} per level.`;
     case 'trigger': {
       const text = describeEffect(effect.effect);
       // "Deal 2 damage." reads as "…: deal 2 damage." after the trigger.

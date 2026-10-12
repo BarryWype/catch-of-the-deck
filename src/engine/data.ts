@@ -92,7 +92,11 @@ export function validateContent(source: ContentSource): string[] {
     checkDuplicate(cardIds, card.id, 'card');
     const where = `Card "${card.id}"`;
     if (!Number.isInteger(card.cost) || card.cost < 0) errors.push(`${where}: cost must be a whole number ≥ 0.`);
+    if (card.patienceCost !== undefined && !(Number.isInteger(card.patienceCost) && card.patienceCost > 0)) {
+      errors.push(`${where}: patienceCost must be a whole number > 0.`);
+    }
     checkEffects(where, card.effects);
+    if (card.effects.some((e) => e.type === 'pull')) errors.push(`${where}: only creature moves can pull.`);
     const needsTarget = card.effects.some(
       (e) =>
         (e.type === 'dealDamage' || e.type === 'applyStatus' || e.type === 'changeEscape' || e.type === 'changeEscapeRate') &&
@@ -130,6 +134,11 @@ export function validateContent(source: ContentSource): string[] {
       if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);
       moveIds.add(move.id);
       checkEffects(`${where} move "${move.id}"`, move.effects);
+      const effectType = move.tag === 'strike' ? 'dealDamage' : move.tag === 'pull' ? 'pull' : undefined;
+      if (!effectType) errors.push(`${where} move "${move.id}": tag must be 'strike' or 'pull'.`);
+      else if (!move.effects.some((e) => e.type === effectType)) {
+        errors.push(`${where} move "${move.id}": a ${move.tag} move needs a "${effectType}" effect.`);
+      }
     }
     const p = enemy.pattern;
     const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : [])];
@@ -177,6 +186,9 @@ export function validateContent(source: ContentSource): string[] {
     for (const effect of [...bonus.effects, ...bonus.fullSchool]) {
       if (effect.type === 'trigger') checkEffects(where, [effect.effect]);
       else if (!(effect.amount >= 0)) errors.push(`${where}: effect "${effect.type}" needs an amount ≥ 0.`);
+      if ('bySpecies' in effect && effect.bySpecies?.some((n) => !(Number.isInteger(n) && n >= 0))) {
+        errors.push(`${where}: effect "${effect.type}" needs whole numbers ≥ 0 in bySpecies.`);
+      }
     }
   }
   for (const enemy of source.enemies) {

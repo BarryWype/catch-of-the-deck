@@ -45,10 +45,10 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
 ## A run
 
 - **Levels** (`content/levels.ts`): a run is three acts played in order, **Kid**, **Adult** and **Elder** (`RunState.level`), on the same family coast. Each age fishes further out to sea (`height`: how much of the art it shows).
-  - **The coast** (`content/coast.ts`, `layoutCoast`): at the start of a run, the coast features (beaches, ponds, rocks, harbours, streams, the lake; kelp, reefs, cliffs, trench and wreck at sea) are slid to random places along their `range`, without covering each other or the reserved areas (house, river delta, lighthouse), then copied where there's room. The layout is kept in `RunState.coast` and shared by the three levels.
+  - **The coast** (`content/coast.ts`, `layoutCoast`): at the start of a run, the coast features (beaches, ponds, rocks, harbours, streams, the lake; kelp, reefs, cliffs, trench and wreck at sea) are slid to random places along their `range`, without covering each other or the reserved areas (house, river delta, lighthouse), then copied where there's room (up to `FEATURE_COPIES`, 4, of each). The layout is kept in `RunState.coast` and shared by the three levels.
   - **What each age does there:** a feature's `visits` give, for kid, adult and elder, its fishing spot and the node's name (the harbour: fishing from the wharf, kayaking in the harbour, a boat out to sea). Sea features have no kid visit. The level's tier sets the creatures' tier.
-  - **Shape** (`generateLevelMap`): 7 columns from the house to the mini-boss (column 8), 7 more to the boss (column 16), both at fixed places. Each column takes 2–4 lanes from the features within its stretch of the map (fewer when few are nearby); missing lanes are events. Links go to the next column without crossing, sometimes branching.
-  - **Shops and treasure:** one shop in columns 3–7, one right after the mini-boss, and a treasure in columns 12–15. A few fights become surprise events.
+  - **Shape** (`generateLevelMap`): 7 columns from the house to the mini-boss (column 8), 7 more to the boss (column 16), both at fixed places. Each column takes 2–4 lanes from the features within its stretch of the map, as many as there are; only a column with fewer than 2 gets events to fill it. Links go to the next column without crossing, sometimes branching.
+  - **Shops and treasure:** one shop in columns 3–7, one right after the mini-boss, and a treasure in columns 12–15. A few fights become surprise events, never right before or after another event.
   - **Hand-made levels:** a level can instead list its `nodes` (column, position, kind, links). The test levels do.
   - **Node kinds:** `fight`, `event`, `shop`, `treasure`, `leave` (head home), `miniBoss` and `boss`.
   - **Head home:** the mini-boss leads to the next column and to a `leave` node (`escape`). That's a dead end that ends the run as a success.
@@ -62,6 +62,7 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
 - **Fights:**
   - **On the map:** a fight node shows its fishing spot, not a specific creature (bosses show their name).
   - **On arrival:** `travelTo` draws an encounter from its spot at the level's tier (`encountersFor`). A companion gains a bond point at every fight.
+  - **Card reward:** after a win, one of 3 cards must be taken. Eel companions (`rewardSkips`, `rewardRerolls`) allow skipping, or rerolling for 3 other cards, a few times per level (`rewardOptions`; the counts reset on each level).
 - **Events:**
   - **On arrival:** `visitEvent` either starts a surprise fight against any creature of the level's tier (`EVENT_FIGHT_CHANCE`, 10%) or draws one of the events allowed at that column (`minColumn`).
   - **Treasure nodes** (`visitTreasure`) draw among the events marked `treasure` instead, which never come up as ordinary events.
@@ -86,10 +87,20 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
   - **Start of the turn:** block resets, energy refills and you draw 5 cards.
   - **End of the turn:** the hand is discarded and statuses tick (**Poison** deals its stacks as damage, ignoring Block, then decreases). Each enemy then acts on its shown intent and its escape bar rises.
   - **Win/lose check:** after every effect.
+- **Grit** (`PLAYER_HP_NAME`): the player's HP is shown as **Grit**, the will to keep fishing, in its own orange bar. It works like HP (`hp`, `maxHp` in the code): creatures' Strikes wear it down, and the fight is lost when it runs out.
+- **Hold** (`PLAYER_BLOCK_NAME`): the player's Block is shown as **Hold**, their hold on the line (the starter defence card is called Hold). It soaks both kinds of creature move; creatures' own Block is still called Block.
+- **Creature moves** (`content/behaviors.ts`) each have a `tag`, checked against their effects on startup:
+  - **Strike:** deals damage. What gets past the Hold wears down Grit.
+  - **Pull:** has a `pull` effect (creature moves only). What gets past the Hold raises the creature's own escape bar.
+  - The intent shows the tag, and the damage or pull to expect.
 - **Escape bar** (shown to the player as **Panic**, name in `ESCAPE_BAR_NAME`). Each creature has:
   - **`escape`:** the bar, which starts at `escapeStart`.
   - **`escapeRate`:** how much the bar rises after the creature's turn. **Snared** stops the rise for a turn.
   - **`escapeAt`:** when the bar reaches it, the creature flees. The fight ends as `fled`, with no reward and no capture.
+- **Patience** (`PlayerState.patience`), kept for the whole fight, up to `MAX_PATIENCE` (5):
+  - **Energy:** each energy point left unused at the end of a turn gives one, slowing that same turn's rise.
+  - **Hold:** after the creatures act, every `HOLD_PER_PATIENCE` (3) Hold left over (beyond what companion bonuses keep for next turn) is spent for one.
+  - **Effect:** each point slows every creature's rise by `PATIENCE_ESCAPE_PERCENT` (10%) of its `escapeRate`, rounded up (`escapeRise`), so at most by half. A card's `patienceCost` must be paid in Patience on top of its energy cost, and spends it.
 - **Capture:** a creature at 0 HP **or** with its bar pushed to 0 is out of the fight and captured (`isAlive`).
 - **Card effects on the bar:**
   - **`changeEscape`:** moves the bar.

@@ -42,6 +42,9 @@ export interface RunState {
   coins: number;
   /** Equipment ids carried this run. */
   equipment: string[];
+  /** Card rewards skipped and rerolled on this level (see `rewardOptions`). */
+  rewardSkipsUsed: number;
+  rewardRerollsUsed: number;
 }
 
 export const CARD_REWARD_COUNT = 3;
@@ -84,6 +87,8 @@ export function createRun(
     companions: brought.map((c) => ({ ...c })),
     coins: 0,
     equipment: item === undefined ? [] : [item],
+    rewardSkipsUsed: 0,
+    rewardRerollsUsed: 0,
   };
   run.coast = layoutCoast(run, data.coast);
   run.map = buildLevelMap(data, 0, run.coast, run);
@@ -113,7 +118,7 @@ export function isLastLevel(run: RunState, data: GameData): boolean {
 /** After a level's boss: the next level, back at the start of its map. Everything else carries over. */
 export function enterNextLevel(run: RunState, data: GameData): RunState {
   if (isLastLevel(run, data)) throw new Error('There is no level after this one.');
-  const next = { ...clone(run), level: run.level + 1, position: START_NODE_ID, visited: [START_NODE_ID] };
+  const next = { ...clone(run), level: run.level + 1, position: START_NODE_ID, visited: [START_NODE_ID], rewardSkipsUsed: 0, rewardRerollsUsed: 0 };
   next.map = buildLevelMap(data, next.level, next.coast, next);
   return next;
 }
@@ -323,12 +328,40 @@ export function rollCardRewards(
   run: RunState,
   data: GameData,
   count = CARD_REWARD_COUNT,
+  /** Cards to leave out (the ones just offered, on a reroll), as long as enough others are left. */
+  exclude: readonly string[] = [],
 ): { run: RunState; choices: string[] } {
   const next = clone(run);
-  const pool = Object.values(data.cards)
+  const all = Object.values(data.cards)
     .filter((c) => c.rarity !== 'starter' && (c.build === undefined || c.build === run.build))
     .map((c) => c.id);
+  const fresh = all.filter((id) => !exclude.includes(id));
+  const pool = fresh.length >= count ? fresh : all;
   return { run: next, choices: shuffleInPlace(next, pool).slice(0, count) };
+}
+
+/**
+ * Card rewards must be taken, unless companion bonuses allow skipping (`rewardSkips`) or
+ * rerolling (`rewardRerolls`) them: this many times per level. These are the ones left.
+ */
+export function rewardOptions(run: RunState, data: GameData): { skips: number; rerolls: number } {
+  const effects = companionEffects(run.companions, data);
+  return {
+    skips: Math.max(0, bonusTotal(effects, 'rewardSkips') - run.rewardSkipsUsed),
+    rerolls: Math.max(0, bonusTotal(effects, 'rewardRerolls') - run.rewardRerollsUsed),
+  };
+}
+
+/** Leave a card reward without taking a card. Throws when no skip is left this level. */
+export function skipReward(run: RunState, data: GameData): RunState {
+  if (!rewardOptions(run, data).skips) throw new Error('No reward skip left this level.');
+  return { ...clone(run), rewardSkipsUsed: run.rewardSkipsUsed + 1 };
+}
+
+/** Other cards to choose from instead of `offered`. Throws when no reroll is left this level. */
+export function rerollReward(run: RunState, data: GameData, offered: readonly string[]): { run: RunState; choices: string[] } {
+  if (!rewardOptions(run, data).rerolls) throw new Error('No reward reroll left this level.');
+  return rollCardRewards({ ...run, rewardRerollsUsed: run.rewardRerollsUsed + 1 }, data, CARD_REWARD_COUNT, offered);
 }
 
 export function addCardToDeck(run: RunState, cardId: string, data: GameData): RunState {

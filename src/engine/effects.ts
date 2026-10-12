@@ -1,5 +1,5 @@
 import { bonusTotal } from './companions';
-import { ESCAPE_BAR_NAME, PLAYER_ID } from './constants';
+import { ESCAPE_BAR_NAME, PLAYER_BLOCK_NAME, PLAYER_HP_NAME, PLAYER_ID } from './constants';
 import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
 import { drawCards } from './piles';
 import { nextInt } from './rng';
@@ -74,7 +74,10 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
             continue;
           }
           const { blocked, hpLost } = applyDamage(t, amount);
-          addLog(state, `${source.name} hit ${t.name} for ${hpLost}${blocked ? ` (${blocked} blocked)` : ''}.`);
+          const soaked = blocked ? ` (${blocked} blocked)` : '';
+          if (enemyAttack && !hpLost) addLog(state, `${t.name}'s ${PLAYER_BLOCK_NAME} takes ${source.name}'s strike${soaked}.`);
+          else if (enemyAttack) addLog(state, `${source.name} wears down ${t.name}: −${hpLost} ${PLAYER_HP_NAME}${soaked}.`);
+          else addLog(state, `${source.name} hit ${t.name} for ${hpLost}${soaked}.`);
           if (enemyAttack) afterEnemyHit(state, source.id, amount, hpLost);
         }
       }
@@ -83,7 +86,17 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
     case 'gainBlock': {
       const amount = effect.amount + (source.id === PLAYER_ID ? bonusTotal(state.bonuses, 'bonusBlock') : 0);
       source.block += amount;
-      addLog(state, `${source.name} gained ${amount} Block.`);
+      addLog(state, `${source.name} gained ${amount} ${source.id === PLAYER_ID ? PLAYER_BLOCK_NAME : 'Block'}.`);
+      return;
+    }
+    case 'pull': {
+      if (!('escape' in source)) return;
+      const enemy = source as EnemyState;
+      const held = Math.min(state.player.block, effect.amount);
+      state.player.block -= held;
+      enemy.escape = Math.min(enemy.escapeAt, enemy.escape + effect.amount - held);
+      const holding = held ? ` (${held} held)` : '';
+      addLog(state, `${enemy.name} pulls on the line${holding}: ${ESCAPE_BAR_NAME} ${enemy.escape}/${enemy.escapeAt}.`);
       return;
     }
     case 'applyStatus':
