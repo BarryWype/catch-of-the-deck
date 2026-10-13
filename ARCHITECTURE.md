@@ -197,6 +197,17 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 - **Release:** pushing a `v*` tag runs `.github/workflows/release.yml`. It builds and tests on macOS, Windows and Linux, then publishes a GitHub Release with the three installers. The tag should match `"version"` in `package.json`.
 - **Loading from disk:** `vite.config.ts` uses `base: './'` so the built page loads its assets with relative paths from disk.
 
+## Animation and performance
+
+- **Transform and opacity only:** UI animations and transitions only change `transform` (or `translate`, `scale`, `rotate`) and `opacity`, which the browser can run without re-laying out or repainting the page.
+  - **Bars:** they scale (`scaleX`); the Panic bar's next-turn preview slides between two clipping windows.
+  - **Hover and target glows:** these sit on their own pseudo-element and fade in.
+  - **Shadows and filters:** drop shadows or filters around something that animates are replaced by still shadows.
+- **Sprites** (`AnimatedSprite.vue`): the sheet slides behind a one-frame window with a CSS `steps()` animation. There are no timers or re-renders per frame, and the end of a one-shot clip is its `animationend`.
+- **Aquarium fish:** each fish's lane spans the tank minus one fish and slides by its own width. A single element both flips the sprite and bobs it, using the separate `scale` and `translate` properties.
+- **Particles** (`ParticleCanvas.vue`): aquarium bubbles and the egg-hatching streamers are drawn on one `<canvas>` each, instead of one element per particle. They only read the canvas size when it's resized, pause while off screen or in a hidden tab, and don't run with reduced motion.
+- **No layout reads mid-animation:** dragging a card measures the battlefield and creatures once when the drag starts, then hit-tests against those boxes, applying pointer moves at most once per frame.
+
 ## Assets
 
 - **Sprite sheets** are registered in `ui/sprites.ts` (`SHEETS`) and referenced from content as `{ sheet, index }` (1-based).

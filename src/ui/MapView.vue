@@ -455,7 +455,7 @@ function choose(node: MapNode) {
 .node .ring { fill: none; stroke: var(--highlight); stroke-width: 3; }
 .node.current .ring { stroke: #fff; stroke-width: 4; }
 .node.available { cursor: pointer; }
-.node.available .ring { animation: pulse 1.4s ease-in-out infinite; }
+.node.available .ring { transform-box: fill-box; transform-origin: center; animation: pulse 1.4s ease-in-out infinite; }
 .node.available:focus { outline: none; }
 .node.visited .body { opacity: 0.6; }
 .node.skipped { opacity: 0.45; }
@@ -466,7 +466,7 @@ function choose(node: MapNode) {
 }
 
 @keyframes pulse {
-  50% { stroke-width: 6; }
+  50% { transform: scale(1.15); opacity: 0.6; }
 }
 @media (prefers-reduced-motion: reduce) {
   .node.available .ring { animation: none; }

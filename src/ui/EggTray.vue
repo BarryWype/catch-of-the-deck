@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import type { GameData } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
+import ParticleCanvas from './ParticleCanvas.vue';
 import SpriteView from './SpriteView.vue';
 import { animatedSheetFor, creatureClip, eggClip } from './sprites';
 
@@ -13,12 +14,6 @@ const props = defineProps<{ eggs: string[]; data: GameData }>();
 const emit = defineEmits<{ hatch: [index: number] }>();
 
 const EGG_SIZE = 64;
-/** Party streamers bursting out of the halo: angle (deg), length (px), colour. */
-const STREAMERS = Array.from({ length: 20 }, (_, i) => ({
-  angle: i * 18 + (i % 3) * 5,
-  length: 40 + ((i * 37) % 50),
-  colour: ['#f5d76e', '#ef7f7f', '#6fd0dc', '#b48cff', '#7fd18f'][i % 5],
-}));
 
 /** The egg playing its hatching animation. */
 const hatching = ref<number | null>(null);
@@ -60,12 +55,7 @@ function onHatched(index: number) {
   <div v-if="creature" class="reveal" role="dialog" aria-label="An egg hatched" @click="hatched = null">
     <div class="burst">
       <div class="halo" />
-      <span
-        v-for="(s, i) in STREAMERS"
-        :key="i"
-        class="streamer"
-        :style="{ '--angle': `${s.angle}deg`, '--length': `${s.length}px`, background: s.colour }"
-      />
+      <ParticleCanvas class="streamers" effect="streamers" />
       <AnimatedSprite v-if="creatureSheet" class="creature" :clip="creatureClip(creatureSheet, 'idle')" :size="192" />
       <SpriteView v-else-if="creature.sprite" class="creature" :sprite="creature.sprite" :size="160" />
     </div>
@@ -127,29 +117,13 @@ function onHatched(index: number) {
   animation: spin 12s linear infinite, pop 0.5s ease-out;
 }
 
-/* Streamers shoot out from the centre once, then fade. */
-.streamer {
-  z-index: 2;
-  width: 5px;
-  height: var(--length);
-  border-radius: 3px;
-  transform-origin: 50% 100%;
-  translate: 0 -50%;
-  opacity: 0;
-  animation: streamer 1.4s ease-out forwards;
-}
-
-/* From the edge of the creature out past the halo, stretching as they go. */
-@keyframes streamer {
-  0% { opacity: 1; transform: rotate(var(--angle)) translateY(-80px) scaleY(0.2); }
-  70% { opacity: 1; }
-  100% { opacity: 0; transform: rotate(var(--angle)) translateY(-230px) scaleY(1); }
-}
+/* Streamers (a canvas) burst out from the centre once, past the halo, so the canvas reaches beyond the burst. */
+.burst .streamers { inset: -160px; z-index: 2; width: calc(100% + 320px); height: calc(100% + 320px); }
 @keyframes spin { to { rotate: 360deg; } }
 @keyframes pop { from { scale: 0.2; } }
 @keyframes fade-in { from { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .halo, .creature, .streamer, .reveal { animation: none; }
+  .halo, .creature, .reveal { animation: none; }
 }
 </style>
