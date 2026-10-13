@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { creatureTypeNames, type Discovery, type GameData } from '../engine';
+import { t } from './i18n';
 import SideDrawer from './SideDrawer.vue';
 import SpriteView from './SpriteView.vue';
 
@@ -37,9 +38,9 @@ const discoveredCount = computed(() => creatures.value.filter((c) => c.status).l
 </script>
 
 <template>
-  <SideDrawer icon="📖" title="Creature book">
+  <SideDrawer icon="📖" :title="t('book.title')">
     <template #header>
-      <span class="total">{{ discoveredCount }} / {{ creatures.length }} discovered</span>
+      <span class="total">{{ t('book.discovered', { n: discoveredCount, total: creatures.length }) }}</span>
     </template>
     <ul class="grid">
       <li
@@ -51,12 +52,12 @@ const discoveredCount = computed(() => creatures.value.filter((c) => c.status).l
       >
         <template v-if="c.status">
           <SpriteView :sprite="c.sprite" :size="64" />
-          <span class="status">{{ c.status === 'captured' ? 'Captured' : 'Seen' }}</span>
-          <span v-if="c.owned" v-tip="`${c.owned} in your home aquarium`" class="owned">×{{ c.owned }}</span>
+          <span class="status">{{ c.status === 'captured' ? t('book.captured') : t('book.seen') }}</span>
+          <span v-if="c.owned" v-tip="t('book.owned', { n: c.owned })" class="owned">×{{ c.owned }}</span>
         </template>
         <template v-else>
-          <span class="unknown" aria-label="Not encountered yet">?</span>
-          <span class="status">Unknown</span>
+          <span class="unknown" :aria-label="t('book.notEncountered')">?</span>
+          <span class="status">{{ t('book.unknown') }}</span>
         </template>
       </li>
     </ul>

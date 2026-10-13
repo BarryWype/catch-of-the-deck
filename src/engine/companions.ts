@@ -1,6 +1,6 @@
-import { ESCAPE_BAR_NAME, PLAYER_BLOCK_NAME, PLAYER_HP_NAME } from './constants';
 import { describeEffect } from './describe';
-import type { CompanionBonusDef, CompanionEffect, CompanionTrigger, GameData } from './types';
+import { text } from './text';
+import type { CompanionBonusDef, CompanionEffect, GameData } from './types';
 
 /**
  * Creatures brought from the home aquarium (`RunState.companions`) give their temperament's
@@ -56,49 +56,13 @@ export function bonusTotal(effects: readonly CompanionEffect[], type: Exclude<Co
   return effects.reduce((sum, e) => (e.type === type ? sum + e.amount : sum), 0);
 }
 
-const TRIGGER_TEXT: Record<CompanionTrigger, string> = {
-  combatStart: 'At the start of each fight',
-  firstAttackEachTurn: 'Your first attack each turn',
-  firstAttackEachFight: 'Your first attack each fight',
-  fullBlock: 'When you fully block an attack',
-  hitByEnemy: 'When an enemy hits you',
-  firstBelowHalfHp: `The first time you drop below 50% ${PLAYER_HP_NAME} in a fight`,
-};
-
-const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
-
 /** Rules text for one companion effect. */
 export function describeCompanionEffect(effect: CompanionEffect): string {
-  const a = 'amount' in effect ? effect.amount : 0;
-  switch (effect.type) {
-    case 'bonusBlock':
-      return `Whenever you gain ${PLAYER_BLOCK_NAME}, gain ${a} more.`;
-    case 'keepBlock':
-      return `Keep up to ${a} ${PLAYER_BLOCK_NAME} for your next turn.`;
-    case 'bonusDamage':
-      return `+${a} damage on every hit.`;
-    case 'firstAttackDamage':
-      return `Your first attack each fight deals ${a}% more damage.`;
-    case 'dodgeAttacks':
-      return a === 1 ? 'The first attack against you each fight deals 0 damage.' : `The first ${a} attacks against you each fight deal 0 damage.`;
-    case 'bonusEscapeReduction':
-      return `Cards that lower ${ESCAPE_BAR_NAME} lower it by ${a} more.`;
-    case 'slowEscape':
-      return `Enemies' ${ESCAPE_BAR_NAME} rises ${a}% slower.`;
-    case 'bonusMaxHp':
-      return `+${a} max ${PLAYER_HP_NAME}.`;
-    case 'healAfterFight':
-      return `Recover ${a} ${PLAYER_HP_NAME} after each fight.`;
-    case 'sellBonus':
-      return `Creatures sell for ${a}% more.`;
-    case 'rewardSkips':
-      return `Skip a card reward ${times(a)} per level.`;
-    case 'rewardRerolls':
-      return `Reroll a card reward ${times(a)} per level.`;
-    case 'trigger': {
-      const text = describeEffect(effect.effect);
-      // "Deal 2 damage." reads as "…: deal 2 damage." after the trigger.
-      return `${TRIGGER_TEXT[effect.on]}: ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
-    }
+  if (effect.type === 'trigger') {
+    const rule = describeEffect(effect.effect);
+    // "Deal 2 damage." reads as "…: deal 2 damage." after the trigger.
+    return text('companion.trigger', { when: text(`companion.when.${effect.on}`), rule: rule.charAt(0).toLowerCase() + rule.slice(1) });
   }
+  // `dodgeAttacks` → `companion.dodgeAttacks`, and so on.
+  return text(`companion.${effect.type}`, { n: effect.amount });
 }

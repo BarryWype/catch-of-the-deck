@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ESCAPE_BAR_NAME } from '../engine';
+import { t } from './i18n';
 
 /** The tug of war: the creature flees when the bar fills, and is captured if it's pushed down to 0. */
 const props = defineProps<{ escape: number; escapeAt: number; escapeRate: number }>();
 const percent = (value: number) => (props.escapeAt > 0 ? Math.min(100, (100 * value) / props.escapeAt) : 0);
 const fill = computed(() => percent(props.escape));
 const next = computed(() => percent(props.escape + props.escapeRate) - fill.value);
-const text = computed(() => `${ESCAPE_BAR_NAME} ${props.escape}/${props.escapeAt} (+${props.escapeRate}/turn)`);
+const text = computed(() => t('bars.panic', { escape: props.escape, escapeAt: props.escapeAt, rate: props.escapeRate }));
 </script>
 
 <template>
-  <div v-tip="{ title: text, body: 'It flees when the bar fills, and is caught if it drops to 0.' }" class="panicbar">
+  <div v-tip="{ title: text, body: t('bars.panicTip') }" class="panicbar">
     <div class="fill" :style="{ transform: `scaleX(${fill / 100})` }" />
     <!-- Next turn's rise, from `fill` to `fill + next`: the outer window's right edge and the
          inner one's left edge slide there, so only transforms change. -->

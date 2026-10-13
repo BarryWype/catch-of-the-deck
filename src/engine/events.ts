@@ -1,4 +1,4 @@
-import { PLAYER_HP_NAME } from './constants';
+import { text } from './text';
 import { equipmentEffects } from './equipment';
 import type { RunState } from './run';
 import type { EventChoice, EventEffect, GameData } from './types';
@@ -21,24 +21,22 @@ export function healAmount(run: RunState, percent: number): number {
 export function describeEventEffect(effect: EventEffect, run: RunState, data: GameData): string {
   switch (effect.type) {
     case 'heal':
-      return `Recover ${healAmount(run, effect.percent)} ${PLAYER_HP_NAME}.`;
+      return text('event.heal', { n: healAmount(run, effect.percent) });
     case 'loseHp':
-      return `Lose ${effect.amount} ${PLAYER_HP_NAME}.`;
+      return text('event.loseHp', { n: effect.amount });
     case 'gainCoins':
-      return `Gain 🪙 ${effect.amount}.`;
-    case 'coinsPerCreature': {
-      const n = run.bucket.length;
-      return `Gain 🪙 ${coinsPerCreatureValue(run, effect.amount, data)} (${n} creature${n === 1 ? '' : 's'} in your bucket).`;
-    }
+      return text('event.gainCoins', { coins: effect.amount });
+    case 'coinsPerCreature':
+      return text('event.coinsPerCreature', { coins: coinsPerCreatureValue(run, effect.amount, data), n: run.bucket.length });
     case 'cardReward':
-      return 'Choose a card to add to your deck.';
+      return text('event.cardReward');
   }
 }
 
 /** Why a choice can't be picked right now, or null if it can. */
 export function eventChoiceBlocked(choice: EventChoice, run: RunState): string | null {
   const hpLoss = choice.effects.reduce((sum, e) => sum + (e.type === 'loseHp' ? e.amount : 0), 0);
-  if (hpLoss >= run.hp) return `Not enough ${PLAYER_HP_NAME}.`;
+  if (hpLoss >= run.hp) return text('event.notEnoughGrit');
   return null;
 }
 

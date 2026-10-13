@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
+import { t } from './i18n';
 import ParticleCanvas from './ParticleCanvas.vue';
 import SpriteView from './SpriteView.vue';
 import { animatedSheetFor, creatureClip } from './sprites';
@@ -28,7 +29,7 @@ const props = withDefaults(
     /** Bond points of each creature, in the same order (home aquarium, or a bucket's companions). */
     bonds?: number[];
   }>(),
-  { interactive: true, title: 'Aquarium', icon: '🐠', action: 'sell', bringBlocked: undefined, companions: undefined, bonds: undefined },
+  { interactive: true, title: undefined, icon: '🐠', action: 'sell', bringBlocked: undefined, companions: undefined, bonds: undefined },
 );
 const emit = defineEmits<{ sell: [slot: number]; bring: [slot: number] }>();
 
@@ -94,7 +95,7 @@ const residents = computed(() => {
 function bondOf(id: string, points: number | undefined) {
   if (points === undefined) return undefined;
   const level = bondLevel({ id, bond: points }, props.data);
-  const text = `Bond level ${level}${level === MAX_BOND_LEVEL ? ' (fully bonded)' : ''} · ${points}/${bondToFull(id, props.data)}`;
+  const text = t(level === MAX_BOND_LEVEL ? 'aquarium.bondFull' : 'aquarium.bond', { level, points, full: bondToFull(id, props.data) });
   return { level, text };
 }
 
@@ -103,8 +104,8 @@ type Resident = (typeof residents.value)[number];
 /** Hover text for a creature: its name, then its sell value, mood and bond. */
 function residentTip(r: Resident) {
   const detail = [
-    props.interactive && props.action === 'sell' ? `Sells for 🪙 ${r.sellValue}` : '',
-    r.angry ? '💢 Angry' : '',
+    props.interactive && props.action === 'sell' ? t('aquarium.sellsFor', { coins: r.sellValue }) : '',
+    r.angry ? t('aquarium.angry') : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -132,10 +133,10 @@ const plants = [
 </script>
 
 <template>
-  <section class="aquarium" :aria-label="title">
+  <section class="aquarium" :aria-label="title ?? t('aquarium.default')">
     <header class="label">
-      <span>{{ icon }} {{ title }}</span>
-      <span class="count">{{ creatures.length }} caught</span>
+      <span>{{ icon }} {{ title ?? t('aquarium.default') }}</span>
+      <span class="count">{{ t('aquarium.count', { n: creatures.length }) }}</span>
     </header>
 
     <div class="tank">
@@ -187,14 +188,14 @@ const plants = [
         <strong>{{ selected.name }}</strong>
         <span v-if="selected.bond" class="bond-text">♥ {{ selected.bond.text }}</span>
         <template v-if="action === 'sell'">
-          <span v-if="selected.angry" class="mood">💢 Angry: caught this run, no bonus</span>
+          <span v-if="selected.angry" class="mood">{{ t('aquarium.angryMood') }}</span>
           <span v-else-if="companions !== undefined && selected.bonus" class="mood">
-            {{ selected.bonus.icon }} Companion: gives {{ selected.bonus.name }} (selling it ends that)
+            {{ selected.bonus.icon }} {{ t('aquarium.companionMood', { bonus: selected.bonus.name }) }}
           </span>
           <span class="sell-value">🪙 {{ selected.sellValue }}</span>
           <div class="actions">
-            <button @click="act">Sell</button>
-            <button class="ghost" @click="selectedKey = null">Keep</button>
+            <button @click="act">{{ t('aquarium.sell') }}</button>
+            <button class="ghost" @click="selectedKey = null">{{ t('aquarium.keep') }}</button>
           </div>
         </template>
         <template v-else>
@@ -203,14 +204,14 @@ const plants = [
             <p v-for="(effect, i) in selected.bonus.effects" :key="i">{{ describeCompanionEffect(effect) }}</p>
           </div>
           <div class="actions">
-            <button v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act">Bring for the session</button>
-            <button class="ghost" @click="selectedKey = null">Cancel</button>
+            <button v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act">{{ t('aquarium.bring') }}</button>
+            <button class="ghost" @click="selectedKey = null">{{ t('common.cancel') }}</button>
           </div>
           <span v-if="bringBlocked" class="blocked">{{ bringBlocked }}</span>
         </template>
       </div>
 
-      <p v-if="!creatures.length" class="empty">Nothing in here yet. Catch something!</p>
+      <p v-if="!creatures.length" class="empty">{{ t('aquarium.empty') }}</p>
       <div class="glare" />
     </div>
   </section>

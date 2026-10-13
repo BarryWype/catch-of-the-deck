@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { t } from './i18n';
 
 /**
  * A tab on the left or right edge of the screen that opens a full-height drawer from that side.
@@ -35,7 +36,7 @@ defineExpose({ close: () => (open.value = false) });
     class="tab"
     :class="side"
     :style="{ top: `calc(50% + ${props.tabOffset}px)` }"
-    :aria-label="`Open: ${title}`"
+    :aria-label="t('drawer.open', { title })"
     v-tip="title"
     @click="show"
   >
@@ -54,7 +55,7 @@ defineExpose({ close: () => (open.value = false) });
     <header>
       <h2>{{ icon }} {{ title }}</h2>
       <slot name="header" />
-      <button ref="closeButton" class="ghost close" :aria-label="`Close: ${title}`" @click="open = false">✕</button>
+      <button ref="closeButton" class="ghost close" :aria-label="t('drawer.close', { title })" @click="open = false">✕</button>
     </header>
     <div class="content">
       <slot />

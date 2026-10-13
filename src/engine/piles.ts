@@ -1,13 +1,14 @@
 import { MAX_HAND_SIZE } from './constants';
 import { shuffleInPlace } from './rng';
 import type { CombatState } from './types';
+import { text } from './text';
 import { addLog } from './util';
 
 export function reshuffleDiscardIntoDraw(state: CombatState): void {
   state.piles.draw.push(...state.piles.discard);
   state.piles.discard = [];
   shuffleInPlace(state, state.piles.draw);
-  addLog(state, 'Shuffled the discard pile into the draw pile.');
+  addLog(state, text('log.shuffled'));
 }
 
 /**

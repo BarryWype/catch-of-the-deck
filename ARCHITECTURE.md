@@ -9,6 +9,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 | `src/engine/` | The game rules: combat, map, run, events, shop, equipment. Pure TypeScript. | No DOM, no Vue, no content imports, no `Math.random` or `Date.now`. `tests/architecture.test.ts` enforces this. Every function takes state in and returns new state. |
 | `src/content/` | Game data: creatures, cards, builds, equipment, events, shop items, creature types. Plain typed arrays. | Data only. `content/index.ts` passes everything through `buildGameData`, which validates it and fails at startup with a readable error. |
 | `src/ui/` | Vue components plus `useGame.ts`, which holds the current states and calls the engine. | No game rules here. Components read state and emit actions. Display-only fields (sprites, icons, terrain) live in content but are only read by the UI. |
+| `src/locales/` | The languages: every word the player reads, one file per language. | Plain data. See Languages. |
 | `electron/` | The desktop shell: a window, plus a small file bridge for saving. | The page never touches the file system directly; it goes through `window.desktop` (see Persistence). |
 | `scripts/` | One-off asset generators (`npm run sprites`, `npm run terrain`, `npm run eggs`, `npm run sea`). | Seeded: re-running gives the same images. |
 
@@ -196,6 +197,19 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 - **Artifacts** have fixed names, so the README's "latest" download links never change: `slay-the-fish-mac-arm64.dmg`, `slay-the-fish-windows.exe`, `slay-the-fish-linux.AppImage`.
 - **Release:** pushing a `v*` tag runs `.github/workflows/release.yml`. It builds and tests on macOS, Windows and Linux, then publishes a GitHub Release with the three installers. The tag should match `"version"` in `package.json`.
 - **Loading from disk:** `vite.config.ts` uses `base: './'` so the built page loads its assets with relative paths from disk.
+
+## Languages
+
+Every word the player reads comes from a language file in `src/locales/`, so the game can be played in English or French (Options → Language), and other languages can be added.
+
+- **`en.ts`** is the reference: the game's own words (`terms`: Grit, Hold, Panic, Patience), the text written by the rules (`engine`: card text, the fight log, companion bonuses, events, shop) and the screens' text (`ui`).
+- **`<code>.ts`** (e.g. `fr.ts`) has exactly the same keys, which TypeScript checks.
+- **`<code>-content.ts`** names the content by id: creatures, cards, moves, builds, equipment, companions, events, shop items, fishing spots, levels, and the map's place names and release reasons (keyed by their English text). English content is the content files themselves; `localizeContent` (`content/localize.ts`) swaps in a language's words, and anything missing stays English.
+- **Templates:** `{name}` is filled in by the game, `{@grit}` is one of the language's terms, and `singular|plural` picks a form from `{n}` by the language's plural rules (`formatMessage`, `engine/text.ts`).
+- **The engine** stays pure: it only knows message keys (`text('log.plays', …)`); the UI hands it the language's messages at startup (`setText`).
+- **The UI** uses `t('menu.newRun')` (`ui/i18n.ts`, with typed keys) and builds the game data in the chosen language once at startup. The choice is kept per device (else the system's language, else English); changing it reloads the page, so every name is rebuilt. Fight log lines already written stay in the language they were written in.
+- **Adding a language:** copy `en.ts` to `<code>.ts` and translate it, write `<code>-content.ts` (copy `fr-content.ts`), and list the language in `locales/index.ts`. `tests/i18n.test.ts` checks that it has every message, names all the content, and writes every rule without leaving a key or a blank.
+- **Not translated:** content validation errors (for whoever edits the content), the docs, and the game's title.
 
 ## Animation and performance
 

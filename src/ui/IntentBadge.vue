@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { IntentKind, IntentPreview } from '../engine';
+import { t } from './i18n';
 
 const props = defineProps<{ intent: IntentPreview }>();
 
 const ICONS: Record<IntentKind, string> = { attack: '🗡️', pull: '🎣', defend: '🛡️', buff: '💢', debuff: '🌀' };
-const TAG_NAMES = { strike: 'Strike', pull: 'Pull' } as const;
+const TAG_NAMES = { strike: t('intent.strike'), pull: t('intent.pull') } as const;
 const damageText = computed(() => {
   const { damage, hits } = props.intent;
   if (damage === undefined) return '';

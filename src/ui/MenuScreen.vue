@@ -1,20 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import {
-  BASE_ENERGY,
-  ESCAPE_BAR_NAME,
-  HOLD_PER_PATIENCE,
-  MAX_PATIENCE,
-  PATIENCE_ESCAPE_PERCENT,
-  PLAYER_BLOCK_NAME,
-  PLAYER_HP_NAME,
-  STARTING_HAND_SIZE,
-  STRONG_BONUS_PERCENT,
-} from '../engine';
+import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
 import type { Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CreatureBook from './CreatureBook.vue';
 import SideDrawer from './SideDrawer.vue';
+import { language, languages, setLanguage, t } from './i18n';
 
 defineProps<{
   canResume: boolean;
@@ -46,9 +37,21 @@ function setDebug(on: boolean) {
   }
 }
 const DEBUG_STARTS = [0, 1, 2].flatMap((level) => [
-  { level, kind: 'miniBoss' as const, label: `Act ${level + 1} · mini-boss` },
-  { level, kind: 'boss' as const, label: `Act ${level + 1} · boss` },
+  { level, kind: 'miniBoss' as const, label: t('debug.miniBoss', { n: level + 1 }) },
+  { level, kind: 'boss' as const, label: t('debug.boss', { n: level + 1 }) },
 ]);
+
+/** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
+const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'patience', 'style', 'aging', 'home', 'companions'] as const;
+const GUIDE_NUMBERS = {
+  energy: BASE_ENERGY,
+  cards: STARTING_HAND_SIZE,
+  holdPerPatience: HOLD_PER_PATIENCE,
+  maxPatience: MAX_PATIENCE,
+  patiencePercent: PATIENCE_ESCAPE_PERCENT,
+  strongPercent: STRONG_BONUS_PERCENT,
+  slots: SESSION_SLOTS,
+};
 
 /** Exit only exists in the desktop app; a browser tab can't quit itself. */
 const desktop = window.desktop;
@@ -101,71 +104,70 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
       class="backdrop"
       :creatures="homeAquarium.map((c) => c.id)"
       :bonds="homeAquarium.map((c) => c.bond)"
-      :data="data" :interactive="false" title="Home aquarium" icon="🏠" />
+      :data="data" :interactive="false" :title="t('aquarium.home')" icon="🏠" />
 
     <div v-if="!viewing" class="panel">
       <h2>Slay the Fish</h2>
       <nav class="buttons">
-        <button v-tip="canResume ? undefined : 'No saved run yet'" :disabled="!canResume" @click="emit('resume')">Resume</button>
-        <button @click="emit('newRun')">New run</button>
-        <button class="ghost" @click="viewing = true">See aquarium</button>
-        <button class="ghost" @click="openOptions">Options</button>
-        <button v-if="desktop" class="ghost" @click="desktop.quit()">Exit</button>
+        <button v-tip="canResume ? undefined : t('menu.noSave')" :disabled="!canResume" @click="emit('resume')">{{ t('menu.resume') }}</button>
+        <button @click="emit('newRun')">{{ t('menu.newRun') }}</button>
+        <button class="ghost" @click="viewing = true">{{ t('menu.seeAquarium') }}</button>
+        <button class="ghost" @click="openOptions">{{ t('menu.options') }}</button>
+        <button v-if="desktop" class="ghost" @click="desktop.quit()">{{ t('menu.exit') }}</button>
       </nav>
     </div>
-    <button v-else class="show-menu" @click="viewing = false">☰ Menu</button>
+    <button v-else class="show-menu" @click="viewing = false">☰ {{ t('app.menu') }}</button>
     <!-- Left edge: the guide, with the debug drawer under it when enabled in the options. -->
-    <SideDrawer side="left" icon="📘" title="How to play" :tab-offset="debug ? -34 : 0" :width="460">
+    <SideDrawer side="left" icon="📘" :title="t('guide.title')" :tab-offset="debug ? -34 : 0" :width="460">
       <ul class="guide">
-        <li><b>Catch creatures</b> by bringing their health to 0, or their {{ ESCAPE_BAR_NAME }} bar down to 0. If the {{ ESCAPE_BAR_NAME }} bar fills up, it gets away.</li>
-        <li><b>Each turn</b> you have {{ BASE_ENERGY }} energy and {{ STARTING_HAND_SIZE }} cards. Drag a card onto a creature (or onto the battlefield) to play it, then End Turn.</li>
-        <li><b>{{ PLAYER_HP_NAME }}</b> is your will to keep fishing. It carries over between fights; at 0 the run is lost, bucket included.</li>
-        <li><b>{{ PLAYER_BLOCK_NAME }}</b> is your grip on the line: it soaks what the creatures do before it reaches you.</li>
-        <li><b>Strike</b> moves wear down your {{ PLAYER_HP_NAME }}. <b>Pull</b> moves raise the creature's {{ ESCAPE_BAR_NAME }} bar. {{ PLAYER_BLOCK_NAME }} stops both.</li>
-        <li>
-          <b>Patience:</b> unused energy, and every {{ HOLD_PER_PATIENCE }} unused {{ PLAYER_BLOCK_NAME }}, give a point (up to {{ MAX_PATIENCE }}).
-          Each slows the {{ ESCAPE_BAR_NAME }} bars by {{ PATIENCE_ESCAPE_PERCENT }}%.
+        <li v-for="key in GUIDE" :key="key">
+          <b>{{ t(`guide.${key}.title`) }}</b> {{ t(`guide.${key}.text`, GUIDE_NUMBERS) }}
         </li>
-        <li><b>Your fishing style</b> deals {{ STRONG_BONUS_PERCENT }}% more to the creature types it's strong against.</li>
-        <li><b>You age</b> from Kid to Adult to Elder: further out, bigger catches. Each age has a mini-boss and a boss, who are always let go.</li>
-        <li><b>Head home</b> (⌂, after each mini-boss) to end the run safely: your bucket joins your home aquarium.</li>
-        <li><b>Companions:</b> bring up to 3 creatures from home for a bonus. Lose the run and they're lost too.</li>
       </ul>
     </SideDrawer>
-    <SideDrawer v-if="debug" side="left" icon="🛠" title="Debug" :tab-offset="34" :width="300">
-      <nav class="debug" aria-label="Debug shortcuts">
-        <p>Start a run right before each fight:</p>
+    <SideDrawer v-if="debug" side="left" icon="🛠" :title="t('debug.title')" :tab-offset="34" :width="300">
+      <nav class="debug" :aria-label="t('debug.title')">
+        <p>{{ t('debug.hint') }}</p>
         <button v-for="d in DEBUG_STARTS" :key="d.label" class="ghost" @click="emit('debugStart', d.level, d.kind)">{{ d.label }}</button>
       </nav>
     </SideDrawer>
-    <button v-if="!viewing" class="ghost reset" @click="confirmReset?.showModal()">Reset progression</button>
+    <button v-if="!viewing" class="ghost reset" @click="confirmReset?.showModal()">{{ t('reset.button') }}</button>
 
     <dialog ref="confirmReset" class="confirm" @click="$event.target === confirmReset && confirmReset?.close()">
-      <h3>Reset progression?</h3>
-      <p>This deletes your saved run and every creature in your home aquarium. It can't be undone.</p>
+      <h3>{{ t('reset.title') }}</h3>
+      <p>{{ t('reset.text') }}</p>
       <footer>
-        <button class="ghost" autofocus @click="confirmReset?.close()">Cancel</button>
-        <button class="danger" @click="reset">Reset everything</button>
+        <button class="ghost" autofocus @click="confirmReset?.close()">{{ t('common.cancel') }}</button>
+        <button class="danger" @click="reset">{{ t('reset.confirm') }}</button>
       </footer>
     </dialog>
     <dialog ref="options" class="confirm options" @click="$event.target === options && options?.close()">
-      <h3>Options</h3>
+      <h3>{{ t('options.title') }}</h3>
       <label class="option">
         <span>
-          Fullscreen
-          <small>{{ desktop ? 'Remembered next time you open the game.' : 'Press Esc to leave it.' }}</small>
+          {{ t('options.language') }}
+          <small>{{ t('options.languageHint') }}</small>
+        </span>
+        <select :value="language" @change="setLanguage(($event.target as HTMLSelectElement).value as typeof language)">
+          <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.name }}</option>
+        </select>
+      </label>
+      <label class="option">
+        <span>
+          {{ t('options.fullscreen') }}
+          <small>{{ desktop ? t('options.fullscreenDesktop') : t('options.fullscreenBrowser') }}</small>
         </span>
         <input type="checkbox" role="switch" :checked="fullscreen" @change="setFullscreen(($event.target as HTMLInputElement).checked)" />
       </label>
       <label class="option">
         <span>
-          Show debug panel
-          <small>Shortcuts on the menu to jump straight to each mini-boss and boss.</small>
+          {{ t('options.debug') }}
+          <small>{{ t('options.debugHint') }}</small>
         </span>
         <input type="checkbox" role="switch" :checked="debug" @change="setDebug(($event.target as HTMLInputElement).checked)" />
       </label>
       <footer>
-        <button autofocus @click="options?.close()">Done</button>
+        <button autofocus @click="options?.close()">{{ t('options.done') }}</button>
       </footer>
     </dialog>
     <CreatureBook :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" />
@@ -217,6 +219,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 .option { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; cursor: pointer; }
 .option small { display: block; color: var(--muted); font-size: 0.75rem; }
 .option input { width: 20px; height: 20px; accent-color: var(--highlight); cursor: pointer; }
+.option select { padding: 4px 8px; border-radius: 6px; font: inherit; }
 
 .guide { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 18px 20px 18px 36px; line-height: 1.45; }
 .guide b { color: var(--highlight); }

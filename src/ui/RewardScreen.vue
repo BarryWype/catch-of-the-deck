@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { creatureTypeNames, describeCard, type GameData } from '../engine';
 import CardView from './CardView.vue';
+import { t } from './i18n';
 
 /** `skips`, `rerolls`: how many are left this level (Eel companions); otherwise a card must be taken. */
 const props = defineProps<{ choices: string[]; data: GameData; skips: number; rerolls: number }>();
@@ -11,7 +12,7 @@ const tagNames = computed(() => creatureTypeNames(props.data));
 
 <template>
   <section class="reward">
-    <h2>Choose a card to add to your deck</h2>
+    <h2>{{ t('reward.title') }}</h2>
     <div class="choices">
       <CardView
         v-for="id in choices"
@@ -22,8 +23,8 @@ const tagNames = computed(() => creatureTypeNames(props.data));
       />
     </div>
     <div v-if="skips || rerolls" class="options">
-      <button v-if="rerolls" class="ghost" @click="emit('reroll')">🔄 Reroll ({{ rerolls }} left this level)</button>
-      <button v-if="skips" class="ghost" @click="emit('skip')">Skip ({{ skips }} left this level)</button>
+      <button v-if="rerolls" class="ghost" @click="emit('reroll')">🔄 {{ t('reward.reroll', { n: rerolls }) }}</button>
+      <button v-if="skips" class="ghost" @click="emit('skip')">{{ t('reward.skip', { n: skips }) }}</button>
     </div>
   </section>
 </template>

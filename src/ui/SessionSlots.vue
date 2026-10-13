@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { activeBonuses, bondLevel, describeCompanionEffect, FULL_SCHOOL, SESSION_SLOTS, type GameData, type HomeCreature } from '../engine';
 import SpriteView from './SpriteView.vue';
+import { t } from './i18n';
 
 /** The creatures picked from the home aquarium to start the run in the bucket, one per slot. */
 const props = defineProps<{ brought: HomeCreature[]; data: GameData }>();
@@ -27,8 +28,8 @@ const bonuses = computed(() =>
 </script>
 
 <template>
-  <section class="session-slots" aria-label="Brought for the session">
-    <header>🪣 For the session</header>
+  <section class="session-slots" :aria-label="t('slots.label')">
+    <header>🪣 {{ t('slots.title') }}</header>
     <div v-for="(slot, i) in slots" :key="i" class="slot" :class="{ empty: !slot }">
       <template v-if="slot">
         <SpriteView v-if="slot.creature.sprite" :sprite="slot.creature.sprite" :size="48" />
@@ -36,23 +37,20 @@ const bonuses = computed(() =>
           {{ slot.creature.name }}
           <small v-if="slot.bonus">{{ slot.bonus.icon }} {{ slot.bonus.temperamentName }}<template v-if="slot.bond"> · ♥{{ slot.bond }}</template></small>
         </span>
-        <button class="ghost remove" v-tip="'Back to the aquarium'" :aria-label="`Put ${slot.creature.name} back in the aquarium`" @click="emit('remove', i)">
+        <button class="ghost remove" v-tip="t('slots.remove')" :aria-label="t('slots.removeLabel', { name: slot.creature.name })" @click="emit('remove', i)">
           ✕
         </button>
       </template>
-      <span v-else class="hint">Empty slot</span>
+      <span v-else class="hint">{{ t('slots.empty') }}</span>
     </div>
-    <ul v-if="bonuses.length" class="bonuses" aria-label="Bonuses for this run">
+    <ul v-if="bonuses.length" class="bonuses" :aria-label="t('slots.bonuses')">
       <li v-for="b in bonuses" :key="b.def.id">
         <strong>{{ b.def.icon }} {{ b.def.name }}</strong>
         <span class="species">{{ b.species }}/{{ FULL_SCHOOL }} {{ b.def.temperamentName }}</span>
         <p v-for="(line, j) in b.text" :key="j">{{ line }}</p>
       </li>
     </ul>
-    <p class="help">
-      Brought creatures give their bonus for the run; different species of the same kind add up. They come back only
-      if the run succeeds, with a stronger bond. Creatures caught during the run are angry and give nothing.
-    </p>
+    <p class="help">{{ t('slots.help') }}</p>
   </section>
 </template>
 

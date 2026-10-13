@@ -1,6 +1,7 @@
 // Public API of the engine. Pure TypeScript: no DOM, no UI, no content.
 export * from './types';
 export * from './constants';
+export * from './text';
 export * from './rng';
 export * from './damage';
 export * from './statuses';

@@ -1,4 +1,4 @@
-import { PLAYER_HP_NAME } from './constants';
+import { text } from './text';
 import type { RunState } from './run';
 import type { GameData, ShopItemDef } from './types';
 import { clone } from './util';
@@ -10,10 +10,10 @@ export interface ShopVisit {
 
 /** Why the item can't be bought right now, or null if it can. */
 export function shopItemBlocked(item: ShopItemDef, run: RunState, visit: ShopVisit): string | null {
-  if (item.limit !== undefined && (visit.bought[item.id] ?? 0) >= item.limit) return 'Sold out.';
-  if (item.effect.type === 'heal' && run.hp >= run.maxHp) return `Already at full ${PLAYER_HP_NAME}.`;
-  if (item.effect.type === 'removeCard' && run.deck.length <= 1) return 'No card to spare.';
-  if (run.coins < item.price) return 'Not enough coins.';
+  if (item.limit !== undefined && (visit.bought[item.id] ?? 0) >= item.limit) return text('shop.soldOut');
+  if (item.effect.type === 'heal' && run.hp >= run.maxHp) return text('shop.fullGrit');
+  if (item.effect.type === 'removeCard' && run.deck.length <= 1) return text('shop.noCardToSpare');
+  if (run.coins < item.price) return text('shop.notEnoughCoins');
   return null;
 }
 

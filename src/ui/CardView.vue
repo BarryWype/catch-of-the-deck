@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { describeCard, type CardDef } from '../engine';
+import { t } from './i18n';
 
 const props = withDefaults(
   defineProps<{
@@ -35,10 +36,10 @@ const parts = computed(() =>
     :aria-disabled="!playable"
   >
     <span class="cost">{{ card.cost }}</span>
-    <span v-if="card.patienceCost" v-tip="`Also costs ${card.patienceCost} Patience`" class="patience-cost">⏳{{ card.patienceCost }}</span>
+    <span v-if="card.patienceCost" v-tip="t('card.patienceCost', { n: card.patienceCost })" class="patience-cost">⏳{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
     <span class="art">{{ card.art ?? TYPE_ICON[card.type] }}</span>
-    <span class="type">{{ card.type }}</span>
+    <span class="type">{{ t(`card.type.${card.type}`) }}</span>
     <span class="desc" :class="{ long: text.length > LONG_TEXT }">
       <span>
         <template v-for="(part, i) in parts" :key="i">
@@ -47,7 +48,7 @@ const parts = computed(() =>
         </template>
       </span>
     </span>
-    <span v-if="effective" class="effective-badge">Effective!</span>
+    <span v-if="effective" class="effective-badge">{{ t('card.effective') }}</span>
   </button>
 </template>
 

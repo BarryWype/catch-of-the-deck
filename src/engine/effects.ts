@@ -1,9 +1,10 @@
 import { bonusTotal } from './companions';
-import { ESCAPE_BAR_NAME, PLAYER_BLOCK_NAME, PLAYER_HP_NAME, PLAYER_ID } from './constants';
+import { PLAYER_ID } from './constants';
 import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
 import { drawCards } from './piles';
 import { nextInt } from './rng';
-import { addStatus, STATUS_META } from './statuses';
+import { addStatus, statusName } from './statuses';
+import { text } from './text';
 import type { Combatant, CombatState, CompanionTrigger, Effect, EffectTarget, EnemyState } from './types';
 import { addLog } from './util';
 
@@ -70,14 +71,14 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           const enemyAttack = !fromPlayer && t.id === PLAYER_ID;
           if (enemyAttack && state.bonusTracker.dodged < bonusTotal(state.bonuses, 'dodgeAttacks')) {
             state.bonusTracker.dodged++;
-            addLog(state, `${t.name} slips away from ${source.name}'s attack.`);
+            addLog(state, text('log.dodge', { who: t.name, attacker: source.name }));
             continue;
           }
           const { blocked, hpLost } = applyDamage(t, amount);
-          const soaked = blocked ? ` (${blocked} blocked)` : '';
-          if (enemyAttack && !hpLost) addLog(state, `${t.name}'s ${PLAYER_BLOCK_NAME} takes ${source.name}'s strike${soaked}.`);
-          else if (enemyAttack) addLog(state, `${source.name} wears down ${t.name}: −${hpLost} ${PLAYER_HP_NAME}${soaked}.`);
-          else addLog(state, `${source.name} hit ${t.name} for ${hpLost}${soaked}.`);
+          const params = { who: t.name, attacker: source.name, n: hpLost, soaked: blocked ? text('log.soaked', { n: blocked }) : '' };
+          if (enemyAttack && !hpLost) addLog(state, text('log.held', params));
+          else if (enemyAttack) addLog(state, text('log.wornDown', params));
+          else addLog(state, text('log.hit', params));
           if (enemyAttack) afterEnemyHit(state, source.id, amount, hpLost);
         }
       }
@@ -86,7 +87,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
     case 'gainBlock': {
       const amount = effect.amount + (source.id === PLAYER_ID ? bonusTotal(state.bonuses, 'bonusBlock') : 0);
       source.block += amount;
-      addLog(state, `${source.name} gained ${amount} ${source.id === PLAYER_ID ? PLAYER_BLOCK_NAME : 'Block'}.`);
+      addLog(state, text(source.id === PLAYER_ID ? 'log.gainHold' : 'log.gainBlock', { who: source.name, n: amount }));
       return;
     }
     case 'pull': {
@@ -95,15 +96,15 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       const held = Math.min(state.player.block, effect.amount);
       state.player.block -= held;
       enemy.escape = Math.min(enemy.escapeAt, enemy.escape + effect.amount - held);
-      const holding = held ? ` (${held} held)` : '';
-      addLog(state, `${enemy.name} pulls on the line${holding}: ${ESCAPE_BAR_NAME} ${enemy.escape}/${enemy.escapeAt}.`);
+      const holding = held ? text('log.heldPart', { n: held }) : '';
+      addLog(state, text('log.pulls', { name: enemy.name, held: holding, escape: enemy.escape, escapeAt: enemy.escapeAt }));
       return;
     }
     case 'applyStatus':
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         addStatus(t, effect.status, effect.amount);
-        const verb = effect.amount >= 0 ? 'gained' : 'lost';
-        addLog(state, `${t.name} ${verb} ${Math.abs(effect.amount)} ${STATUS_META[effect.status].name}.`);
+        const key = effect.amount >= 0 ? 'log.statusGained' : 'log.statusLost';
+        addLog(state, text(key, { who: t.name, n: Math.abs(effect.amount), status: statusName(effect.status) }));
       }
       return;
     case 'drawCards':
@@ -120,7 +121,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         const pull = calming ? Math.ceil((-effect.amount * (state.pullPercent ?? 0)) / 100) : 0;
         const change = effect.amount - pull - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
         enemy.escape = Math.max(0, Math.min(enemy.escapeAt, enemy.escape + change));
-        addLog(state, `${enemy.name} ${change >= 0 ? 'panics' : 'calms down'} (${ESCAPE_BAR_NAME} ${enemy.escape}/${enemy.escapeAt}).`);
+        addLog(state, text(change >= 0 ? 'log.panics' : 'log.calms', { name: enemy.name, escape: enemy.escape, escapeAt: enemy.escapeAt }));
       }
       return;
     case 'changeEscapeRate':
@@ -128,7 +129,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (!('escape' in t)) continue;
         const enemy = t as EnemyState;
         enemy.escapeRate = Math.max(0, enemy.escapeRate + effect.amount);
-        addLog(state, `${enemy.name}'s ${ESCAPE_BAR_NAME} now rises by ${enemy.escapeRate} a turn.`);
+        addLog(state, text('log.rate', { name: enemy.name, n: enemy.escapeRate }));
       }
       return;
   }

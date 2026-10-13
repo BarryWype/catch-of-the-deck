@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { isDebuff, STATUS_META, type StatusId, type Statuses } from '../engine';
+import { isDebuff, statusDescription, statusName, type StatusId, type Statuses } from '../engine';
 
 const props = defineProps<{ statuses: Statuses }>();
 
@@ -15,7 +15,7 @@ const entries = computed(() => Object.entries(props.statuses) as Array<[StatusId
       :key="id"
       class="status"
       :class="isDebuff(id, amount) ? 'debuff' : 'buff'"
-      v-tip="{ title: `${STATUS_META[id].name} ${amount}`, body: STATUS_META[id].description }"
+      v-tip="{ title: `${statusName(id)} ${amount}`, body: statusDescription(id) }"
     >
       {{ ICONS[id] }}<b>{{ amount }}</b>
     </span>

@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PLAYER_BLOCK_NAME, PLAYER_HP_NAME } from '../engine';
+import { t, term } from './i18n';
 
-/** `grit`: the player's bar, named and coloured as Grit (`PLAYER_HP_NAME`). */
+/** `grit`: the player's bar, named and coloured as Grit (`terms.grit` in the language files). */
 const props = defineProps<{ hp: number; maxHp: number; block: number; grit?: boolean }>();
 const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp : 0));
 </script>
 
 <template>
   <div class="healthbar" :class="{ blocking: block > 0, grit }">
-    <span v-if="block > 0" v-tip="`${block} ${grit ? PLAYER_BLOCK_NAME : 'Block'}`" class="block">{{ grit ? '✊' : '🛡️' }}{{ block }}</span>
+    <span v-if="block > 0" v-tip="grit ? `${block} ${term('hold')}` : t('bars.block', { n: block })" class="block">{{ grit ? '✊' : '🛡️' }}{{ block }}</span>
     <div class="bar">
       <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />
-      <span class="label"><template v-if="grit">{{ PLAYER_HP_NAME }}&nbsp;</template>{{ hp }} / {{ maxHp }}</span>
+      <span class="label"><template v-if="grit">{{ term('grit') }}&nbsp;</template>{{ hp }} / {{ maxHp }}</span>
     </div>
   </div>
 </template>

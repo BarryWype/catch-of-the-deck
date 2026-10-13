@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { findNode, isReleaseFight, PLAYER_HP_NAME, SESSION_SLOTS } from '../engine';
+import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
+import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
 import BuildSelect from './BuildSelect.vue';
 import CombatView from './CombatView.vue';
@@ -59,14 +60,14 @@ function startNewRun() {
     <div v-if="screen !== 'menu'" class="run-info">
       <template v-if="run && screen !== 'build'">
         <span>{{ data.builds[run.build]?.name }}</span>
-        <span>Floor {{ run.floor }}</span>
-        <span v-tip="PLAYER_HP_NAME">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
-        <span v-tip="'Coins'">🪙 {{ run.coins }}</span>
-        <span>🂠 Deck {{ run.deck.length }}</span>
+        <span>{{ t('app.floor', { n: run.floor }) }}</span>
+        <span v-tip="term('grit')">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
+        <span v-tip="t('app.coins')">🪙 {{ run.coins }}</span>
+        <span>🂠 {{ t('app.deck', { n: run.deck.length }) }}</span>
       </template>
-      <span class="seed" v-tip="{ title: 'Run seed', detail: 'Open with ?seed=N in the URL to replay this run' }">Seed {{ seed }}</span>
-      <button class="ghost" @click="game.toMenu">Menu</button>
-      <button class="ghost" @click="askNewRun(newRun)">New run</button>
+      <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
+      <button class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
+      <button class="ghost" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
     </div>
   </header>
 
@@ -85,13 +86,13 @@ function startNewRun() {
     <!-- After the build: pick up to SESSION_SLOTS creatures from home to bring along. -->
     <div v-else-if="screen === 'companions' && pickedBuild" class="build-layout">
       <header class="companions-head">
-        <button class="ghost" @click="game.backToBuild">← Back</button>
+        <button class="ghost" @click="game.backToBuild">{{ t('common.back') }}</button>
         <div>
-          <h2>Who comes along?</h2>
+          <h2>{{ t('companions.title') }}</h2>
           <p>
             {{ data.builds[pickedBuild.build]?.name }}
             <template v-if="pickedBuild.item"> · {{ data.equipment[pickedBuild.item]?.name }}</template>
-            — click creatures in your home aquarium to bring up to {{ SESSION_SLOTS }}, or go alone.
+            {{ t('companions.hint', { n: SESSION_SLOTS }) }}
           </p>
         </div>
       </header>
@@ -102,14 +103,14 @@ function startNewRun() {
           :bonds="homeLeft.map((c) => c.bond)"
           :data="data"
           action="bring"
-          :bring-blocked="brought.length >= SESSION_SLOTS ? 'All session slots are taken.' : undefined"
-          title="Home aquarium"
+          :bring-blocked="brought.length >= SESSION_SLOTS ? t('companions.slotsFull') : undefined"
+          :title="t('aquarium.home')"
           icon="🏠"
           @bring="game.bring"
         />
         <div class="slots-column">
           <SessionSlots :brought="brought" :data="data" @remove="game.unbring" />
-          <button class="start-fishing" @click="game.startRun">Start fishing</button>
+          <button class="start-fishing" @click="game.startRun">{{ t('companions.start') }}</button>
         </div>
       </div>
     </div>
@@ -124,7 +125,7 @@ function startNewRun() {
         :companions="run.companions.length"
         :bonds="run.companions.map((c) => c.bond)"
         :data="data"
-        title="Bucket"
+        :title="t('aquarium.bucket')"
         icon="🪣"
         @sell="game.sell"
       />
@@ -135,7 +136,7 @@ function startNewRun() {
       :data="data"
       :equipment="run.equipment"
       :new-eggs="newEggs"
-      :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? 'too big to keep') : null"
+      :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? t('combat.defaultRelease')) : null"
       @action="game.dispatch"
       @claim-victory="game.claimVictory"
       @leave="game.leaveFight"
@@ -144,14 +145,11 @@ function startNewRun() {
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <section v-else-if="screen === 'leave'" class="complete">
       <div class="leave-icon">🏠</div>
-      <h2>Head home?</h2>
-      <p>
-        This ends your run here. The {{ run.bucket.length }} creature{{ run.bucket.length === 1 ? '' : 's' }} in your
-        bucket {{ run.bucket.length === 1 ? 'joins' : 'join' }} your home aquarium.
-      </p>
+      <h2>{{ t('leave.title') }}</h2>
+      <p>{{ t('leave.text', { n: run.bucket.length }) }}</p>
       <div class="complete-actions">
-        <button class="ghost" @click="game.cancelLeave">Go back</button>
-        <button @click="game.finishSession">Head home</button>
+        <button class="ghost" @click="game.cancelLeave">{{ t('leave.back') }}</button>
+        <button @click="game.finishSession">{{ t('leave.confirm') }}</button>
       </div>
     </section>
     <RewardScreen
@@ -166,32 +164,28 @@ function startNewRun() {
     />
     <section v-else-if="screen === 'complete'" class="complete">
       <template v-if="runEnd !== 'fled'">
-        <h2>{{ runEnd === 'won' ? 'Run complete!' : 'Heading home' }}</h2>
-        <p v-if="runEnd === 'won'">You beat every boss of the coast, from kid to elder, with {{ run.hp }} {{ PLAYER_HP_NAME }} left.</p>
-        <p v-else>You call it a day halfway along the shore, with {{ run.hp }} {{ PLAYER_HP_NAME }} left.</p>
-        <p>
-          🪣 → 🏠 {{ run.bucket.length }} creature{{ run.bucket.length === 1 ? '' : 's' }} from your bucket
-          {{ run.bucket.length === 1 ? 'joins' : 'join' }} your home aquarium.
-        </p>
+        <h2>{{ runEnd === 'won' ? t('complete.won') : t('complete.left') }}</h2>
+        <p>{{ t(runEnd === 'won' ? 'complete.wonText' : 'complete.leftText', { grit: run.hp }) }}</p>
+        <p>{{ t('complete.bucketHome', { n: run.bucket.length }) }}</p>
       </template>
       <template v-else>
-        <h2>The boss got away</h2>
-        <p>Your run ends here, and your bucket stays behind.</p>
+        <h2>{{ t('complete.fledTitle') }}</h2>
+        <p>{{ t('complete.fledText') }}</p>
       </template>
-      <p v-if="newEggs" class="new-eggs">🥚 {{ newEggs === 1 ? 'An egg was' : `${newEggs} eggs were` }} laid in your home aquarium!</p>
+      <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
       <div class="complete-actions">
-        <button class="ghost" @click="game.toMenu">Back to the menu</button>
-        <button @click="newRun">Start a new run</button>
+        <button class="ghost" @click="game.toMenu">{{ t('complete.toMenu') }}</button>
+        <button @click="newRun">{{ t('common.startNewRun') }}</button>
       </div>
     </section>
   </main>
 
   <dialog ref="confirmNewRun" class="confirm" @click="$event.target === confirmNewRun && confirmNewRun?.close()">
-    <h3>Start a new run?</h3>
-    <p>You'll lose your current run, and the creatures in your bucket with it. Your home aquarium stays as it is.</p>
+    <h3>{{ t('newRunDialog.title') }}</h3>
+    <p>{{ t('newRunDialog.text') }}</p>
     <footer>
-      <button class="ghost" autofocus @click="confirmNewRun?.close()">Cancel</button>
-      <button class="danger" @click="startNewRun">Abandon run</button>
+      <button class="ghost" autofocus @click="confirmNewRun?.close()">{{ t('common.cancel') }}</button>
+      <button class="danger" @click="startNewRun">{{ t('newRunDialog.abandon') }}</button>
     </footer>
   </dialog>
 

@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef, watch } from 'vue';
-import { gameData } from '../content';
+import { gameData } from './i18n';
 import {
   addCardToDeck,
   rerollReward,

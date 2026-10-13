@@ -4,6 +4,7 @@ import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { pickWeighted } from './rng';
 import type { CombatState, EnemyMove, EnemyState, GameData, MoveTag } from './types';
+import { text } from './text';
 import { addLog } from './util';
 
 export type IntentKind = 'attack' | 'pull' | 'defend' | 'buff' | 'debuff';
@@ -54,7 +55,7 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
 export function executeIntent(state: CombatState, enemy: EnemyState, data: GameData): void {
   const move = getIntentMove(enemy, data);
   if (!move) return;
-  addLog(state, `${enemy.name} uses ${move.name}.`);
+  addLog(state, text('log.uses', { name: enemy.name, move: move.name }));
   for (const effect of move.effects) {
     resolveEffect(state, effect, { sourceId: enemy.id, targetId: PLAYER_ID });
     if (state.player.hp <= 0) break;

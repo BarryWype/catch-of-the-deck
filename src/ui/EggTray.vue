@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import type { GameData } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
+import { t } from './i18n';
 import ParticleCanvas from './ParticleCanvas.vue';
 import SpriteView from './SpriteView.vue';
 import { animatedSheetFor, creatureClip, eggClip } from './sprites';
@@ -40,8 +41,8 @@ function onHatched(index: number) {
       v-for="(id, i) in eggs"
       :key="`${i}-${id}`"
       class="egg"
-      :aria-label="hatching === i ? 'Hatching…' : 'Hatch this egg'"
-      v-tip="'Click to hatch'"
+      :aria-label="hatching === i ? t('eggs.hatching') : t('eggs.hatch')"
+      v-tip="t('eggs.clickToHatch')"
       @click="open(i)"
     >
       <AnimatedSprite
@@ -52,15 +53,15 @@ function onHatched(index: number) {
     </button>
   </div>
 
-  <div v-if="creature" class="reveal" role="dialog" aria-label="An egg hatched" @click="hatched = null">
+  <div v-if="creature" class="reveal" role="dialog" :aria-label="t('eggs.hatched')" @click="hatched = null">
     <div class="burst">
       <div class="halo" />
       <ParticleCanvas class="streamers" effect="streamers" />
       <AnimatedSprite v-if="creatureSheet" class="creature" :clip="creatureClip(creatureSheet, 'idle')" :size="192" />
       <SpriteView v-else-if="creature.sprite" class="creature" :sprite="creature.sprite" :size="160" />
     </div>
-    <h2>It's a {{ creature.name }}!</h2>
-    <p>It joins your home aquarium. Click anywhere to continue.</p>
+    <h2>{{ t('eggs.itsA', { name: creature.name }) }}</h2>
+    <p>{{ t('eggs.joins') }}</p>
   </div>
 </template>
 

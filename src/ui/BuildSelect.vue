@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { creatureTypeNames, describeCard, startingBuilds, type BuildDef, type GameData } from '../engine';
 import CardView from './CardView.vue';
+import { t } from './i18n';
 import SpriteView from './SpriteView.vue';
 
 /** The whole screen: the builds a run can start with, each with its details and starting items. */
@@ -26,9 +27,9 @@ function deckSummary(build: BuildDef) {
 <template>
   <section class="build-select">
     <header class="intro">
-      <button class="ghost back" @click="emit('back')">← Back</button>
-      <h2>Choose how you'll fish</h2>
-      <p>You start as a kid on the shore. More ways to fish open up as you grow.</p>
+      <button class="ghost back" @click="emit('back')">{{ t('common.back') }}</button>
+      <h2>{{ t('build.title') }}</h2>
+      <p>{{ t('build.intro') }}</p>
     </header>
 
     <div class="builds">
@@ -42,11 +43,11 @@ function deckSummary(build: BuildDef) {
         </header>
 
         <div class="strong">
-          <span class="label">Strong against</span>
+          <span class="label">{{ t('build.strongAgainst') }}</span>
           <span v-for="tag in build.strongAgainst" :key="tag" class="chip">{{ tagNames[tag] ?? tag }}</span>
         </div>
 
-        <h4>Starter deck · {{ build.starterDeck.length }} cards</h4>
+        <h4>{{ t('build.starterDeck', { n: build.starterDeck.length }) }}</h4>
         <div class="deck">
           <div v-for="{ card, count } in deckSummary(build)" :key="card.id" class="deck-card">
             <CardView :card="card" :description="describeCard(card, { tagNames })" />
@@ -55,8 +56,8 @@ function deckSummary(build: BuildDef) {
         </div>
 
         <template v-if="build.startingItems?.length">
-          <h4>Starting item · pick one</h4>
-          <div class="items" role="radiogroup" :aria-label="`${build.name} starting item`">
+          <h4>{{ t('build.startingItem') }}</h4>
+          <div class="items" role="radiogroup" :aria-label="t('build.startingItemOf', { build: build.name })">
             <label v-for="id in build.startingItems" :key="id" class="item" :class="{ selected: itemOf(build) === id }">
               <input type="radio" :name="`item-${build.id}`" :value="id" :checked="itemOf(build) === id" @change="picked[build.id] = id" />
               <span class="item-icon">{{ data.equipment[id]?.icon ?? '🎒' }}</span>
@@ -69,7 +70,7 @@ function deckSummary(build: BuildDef) {
         </template>
 
         <button class="choose" @click="emit('choose', build.id, itemOf(build))">
-          Fish with {{ build.name }}<template v-if="itemOf(build)"> + {{ data.equipment[itemOf(build)!]?.name }}</template>
+          {{ t('build.fishWith', { build: build.name }) }}<template v-if="itemOf(build)"> + {{ data.equipment[itemOf(build)!]?.name }}</template>
         </button>
       </article>
     </div>

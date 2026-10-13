@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { creatureTypeNames, describeCard, PLAYER_HP_NAME, shopItemBlocked, type GameData, type RunState, type ShopItemDef, type ShopVisit } from '../engine';
+import { creatureTypeNames, describeCard, shopItemBlocked, type GameData, type RunState, type ShopItemDef, type ShopVisit } from '../engine';
 import CardView from './CardView.vue';
+import { t } from './i18n';
 
 const props = defineProps<{ run: RunState; data: GameData; visit: ShopVisit }>();
 const emit = defineEmits<{ buy: [itemId: string, cardIndex?: number]; leave: [] }>();
@@ -11,7 +12,7 @@ const tagNames = computed(() => creatureTypeNames(props.data));
 const removing = ref<ShopItemDef | null>(null);
 
 function effectText(item: ShopItemDef) {
-  return item.effect.type === 'heal' ? `Restore ${item.effect.amount} ${PLAYER_HP_NAME}.` : 'Remove a card from your deck.';
+  return item.effect.type === 'heal' ? t('shop.heal', { n: item.effect.amount }) : t('shop.removeCard');
 }
 
 function onBuy(item: ShopItemDef) {
@@ -29,11 +30,11 @@ function onPickCard(index: number) {
 <template>
   <section class="shop">
     <div class="icon">🛒</div>
-    <h2>Bait &amp; Tackle Shop</h2>
-    <p class="wallet">You have 🪙 {{ run.coins }} · 💪 {{ PLAYER_HP_NAME }} {{ run.hp }}/{{ run.maxHp }}</p>
+    <h2>{{ t('shop.title') }}</h2>
+    <p class="wallet">{{ t('shop.wallet', { coins: run.coins, grit: run.hp, max: run.maxHp }) }}</p>
 
     <template v-if="removing">
-      <p>Choose a card to remove for 🪙 {{ removing.price }}.</p>
+      <p>{{ t('shop.chooseRemove', { coins: removing.price }) }}</p>
       <div class="deck">
         <CardView
           v-for="(id, i) in run.deck"
@@ -43,7 +44,7 @@ function onPickCard(index: number) {
           @click="onPickCard(i)"
         />
       </div>
-      <button class="ghost" @click="removing = null">Cancel</button>
+      <button class="ghost" @click="removing = null">{{ t('common.cancel') }}</button>
     </template>
 
     <template v-else>
@@ -51,12 +52,12 @@ function onPickCard(index: number) {
         <div v-for="item in data.shop" :key="item.id" class="item">
           <span class="item-icon">{{ item.icon ?? '🎁' }}</span>
           <strong>{{ item.name }}</strong>
-          <span class="text">{{ effectText(item) }}{{ item.limit ? ` Once per visit.` : '' }}</span>
+          <span class="text">{{ effectText(item) }}{{ item.limit ? ` ${t('shop.oncePerVisit')}` : '' }}</span>
           <button :disabled="!!shopItemBlocked(item, run, visit)" @click="onBuy(item)">🪙 {{ item.price }}</button>
           <span class="blocked">{{ shopItemBlocked(item, run, visit) ?? '' }}</span>
         </div>
       </div>
-      <button class="ghost" @click="emit('leave')">Leave the shop</button>
+      <button class="ghost" @click="emit('leave')">{{ t('shop.leave') }}</button>
     </template>
   </section>
 </template>

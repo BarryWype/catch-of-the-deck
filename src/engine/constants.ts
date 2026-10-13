@@ -13,9 +13,3 @@ export const PATIENCE_ESCAPE_PERCENT = 10;
 export const MAX_PATIENCE = 5;
 /** Hold left at the end of the creatures' turn becomes 1 Patience per this much. */
 export const HOLD_PER_PATIENCE = 3;
-/** Player-facing name of the player's Block: their hold on the line, which soaks Strikes and Pulls. */
-export const PLAYER_BLOCK_NAME = 'Hold';
-/** Player-facing name of the player's HP: the will to keep fishing, worn down by the creatures. */
-export const PLAYER_HP_NAME = 'Grit';
-/** Player-facing name of a creature's escape bar. */
-export const ESCAPE_BAR_NAME = 'Panic';

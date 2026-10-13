@@ -14,7 +14,6 @@ import {
   HOLD_PER_PATIENCE,
   MAX_PATIENCE,
   PATIENCE_ESCAPE_PERCENT,
-  PLAYER_HP_NAME,
   validateAction,
   type CardInstance,
   type CombatAction,
@@ -23,6 +22,7 @@ import {
   type GameData,
 } from '../engine';
 import CardView from './CardView.vue';
+import { t, term } from './i18n';
 import CombatantView from './CombatantView.vue';
 import {
   animatedSheetFor,
@@ -46,10 +46,10 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; restart: [] }>();
 
-const PATIENCE_TIP =
-  `Every energy point not used at the end of the turn generates a patience point. Every ${HOLD_PER_PATIENCE} Hold left ` +
-  `after the creatures' turn gives one too. Each point reduces the escape rate of creatures by ${PATIENCE_ESCAPE_PERCENT}%, ` +
-  `up to ${MAX_PATIENCE} points.`;
+const PATIENCE_TIP = t('combat.patienceTip', { hold: HOLD_PER_PATIENCE, percent: PATIENCE_ESCAPE_PERCENT, max: MAX_PATIENCE });
+
+/** The creatures let go after a mini-boss or boss fight, named once each. */
+const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => e.name))].join(t('combat.and')));
 
 /** A card waiting for the player to click an enemy (keyboard play). */
 const selectedUid = ref<string | null>(null);
@@ -128,7 +128,7 @@ function leaveBattlefield(enemy: EnemyState) {
     setTimeout(() => {
       if (props.state.phase !== 'playerTurn') return;
       gone.add(enemy.id);
-      const text = props.releaseReason ? `${enemy.name} swims away` : `🪣 ${enemy.name} caught!`;
+      const text = props.releaseReason ? t('combat.swimsAway', { name: enemy.name }) : t('combat.caught', { name: enemy.name });
       caughtNotes.value = [...caughtNotes.value, { id: enemy.id, text }];
       leaveTimers.push(setTimeout(() => (caughtNotes.value = caughtNotes.value.filter((n) => n.id !== enemy.id)), 1800));
     }, LEAVE_DELAY_MS),
@@ -360,8 +360,8 @@ function onEnemyClick(enemy: EnemyState) {
 }
 
 const hint = computed(() => {
-  if (drag.value?.moved) return drag.value.aimed ? 'Drop it on a creature…' : 'Drop it on the battlefield…';
-  return selectedUid.value ? 'Choose a target…' : null;
+  if (drag.value?.moved) return drag.value.aimed ? t('combat.dropOnCreature') : t('combat.dropOnBattlefield');
+  return selectedUid.value ? t('combat.chooseTarget') : null;
 });
 
 function endTurn() {
@@ -409,11 +409,11 @@ function endTurn() {
 
     <section class="controls">
       <div class="side">
-        <div v-tip="'Energy'" class="energy">{{ state.player.energy }}/{{ state.player.maxEnergy }}</div>
-        <div v-tip="{ title: 'Patience', body: PATIENCE_TIP }" class="patience" tabindex="0">
-          <span class="patience-count" :class="{ empty: !state.player.patience }">⏳ Patience {{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
+        <div v-tip="t('combat.energy')" class="energy">{{ state.player.energy }}/{{ state.player.maxEnergy }}</div>
+        <div v-tip="{ title: term('patience'), body: PATIENCE_TIP }" class="patience" tabindex="0">
+          <span class="patience-count" :class="{ empty: !state.player.patience }">⏳ {{ term('patience') }} {{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
         </div>
-        <div v-tip="'Draw pile'" class="pile">🂠 Draw {{ state.piles.draw.length }}</div>
+        <div v-tip="t('combat.drawPile')" class="pile">🂠 {{ t('combat.draw', { n: state.piles.draw.length }) }}</div>
       </div>
 
       <div class="hand">
@@ -435,9 +435,9 @@ function endTurn() {
       </div>
 
       <div class="side">
-        <button class="end-turn" :disabled="!isPlayerTurn" @click="endTurn">End Turn</button>
-        <div v-tip="'Discard pile'" class="pile">♻️ Discard {{ state.piles.discard.length }}</div>
-        <div v-tip="'Exhausted cards'" class="pile">🔥 Exhaust {{ state.piles.exhaust.length }}</div>
+        <button class="end-turn" :disabled="!isPlayerTurn" @click="endTurn">{{ t('combat.endTurn') }}</button>
+        <div v-tip="t('combat.discardPile')" class="pile">♻️ {{ t('combat.discard', { n: state.piles.discard.length }) }}</div>
+        <div v-tip="t('combat.exhaustPile')" class="pile">🔥 {{ t('combat.exhaust', { n: state.piles.exhaust.length }) }}</div>
       </div>
     </section>
 
@@ -464,30 +464,29 @@ function endTurn() {
     <div v-if="state.phase !== 'playerTurn' && overlayVisible" class="overlay">
       <div class="panel">
         <template v-if="state.phase === 'won'">
-          <h2>Victory!</h2>
-          <p>You won in {{ state.turn }} turn{{ state.turn === 1 ? '' : 's' }} with {{ state.player.hp }} {{ PLAYER_HP_NAME }} left.</p>
+          <h2>{{ t('combat.victory') }}</h2>
+          <p>{{ t('combat.wonIn', { n: state.turn, grit: state.player.hp }) }}</p>
           <p v-if="releaseReason">
-            {{ [...new Set(state.enemies.map((e) => e.name))].join(' and ') }} {{ state.enemies.length > 1 ? 'are' : 'is' }}
-            {{ releaseReason }}, so you let {{ state.enemies.length > 1 ? 'them' : 'it' }} go.
+            {{ t(state.enemies.length > 1 ? 'combat.releasedMany' : 'combat.releasedOne', { names: releasedNames, reason: releaseReason }) }}
           </p>
-          <p v-else-if="instantSale !== null">Sold on the spot for 🪙 {{ instantSale }}.</p>
-          <button @click="emit('claimVictory')">Choose a reward</button>
+          <p v-else-if="instantSale !== null">{{ t('combat.soldOnSpot', { coins: instantSale }) }}</p>
+          <button @click="emit('claimVictory')">{{ t('combat.chooseReward') }}</button>
         </template>
         <template v-else-if="state.phase === 'fled'">
-          <h2>It got away!</h2>
+          <h2>{{ t('combat.fledTitle') }}</h2>
           <p>
-            {{ state.enemies.find((e) => e.escape >= e.escapeAt)?.name }} broke free on turn {{ state.turn }}.
-            <template v-if="!caughtBeforeEscape.length">No catch this time.</template>
-            <template v-else-if="releaseReason">You let the others go.</template>
-            <template v-else>{{ caughtBeforeEscape.join(', ') }} stay{{ caughtBeforeEscape.length === 1 ? 's' : '' }} in your bucket.</template>
+            {{ t('combat.brokeFree', { name: state.enemies.find((e) => e.escape >= e.escapeAt)?.name ?? '', n: state.turn }) }}
+            <template v-if="!caughtBeforeEscape.length">{{ t('combat.noCatch') }}</template>
+            <template v-else-if="releaseReason">{{ t('combat.letOthersGo') }}</template>
+            <template v-else>{{ t('combat.othersStay', { names: caughtBeforeEscape.join(', '), n: caughtBeforeEscape.length }) }}</template>
           </p>
-          <button @click="emit('leave')">Back to the map</button>
+          <button @click="emit('leave')">{{ t('combat.backToMap') }}</button>
         </template>
         <template v-else>
-          <h2>Out of grit</h2>
-          <p>You gave up on turn {{ state.turn }}: the creatures wore you down.</p>
-          <p v-if="newEggs" class="new-eggs">🥚 {{ newEggs === 1 ? 'An egg was' : `${newEggs} eggs were` }} laid in your home aquarium!</p>
-          <button @click="emit('restart')">Start a new run</button>
+          <h2>{{ t('combat.defeatTitle') }}</h2>
+          <p>{{ t('combat.defeatText', { n: state.turn }) }}</p>
+          <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
+          <button @click="emit('restart')">{{ t('common.startNewRun') }}</button>
         </template>
       </div>
     </div>

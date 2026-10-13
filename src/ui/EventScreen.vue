@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { t } from './i18n';
 import { describeEventEffect, eventChoiceBlocked, type GameData, type RunState } from '../engine';
 
 const props = defineProps<{ eventId: string; run: RunState; data: GameData }>();
@@ -9,7 +10,7 @@ const event = computed(() => props.data.events[props.eventId]);
 const choices = computed(() =>
   event.value.choices.map((choice) => ({
     label: choice.label,
-    text: choice.effects.map((e) => describeEventEffect(e, props.run, props.data)).join(' ') || 'Nothing happens.',
+    text: choice.effects.map((e) => describeEventEffect(e, props.run, props.data)).join(' ') || t('event.nothing'),
     blocked: eventChoiceBlocked(choice, props.run),
   })),
 );

@@ -10,6 +10,7 @@ import {
   type MapNode,
   type RunState,
 } from '../engine';
+import { t } from './i18n';
 import basemapUrl from './assets/map/basemap.png';
 import seaUrl from './assets/map/sea.png';
 
@@ -89,26 +90,26 @@ function creatureNames(node: MapNode) {
 
 /** Hover text: what the node is, plus a hint when the build is strong against its creatures. */
 function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: string } {
-  const strong = isStrong(node) ? 'Your gear is strong against these' : undefined;
+  const strong = isStrong(node) ? t('map.strong') : undefined;
   switch (node.kind) {
     case 'start':
       return { title: props.data.character.home.name };
     case 'shop':
-      return { title: 'Shop' };
+      return { title: t('map.shop') };
     case 'event':
-      return { title: 'Event' };
+      return { title: t('map.event') };
     case 'treasure':
-      return { title: 'Treasure' };
+      return { title: t('map.treasure') };
     case 'leave':
-      return { title: 'Head home', detail: 'Ends the run here; your bucket comes home' };
+      return { title: t('map.headHome'), detail: t('map.headHomeDetail') };
     case 'miniBoss':
     case 'boss':
-      return { title: `${node.kind === 'boss' ? 'Boss' : 'Mini-boss'} · ${node.label ?? ''}`, detail: creatureNames(node), hint: strong };
+      return { title: `${t(node.kind === 'boss' ? 'map.boss' : 'map.miniBoss')} · ${node.label ?? ''}`, detail: creatureNames(node), hint: strong };
     default: {
       const spot = node.spot ? props.data.spots[node.spot] : undefined;
       const type = node.creatureType ? props.data.creatureTypes[node.creatureType]?.name : undefined;
       const detail = node.enemies ? creatureNames(node) : [node.label && spot?.name, type].filter(Boolean).join(' · ');
-      return { title: node.label ?? spot?.name ?? 'Fight', detail: detail || undefined, hint: strong };
+      return { title: node.label ?? spot?.name ?? t('map.fight'), detail: detail || undefined, hint: strong };
     }
   }
 }
@@ -163,7 +164,7 @@ function choose(node: MapNode) {
 
 <template>
   <section class="map-screen">
-    <ul v-if="equipment.length || bonuses.length" class="equipment" aria-label="Equipment and companion bonuses">
+    <ul v-if="equipment.length || bonuses.length" class="equipment" :aria-label="t('map.equipment')">
       <li
         v-for="item in equipment"
         :key="item.id"
@@ -177,7 +178,7 @@ function choose(node: MapNode) {
       <li
         v-for="b in bonuses"
         :key="b.def.id"
-        v-tip="{ title: b.def.name, detail: `${b.species} ${b.def.temperamentName} species brought`, body: b.text.join(' ') }"
+        v-tip="{ title: b.def.name, detail: t('map.speciesBrought', { n: b.species, temperament: b.def.temperamentName }), body: b.text.join(' ') }"
         class="item companion"
         tabindex="0"
         :aria-label="b.def.name"
@@ -188,18 +189,18 @@ function choose(node: MapNode) {
 
     <p class="level-name">{{ level?.name }}</p>
     <button class="legend-toggle" :aria-expanded="showLegend" @click="showLegend = !showLegend">
-      {{ showLegend ? 'Hide legend' : 'Legend' }}
+      {{ showLegend ? t('map.hideLegend') : t('map.legend') }}
     </button>
-    <ul v-if="showLegend" class="legend" aria-label="Map legend">
+    <ul v-if="showLegend" class="legend" :aria-label="t('map.legend')">
       <li v-for="spot in data.spots" :key="spot.id">
         <span class="swatch" :style="{ background: spot.color }" /><b>{{ spot.id }}</b> {{ spot.name }}
       </li>
-      <li><span class="sym">?</span> Event</li>
-      <li><span class="sym">$</span> Shop</li>
-      <li><span class="sym">T</span> Treasure</li>
-      <li><span class="sym leave">⌂</span> Head home (ends the run)</li>
-      <li><span class="sym diamond" /> Mini-boss</li>
-      <li><span class="sym boss" /> Boss</li>
+      <li><span class="sym">?</span> {{ t('map.event') }}</li>
+      <li><span class="sym">$</span> {{ t('map.shop') }}</li>
+      <li><span class="sym">T</span> {{ t('map.treasure') }}</li>
+      <li><span class="sym leave">⌂</span> {{ t('map.headHomeLegend') }}</li>
+      <li><span class="sym diamond" /> {{ t('map.miniBoss') }}</li>
+      <li><span class="sym boss" /> {{ t('map.boss') }}</li>
     </ul>
 
     <div ref="scroller" class="map-scroll">
@@ -209,7 +210,7 @@ function choose(node: MapNode) {
         :height="size.height"
         :viewBox="`${view.x} ${view.y} ${view.width} ${view.height}`"
         role="group"
-        :aria-label="`Map: ${level?.name}`"
+        :aria-label="t('map.label', { name: level?.name ?? '' })"
       >
         <g class="art" aria-hidden="true">
           <image :href="basemapUrl" :width="ART_WIDTH" :height="COAST_HEIGHT" />
@@ -270,7 +271,7 @@ function choose(node: MapNode) {
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
           <text v-if="node.label && (node.kind === 'miniBoss' || node.kind === 'boss')" class="label" :text-anchor="labelAnchor(node)" :x="labelAnchor(node) === 'end' ? 18 : 0" :y="node.kind === 'boss' ? -28 : -22">
-            {{ node.kind === 'boss' ? 'boss' : 'mini-boss' }} · {{ node.label }}
+            {{ t(node.kind === 'boss' ? 'map.bossLabel' : 'map.miniBossLabel') }} · {{ node.label }}
           </text>
         </g>
       </svg>
