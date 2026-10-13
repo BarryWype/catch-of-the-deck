@@ -1,8 +1,20 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  BASE_ENERGY,
+  ESCAPE_BAR_NAME,
+  HOLD_PER_PATIENCE,
+  MAX_PATIENCE,
+  PATIENCE_ESCAPE_PERCENT,
+  PLAYER_BLOCK_NAME,
+  PLAYER_HP_NAME,
+  STARTING_HAND_SIZE,
+  STRONG_BONUS_PERCENT,
+} from '../engine';
 import type { Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CreatureBook from './CreatureBook.vue';
+import SideDrawer from './SideDrawer.vue';
 
 defineProps<{
   canResume: boolean;
@@ -13,8 +25,8 @@ defineProps<{
 const emit = defineEmits<{ resume: []; newRun: []; reset: []; debugStart: [levelIndex: number, kind: 'miniBoss' | 'boss'] }>();
 
 /**
- * Temporary shortcuts for testing the bosses, shown when "Show debug panel" is ticked in the
- * options. The choice is a per-device convenience, kept in localStorage.
+ * Temporary shortcuts for testing the bosses, in a drawer on the left shown when "Show debug
+ * panel" is ticked in the options. The choice is a per-device convenience, kept in localStorage.
  */
 const DEBUG_KEY = 'slay-the-fish:debug-panel';
 function readDebug() {
@@ -102,10 +114,30 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
       </nav>
     </div>
     <button v-else class="show-menu" @click="viewing = false">☰ Menu</button>
-    <nav v-if="debug && !viewing" class="debug" aria-label="Debug shortcuts">
-      <strong>🛠 Debug</strong>
-      <button v-for="d in DEBUG_STARTS" :key="d.label" class="ghost" @click="emit('debugStart', d.level, d.kind)">{{ d.label }}</button>
-    </nav>
+    <!-- Left edge: the guide, with the debug drawer under it when enabled in the options. -->
+    <SideDrawer side="left" icon="📘" title="How to play" :tab-offset="debug ? -34 : 0" :width="460">
+      <ul class="guide">
+        <li><b>Catch creatures</b> by bringing their health to 0, or their {{ ESCAPE_BAR_NAME }} bar down to 0. If the {{ ESCAPE_BAR_NAME }} bar fills up, it gets away.</li>
+        <li><b>Each turn</b> you have {{ BASE_ENERGY }} energy and {{ STARTING_HAND_SIZE }} cards. Drag a card onto a creature (or onto the battlefield) to play it, then End Turn.</li>
+        <li><b>{{ PLAYER_HP_NAME }}</b> is your will to keep fishing. It carries over between fights; at 0 the run is lost, bucket included.</li>
+        <li><b>{{ PLAYER_BLOCK_NAME }}</b> is your grip on the line: it soaks what the creatures do before it reaches you.</li>
+        <li><b>Strike</b> moves wear down your {{ PLAYER_HP_NAME }}. <b>Pull</b> moves raise the creature's {{ ESCAPE_BAR_NAME }} bar. {{ PLAYER_BLOCK_NAME }} stops both.</li>
+        <li>
+          <b>Patience:</b> unused energy, and every {{ HOLD_PER_PATIENCE }} unused {{ PLAYER_BLOCK_NAME }}, give a point (up to {{ MAX_PATIENCE }}).
+          Each slows the {{ ESCAPE_BAR_NAME }} bars by {{ PATIENCE_ESCAPE_PERCENT }}%.
+        </li>
+        <li><b>Your fishing style</b> deals {{ STRONG_BONUS_PERCENT }}% more to the creature types it's strong against.</li>
+        <li><b>You age</b> from Kid to Adult to Elder: further out, bigger catches. Each age has a mini-boss and a boss, who are always let go.</li>
+        <li><b>Head home</b> (⌂, after each mini-boss) to end the run safely: your bucket joins your home aquarium.</li>
+        <li><b>Companions:</b> bring up to 3 creatures from home for a bonus. Lose the run and they're lost too.</li>
+      </ul>
+    </SideDrawer>
+    <SideDrawer v-if="debug" side="left" icon="🛠" title="Debug" :tab-offset="34" :width="300">
+      <nav class="debug" aria-label="Debug shortcuts">
+        <p>Start a run right before each fight:</p>
+        <button v-for="d in DEBUG_STARTS" :key="d.label" class="ghost" @click="emit('debugStart', d.level, d.kind)">{{ d.label }}</button>
+      </nav>
+    </SideDrawer>
     <button v-if="!viewing" class="ghost reset" @click="confirmReset?.showModal()">Reset progression</button>
 
     <dialog ref="confirmReset" class="confirm" @click="$event.target === confirmReset && confirmReset?.close()">
@@ -186,22 +218,10 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 .option small { display: block; color: var(--muted); font-size: 0.75rem; }
 .option input { width: 20px; height: 20px; accent-color: var(--highlight); cursor: pointer; }
 
-.debug {
-  position: absolute;
-  top: 50%;
-  left: 16px;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border: 1px dashed #c94a4a;
-  border-radius: 10px;
-  background: rgb(15 18 25 / 0.75);
-  transform: translateY(-50%);
-  font-size: 0.8rem;
-}
-.debug strong { color: #f08b8b; }
-.debug button { padding: 6px 10px; font-size: 0.8rem; background: rgb(15 18 25 / 0.6); color: var(--text); }
+.guide { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 18px 20px 18px 36px; line-height: 1.45; }
+.guide b { color: var(--highlight); }
+.debug { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+.debug p { margin: 0 0 4px; color: var(--muted); font-size: 0.85rem; }
+.debug button { padding: 8px 12px; background: rgb(15 18 25 / 0.6); color: var(--text); text-align: left; }
 .show-menu { position: absolute; top: 12px; right: 16px; z-index: 1; padding: 8px 14px; }
 </style>

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed } from 'vue';
 import { creatureTypeNames, type Discovery, type GameData } from '../engine';
+import SideDrawer from './SideDrawer.vue';
 import SpriteView from './SpriteView.vue';
 
 /**
- * A 📖 tab on the right edge that opens a full-height drawer listing every creature in the game.
+ * A 📖 tab on the right edge that opens a drawer listing every creature in the game.
  * Creatures never encountered show as a question mark.
  */
 const props = defineProps<{
@@ -13,8 +14,6 @@ const props = defineProps<{
   discovered: Readonly<Record<string, Discovery>>;
 }>();
 
-const open = ref(false);
-const closeButton = ref<HTMLButtonElement>();
 const tagNames = computed(() => creatureTypeNames(props.data));
 
 /** Every creature, in sprite-sheet order, with how far the player got with it and how many are at home. */
@@ -35,29 +34,13 @@ const creatures = computed(() => {
 });
 const discoveredCount = computed(() => creatures.value.filter((c) => c.status).length);
 
-async function show() {
-  open.value = true;
-  await nextTick();
-  closeButton.value?.focus();
-}
-
-function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') open.value = false;
-}
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <button class="book-tab" aria-label="Open the creature book" title="Creature book" @click="show">📖</button>
-
-  <div class="scrim" :class="{ open }" @click="open = false" />
-  <aside class="drawer" :class="{ open }" role="dialog" aria-modal="true" aria-label="Creature book" :inert="!open">
-    <header>
-      <h2>📖 Creature book</h2>
+  <SideDrawer icon="📖" title="Creature book">
+    <template #header>
       <span class="total">{{ discoveredCount }} / {{ creatures.length }} discovered</span>
-      <button ref="closeButton" class="ghost close" aria-label="Close the creature book" @click="open = false">✕</button>
-    </header>
+    </template>
     <ul class="grid">
       <li
         v-for="c in creatures"
@@ -77,53 +60,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         </template>
       </li>
     </ul>
-  </aside>
+  </SideDrawer>
 </template>
 
 <style scoped>
-.book-tab {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  z-index: 2;
-  transform: translateY(-50%);
-  padding: 12px 10px;
-  border-radius: 12px 0 0 12px;
-  font-size: 1.6rem;
-  line-height: 1;
-}
-
-.scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  background: rgb(5 8 12 / 0.55);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-.scrim.open { opacity: 1; pointer-events: auto; }
-
-.drawer {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  width: min(620px, 92vw);
-  background: var(--panel);
-  box-shadow: -8px 0 24px rgb(0 0 0 / 0.45);
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
-}
-.drawer.open { transform: translateX(0); }
-
-.drawer header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #2c3a4a; }
-.drawer h2 { margin: 0; font-size: 1.2rem; }
 .total { color: var(--muted); font-size: 0.85rem; }
-.close { margin-left: auto; padding: 4px 10px; }
 
 .grid {
   display: grid;
@@ -132,7 +73,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   margin: 0;
   padding: 16px;
   list-style: none;
-  overflow-y: auto;
 }
 .creature {
   position: relative;
@@ -166,9 +106,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   background: #2f5a3a;
   font-size: 0.7rem;
   font-weight: 700;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .drawer, .scrim { transition: none; }
 }
 </style>
