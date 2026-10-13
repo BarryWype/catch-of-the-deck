@@ -271,26 +271,50 @@ function onCardPointerDown(card: CardInstance, event: PointerEvent) {
     targetId: null,
     overBattlefield: false,
   };
+  // Nothing on the battlefield moves while a card is held: measure it once, now.
+  zones = {
+    field: battlefield.value?.getBoundingClientRect() ?? null,
+    enemies: [...document.querySelectorAll<HTMLElement>('[data-enemy-id]')].map((el) => ({
+      id: el.dataset.enemyId!,
+      rect: el.getBoundingClientRect(),
+    })),
+  };
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', stopDrag);
 }
 
+/** The battlefield and creatures, measured when the drag starts, so moving never reads layout. */
+let zones: { field: DOMRect | null; enemies: { id: string; rect: DOMRect }[] } = { field: null, enemies: [] };
+const inside = (r: DOMRect, x: number, y: number) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+/** The latest pointer position, applied at most once per frame. */
+const pointer = { x: 0, y: 0 };
+let moveFrame = 0;
+
 function onPointerMove(event: PointerEvent) {
-  const d = drag.value;
-  if (!d) return;
-  d.x = event.clientX;
-  d.y = event.clientY;
-  d.moved ||= Math.hypot(d.x - d.startX, d.y - d.startY) > DRAG_THRESHOLD_PX;
-  const enemyEl = document.elementFromPoint(d.x, d.y)?.closest<HTMLElement>('[data-enemy-id]');
-  const id = enemyEl?.dataset.enemyId;
-  const action = { type: 'playCard' as const, cardUid: d.uid, targetId: id };
-  d.targetId = d.aimed && id && validateAction(props.state, action, props.data) === null ? id : null;
-  const field = battlefield.value?.getBoundingClientRect();
-  d.overBattlefield = !!field && d.y >= field.top && d.y <= field.bottom && d.x >= field.left && d.x <= field.right;
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
+  moveFrame ||= requestAnimationFrame(applyPointer);
 }
 
-function onPointerUp() {
+function applyPointer() {
+  moveFrame = 0;
+  const d = drag.value;
+  if (!d) return;
+  d.x = pointer.x;
+  d.y = pointer.y;
+  d.moved ||= Math.hypot(d.x - d.startX, d.y - d.startY) > DRAG_THRESHOLD_PX;
+  const id = zones.enemies.find((e) => inside(e.rect, d.x, d.y))?.id;
+  const action = { type: 'playCard' as const, cardUid: d.uid, targetId: id };
+  d.targetId = d.aimed && id && validateAction(props.state, action, props.data) === null ? id : null;
+  d.overBattlefield = !!zones.field && inside(zones.field, d.x, d.y);
+}
+
+function onPointerUp(event: PointerEvent) {
+  // Where it was released counts, even if that move wasn't drawn yet.
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
+  if (drag.value) applyPointer();
   const d = drag.value;
   stopDrag();
   if (!d?.moved) return;
@@ -299,6 +323,8 @@ function onPointerUp() {
 }
 
 function stopDrag() {
+  cancelAnimationFrame(moveFrame);
+  moveFrame = 0;
   drag.value = null;
   window.removeEventListener('pointermove', onPointerMove);
   window.removeEventListener('pointerup', onPointerUp);
@@ -546,22 +572,23 @@ function endTurn() {
 .aim { position: fixed; inset: 0; z-index: 20; width: 100vw; height: 100vh; pointer-events: none; overflow: visible; }
 .aim { color: #c9d3df; }
 .aim.locked { color: var(--highlight); }
-.aim path { fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 12; animation: aim-march 0.5s linear infinite; }
-.aim marker path { fill: currentColor; stroke: none; animation: none; }
-@keyframes aim-march { to { stroke-dashoffset: -14; } }
+.aim path { fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 12; }
+.aim marker path { fill: currentColor; stroke: none; }
 
 .played-card { position: fixed; z-index: 15; pointer-events: none; }
 .played-card :deep(.card) { transition: none; }
 .played-card.thrown { animation: card-thrown 0.38s cubic-bezier(0.5, 0, 0.75, 0.4) forwards; }
 .played-card.flared { animation: card-flared 0.4s ease-out forwards; }
+/* A still glow: animating a filter would repaint the card on every frame. */
+.played-card.flared :deep(.card) { box-shadow: 0 0 0 2px var(--highlight), 0 0 22px rgb(245 215 110 / 0.8); }
 @keyframes card-thrown {
   0% { transform: none; }
   100% { transform: translate(var(--dx), var(--dy)) scale(0.35) rotate(18deg); opacity: 0.2; }
 }
 @keyframes card-flared {
-  0% { transform: scale(1.05); filter: brightness(1); }
-  40% { transform: scale(1.15); filter: brightness(1.6) drop-shadow(0 0 18px rgb(245 215 110 / 0.8)); opacity: 1; }
-  100% { transform: translateY(-40px) scale(1.25); filter: brightness(2); opacity: 0; }
+  0% { transform: scale(1.05); }
+  40% { transform: scale(1.15); opacity: 1; }
+  100% { transform: translateY(-40px) scale(1.25); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .played-card.thrown, .played-card.flared { animation-duration: 0.01s; }

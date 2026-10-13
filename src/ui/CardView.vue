@@ -69,11 +69,23 @@ const parts = computed(() =>
   text-align: center;
   cursor: pointer;
   box-shadow: 0 4px 10px rgb(0 0 0 / 0.4);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }
+/* The deeper hover shadow fades in on its own layer, so only opacity animates. */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 10px 18px rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+.card:hover:not(.unplayable)::after { opacity: 1; }
 .card.skill { --frame: var(--skill); }
 .card.power { --frame: var(--power); }
-.card:hover:not(.unplayable) { transform: translateY(-12px); box-shadow: 0 10px 18px rgb(0 0 0 / 0.5); }
+.card:hover:not(.unplayable) { transform: translateY(-12px); }
 .card.selected { transform: translateY(-20px); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
 .card.unplayable { opacity: 0.5; cursor: not-allowed; }
 

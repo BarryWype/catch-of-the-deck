@@ -11,7 +11,7 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
   <div class="healthbar" :class="{ blocking: block > 0, grit }">
     <span v-if="block > 0" v-tip="`${block} ${grit ? PLAYER_BLOCK_NAME : 'Block'}`" class="block">{{ grit ? '✊' : '🛡️' }}{{ block }}</span>
     <div class="bar">
-      <div class="fill" :style="{ width: `${percent}%` }" />
+      <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />
       <span class="label"><template v-if="grit">{{ PLAYER_HP_NAME }}&nbsp;</template>{{ hp }} / {{ maxHp }}</span>
     </div>
   </div>
@@ -29,7 +29,7 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
   border: 1px solid #0006;
 }
 .blocking .bar { outline: 2px solid var(--block); }
-.fill { height: 100%; background: var(--hp); transition: width 0.25s ease; }
+.fill { height: 100%; background: var(--hp); transform-origin: left; transition: transform 0.25s ease; }
 .blocking .fill { background: color-mix(in srgb, var(--hp) 55%, var(--block)); }
 .grit .bar { background: #3a2716; }
 .grit .fill { background: var(--grit); }

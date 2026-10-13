@@ -63,8 +63,22 @@ defineEmits<{ select: []; animationDone: [] }>();
   padding: 10px 14px;
   border-radius: 14px;
   border: 2px solid transparent;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  position: relative;
 }
+/* The target highlight sits on its own layer and fades in, so only opacity animates. */
+.combatant::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--highlight);
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.04);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+.targetable::before { opacity: 1; }
+.targetable:hover::before { background: rgb(255 255 255 / 0.09); }
 .intent-slot { min-height: 44px; display: flex; align-items: flex-end; }
 .portrait {
   display: grid;
@@ -72,7 +86,21 @@ defineEmits<{ select: []; animationDone: [] }>();
   min-height: 128px;
   font-size: 4.5rem;
   line-height: 1;
-  filter: drop-shadow(0 6px 6px rgb(0 0 0 / 0.5));
+  position: relative;
+  isolation: isolate;
+}
+/* A still shadow on the ground under the creature: a drop-shadow filter around an animated
+   sprite would be redrawn on every frame. */
+.portrait::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 20%;
+  z-index: -1;
+  width: 60%;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(0 0 0 / 0.45), transparent 70%);
 }
 .name { font-weight: 700; }
 .subtitle {
@@ -88,6 +116,5 @@ defineEmits<{ select: []; animationDone: [] }>();
 /* Animated combatants show their capture/defeat animation instead of fading out. */
 .dead.animated { opacity: 1; filter: none; }
 .dead.animated > :not(.portrait) { opacity: 0.35; }
-.targetable { cursor: crosshair; border-color: var(--highlight); background: rgb(255 255 255 / 0.04); }
-.targetable:hover { background: rgb(255 255 255 / 0.09); }
+.targetable { cursor: crosshair; }
 </style>

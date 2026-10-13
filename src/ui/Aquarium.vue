@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
+import ParticleCanvas from './ParticleCanvas.vue';
 import SpriteView from './SpriteView.vue';
 import { animatedSheetFor, creatureClip } from './sprites';
 
@@ -120,7 +121,7 @@ function act() {
   selectedKey.value = null;
 }
 
-// Decoration: seaweed from objects.png (1 green algae, 2 red algae, 3 seaweed) and rising bubbles.
+// Decoration: seaweed from objects.png (1 green algae, 2 red algae, 3 seaweed). Bubbles are drawn on a canvas.
 const plants = [
   { index: 3, left: '4%', size: 96, delay: '0s' },
   { index: 1, left: '15%', size: 72, delay: '-1.2s' },
@@ -128,12 +129,6 @@ const plants = [
   { index: 3, left: '78%', size: 88, delay: '-0.6s' },
   { index: 1, left: '90%', size: 64, delay: '-1.7s' },
 ];
-const bubbles = Array.from({ length: 14 }, (_, i) => ({
-  left: `${(rand(i, 7) * 96 + 2).toFixed(1)}%`,
-  size: `${(4 + rand(i, 8) * 8).toFixed(0)}px`,
-  duration: `${(5 + rand(i, 9) * 6).toFixed(1)}s`,
-  delay: `-${(rand(i, 10) * 10).toFixed(1)}s`,
-}));
 </script>
 
 <template>
@@ -146,12 +141,7 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
     <div class="tank">
       <div class="surface" />
       <div class="rays" />
-      <span
-        v-for="(b, i) in bubbles"
-        :key="`b${i}`"
-        class="bubble"
-        :style="{ left: b.left, width: b.size, height: b.size, animationDuration: b.duration, animationDelay: b.delay }"
-      />
+      <ParticleCanvas effect="bubbles" />
 
       <div class="sand" />
       <div
@@ -163,30 +153,34 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
         <SpriteView :sprite="{ sheet: 'objects', index: p.index }" :size="p.size" />
       </div>
 
+      <!-- The lane spans the tank minus one creature and slides by its own width (transform only);
+           the creature sits at its left edge. -->
       <div
         v-for="r in residents"
         :key="r.key"
         class="resident"
         :class="[r.habitat, { selected: r.key === selectedKey, interactive }]"
         :style="r.style"
-        v-tip="residentTip(r)"
-        :role="interactive ? 'button' : undefined"
-        :tabindex="interactive ? 0 : undefined"
-        @click="interactive && (selectedKey = r.key)"
-        @keydown.enter="interactive && (selectedKey = r.key)"
       >
-        <div class="facing">
+        <div
+          class="fish"
+          v-tip="residentTip(r)"
+          :role="interactive ? 'button' : undefined"
+          :tabindex="interactive ? 0 : undefined"
+          @click="interactive && (selectedKey = r.key)"
+          @keydown.enter="interactive && (selectedKey = r.key)"
+        >
           <div class="bob">
             <AnimatedSprite v-if="r.url" :clip="creatureClip(r.url, 'idle')" :size="SIZE" />
             <SpriteView v-else-if="r.sprite" :sprite="r.sprite" :size="SIZE * (2 / 3)" />
             <span v-else class="emoji">{{ r.portrait }}</span>
           </div>
+          <!-- Outside .bob, which mirrors the sprite, so the badges read the right way. -->
+          <span v-if="r.angry" class="angry" aria-hidden="true">💢</span>
+          <span v-else-if="r.bond?.level" class="bond" :class="{ full: r.bond.level === MAX_BOND_LEVEL }" aria-hidden="true">
+            ♥{{ r.bond.level }}
+          </span>
         </div>
-        <!-- Outside .facing, which mirrors the sprite, so the badges read the right way. -->
-        <span v-if="r.angry" class="angry" aria-hidden="true">💢</span>
-        <span v-else-if="r.bond?.level" class="bond" :class="{ full: r.bond.level === MAX_BOND_LEVEL }" aria-hidden="true">
-          ♥{{ r.bond.level }}
-        </span>
       </div>
 
       <div v-if="selected" class="sell-panel" @keydown.esc="selectedKey = null">
@@ -279,33 +273,33 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
   z-index: 1;
 }
 
-.bubble {
-  position: absolute;
-  bottom: -12px;
-  border-radius: 50%;
-  border: 1px solid rgb(255 255 255 / 0.6);
-  background: rgb(255 255 255 / 0.15);
-  animation: rise linear infinite;
-}
-
-/* Residents: the outer element travels left/right, `.facing` flips the sprite
-   (sprites face left) in sync, `.bob` adds a little vertical life. */
+/* Residents: the outer element travels left/right, and `.bob` both flips the sprite in sync
+   (sprites face left; `scale`) and adds a little vertical life (`translate`). */
 .resident {
   position: absolute;
   left: 0;
-  width: var(--size);
+  width: calc(100% - var(--size));
+  pointer-events: none;
   animation: travel var(--duration) ease-in-out var(--delay) infinite alternate;
 }
-.facing { animation: face calc(var(--duration) * 2) linear var(--delay) infinite; }
-.bob { animation: bob var(--bob) ease-in-out infinite alternate; }
-.drift .bob { animation-name: drift; animation-duration: calc(var(--bob) * 2); }
-.bottom .bob { animation: none; }
+.fish { position: relative; width: var(--size); pointer-events: auto; }
+.bob {
+  animation:
+    face calc(var(--duration) * 2) linear var(--delay) infinite,
+    bob var(--bob) ease-in-out infinite alternate;
+}
+.drift .bob {
+  animation:
+    face calc(var(--duration) * 2) linear var(--delay) infinite,
+    drift calc(var(--bob) * 2) ease-in-out infinite alternate;
+}
+.bottom .bob { animation: face calc(var(--duration) * 2) linear var(--delay) infinite; }
 .emoji { font-size: 3rem; }
 
-.resident.interactive { cursor: pointer; }
-.resident:focus { outline: none; }
-.resident.interactive:hover .bob,
-.resident.interactive:focus-visible .bob { filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.7)); }
+.resident.interactive .fish { cursor: pointer; }
+.fish:focus { outline: none; }
+.resident.interactive .fish:hover .bob,
+.resident.interactive .fish:focus-visible .bob { filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.7)); }
 .resident.selected .bob { filter: drop-shadow(0 0 6px var(--highlight)); }
 
 .sell-panel {
@@ -356,29 +350,24 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
 }
 
 @keyframes travel {
-  from { left: 0%; }
-  to { left: calc(100% - var(--size)); }
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
 }
 @keyframes face {
-  0%, 49.99% { transform: scaleX(-1); }
-  50%, 100% { transform: scaleX(1); }
+  0%, 49.99% { scale: -1 1; }
+  50%, 100% { scale: 1 1; }
 }
 @keyframes bob {
-  from { transform: translateY(-4px); }
-  to { transform: translateY(4px); }
+  from { translate: 0 -4px; }
+  to { translate: 0 4px; }
 }
 @keyframes drift {
-  from { transform: translateY(-28px); }
-  to { transform: translateY(28px); }
+  from { translate: 0 -28px; }
+  to { translate: 0 28px; }
 }
 @keyframes sway {
   from { transform: rotate(-4deg); }
   to { transform: rotate(4deg); }
-}
-@keyframes rise {
-  from { transform: translateY(0); opacity: 0; }
-  10% { opacity: 1; }
-  to { transform: translateY(-110vh); opacity: 0.6; }
 }
 @keyframes rays {
   from { transform: translateX(-30px); }
@@ -386,7 +375,7 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .resident, .facing, .bob, .plant, .bubble, .rays { animation: none; }
-  .resident { left: var(--rest); }
+  .resident, .bob, .plant, .rays { animation: none; }
+  .resident { transform: translateX(var(--rest)); }
 }
 </style>
