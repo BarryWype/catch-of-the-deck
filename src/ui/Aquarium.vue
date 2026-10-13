@@ -97,6 +97,19 @@ function bondOf(id: string, points: number | undefined) {
   return { level, text };
 }
 
+type Resident = (typeof residents.value)[number];
+
+/** Hover text for a creature: its name, then its sell value, mood and bond. */
+function residentTip(r: Resident) {
+  const detail = [
+    props.interactive && props.action === 'sell' ? `Sells for 🪙 ${r.sellValue}` : '',
+    r.angry ? '💢 Angry' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return { title: r.name, detail: detail || undefined, body: r.bond ? `♥ ${r.bond.text}` : undefined };
+}
+
 const selectedKey = ref<string | null>(null);
 const selected = computed(() => residents.value.find((r) => r.key === selectedKey.value));
 
@@ -156,7 +169,7 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
         class="resident"
         :class="[r.habitat, { selected: r.key === selectedKey, interactive }]"
         :style="r.style"
-        :title="`${r.name}${interactive && action === 'sell' ? ` (🪙 ${r.sellValue})` : ''}${r.angry ? ' 💢 angry' : ''}${r.bond ? ` · ${r.bond.text}` : ''}`"
+        v-tip="residentTip(r)"
         :role="interactive ? 'button' : undefined"
         :tabindex="interactive ? 0 : undefined"
         @click="interactive && (selectedKey = r.key)"
@@ -196,7 +209,7 @@ const bubbles = Array.from({ length: 14 }, (_, i) => ({
             <p v-for="(effect, i) in selected.bonus.effects" :key="i">{{ describeCompanionEffect(effect) }}</p>
           </div>
           <div class="actions">
-            <button :disabled="!!bringBlocked" :title="bringBlocked" @click="act">Bring for the session</button>
+            <button v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act">Bring for the session</button>
             <button class="ghost" @click="selectedKey = null">Cancel</button>
           </div>
           <span v-if="bringBlocked" class="blocked">{{ bringBlocked }}</span>

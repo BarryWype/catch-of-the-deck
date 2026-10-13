@@ -14,7 +14,7 @@ const damageText = computed(() => {
 </script>
 
 <template>
-  <div class="intent" :title="`${intent.moveName} (${TAG_NAMES[intent.tag]}): ${intent.description}`">
+  <div v-tip="{ title: intent.moveName, detail: TAG_NAMES[intent.tag], body: intent.description }" class="intent">
     <div class="icons">
       <span v-for="kind in intent.kinds" :key="kind" class="icon" :class="kind">
         {{ ICONS[kind] }}<b v-if="kind === 'attack'">{{ damageText }}</b><b v-else-if="kind === 'pull'">{{ intent.pull }}</b>

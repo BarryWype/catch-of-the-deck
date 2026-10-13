@@ -46,7 +46,7 @@ function onHatched(index: number) {
       :key="`${i}-${id}`"
       class="egg"
       :aria-label="hatching === i ? 'Hatching…' : 'Hatch this egg'"
-      title="Click to hatch"
+      v-tip="'Click to hatch'"
       @click="open(i)"
     >
       <AnimatedSprite

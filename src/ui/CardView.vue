@@ -35,7 +35,7 @@ const parts = computed(() =>
     :aria-disabled="!playable"
   >
     <span class="cost">{{ card.cost }}</span>
-    <span v-if="card.patienceCost" class="patience-cost" :title="`Also costs ${card.patienceCost} Patience`">⏳{{ card.patienceCost }}</span>
+    <span v-if="card.patienceCost" v-tip="`Also costs ${card.patienceCost} Patience`" class="patience-cost">⏳{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
     <span class="art">{{ card.art ?? TYPE_ICON[card.type] }}</span>
     <span class="type">{{ card.type }}</span>

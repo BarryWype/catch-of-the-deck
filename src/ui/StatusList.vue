@@ -15,7 +15,7 @@ const entries = computed(() => Object.entries(props.statuses) as Array<[StatusId
       :key="id"
       class="status"
       :class="isDebuff(id, amount) ? 'debuff' : 'buff'"
-      :title="`${STATUS_META[id].name} ${amount}: ${STATUS_META[id].description}`"
+      v-tip="{ title: `${STATUS_META[id].name} ${amount}`, body: STATUS_META[id].description }"
     >
       {{ ICONS[id] }}<b>{{ amount }}</b>
     </span>

@@ -88,27 +88,27 @@ function creatureNames(node: MapNode) {
 }
 
 /** Hover text: what the node is, plus a hint when the build is strong against its creatures. */
-function tooltipFor(node: MapNode): { name: string; hint?: string; detail?: string } {
+function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: string } {
   const strong = isStrong(node) ? 'Your gear is strong against these' : undefined;
   switch (node.kind) {
     case 'start':
-      return { name: props.data.character.home.name };
+      return { title: props.data.character.home.name };
     case 'shop':
-      return { name: 'Shop' };
+      return { title: 'Shop' };
     case 'event':
-      return { name: 'Event' };
+      return { title: 'Event' };
     case 'treasure':
-      return { name: 'Treasure' };
+      return { title: 'Treasure' };
     case 'leave':
-      return { name: 'Head home', detail: 'Ends the run here; your bucket comes home' };
+      return { title: 'Head home', detail: 'Ends the run here; your bucket comes home' };
     case 'miniBoss':
     case 'boss':
-      return { name: `${node.kind === 'boss' ? 'Boss' : 'Mini-boss'} · ${node.label ?? ''}`, detail: creatureNames(node), hint: strong };
+      return { title: `${node.kind === 'boss' ? 'Boss' : 'Mini-boss'} · ${node.label ?? ''}`, detail: creatureNames(node), hint: strong };
     default: {
       const spot = node.spot ? props.data.spots[node.spot] : undefined;
       const type = node.creatureType ? props.data.creatureTypes[node.creatureType]?.name : undefined;
       const detail = node.enemies ? creatureNames(node) : [node.label && spot?.name, type].filter(Boolean).join(' · ');
-      return { name: node.label ?? spot?.name ?? 'Fight', detail: detail || undefined, hint: strong };
+      return { title: node.label ?? spot?.name ?? 'Fight', detail: detail || undefined, hint: strong };
     }
   }
 }
@@ -137,7 +137,6 @@ const size = computed(() => {
 });
 /** Screen pixels per art unit. */
 const scale = computed(() => size.value.width / view.value.width);
-const scrollLeft = ref(0);
 
 /** When the map is wider than the screen, keep the current position near the left, with what's next in view. */
 watch(
@@ -149,21 +148,6 @@ watch(
   },
   { immediate: true },
 );
-
-/** The node under the pointer (or keyboard focus), and where its tooltip goes. */
-const hovered = ref<MapNode | null>(null);
-const tooltip = computed(() => {
-  const node = hovered.value;
-  if (!node) return null;
-  const below = (node.y - view.value.y) * scale.value < 70;
-  const offset = (node.kind === 'boss' ? 22 : RADIUS + 6) * NODE_SIZE;
-  return {
-    ...tooltipFor(node),
-    left: (node.x - view.value.x) * scale.value - scrollLeft.value,
-    top: (node.y - view.value.y) * scale.value + (below ? offset : -offset),
-    below,
-  };
-});
 
 /** Labels near the right edge extend leftwards, so they stay on the map. */
 function labelAnchor(node: MapNode) {
@@ -180,26 +164,25 @@ function choose(node: MapNode) {
 <template>
   <section class="map-screen">
     <ul v-if="equipment.length || bonuses.length" class="equipment" aria-label="Equipment and companion bonuses">
-      <li v-for="item in equipment" :key="item.id" class="item" tabindex="0" :aria-label="`${item.name}: ${item.description}`">
+      <li
+        v-for="item in equipment"
+        :key="item.id"
+        v-tip="{ title: item.name, body: item.description }"
+        class="item"
+        tabindex="0"
+        :aria-label="item.name"
+      >
         <span class="icon">{{ item.icon ?? '🎒' }}</span>
-        <div class="tooltip" role="tooltip">
-          <strong>{{ item.name }}</strong>
-          <p>{{ item.description }}</p>
-        </div>
       </li>
       <li
         v-for="b in bonuses"
         :key="b.def.id"
+        v-tip="{ title: b.def.name, detail: `${b.species} ${b.def.temperamentName} species brought`, body: b.text.join(' ') }"
         class="item companion"
         tabindex="0"
-        :aria-label="`${b.def.name}: ${b.text.join(' ')}`"
+        :aria-label="b.def.name"
       >
         <span class="icon">{{ b.def.icon ?? '🐟' }}</span>
-        <div class="tooltip" role="tooltip">
-          <strong>{{ b.def.name }}</strong>
-          <span class="species">{{ b.species }} {{ b.def.temperamentName }} species brought</span>
-          <p v-for="(line, i) in b.text" :key="i">{{ line }}</p>
-        </div>
       </li>
     </ul>
 
@@ -219,7 +202,7 @@ function choose(node: MapNode) {
       <li><span class="sym boss" /> Boss</li>
     </ul>
 
-    <div ref="scroller" class="map-scroll" @scroll="scrollLeft = scroller?.scrollLeft ?? 0">
+    <div ref="scroller" class="map-scroll">
       <svg
         class="map"
         :width="size.width"
@@ -264,13 +247,10 @@ function choose(node: MapNode) {
           :transform="`translate(${node.x} ${node.y}) scale(${NODE_SIZE / scale})`"
           :role="destinations.has(node.id) ? 'button' : undefined"
           :tabindex="destinations.has(node.id) ? 0 : undefined"
-          :aria-label="tooltipFor(node).name"
+          v-tip="tooltipFor(node)"
+          :aria-label="tooltipFor(node).title"
           @click="choose(node)"
           @keydown.enter="choose(node)"
-          @mouseenter="hovered = node"
-          @mouseleave="hovered = null"
-          @focus="hovered = node"
-          @blur="hovered = null"
         >
           <!-- Highlight ring: where you are, or where you can go. -->
           <circle v-if="nodeState(node) === 'current' || nodeState(node) === 'available'" class="ring" :r="node.kind === 'boss' ? 26 : 19" />
@@ -295,12 +275,6 @@ function choose(node: MapNode) {
         </g>
       </svg>
     </div>
-
-    <div v-if="tooltip" class="node-tooltip" :class="{ below: tooltip.below }" role="tooltip" :style="{ left: `${tooltip.left}px`, top: `${tooltip.top}px` }">
-      <strong>{{ tooltip.name }}</strong>
-      <small v-if="tooltip.detail">{{ tooltip.detail }}</small>
-      <span v-if="tooltip.hint">{{ tooltip.hint }}</span>
-    </div>
   </section>
 </template>
 
@@ -308,31 +282,10 @@ function choose(node: MapNode) {
 /* Hugs the map, so the overlays (equipment, level name, legend) sit on it. */
 .map-screen { position: relative; flex-shrink: 0; width: fit-content; max-width: 100%; margin-inline: auto; }
 
-/* Node hover text, placed above the node and kept outside the scrolling map so it isn't clipped. */
-.node-tooltip {
-  position: absolute;
-  z-index: 3;
-  transform: translate(-50%, -100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 5px 10px;
-  border-radius: 8px;
-  background: rgb(20 24 32 / 0.95);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.45);
-  font-size: 0.8rem;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.node-tooltip.below { transform: translate(-50%, 0); }
-.node-tooltip small { font-size: 0.72rem; color: var(--muted); }
-.node-tooltip span { font-size: 0.72rem; color: #7ee08a; }
-
 /* Equipment sits over the map's top-left corner and doesn't scroll with it. */
 .equipment { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .item { position: relative; }
 .companion .icon { border-color: #2f5a3a; }
-.tooltip .species { display: block; color: var(--muted); font-size: 0.72rem; }
 .item .icon {
   display: grid;
   place-items: center;
@@ -347,23 +300,6 @@ function choose(node: MapNode) {
 .item:hover .icon,
 .item:focus-visible .icon { border-color: var(--highlight); }
 .item:focus { outline: none; }
-.tooltip {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 240px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgb(20 24 32 / 0.95);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.45);
-  font-size: 0.8rem;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-.tooltip p { margin: 4px 0 0; color: var(--muted); }
-.item:hover .tooltip,
-.item:focus-visible .tooltip { visibility: visible; opacity: 1; }
 
 .level-name {
   position: absolute;

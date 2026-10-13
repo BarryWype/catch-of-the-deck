@@ -26,7 +26,7 @@ const choices = computed(() =>
         :key="i"
         class="choice"
         :disabled="!!choice.blocked"
-        :title="choice.blocked ?? undefined"
+        v-tip="choice.blocked"
         @click="emit('choose', i)"
       >
         <strong>{{ choice.label }}</strong>

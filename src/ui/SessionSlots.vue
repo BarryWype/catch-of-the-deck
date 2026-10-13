@@ -36,7 +36,7 @@ const bonuses = computed(() =>
           {{ slot.creature.name }}
           <small v-if="slot.bonus">{{ slot.bonus.icon }} {{ slot.bonus.temperamentName }}<template v-if="slot.bond"> · ♥{{ slot.bond }}</template></small>
         </span>
-        <button class="ghost remove" :aria-label="`Put ${slot.creature.name} back in the aquarium`" title="Back to the aquarium" @click="emit('remove', i)">
+        <button class="ghost remove" v-tip="'Back to the aquarium'" :aria-label="`Put ${slot.creature.name} back in the aquarium`" @click="emit('remove', i)">
           ✕
         </button>
       </template>

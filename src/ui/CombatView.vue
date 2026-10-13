@@ -46,6 +46,11 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; restart: [] }>();
 
+const PATIENCE_TIP =
+  `Every energy point not used at the end of the turn generates a patience point. Every ${HOLD_PER_PATIENCE} Hold left ` +
+  `after the creatures' turn gives one too. Each point reduces the escape rate of creatures by ${PATIENCE_ESCAPE_PERCENT}%, ` +
+  `up to ${MAX_PATIENCE} points.`;
+
 /** A card waiting for the player to click an enemy (keyboard play). */
 const selectedUid = ref<string | null>(null);
 
@@ -378,16 +383,11 @@ function endTurn() {
 
     <section class="controls">
       <div class="side">
-        <div class="energy" title="Energy">{{ state.player.energy }}/{{ state.player.maxEnergy }}</div>
-        <div class="patience" tabindex="0" aria-describedby="patience-tip">
+        <div v-tip="'Energy'" class="energy">{{ state.player.energy }}/{{ state.player.maxEnergy }}</div>
+        <div v-tip="{ title: 'Patience', body: PATIENCE_TIP }" class="patience" tabindex="0">
           <span class="patience-count" :class="{ empty: !state.player.patience }">⏳ Patience {{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
-          <div id="patience-tip" class="patience-tip" role="tooltip">
-            Every energy point not used at the end of the turn generate a patience point. Every {{ HOLD_PER_PATIENCE }} Hold left after
-            the creatures' turn gives one too. Reduce the escape rate of creatures by {{ PATIENCE_ESCAPE_PERCENT }}% per point, up to
-            {{ MAX_PATIENCE }} points.
-          </div>
         </div>
-        <div class="pile" title="Draw pile">🂠 Draw {{ state.piles.draw.length }}</div>
+        <div v-tip="'Draw pile'" class="pile">🂠 Draw {{ state.piles.draw.length }}</div>
       </div>
 
       <div class="hand">
@@ -410,8 +410,8 @@ function endTurn() {
 
       <div class="side">
         <button class="end-turn" :disabled="!isPlayerTurn" @click="endTurn">End Turn</button>
-        <div class="pile" title="Discard pile">♻️ Discard {{ state.piles.discard.length }}</div>
-        <div class="pile" title="Exhausted cards">🔥 Exhaust {{ state.piles.exhaust.length }}</div>
+        <div v-tip="'Discard pile'" class="pile">♻️ Discard {{ state.piles.discard.length }}</div>
+        <div v-tip="'Exhausted cards'" class="pile">🔥 Exhaust {{ state.piles.exhaust.length }}</div>
       </div>
     </section>
 
@@ -585,25 +585,6 @@ function endTurn() {
 .patience-count { display: block; padding: 2px 10px; border-radius: 999px; background: #2a3f5a; color: #bfe3ff; font-size: 0.85rem; font-weight: 700; }
 .patience-count.empty { opacity: 0.55; }
 .patience:focus-visible .patience-count { outline: 2px solid var(--highlight); }
-.patience-tip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  z-index: 10;
-  width: 240px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgb(20 24 32 / 0.95);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.45);
-  font-size: 0.8rem;
-  line-height: 1.35;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  pointer-events: none;
-}
-.patience:hover .patience-tip,
-.patience:focus-visible .patience-tip { visibility: visible; opacity: 1; }
 .end-turn { padding: 12px 18px; font-size: 1rem; }
 
 .overlay {

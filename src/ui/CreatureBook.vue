@@ -47,12 +47,12 @@ const discoveredCount = computed(() => creatures.value.filter((c) => c.status).l
         :key="c.id"
         class="creature"
         :class="c.status"
-        :title="c.status ? `${c.name} (${c.type})` : undefined"
+        v-tip="c.status ? { title: c.name, detail: c.type } : undefined"
       >
         <template v-if="c.status">
           <SpriteView :sprite="c.sprite" :size="64" />
           <span class="status">{{ c.status === 'captured' ? 'Captured' : 'Seen' }}</span>
-          <span v-if="c.owned" class="owned" :title="`${c.owned} in your home aquarium`">×{{ c.owned }}</span>
+          <span v-if="c.owned" v-tip="`${c.owned} in your home aquarium`" class="owned">×{{ c.owned }}</span>
         </template>
         <template v-else>
           <span class="unknown" aria-label="Not encountered yet">?</span>

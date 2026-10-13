@@ -36,7 +36,7 @@ defineExpose({ close: () => (open.value = false) });
     :class="side"
     :style="{ top: `calc(50% + ${props.tabOffset}px)` }"
     :aria-label="`Open: ${title}`"
-    :title="title"
+    v-tip="title"
     @click="show"
   >
     {{ icon }}

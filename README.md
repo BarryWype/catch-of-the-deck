@@ -80,6 +80,8 @@ Content is plain typed arrays. `content/index.ts` passes them through `buildGame
 
 `useGame.ts` holds the current run and combat states in Vue refs and replaces them with whatever the engine returns. Components only read state and emit actions. Card text and intent numbers come from engine helpers (`describeCard`, `previewIntent`), so the UI shows exact values, Strength and Vulnerable included.
 
+**Hover text:** use the `v-tip` directive (`src/ui/tooltip.ts`), not the HTML `title` attribute, which shows only after a delay. `v-tip="'Coins'"` gives a one-line tooltip; `v-tip="{ title, detail, body, hint }"` gives a bold title, a muted line, a wrapped explanation and a green hint. The single `TooltipLayer` in `App.vue` draws every tooltip: it appears instantly on hover or keyboard focus, sits above the element (below when there's no room), stays inside the window, and follows moving elements. Empty values show nothing.
+
 ## Adding a card
 
 Add an entry to `src/content/cards.ts`. You don't need to touch code:

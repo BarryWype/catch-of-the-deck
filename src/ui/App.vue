@@ -11,6 +11,7 @@ import MenuScreen from './MenuScreen.vue';
 import RewardScreen from './RewardScreen.vue';
 import SessionSlots from './SessionSlots.vue';
 import ShopScreen from './ShopScreen.vue';
+import TooltipLayer from './TooltipLayer.vue';
 import { useGame } from './useGame';
 
 function randomSeed() {
@@ -59,11 +60,11 @@ function startNewRun() {
       <template v-if="run && screen !== 'build'">
         <span>{{ data.builds[run.build]?.name }}</span>
         <span>Floor {{ run.floor }}</span>
-        <span :title="PLAYER_HP_NAME">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
-        <span title="Coins">🪙 {{ run.coins }}</span>
+        <span v-tip="PLAYER_HP_NAME">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
+        <span v-tip="'Coins'">🪙 {{ run.coins }}</span>
         <span>🂠 Deck {{ run.deck.length }}</span>
       </template>
-      <span class="seed" title="Open with ?seed=N in the URL to replay this run">Seed {{ seed }}</span>
+      <span class="seed" v-tip="{ title: 'Run seed', detail: 'Open with ?seed=N in the URL to replay this run' }">Seed {{ seed }}</span>
       <button class="ghost" @click="game.toMenu">Menu</button>
       <button class="ghost" @click="askNewRun(newRun)">New run</button>
     </div>
@@ -196,6 +197,9 @@ function startNewRun() {
 
   <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
   <EggTray v-if="['menu', 'build', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
+
+  <!-- Every hover text in the app (v-tip) is drawn here. -->
+  <TooltipLayer />
 </template>
 
 <style scoped>

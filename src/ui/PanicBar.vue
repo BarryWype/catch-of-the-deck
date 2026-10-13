@@ -11,7 +11,7 @@ const text = computed(() => `${ESCAPE_BAR_NAME} ${props.escape}/${props.escapeAt
 </script>
 
 <template>
-  <div class="panicbar" :title="`${text}: it flees when the bar fills, and is caught if it drops to 0`">
+  <div v-tip="{ title: text, body: 'It flees when the bar fills, and is caught if it drops to 0.' }" class="panicbar">
     <div class="fill" :style="{ width: `${fill}%` }" />
     <div class="next" :style="{ left: `${fill}%`, width: `${next}%` }" />
     <span class="label">{{ text }}</span>

@@ -106,7 +106,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
     <div v-if="!viewing" class="panel">
       <h2>Slay the Fish</h2>
       <nav class="buttons">
-        <button :disabled="!canResume" :title="canResume ? undefined : 'No saved run yet'" @click="emit('resume')">Resume</button>
+        <button v-tip="canResume ? undefined : 'No saved run yet'" :disabled="!canResume" @click="emit('resume')">Resume</button>
         <button @click="emit('newRun')">New run</button>
         <button class="ghost" @click="viewing = true">See aquarium</button>
         <button class="ghost" @click="openOptions">Options</button>
