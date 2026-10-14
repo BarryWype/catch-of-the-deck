@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, isAlive, previewIntent, validateAction, type CombatState } from '../src/engine';
+import { applyAction, isAlive, isAttackCard, previewIntent, validateAction, type CombatState } from '../src/engine';
 import { endTurn, play, repeat, setup, testData } from './fixtures';
 
 describe('turn structure', () => {
@@ -278,15 +278,47 @@ describe('tug of war', () => {
     expect(play(play(play(s, 'calm'), 'calm'), 'calm')).toMatchObject({ phase: 'won', enemies: [{ escape: 0 }] });
   });
 
-  it('pinning slows the rise for good (never below 0); a snare stops it for a turn', () => {
+  it('each stack of Slow cuts the rise by 20%, and one wears off each turn; a snare stops it for a turn', () => {
     const s0 = setup(['pin', 'pin', 'snare', 'defend', 'defend'], { enemies: ['gambler'] });
-    const s: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], escapeRate: 5 }] };
-    const pinned = play(play(s, 'pin'), 'pin');
-    expect(pinned.enemies[0].escapeRate).toBe(0);
+    const s: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], escapeRate: 10 }] };
+    // No energy left over, so no Patience adds to the Slow.
+    const noPatience = (state: CombatState) => endTurn({ ...state, player: { ...state.player, energy: 0 } });
+    const once = play(s, 'pin');
+    expect(once.enemies[0].statuses.slow).toBe(1);
+    expect(noPatience(once).enemies[0].escape).toBe(4 + 8);
+    const twice = play(once, 'pin');
+    expect(noPatience(twice).enemies[0].escape).toBe(4 + 6);
+    // One stack wears off at the end of the creature's turn, after slowing that turn's rise.
+    expect(noPatience(twice).enemies[0].statuses.slow).toBe(1);
+    expect(noPatience(once).enemies[0].statuses.slow).toBeUndefined();
     const snared = play(s, 'snare');
     expect(endTurn(snared).enemies[0].escape).toBe(4);
-    // Then +5, slowed 60% by the 6 Patience from the two turns' unused energy.
-    expect(endTurn(endTurn(snared)).enemies[0].escape).toBe(4 + 2);
+  });
+
+  it('Slow and Patience add up, but slow the rise by 80% at most', () => {
+    const s0 = setup(repeat('defend', 10), { enemies: ['gambler'] });
+    const s: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], escapeRate: 10, statuses: { slow: 2 } }] };
+    // 2 Slow (40%) + 3 Patience from unused energy (30%) = 70%.
+    expect(endTurn(s).enemies[0].escape).toBe(4 + 3);
+    // 5 Slow (100%) + 30% is capped at 80%: +2 instead of +10.
+    const capped: CombatState = { ...s, enemies: [{ ...s.enemies[0], statuses: { slow: 5 } }] };
+    expect(endTurn(capped).enemies[0].escape).toBe(4 + 2);
+  });
+
+  it('a slowCap card raises the cap for the rest of the fight, never lowers it', () => {
+    const data = {
+      ...testData,
+      cards: {
+        ...testData.cards,
+        steady: { id: 'steady', name: 'Steady', type: 'support' as const, rarity: 'normal' as const, cost: 0, target: 'none' as const, effects: [{ type: 'slowCap' as const, amount: 90 }] },
+        loose: { id: 'loose', name: 'Loose', type: 'support' as const, rarity: 'normal' as const, cost: 0, target: 'none' as const, effects: [{ type: 'slowCap' as const, amount: 50 }] },
+      },
+    };
+    const s0 = setup(repeat('steady', 3).concat(repeat('loose', 2)), { enemies: ['gambler'], data });
+    const raised = play(play(s0, 'steady', 'e0', data), 'loose', 'e0', data);
+    expect(raised.slowCap).toBe(90);
+    const s: CombatState = { ...raised, enemies: [{ ...raised.enemies[0], escapeRate: 10, statuses: { slow: 5 } }] };
+    expect(applyAction(s, { type: 'endTurn' }, data).enemies[0].escape).toBe(4 + 1);
   });
 
   it('a creature whose escape bar is pushed to 0 is captured like a beaten one', () => {
@@ -329,7 +361,7 @@ describe('patience', () => {
   it('cards with a patienceCost need, and spend, that much Patience', () => {
     const data = {
       ...testData,
-      cards: { ...testData.cards, wait: { id: 'wait', name: 'Wait', type: 'skill' as const, rarity: 'common' as const, cost: 0, patienceCost: 2, target: 'none' as const, effects: [{ type: 'gainBlock' as const, amount: 1 }] } },
+      cards: { ...testData.cards, wait: { id: 'wait', name: 'Wait', type: 'support' as const, rarity: 'normal' as const, cost: 0, patienceCost: 2, target: 'none' as const, effects: [{ type: 'gainBlock' as const, amount: 1 }] } },
     };
     const s = setup(repeat('wait', 10), { data });
     const card = s.piles.hand[0].uid;
@@ -377,5 +409,47 @@ describe('strikes and pulls', () => {
   it('the intent shows the tag and how hard it pulls', () => {
     const s = setup(repeat('ponder', 10), { enemies: ['tugger'], data });
     expect(previewIntent(s, s.enemies[0], data)).toMatchObject({ tag: 'pull', kinds: ['pull'], pull: 8 });
+  });
+});
+
+describe('venom', () => {
+  it('hits at the start of its bearer\'s turn, ignoring Hold, then loses a charge', () => {
+    const s0 = setup(repeat('defend', 10), { enemies: ['gambler'] });
+    const s: CombatState = { ...s0, player: { ...s0.player, statuses: { venom: 3 }, energy: 0 } };
+    const next = endTurn(s);
+    // Gambler hits for 1 or blocks; the Venom adds 3 at the start of turn 2.
+    expect(80 - next.player.hp - 3).toBeLessThanOrEqual(1);
+    expect(80 - next.player.hp).toBeGreaterThanOrEqual(3);
+    expect(next.player.statuses.venom).toBe(2);
+  });
+});
+
+describe('cards played on a random creature', () => {
+  const data = {
+    ...testData,
+    cards: {
+      ...testData.cards,
+      numb: {
+        id: 'numb', name: 'Numb', type: 'support' as const, rarity: 'normal' as const, cost: 0, target: 'random' as const,
+        effects: [{ type: 'applyStatus' as const, status: 'venom' as const, amount: 2 }, { type: 'applyStatus' as const, status: 'slow' as const, amount: 2 }],
+      },
+    },
+  };
+
+  it('need no target, and put all their effects on the same living creature', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const s = setup(repeat('numb', 10), { enemies: ['dummy', 'cycler'], seed, data });
+      const card = s.piles.hand[0].uid;
+      expect(validateAction(s, { type: 'playCard', cardUid: card }, data)).toBeNull();
+      const after = applyAction(s, { type: 'playCard', cardUid: card }, data);
+      const hit = after.enemies.filter((e) => e.statuses.venom);
+      expect(hit).toHaveLength(1);
+      expect(hit[0].statuses).toMatchObject({ venom: 2, slow: 2 });
+    }
+  });
+
+  it('Drain cards count as attacks', () => {
+    expect(isAttackCard({ ...testData.cards.calm, type: 'drain' })).toBe(true);
+    expect(isAttackCard(testData.cards.defend)).toBe(false);
   });
 });

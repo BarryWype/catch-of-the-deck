@@ -6,7 +6,7 @@ import { BOND_BY_TIER, creatures, type CreatureDef } from './creatures';
 const HABITAT_BY_TEMPERAMENT: Partial<Record<BehaviorId, Habitat>> = {
   jellyfish: 'drift',
   armored: 'bottom',
-  crustacean: 'bottom',
+  clawed: 'bottom',
   bottomDweller: 'bottom',
 };
 

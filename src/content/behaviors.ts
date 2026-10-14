@@ -249,8 +249,8 @@ export const behaviors = {
     pattern: { type: 'sequence', moves: ['inkCloud', 'tentacles', 'squeeze', 'tentacles'] },
   },
 
-  /** Crabs and lobsters: claws up and back off, then pinch. */
-  crustacean: {
+  /** Crabs, lobsters and other crustaceans: claws up and back off, then pinch. */
+  clawed: {
     moves: [
       {
         id: 'raiseClaws',

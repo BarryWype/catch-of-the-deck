@@ -1,11 +1,13 @@
 import { addBond, BOND_PER_ENCOUNTER, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
+import { BOSS_DAMAGE, ENCOUNTER_DAMAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, layoutCoast, START_NODE_ID, type CoastPlacement, type GameMap, type MapNode } from './map';
-import { nextFloat, nextInt, shuffleInPlace } from './rng';
+import { nextFloat, nextInt } from './rng';
 import { isAlive } from './effects';
-import type { BuildDef, CombatState, EnemyState, GameData } from './types';
+import { creatureFamilies } from './families';
+import type { BuildDef, CardDef, CombatState, EnemyState, GameData } from './types';
 import { clone } from './util';
 
 /** Everything that persists between fights. */
@@ -18,6 +20,8 @@ export interface RunState {
   maxHp: number;
   deck: string[];
   floor: number;
+  /** Fights started this run (won, fled or lost): each makes the next one tougher (`ENCOUNTER_GROWTH_PERCENT`). */
+  fights: number;
   /** Index in `GameData.levels` of the level being played (an act of the run). */
   level: number;
   /** The coast features laid out for this run, shared by every level. */
@@ -45,9 +49,17 @@ export interface RunState {
   /** Card rewards skipped and rerolled on this level (see `rewardOptions`). */
   rewardSkipsUsed: number;
   rewardRerollsUsed: number;
+  /** Chance, in percent, that the next card reward slot is rare (`RARE_CHANCE`, raised by `RARE_PITY_STEP` per slot that wasn't). */
+  rarePity: number;
+  /** The families the card reward on offer draws from (the creatures of the fight it follows); none = every family. */
+  rewardFamilies: string[];
 }
 
 export const CARD_REWARD_COUNT = 3;
+/** Chance, in percent, that a card reward slot is rare, after a rare was offered (and at the start of a run). */
+export const RARE_CHANCE = 10;
+/** How much that chance rises for every slot that wasn't rare. */
+export const RARE_PITY_STEP = 2;
 /** Chance that an event turns out to be an ordinary fight. */
 export const EVENT_FIGHT_CHANCE = 0.1;
 /** How many home-aquarium creatures the player can bring along in the bucket. */
@@ -78,6 +90,7 @@ export function createRun(
     maxHp,
     deck: [...build.starterDeck],
     floor: 1,
+    fights: 0,
     level: 0,
     coast: [],
     map: { columns: [] },
@@ -89,6 +102,8 @@ export function createRun(
     equipment: item === undefined ? [] : [item],
     rewardSkipsUsed: 0,
     rewardRerollsUsed: 0,
+    rarePity: RARE_CHANCE,
+    rewardFamilies: [],
   };
   run.coast = layoutCoast(run, data.coast);
   run.map = buildLevelMap(data, 0, run.coast, run);
@@ -151,22 +166,32 @@ export function travelTo(run: RunState, nodeId: string, data: GameData): { run: 
 
 /**
  * Start the fight at `node` (advancing `next`'s RNG): an encounter from its fishing spot at its
- * tier (`encountersFor`), only decided on arrival.
+ * tier (`encountersFor`), only decided on arrival. Its creatures get at least `ENCOUNTER_HP_POOL`
+ * Health together and moves averaging `ENCOUNTER_DAMAGE`, both growing with every fight before it
+ * (a mini-boss and a boss roll their own damage instead); a group splits the damage
+ * (`GROUP_DAMAGE_PERCENT` of a share each).
  */
 function startFight(next: RunState, node: MapNode, data: GameData): CombatState {
   const pool = encountersFor(node, data);
   const encounter = pool[nextInt(next, 0, pool.length - 1)];
   const combatSeed = nextInt(next, 0, 0x7fffffff);
   next.companions = next.companions.map((c) => addBond(c, BOND_PER_ENCOUNTER, data));
+  const enemies = [...encounter.enemies, ...extraCatch(next, node, data)];
+  const growth = 100 + ENCOUNTER_GROWTH_PERCENT * next.fights;
+  next.fights++;
+  const bossDamage = node.kind === 'miniBoss' ? MINI_BOSS_DAMAGE : node.kind === 'boss' ? BOSS_DAMAGE : null;
+  const damage = bossDamage ? nextInt(next, bossDamage[0], bossDamage[1]) : (ENCOUNTER_DAMAGE * growth) / 100;
   return createCombat(
     {
       seed: combatSeed,
       deck: next.deck,
-      enemies: [...encounter.enemies, ...extraCatch(next, node, data)],
+      enemies,
       playerHp: next.hp,
       playerMaxHp: next.maxHp,
       equipment: next.equipment,
       bonuses: companionEffects(next.companions, data),
+      hpPool: Math.ceil((ENCOUNTER_HP_POOL * growth) / 100),
+      damage: enemies.length > 1 ? (damage / enemies.length) * (GROUP_DAMAGE_PERCENT / 100) : damage,
     },
     data,
   );
@@ -323,21 +348,50 @@ export function recordEncounter(
   return { ...book, ...Object.fromEntries(updates.map((e) => [e.defId, statusOf(e)])) };
 }
 
-/** Offer `count` distinct non-starter cards: shared ones plus those of the run's build. */
-export function rollCardRewards(
-  run: RunState,
-  data: GameData,
-  count = CARD_REWARD_COUNT,
+/** The families of the creatures in a fight, each once: what its card reward draws from. */
+export function fightFamilies(combat: CombatState, data: GameData): string[] {
+  return [...new Set(combat.enemies.flatMap((e) => creatureFamilies(e.defId, data).map((f) => f.id)))];
+}
+
+export interface CardRewardOptions {
+  /** Families to draw from (`fightFamilies`); the run's `rewardFamilies` if omitted (a reroll). None = every family. */
+  families?: readonly string[];
+  count?: number;
   /** Cards to leave out (the ones just offered, on a reroll), as long as enough others are left. */
-  exclude: readonly string[] = [],
-): { run: RunState; choices: string[] } {
+  exclude?: readonly string[];
+}
+
+/**
+ * Offer `count` distinct cards from the families' cards (never starter cards), topped up from every
+ * family's when they run short. Each slot is rare with the run's `rarePity` chance: back to
+ * `RARE_CHANCE` when a rare card is offered, `RARE_PITY_STEP` higher for every slot that isn't.
+ */
+export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardOptions = {}): { run: RunState; choices: string[] } {
+  const { count = CARD_REWARD_COUNT, exclude = [] } = opts;
   const next = clone(run);
-  const all = Object.values(data.cards)
-    .filter((c) => c.rarity !== 'starter' && (c.build === undefined || c.build === run.build))
-    .map((c) => c.id);
-  const fresh = all.filter((id) => !exclude.includes(id));
-  const pool = fresh.length >= count ? fresh : all;
-  return { run: next, choices: shuffleInPlace(next, pool).slice(0, count) };
+  const families = [...(opts.families ?? run.rewardFamilies)];
+  next.rewardFamilies = families;
+  const offerable = Object.values(data.cards).filter((c) => c.family !== undefined && (c.build === undefined || c.build === run.build));
+  const fresh = offerable.filter((c) => !exclude.includes(c.id));
+  const everyFamily = fresh.length >= count ? fresh : offerable;
+  const theirs = families.length ? everyFamily.filter((c) => families.includes(c.family!)) : everyFamily;
+
+  const choices: string[] = [];
+  for (let slot = 0; slot < count; slot++) {
+    const rarity = nextFloat(next) * 100 < next.rarePity ? 'rare' : 'normal';
+    const left = (pool: CardDef[]) => pool.filter((c) => !choices.includes(c.id));
+    const candidates = [
+      left(theirs).filter((c) => c.rarity === rarity),
+      left(everyFamily).filter((c) => c.rarity === rarity),
+      left(theirs),
+      left(everyFamily),
+    ].find((pool) => pool.length);
+    if (!candidates) break;
+    const card = candidates[nextInt(next, 0, candidates.length - 1)];
+    choices.push(card.id);
+    next.rarePity = card.rarity === 'rare' ? RARE_CHANCE : next.rarePity + RARE_PITY_STEP;
+  }
+  return { run: next, choices };
 }
 
 /**
@@ -361,7 +415,7 @@ export function skipReward(run: RunState, data: GameData): RunState {
 /** Other cards to choose from instead of `offered`. Throws when no reroll is left this level. */
 export function rerollReward(run: RunState, data: GameData, offered: readonly string[]): { run: RunState; choices: string[] } {
   if (!rewardOptions(run, data).rerolls) throw new Error('No reward reroll left this level.');
-  return rollCardRewards({ ...run, rewardRerollsUsed: run.rewardRerollsUsed + 1 }, data, CARD_REWARD_COUNT, offered);
+  return rollCardRewards({ ...run, rewardRerollsUsed: run.rewardRerollsUsed + 1 }, data, { exclude: offered });
 }
 
 export function addCardToDeck(run: RunState, cardId: string, data: GameData): RunState {

@@ -42,7 +42,7 @@ export function t(key: TextKey, params?: MessageParams): string {
   return formatMessage(template, params, messages.terms, plurals);
 }
 
-/** One of the game's own words (Grit, Hold, Panic…) in the current language. */
+/** One of the game's own words (Grit, Hold, Will…) in the current language. */
 export function term(name: keyof Messages['terms']): string {
   return messages.terms[name];
 }

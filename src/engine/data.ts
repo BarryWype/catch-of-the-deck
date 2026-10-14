@@ -1,4 +1,4 @@
-import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
+import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
 export interface ContentSource {
@@ -12,6 +12,7 @@ export interface ContentSource {
   events: EventDef[];
   shop: ShopItemDef[];
   companionBonuses: CompanionBonusDef[];
+  families: FamilyDef[];
   spots: SpotDef[];
   /** In play order. */
   levels: LevelDef[];
@@ -33,6 +34,7 @@ export function buildGameData(source: ContentSource): GameData {
     events: Object.fromEntries(source.events.map((e) => [e.id, e])),
     shop: source.shop,
     companionBonuses: Object.fromEntries(source.companionBonuses.map((b) => [b.id, b])),
+    families: Object.fromEntries(source.families.map((f) => [f.id, f])),
     spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
     levels: source.levels,
     coast: source.coast,
@@ -68,6 +70,7 @@ export function validateContent(source: ContentSource): string[] {
         errors.push(`${where}: "hits" must be a whole number ≥ 1.`);
       }
       if (e.type === 'dealDamage' && e.bonus) checkTags(`${where} damage bonus`, e.bonus.against);
+      if (e.type === 'slowCap' && !(e.amount > 0 && e.amount <= 100)) errors.push(`${where}: "slowCap" needs an amount between 1 and 100 (percent).`);
     }
   };
 
@@ -99,11 +102,21 @@ export function validateContent(source: ContentSource): string[] {
     if (card.effects.some((e) => e.type === 'pull')) errors.push(`${where}: only creature moves can pull.`);
     const needsTarget = card.effects.some(
       (e) =>
-        (e.type === 'dealDamage' || e.type === 'applyStatus' || e.type === 'changeEscape' || e.type === 'changeEscapeRate') &&
-        (e.target ?? 'target') === 'target',
+        e.type === 'ifIntent' ||
+        ((e.type === 'dealDamage' ||
+          e.type === 'applyStatus' ||
+          e.type === 'changeEscape' ||
+          e.type === 'heal' ||
+          e.type === 'multiplyStatus' ||
+          e.type === 'flipIntent' ||
+          e.type === 'rerollIntent' ||
+          e.type === 'holdFromIntent' ||
+          e.type === 'venomNow' ||
+          e.type === 'swapHealthAndWill') &&
+          (e.target ?? 'target') === 'target'),
     );
-    if (needsTarget && card.target !== 'enemy') {
-      errors.push(`${where}: an effect hits the chosen target, so the card needs target: 'enemy'.`);
+    if (needsTarget && card.target === 'none') {
+      errors.push(`${where}: an effect hits the chosen target, so the card needs target: 'enemy' or 'random'.`);
     }
     if (card.build !== undefined && !source.builds.some((b) => b.id === card.build)) {
       errors.push(`${where}: unknown build "${card.build}".`);
@@ -195,6 +208,23 @@ export function validateContent(source: ContentSource): string[] {
     if (enemy.temperament !== undefined && !bonusIds.has(enemy.temperament)) {
       errors.push(`Enemy "${enemy.id}": no companion bonus for temperament "${enemy.temperament}".`);
     }
+  }
+
+  const familyIds = new Set<string>();
+  for (const family of source.families) {
+    checkDuplicate(familyIds, family.id, 'family');
+    for (const t of family.temperaments) {
+      if (!bonusIds.has(t)) errors.push(`Family "${family.id}": unknown temperament "${t}".`);
+    }
+  }
+  if (source.families.length) {
+    const inAFamily = new Set(source.families.flatMap((f) => f.temperaments));
+    for (const t of new Set(source.enemies.flatMap((e) => (e.temperament ? [e.temperament] : [])))) {
+      if (!inAFamily.has(t)) errors.push(`Temperament "${t}" is in no family.`);
+    }
+  }
+  for (const card of source.cards) {
+    if (card.family !== undefined && !familyIds.has(card.family)) errors.push(`Card "${card.id}": unknown family "${card.family}".`);
   }
 
   validateLevels(source, typeIds, enemyIds, errors);

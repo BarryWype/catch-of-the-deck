@@ -17,6 +17,8 @@ export interface ContentTranslations {
   cards?: Record<string, string>;
   builds?: Record<string, { name?: string; description?: string }>;
   equipment?: Record<string, { name?: string; description?: string }>;
+  /** Family id → its name, and its design notes. */
+  families?: Record<string, { name?: string; identity?: string; focus?: string }>;
   /** Keyed by temperament id. */
   companions?: Record<string, { name?: string; temperamentName?: string; description?: string }>;
   /** Event id → its name, text and choice labels (in order). */
@@ -54,6 +56,7 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
     builds: source.builds.map((b) => ({ ...b, ...tr.builds?.[b.id] })),
     equipment: source.equipment.map((e) => ({ ...e, ...tr.equipment?.[e.id] })),
     companionBonuses: source.companionBonuses.map((b) => ({ ...b, ...tr.companions?.[b.id] })),
+    families: source.families.map((f) => ({ ...f, ...tr.families?.[f.id] })),
     events: source.events.map((e) => {
       const t = tr.events?.[e.id];
       return {

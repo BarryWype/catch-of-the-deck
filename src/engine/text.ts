@@ -5,7 +5,7 @@
  * Templates (shared with the UI's `t`, see `formatMessage`):
  * - `{name}` is replaced by the `name` param.
  * - `{@grit}` is replaced by the language's term for it (`terms.grit`): the game's own words
- *   (Grit, Hold, Panic…) are named once per language.
+ *   (Grit, Hold, Will…) are named once per language.
  * - `one form|other form` picks a plural form from the `n` param, by the language's rules.
  */
 export type MessageTable = { [key: string]: string | MessageTable };
@@ -52,7 +52,12 @@ export function text(key: string, params?: MessageParams): string {
   return template === undefined ? key : formatMessage(template, params);
 }
 
-/** One of the game's terms (Grit, Hold, Panic…) in the current language. */
+/** Is there an engine message at `key`? */
+export function hasText(key: string): boolean {
+  return lookupMessage(messages, key) !== undefined;
+}
+
+/** One of the game's terms (Grit, Hold, Will…) in the current language. */
 export function term(name: string): string {
   return terms[name] ?? name;
 }

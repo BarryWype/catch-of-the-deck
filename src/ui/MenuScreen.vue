@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
+import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
 import type { Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CreatureBook from './CreatureBook.vue';
@@ -42,7 +42,7 @@ const DEBUG_STARTS = [0, 1, 2].flatMap((level) => [
 ]);
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
-const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'patience', 'style', 'aging', 'home', 'companions'] as const;
+const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'style', 'aging', 'home', 'companions'] as const;
 const GUIDE_NUMBERS = {
   energy: BASE_ENERGY,
   cards: STARTING_HAND_SIZE,
@@ -50,6 +50,8 @@ const GUIDE_NUMBERS = {
   maxPatience: MAX_PATIENCE,
   patiencePercent: PATIENCE_ESCAPE_PERCENT,
   strongPercent: STRONG_BONUS_PERCENT,
+  slowPercent: SLOW_PERCENT,
+  maxSlowPercent: MAX_SLOW_PERCENT,
   slots: SESSION_SLOTS,
 };
 

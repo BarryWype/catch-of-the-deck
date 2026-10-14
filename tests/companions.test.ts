@@ -155,17 +155,17 @@ describe('companion bonuses in combat', () => {
     expect(s.enemies[0].statuses.weak).toBe(1);
   });
 
-  it('firstAttackEachTurn poisons the target; Poison deals damage at the end of its turn', () => {
-    let s = setup(repeat('strike', 10), { bonuses: [trigger('firstAttackEachTurn', { type: 'applyStatus', status: 'poison', amount: 2 })] });
+  it('firstAttackEachTurn applies Venom; it hits at the start of the creature\'s turn, then loses a charge', () => {
+    let s = setup(repeat('strike', 10), { bonuses: [trigger('firstAttackEachTurn', { type: 'applyStatus', status: 'venom', amount: 2 })] });
     s = play(play(s, 'strike'), 'strike');
-    expect(s.enemies[0].statuses.poison).toBe(2);
+    expect(s.enemies[0].statuses.venom).toBe(2);
     s = endTurn(s);
     expect(s.enemies[0].hp).toBe(100 - 12 - 2);
-    expect(s.enemies[0].statuses.poison).toBe(1);
+    expect(s.enemies[0].statuses.venom).toBe(1);
   });
 
-  it('Poison can capture a creature', () => {
-    let s = setup(repeat('strike', 10), { enemies: ['shellA'], bonuses: [trigger('combatStart', { type: 'applyStatus', status: 'poison', amount: 20, target: 'allEnemies' })] });
+  it('Venom can capture a creature before it acts', () => {
+    let s = setup(repeat('strike', 10), { enemies: ['shellA'], bonuses: [trigger('combatStart', { type: 'applyStatus', status: 'venom', amount: 20, target: 'allEnemies' })] });
     s = endTurn(s);
     expect(s.phase).toBe('won');
   });

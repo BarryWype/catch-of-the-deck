@@ -7,7 +7,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 11;
 export const PROFILE_VERSION = 4;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -85,6 +85,19 @@ function upgradeSave(save: SavedGame): SavedGame | null {
   }
   // v7 runs had no reward skips or rerolls.
   if (save.version === 7) save = { ...save, version: 8, run: { ...save.run, rewardSkipsUsed: 0, rewardRerollsUsed: 0 } };
+  // v8 fights had Poison, now Venom.
+  if (save.version === 8) {
+    const venom = <T extends { statuses: Record<string, number> }>(c: T): T => {
+      const { poison, ...rest } = c.statuses;
+      return { ...c, statuses: poison ? { ...rest, venom: poison } : rest };
+    };
+    const combat = save.combat && { ...save.combat, player: venom(save.combat.player), enemies: save.combat.enemies.map(venom) };
+    save = { ...save, version: 9, combat };
+  }
+  // v9 runs had no rare pity or reward families.
+  if (save.version === 9) save = { ...save, version: 10, run: { ...save.run, rarePity: 10, rewardFamilies: [] } };
+  // v10 runs didn't count their fights: every won fight raised the floor.
+  if (save.version === 10) save = { ...save, version: 11, run: { ...save.run, fights: save.run.floor - 1 } };
   // v4 runs were on a generated map, before hand-made levels, and v5 runs on the hand-made coast,
   // before coast features: they can't be resumed.
   return save.version === SAVE_VERSION ? save : null;

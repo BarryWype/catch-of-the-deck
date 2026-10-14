@@ -26,7 +26,10 @@ function scale(effect: CompanionEffect, species: number): CompanionEffect {
     return { ...effect, amount: effect.bySpecies[Math.min(species, effect.bySpecies.length) - 1] };
   }
   const factor = Math.min(species, COMPANION_SCALE_CAP);
-  if (effect.type === 'trigger') return { ...effect, effect: { ...effect.effect, amount: effect.effect.amount * factor } };
+  if (effect.type === 'trigger') {
+    const inner = effect.effect;
+    return { ...effect, effect: 'amount' in inner && typeof inner.amount === 'number' ? { ...inner, amount: inner.amount * factor } : inner };
+  }
   return { ...effect, amount: effect.amount * factor };
 }
 

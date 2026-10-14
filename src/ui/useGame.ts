@@ -27,6 +27,7 @@ import {
   finishCombat,
   isMapComplete,
   visitLeave,
+  fightFamilies,
   rollCardRewards,
   sellCreature,
   travelTo,
@@ -312,6 +313,7 @@ export function useGame(initialSeed: number) {
   function claimVictory() {
     if (!run.value || !combat.value || combat.value.phase !== 'won') return;
     let finished = finishCombat(run.value, combat.value, gameData);
+    const families = fightFamilies(combat.value, gameData);
     combat.value = null;
     if (isMapComplete(finished)) {
       // A level's boss is beaten: on to the next level, or the run is won.
@@ -321,7 +323,7 @@ export function useGame(initialSeed: number) {
       }
       finished = enterNextLevel(finished, gameData);
     }
-    const rewards = rollCardRewards(finished, gameData);
+    const rewards = rollCardRewards(finished, gameData, { families });
     run.value = rewards.run;
     rewardChoices.value = rewards.choices;
     screen.value = 'reward';
@@ -351,7 +353,8 @@ export function useGame(initialSeed: number) {
     const result = applyEventChoice(run.value, eventId.value, choiceIndex, gameData);
     eventId.value = null;
     if (result.cardReward) {
-      const rewards = rollCardRewards(result.run, gameData);
+      // No fight: every family's cards.
+      const rewards = rollCardRewards(result.run, gameData, { families: [] });
       run.value = rewards.run;
       rewardChoices.value = rewards.choices;
       screen.value = 'reward';

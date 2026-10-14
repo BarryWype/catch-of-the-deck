@@ -8,6 +8,8 @@ import {
   escapeRateReduction,
   availableDestinations,
   bringCatchHome,
+  createCombat,
+  previewIntent,
   layEggs,
   SESSION_SLOTS,
   takeFromHome,
@@ -41,18 +43,67 @@ describe('run', () => {
     expect(run.level).toBe(0);
   });
 
-  it('offers 3 distinct non-starter cards, deterministically', () => {
+  it('offers 3 distinct cards from a family (never starter cards), deterministically', () => {
     const run = createRun(5, testData, 'basic');
     const { choices } = rollCardRewards(run, testData);
     expect(choices).toHaveLength(3);
     expect(new Set(choices).size).toBe(3);
-    for (const id of choices) expect(testData.cards[id].rarity).not.toBe('starter');
+    for (const id of choices) expect(testData.cards[id].family).toBeDefined();
     expect(rollCardRewards(run, testData).choices).toEqual(choices);
+  });
+
+  it('draws from the families of the fight, topped up from every family', () => {
+    const card = (id: string, family: string, rarity: 'normal' | 'rare' = 'normal') => ({ ...testData.cards.twin, id, family, rarity });
+    const data = {
+      ...testData,
+      cards: { a1: card('a1', 'a'), a2: card('a2', 'a'), a3: card('a3', 'a'), a4: card('a4', 'a'), b1: card('b1', 'b'), b2: card('b2', 'b'), b3: card('b3', 'b') },
+    };
+    for (let seed = 1; seed <= 20; seed++) {
+      const run = { ...createRun(seed, testData, 'basic'), rarePity: 0 };
+      expect(rollCardRewards(run, data, { families: ['a'] }).choices.every((id) => id.startsWith('a'))).toBe(true);
+      // Family b has 3 cards: all of them. One card short: the rest from any family.
+      expect(rollCardRewards(run, data, { families: ['b'] }).choices.sort()).toEqual(['b1', 'b2', 'b3']);
+      const short = { ...data, cards: { ...data.cards, b3: card('b3', 'a') } };
+      expect(rollCardRewards(run, short, { families: ['b'] }).choices.filter((id) => id.startsWith('b')).sort()).toEqual(['b1', 'b2']);
+    }
+  });
+
+  it('a slot is rare with the run’s pity chance: 10%, +2% per slot that wasn’t rare, back to 10% after a rare', () => {
+    const card = (id: string, rarity: 'normal' | 'rare') => ({ ...testData.cards.twin, id, family: 'a', rarity });
+    const data = { ...testData, cards: { n1: card('n1', 'normal'), n2: card('n2', 'normal'), n3: card('n3', 'normal'), r1: card('r1', 'rare'), r2: card('r2', 'rare') } };
+    const run = createRun(5, testData, 'basic');
+    expect(run.rarePity).toBe(10);
+    // A sure rare first: the pity goes back to 10, then rises by 2 for each normal slot (one rare card only).
+    const oneRare = { ...data, cards: { n1: data.cards.n1, n2: data.cards.n2, n3: data.cards.n3, r1: data.cards.r1 } };
+    const sure = rollCardRewards({ ...run, rarePity: 100 }, oneRare, { families: ['a'] });
+    expect(sure.choices[0]).toBe('r1');
+    expect(sure.run.rarePity).toBe(10 + 2 + 2);
+    // Never rare: +2 per slot.
+    expect(rollCardRewards({ ...run, rarePity: 0 }, data, { families: ['a'] }).run.rarePity).toBe(6);
+    // Over many rewards, roughly 1 slot in 6–7 is rare (10% rising with the pity).
+    let state = run;
+    let total = 0;
+    let rare = 0;
+    for (let i = 0; i < 300; i++) {
+      const r = rollCardRewards(state, data, { families: ['a'] });
+      state = r.run;
+      total += r.choices.length;
+      rare += r.choices.filter((id) => id.startsWith('r')).length;
+    }
+    expect(rare / total).toBeGreaterThan(0.1);
+    expect(rare / total).toBeLessThan(0.25);
+  });
+
+  it('a reroll draws from the same families', () => {
+    const data = { ...testData, cards: { ...testData.cards } };
+    const run = rollCardRewards(createRun(5, testData, 'basic'), data, { families: ['shells'] }).run;
+    expect(run.rewardFamilies).toEqual(['shells']);
+    expect(rollCardRewards(run, data).run.rewardFamilies).toEqual(['shells']);
   });
 
   it('build cards are only offered to their build', () => {
     const offered = (build: string) =>
-      new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap((seed) => rollCardRewards(createRun(seed, testData, build), testData, 99).choices));
+      new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap((seed) => rollCardRewards(createRun(seed, testData, build), testData, { count: 99 }).choices));
     expect(offered('angler').has('lure')).toBe(true);
     expect(offered('basic').has('lure')).toBe(false);
   });
@@ -190,6 +241,27 @@ describe('travelling the map', () => {
     expect(travelTo(start, '1b', testData).combat.enemies.map((e) => e.defId)).toEqual(['cycler']);
     const atOne = travelTo(start, '1a', testData).run;
     expect(travelTo(atOne, '2', testData).combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
+  });
+
+  it("gives a fight's creatures at least 50 Health and moves averaging 9, both 2% more per fight before it", () => {
+    const start = createRun(5, testData, 'basic');
+    const first = travelTo(start, '1a', testData);
+    // The dummy's 100 Health is already above the pool; its 10-damage hit is brought to 9.
+    expect(first.combat.enemies[0].maxHp).toBe(100);
+    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(9);
+    expect(first.run.fights).toBe(1);
+    const later = travelTo({ ...first.run, fights: 7 }, '2', testData).combat;
+    expect(later.enemies[0].maxHp).toBe(57);
+  });
+
+  it('splits the damage in a group, and a mini-boss rolls 12–14', () => {
+    const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (9 / 2) * 1.1 }, testData);
+    expect(previewIntent(group, group.enemies[0], testData)?.damage).toBe(4);
+    const atOne = travelTo(createRun(5, testData, 'basic'), '1a', testData).run;
+    const miniBoss = travelTo(atOne, '2', testData).combat;
+    expect(miniBoss.enemies[0].maxHp).toBe(51);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(12);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(14);
   });
 
   it('refuses nodes that are not adjacent to the current position', () => {

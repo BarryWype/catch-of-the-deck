@@ -90,13 +90,16 @@ Add an entry to `src/content/cards.ts`. You don't need to touch code:
 {
   id: 'cleave',               // unique id
   name: 'Cleave',
-  type: 'attack',             // 'attack' | 'skill' | 'power'  (powers exhaust when played)
-  rarity: 'common',           // 'starter' cards are never offered as rewards
+  type: 'attack',             // 'attack' | 'defense' | 'drain' | 'support' | 'power' (Attack and Drain are "attacks"; powers last the fight)
+  rarity: 'normal',           // 'normal' | 'rare'
   cost: 1,
-  target: 'none',             // 'enemy' if any effect uses the chosen target
+  // patienceCost: 2,         // optional: Patience it also costs
+  target: 'none',             // 'enemy' (dragged onto a creature), 'random' (a random creature), or 'none'
   effects: [
     { type: 'dealDamage', amount: 8, target: 'allEnemies' },
   ],
+  family: 'hunter',           // the creature family that offers it as a reward (src/content/families.ts); none for starter cards
+  // tags: ['damage'],        // optional: what it's about, stored for later
   // art: '🎣',               // optional: placeholder emoji shown on the card
   // exhaust: true,           // optional: remove from the fight after playing
   // description: '...',      // optional: override the generated text
@@ -109,19 +112,30 @@ Effect reference:
 | --- | --- | --- |
 | `dealDamage` | `amount`, `hits?`, `target?` | Strength, Weak and Vulnerable apply to every hit |
 | `gainBlock` | `amount` | Always applies to the user |
-| `applyStatus` | `status` (`strength` / `vulnerable` / `weak` / `snared`), `amount`, `target?` | Negative amounts remove stacks, e.g. `-2` Strength. Snared stops a creature's Panic from rising |
+| `applyStatus` | `status` (`strength` / `vulnerable` / `weak` / `snared` / `venom` / `slow`), `amount`, `target?` | Negative amounts remove stacks, e.g. `-2` Strength. Snared stops a creature's Will from rising; Venom hits at the start of its bearer's turn, then loses a charge; each Slow makes its Will rise 20% slower, one wearing off each turn |
 | `drawCards` | `amount` | Player only |
 | `gainEnergy` | `amount` | Player only |
-| `changeEscape` | `amount`, `target?` | Moves a creature's Panic bar: negative calms it (captured at 0), positive panics it (flees at the top) |
-| `changeEscapeRate` | `amount`, `target?` | Permanently changes how much its Panic rises each turn, never below 0 |
+| `changeEscape` | `amount`, `target?` | Moves a creature's Will bar: negative is **Drain** (captured at 0), positive raises it (flees at the top) |
+| `slowCap` | `amount` | For the rest of the fight, creatures' Will can be slowed by up to `amount` percent instead of 80% (never lowers it) |
+| `gainPatience`, `heal` | `amount` (`target?` for `heal`) | Patience up to 5; healing never above max health |
+| `multiplyStatus` | `status`, `factor`, `max?` | e.g. double the creature's Slow; `max` caps the stacks added |
+| `loseHold`, `patienceToHold`, `keepHold` | `share` / `per` / — | Lose a share of your Hold; trade all Patience for Hold; keep your Hold into next turn |
+| `delayed`, `echoDamage` | `turns` + `effects` / `share` | Repeat effects at the start of your next turns; deal a share of the damage dealt again next turn |
+| `ifIntent`, `ifNoAttack` | `tag` + `then`/`else` / `then`/`else` | Depending on the creature's next move (Strike or Pull), or on whether you've played an attack this turn |
+| `flipIntent`, `rerollIntent`, `holdFromIntent` | — / — / `max` | Change the creature's next move, or gain Hold from it |
+| `coil`, `venomBonus`, `venomCoating` | — / `amount` / `amount` | This turn: double the next attack; +damage to Venomed creatures; Venom on every hit |
+| `venomNow`, `swapHealthAndWill` | — | Venom hits now; swap health % and Will % |
+| `power` | `power`, `amount?` | A Power for the rest of the fight (see `PowerId` in `src/engine/types.ts`) |
+
+`dealDamage` and `changeEscape` take `perStatus: { status, amount }` to scale with the target's stacks (+2 damage per Slow), and `dealDamage` takes `fromHold: true` to deal your Hold as damage. Statuses that change a creature's next move: `cowed`, `intimidated`, `lured`, `distracted`, `dazzled`.
 
 `target` can be `'target'` (the default: the chosen enemy, or the player when an enemy acts), `'self'`, `'allEnemies'`, or `'randomEnemy'` (re-rolled for every hit).
 
-To make a card stronger against some creature types, add a `bonus` to its damage: `{ type: 'dealDamage', amount: 5, bonus: { against: ['crustacean', 'shellfish'] } }`. Every hit then deals 20% more against them (`STRONG_BONUS_PERCENT`, rounded), after Strength, Weak and Vulnerable. `src/content/builds.ts` exports each build's type list (`ROD_TARGETS`, `SPEAR_TARGETS`, `FORAGING_TARGETS`) for reuse.
+A damage `bonus` (`{ against: ['crustacean'] }`) deals 20% more against those creature types. No card uses it for now.
 
 To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), the types it's `strongAgainst` (shown on the selection screen), and a gear sprite.
 
-Every non-starter card is automatically added to the reward pool. Add `build: 'rod'` (or `'spear'`, `'foraging'`) to offer a card only to that build. Run `npm test` afterwards: the content suite checks that your data is valid.
+Card rewards come from the families of the creatures just beaten (see CARD_REWORK.md). Add `build: 'rod'` (or `'spear'`, `'foraging'`) to offer a card only to that build. Add the card's French name to `src/locales/fr-content.ts`. Run `npm test` afterwards: the content suite checks that your data is valid, and that every language names it.
 
 ## Creatures (enemies)
 
@@ -138,8 +152,8 @@ Enemies are the 144 creatures in `src/ui/assets/fishes.png`, listed in **`src/co
 - `strength` (optional) is Strength the creature starts every fight with. It is shown on screen and adds to every hit.
 - `habitat` (optional) is how the creature moves in the aquarium: `swim` back and forth, `drift` up and down, or crawl along the `bottom`. By default jellyfish drift; armored creatures, crustaceans and bottom dwellers crawl; everything else swims.
 - `sellValue` is how many coins it sells for from the aquarium.
-- `escapeStart`, `escapeRate` and `escapeAt` drive the tug of war (the "Panic" bar): it starts at `escapeStart`, rises by `escapeRate` after each enemy turn, and the creature flees with no reward once it reaches `escapeAt`. Pushed down to 0, the creature is captured.
-- `temperament` picks a shared move set from **`src/content/behaviors.ts`**: `reefFish`, `schooling`, `predator`, `venomous`, `puffer`, `ambusher`, `fighter`, `giant`, `eel`, `armored`, `jellyfish`, `cephalopod`, `crustacean` or `bottomDweller`. Change one to rebalance every creature with that temperament.
+- `escapeStart`, `escapeRate` and `escapeAt` drive the tug of war (the "Will" bar): it starts at `escapeStart`, rises by `escapeRate` after each enemy turn, and the creature flees with no reward once it reaches `escapeAt`. Pushed down to 0, the creature is captured.
+- `temperament` picks a shared move set from **`src/content/behaviors.ts`**: `reefFish`, `schooling`, `predator`, `venomous`, `puffer`, `ambusher`, `fighter`, `giant`, `eel`, `armored`, `jellyfish`, `cephalopod`, `clawed` or `bottomDweller`. Change one to rebalance every creature with that temperament.
 
 To give one creature its own moves, add a `moves` object; it is used instead of the temperament's move set. Moves use the same effect primitives as cards:
 
@@ -173,7 +187,7 @@ Each creature has its own animated sheet in `src/ui/assets/creatures/NNN.png` (N
 | 1 | Idle: gentle bob | loops during the fight |
 | 2 | Attack: wind-up, lunge towards the player, impact flash | when the creature uses a damaging move |
 | 3 | Capture: a net drops over it and lifts it out | when it's defeated (holds the last frame) |
-| 4 | Flee: turns around and swims away | when its Panic bar fills, or when you lose the fight |
+| 4 | Flee: turns around and swims away | when its Will bar fills, or when you lose the fight |
 
 The sheets are generated from `fishes.png` by a script:
 

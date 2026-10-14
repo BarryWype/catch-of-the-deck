@@ -2,37 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { contentSource, gameData } from '../src/content';
 import { creatures } from '../src/content/creatures';
 import { gear } from '../src/content/gear';
-import { creatureTypeNames, describeCard, startingBuilds, validateContent, type ContentSource } from '../src/engine';
+import { describeCard, startingBuilds, validateContent, type ContentSource } from '../src/engine';
 
 describe('game content', () => {
   it('passes validation', () => {
     expect(validateContent(contentSource)).toEqual([]);
   });
 
-  it('has the three starting builds, each with a 10-card deck', () => {
-    const decks = Object.fromEntries(
-      Object.values(gameData.builds).map((b) => {
-        const counts: Record<string, number> = {};
-        for (const id of b.starterDeck) counts[id] = (counts[id] ?? 0) + 1;
-        return [b.id, counts];
-      }),
-    );
-    expect(decks).toEqual({
-      rod: { cast: 5, bucket: 4, setTheHook: 1 },
-      spear: { stick: 5, bucket: 4, harpoon: 1 },
-      foraging: { smallNet: 5, bucket: 4, crabNet: 1 },
-    });
+  it('every fishing style starts with the same 10-card deck', () => {
+    for (const build of Object.values(gameData.builds)) {
+      const counts: Record<string, number> = {};
+      for (const id of build.starterDeck) counts[id] = (counts[id] ?? 0) + 1;
+      expect(counts, build.id).toEqual({ tug: 4, holdTight: 4, steadyHand: 1, reelIn: 1 });
+    }
   });
 
-  it('every build card is strong against exactly its build’s types', () => {
-    for (const build of Object.values(gameData.builds)) {
-      const buildCards = Object.values(gameData.cards).filter((c) => c.build === build.id).map((c) => c.id);
-      for (const id of new Set([...build.starterDeck, ...buildCards])) {
-        for (const e of gameData.cards[id].effects) {
-          if (e.type === 'dealDamage' && e.bonus) expect(e.bonus.against).toEqual(build.strongAgainst);
-        }
-      }
-    }
+  it('starter cards have no family, so they are never offered; every other card has one', () => {
+    const starters = new Set(Object.values(gameData.builds).flatMap((b) => b.starterDeck));
+    for (const card of Object.values(gameData.cards)) expect(card.family === undefined, card.id).toBe(starters.has(card.id));
   });
 
   it('every creature type is the specialty of exactly one build', () => {
@@ -45,32 +32,16 @@ describe('game content', () => {
   });
 
   it('generates readable rules text', () => {
-    const tagNames = creatureTypeNames(gameData);
-    expect(describeCard(gameData.cards.doubleCast)).toBe('Deal 5 damage 2 times.');
-    expect(describeCard(gameData.cards.playTheLine)).toBe('Lower its Panic by 10. Gain 4 Hold.');
-    expect(describeCard(gameData.cards.scatterBait)).toBe("Lower ALL enemies' Panic by 8.");
-    expect(describeCard(gameData.cards.tireItOut)).toBe('Its Panic rises 3 slower each turn. Exhaust.');
-    expect(describeCard(gameData.cards.tangleNet, { tagNames, defenderTags: ['crustacean'] })).toBe(
-      'Deal 2 damage (+20% vs Crustacean, Shellfish, Critter). Apply 2 Snared.',
-    );
-    expect(describeCard(gameData.cards.grandmasSandwich)).toBe('Gain 2 Energy. Exhaust.');
-    expect(describeCard(gameData.cards.cast, { tagNames })).toBe('Deal 5 damage (+20% vs Sport fish, Small fish, Deep sea).');
-    // Against a matching creature the real number (bonus and modifiers included) follows in brackets.
-    expect(describeCard(gameData.cards.cast, { tagNames, defenderTags: ['smallFish'] })).toBe(
-      'Deal 5 (6) damage (+20% vs Sport fish, Small fish, Deep sea).',
-    );
-    expect(describeCard(gameData.cards.cast, { tagNames, defenderTags: ['sportFish'], attacker: { strength: 1 } })).toBe(
-      'Deal 5 (7) damage (+20% vs Sport fish, Small fish, Deep sea).',
-    );
-    expect(describeCard(gameData.cards.stick, { tagNames, defenderTags: ['smallFish'] })).toBe(
-      'Deal 5 damage (+20% vs Rock fish, Big fish, Tentacled).',
-    );
-    expect(describeCard(gameData.cards.cast, { tagNames, attacker: { weak: 1 } })).toBe(
-      'Deal 5 (3) damage (+20% vs Sport fish, Small fish, Deep sea).',
-    );
-    expect(describeCard(gameData.cards.cast, { tagNames, defenderTags: ['crustacean'] })).toBe(
-      'Deal 5 damage (+20% vs Sport fish, Small fish, Deep sea).',
-    );
+    expect(describeCard(gameData.cards.tug)).toBe('Deal 5 damage.');
+    expect(describeCard(gameData.cards.reelIn)).toBe('Drain 7.');
+    expect(describeCard(gameData.cards.sting)).toBe('Deal 2 damage. Apply 3 Venom.');
+    expect(describeCard(gameData.cards.dartingNips)).toBe('Deal 2 damage 4 times to random creatures.');
+    expect(describeCard(gameData.cards.cheapShot)).toBe('Deal 5 damage. The creature gains 5 Will.');
+    expect(describeCard(gameData.cards.numbingSting)).toBe('Apply 2 Venom. Apply 2 Slow. Targets a random creature.');
+    expect(describeCard(gameData.cards.stickySlime)).toBe('Gain 4 Hold. Apply 3 Slow. Targets a random creature.');
+    // With modifiers, the real number follows in brackets.
+    expect(describeCard(gameData.cards.tug, { attacker: { strength: 1 } })).toBe('Deal 5 (6) damage.');
+    expect(describeCard(gameData.cards.tug, { attacker: { weak: 1 } })).toBe('Deal 5 (3) damage.');
   });
 });
 
@@ -155,7 +126,7 @@ describe('gear', () => {
 describe('content validation', () => {
   const base: ContentSource = {
     character: { name: 'C', maxHp: 10, home: { name: 'Home' } },
-    cards: [{ id: 'a', name: 'A', type: 'attack', rarity: 'common', cost: 1, target: 'enemy', effects: [{ type: 'dealDamage', amount: 1 }] }],
+    cards: [{ id: 'a', name: 'A', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', effects: [{ type: 'dealDamage', amount: 1 }] }],
     enemies: [{ id: 'e', name: 'E', hp: [5, 5], escapeAt: 50, escapeStart: 25, escapeRate: 10, moves: [{ id: 'm', name: 'M', tag: 'pull', effects: [{ type: 'pull', amount: 1 }] }], pattern: { type: 'sequence', moves: ['m'] } }],
     encounters: [{ id: 'x', name: 'X', enemies: ['e'] }],
     builds: [{ id: 'b', name: 'B', description: '', starterDeck: ['a'], strongAgainst: [] }],
@@ -164,6 +135,7 @@ describe('content validation', () => {
     events: [],
     shop: [],
     companionBonuses: [],
+    families: [],
     spots: [],
     levels: [
       {

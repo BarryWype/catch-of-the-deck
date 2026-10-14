@@ -34,6 +34,6 @@ const tagNames = computed(() => creatureTypeNames(props.data));
 .reward h2 { margin: 0; }
 .options { display: flex; gap: 12px; }
 .choices { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
-.choices :deep(.card) { transform: scale(1.15); }
-.choices :deep(.card:hover) { transform: scale(1.15) translateY(-10px); }
+.choices :deep(.card) { transform: scale(1.15); transform-origin: center; }
+.choices :deep(.card:hover) { transform: scale(1.22) translateY(-10px); }
 </style>

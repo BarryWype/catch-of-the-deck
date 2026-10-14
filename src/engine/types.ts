@@ -2,7 +2,19 @@
 // Content definitions: the shapes designers fill in under /src/content.
 // ---------------------------------------------------------------------------
 
-export type StatusId = 'strength' | 'vulnerable' | 'weak' | 'snared' | 'poison';
+export type StatusId =
+  | 'strength'
+  | 'vulnerable'
+  | 'weak'
+  | 'snared'
+  | 'venom'
+  | 'slow'
+  // A creature's next move, changed by the player (`nextMoveMods`):
+  | 'cowed'
+  | 'intimidated'
+  | 'lured'
+  | 'distracted'
+  | 'dazzled';
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /**
@@ -19,22 +31,91 @@ export interface DamageBonus {
   against: string[];
 }
 
+/**
+ * What a Power does for the rest of the fight (with its `amount`, added up over copies):
+ * - `hardShell`: Hold no longer disappears between turns, nor turns into Patience.
+ * - `stingsAndSpines`: creatures' Venom drains `amount` × its charges from their escape bar instead of dealing damage.
+ * - `envenomedHooks`: every hit of a card's damage or Drain applies `amount` Venom.
+ * - `pushTheLimits`: Slow on creatures no longer wears off.
+ * - `oldAsTheRiver`: paying a card's Patience cost deals `amount` damage per point to a random creature.
+ * - `baitBall`: playing a 0-cost card Drains `amount` from a random creature.
+ * - `deadWeight`: each creature gains `amount` Slow at the start of its turn.
+ * - `gooeyMess`: every Pull against the player loses `amount` before it reaches their Hold.
+ * - `perfectDisguise`: at the end of the player's turn, if no attack was played: `amount` Hold, and 1 Slow on a random creature (per copy).
+ */
+export type PowerId =
+  | 'hardShell'
+  | 'stingsAndSpines'
+  | 'envenomedHooks'
+  | 'pushTheLimits'
+  | 'oldAsTheRiver'
+  | 'baitBall'
+  | 'deadWeight'
+  | 'gooeyMess'
+  | 'perfectDisguise';
+
+/** Adds `amount` to an effect's amount for every stack of `status` on its target (e.g. +2 damage per Slow). */
+export interface PerStatus {
+  status: StatusId;
+  amount: number;
+}
+
 /** The reusable building blocks that every card and enemy move is made of. */
 export type Effect =
-  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; bonus?: DamageBonus }
+  /** `fromHold`: the amount is the player's current Hold instead. */
+  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; bonus?: DamageBonus; perStatus?: PerStatus; fromHold?: boolean }
+  /** The player loses this share of their Hold (0.5 = half, rounded down). */
+  | { type: 'loseHold'; share: number }
+  /** The player loses all their Patience (it isn't spent) and gains `per` Hold for each point lost. */
+  | { type: 'patienceToHold'; per: number }
+  /** The player's Hold doesn't vanish at the start of their next turn. */
+  | { type: 'keepHold' }
+  /** `then` if no attack (Attack or Drain card) was played earlier this turn, `else` otherwise. */
+  | { type: 'ifNoAttack'; then: Effect[]; else?: Effect[] }
+  /** A Power: lasts the whole fight (`CombatState.powers`); `amount` is its number (see `PowerId`). */
+  | { type: 'power'; power: PowerId; amount?: number }
+  /** The target's Venom deals its damage now, without losing a charge. */
+  | { type: 'venomNow'; target?: EffectTarget }
+  /** Swap the target's health % and escape bar % (rounded down): it can be caught, or flee. */
+  | { type: 'swapHealthAndWill'; target?: EffectTarget }
+  /** The next Attack or Drain card played this turn has its numbers doubled. */
+  | { type: 'coil' }
+  /** For the rest of the turn, the player's attacks deal `amount` more per hit to creatures with Venom. */
+  | { type: 'venomBonus'; amount: number }
+  /** For the rest of the turn, every hit of the player's attacks (a Drain is a hit) also applies `amount` Venom. */
+  | { type: 'venomCoating'; amount: number }
+  /** `then` if the target's next move has this tag, `else` otherwise. */
+  | { type: 'ifIntent'; tag: MoveTag; then: Effect[]; else?: Effect[] }
+  /** The target's next move becomes a random move of the other tag (Strike ↔ Pull), if it has one. */
+  | { type: 'flipIntent'; target?: EffectTarget }
+  /** The target's next move becomes another of its moves, picked at random. */
+  | { type: 'rerollIntent'; target?: EffectTarget }
+  /** Gain Hold equal to the target's next Strike damage or Pull amount, up to `max` (0 for other moves). */
+  | { type: 'holdFromIntent'; max: number; target?: EffectTarget }
+  /** `effects` happen again at the start of each of the player's next `turns` turns, on the same target. */
+  | { type: 'delayed'; turns: number; effects: Effect[] }
+  /** At the start of the player's next turn, the card's target takes `share` of the health its earlier effects took (rounded down) again. */
+  | { type: 'echoDamage'; share: number }
   | { type: 'gainBlock'; amount: number }
   | { type: 'applyStatus'; status: StatusId; amount: number; target?: EffectTarget }
   | { type: 'drawCards'; amount: number }
   | { type: 'gainEnergy'; amount: number }
-  /** Move a creature's escape bar: negative calms it toward capture (0), positive panics it toward fleeing. */
-  | { type: 'changeEscape'; amount: number; target?: EffectTarget }
-  /** Permanently change how fast a creature's escape bar rises each turn (never below 0). */
-  | { type: 'changeEscapeRate'; amount: number; target?: EffectTarget }
+  /** Move a creature's escape bar (its Will): negative Drains it toward capture (0), positive raises it toward fleeing. */
+  | { type: 'changeEscape'; amount: number; target?: EffectTarget; perStatus?: PerStatus }
+  /** Multiply the target's stacks of a status by `factor` (adding at most `max` stacks). */
+  | { type: 'multiplyStatus'; status: StatusId; factor: number; max?: number; target?: EffectTarget }
+  /** The player gains this much Patience (up to `MAX_PATIENCE`). */
+  | { type: 'gainPatience'; amount: number }
+  /** The target heals this much, never above its max health. */
+  | { type: 'heal'; amount: number; target?: EffectTarget }
+  /** For the rest of the fight, escape bars can be slowed by up to `amount` percent (instead of `MAX_SLOW_PERCENT`); it never lowers it. */
+  | { type: 'slowCap'; amount: number }
   /** Creature moves only: it pulls on the line. The player's Hold takes it first; the rest raises its escape bar. */
   | { type: 'pull'; amount: number };
 
-export type CardType = 'attack' | 'skill' | 'power';
-export type CardRarity = 'starter' | 'common' | 'uncommon' | 'rare';
+export type CardType = 'attack' | 'defense' | 'drain' | 'support' | 'power';
+/** Attack and Drain cards are "attacks" for every rule that counts them (`isAttackCard`). */
+export type CardRarity = 'normal' | 'rare';
 
 export interface CardDef {
   id: string;
@@ -44,13 +125,20 @@ export interface CardDef {
   cost: number;
   /** Patience points it also costs (see `PlayerState.patience`). */
   patienceCost?: number;
-  /** `enemy` = the player must pick an enemy to play it on. */
-  target: 'enemy' | 'none';
+  /**
+   * `enemy`: the player drags it onto the creature it's played on. `random`: it's played on a random
+   * creature (picked when it's played), for every effect aimed at "the target". `none`: no creature.
+   */
+  target: 'enemy' | 'random' | 'none';
   effects: Effect[];
   /** Removed from the fight after being played. Powers always exhaust. */
   exhaust?: boolean;
   /** Only offered as a reward to this build. Offered to every build if omitted. */
   build?: string;
+  /** The creature family it belongs to (`FamilyDef`): creatures of that family can offer it. Starter cards have none. */
+  family?: string;
+  /** What it's about (damage, hold, delayed…). Stored for later; not shown. */
+  tags?: string[];
   /** Optional text override. Normally generated from `effects`. */
   description?: string;
   /** Placeholder art (emoji). Display-only; ignored by the engine. */
@@ -92,7 +180,7 @@ export type EquipmentEffect =
   | { type: 'sellOnCapture'; bonusPercent: number }
   /** Enthusiastic passersby pay this much more per fish. */
   | { type: 'passerbyBonus'; bonusPercent: number }
-  /** Player effects that lower a creature's Panic lower it by this much more (rounded up). */
+  /** The player's Drain drains this much more, in percent (rounded up). */
   | { type: 'strongerPull'; percent: number }
   /** Creatures caught during the run come home with this many bond points. */
   | { type: 'bondOnCapture'; amount: number }
@@ -143,7 +231,7 @@ export type CompanionEffect =
   | { type: 'firstAttackDamage'; amount: number }
   /** The first this-many enemy attack hits of each fight deal 0 damage. */
   | { type: 'dodgeAttacks'; amount: number }
-  /** Player effects that lower Panic lower it by this much more. */
+  /** The player's Drain drains this much more. */
   | { type: 'bonusEscapeReduction'; amount: number }
   /** Every creature's escape rate drops by this percentage at the start of each fight (like the Reliable Reel). */
   | { type: 'slowEscape'; amount: number }
@@ -162,6 +250,22 @@ export type CompanionEffect =
   | { type: 'rewardRerolls'; amount: number; bySpecies?: number[] }
   /** Resolve `effect` as the player whenever `on` happens. Its numbers ignore Strength and other modifiers. */
   | { type: 'trigger'; on: CompanionTrigger; effect: Effect };
+
+/**
+ * A creature family: temperaments grouped by a shared identity (Venom, Shell, Hunter…). A temperament
+ * can belong to several families. Cards name their family, and a creature offers the cards of all
+ * its temperament's families (`cardsOfferedBy`).
+ */
+export interface FamilyDef {
+  id: string;
+  name: string;
+  /** Temperament ids (content/behaviors.ts) in this family. */
+  temperaments: string[];
+  /** What its cards are about, e.g. "Damage over time (Venom)". Design note; not shown yet. */
+  identity: string;
+  /** What it plays around, e.g. "health bar", "Will bar". Design note; not shown yet. */
+  focus: string;
+}
 
 /** The bonus a temperament gives when creatures of it are brought along. */
 export interface CompanionBonusDef {
@@ -435,6 +539,7 @@ export interface GameData {
   shop: ShopItemDef[];
   /** Keyed by temperament id. */
   companionBonuses: Record<string, CompanionBonusDef>;
+  families: Record<string, FamilyDef>;
   spots: Record<string, SpotDef>;
   /** Played in order, one per act of a run. */
   levels: LevelDef[];
@@ -474,6 +579,8 @@ export interface EnemyState extends Combatant {
   escape: number;
   escapeAt: number;
   escapeRate: number;
+  /** Its moves' Strike and Pull are multiplied by this (the fight's damage, see `createCombat`). */
+  damageScale?: number;
 }
 
 export interface CardInstance {
@@ -506,8 +613,27 @@ export interface CombatState {
   bonuses: CompanionEffect[];
   /** What the once-per-turn / once-per-fight bonuses need to remember. */
   bonusTracker: BonusTracker;
-  /** Extra share, in percent, of every Panic reduction from the player (`strongerPull` equipment). */
+  /** Extra share, in percent, of every Drain from the player (`strongerPull` equipment). */
   pullPercent?: number;
+  /** Effects waiting for the start of the player's next turns (`delayed`, `echoDamage`). */
+  delayed?: DelayedEffect[];
+  /** Powers played this fight, in order (`power` effects). */
+  powers?: { power: PowerId; amount: number }[];
+  /** What lasts until the end of the player's turn (`coil`, `venomBonus`, `venomCoating`). */
+  thisTurn?: { coiled?: boolean; venomBonus?: number; venomCoating?: number };
+  /** Set by `keepHold`: the player's Hold stays at the start of their next turn. */
+  keepHold?: boolean;
+  /** How much escape bars can be slowed this fight, in percent, when a card raised it (`slowCap`). `MAX_SLOW_PERCENT` otherwise. */
+  slowCap?: number;
+}
+
+/** Effects that happen at the start of the player's next turns, on the target they were played on. */
+export interface DelayedEffect {
+  turnsLeft: number;
+  effects: Effect[];
+  targetId?: string;
+  /** Numbers as written (no Strength, Weak or bonuses): `echoDamage`'s are already worked out. */
+  raw?: boolean;
 }
 
 export interface BonusTracker {

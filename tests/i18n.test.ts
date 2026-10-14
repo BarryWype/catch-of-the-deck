@@ -82,6 +82,7 @@ describe.each(codes.filter((code) => code !== 'en'))('the %s content', (code) =>
     expect(missing(contentSource.companionBonuses.map((b) => b.id), tr.companions)).toEqual([]);
     expect(missing(contentSource.shop.map((s) => s.id), tr.shop)).toEqual([]);
     expect(missing(contentSource.levels.map((l) => l.id), tr.levels)).toEqual([]);
+    expect(missing(contentSource.families.map((f) => f.id), tr.families)).toEqual([]);
     for (const event of contentSource.events) expect(tr.events?.[event.id]?.choices, event.id).toHaveLength(event.choices.length);
   });
 

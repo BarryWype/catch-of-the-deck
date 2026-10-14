@@ -3,6 +3,7 @@ import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { pickWeighted } from './rng';
+import { nextMoveMods } from './statuses';
 import type { CombatState, EnemyMove, EnemyState, GameData, MoveTag } from './types';
 import { text } from './text';
 import { addLog } from './util';
@@ -56,11 +57,21 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
   const move = getIntentMove(enemy, data);
   if (!move) return;
   addLog(state, text('log.uses', { name: enemy.name, move: move.name }));
+  // Statuses the player put on it change this move, and are used up by it.
+  const mods = nextMoveMods(enemy, move.tag);
+  for (const id of mods.used) delete enemy.statuses[id];
+  const ctx = { sourceId: enemy.id, targetId: PLAYER_ID, moveScale: mods.scale * (enemy.damageScale ?? 1), strikeLess: mods.less };
   for (const effect of move.effects) {
-    resolveEffect(state, effect, { sourceId: enemy.id, targetId: PLAYER_ID });
+    resolveEffect(state, effect, ctx);
     if (state.player.hp <= 0) break;
   }
   enemy.moveHistory.push(move.id);
+}
+
+/** A hit or Pull of the creature's next move as its statuses change it (per hit: close to the total for multi-hit Strikes). */
+function changedPreview(amount: number, enemy: EnemyState, tag: MoveTag): number {
+  const { scale, less } = nextMoveMods(enemy, tag);
+  return Math.max(0, Math.floor(amount * scale * (enemy.damageScale ?? 1)) - less);
 }
 
 export function previewIntent(state: CombatState, enemy: EnemyState, data: GameData): IntentPreview | null {
@@ -79,12 +90,12 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
     switch (effect.type) {
       case 'dealDamage':
         addKind('attack');
-        preview.damage ??= calculateDamage(effect.amount, enemy.statuses, state.player.statuses);
+        preview.damage ??= changedPreview(calculateDamage(effect.amount, enemy.statuses, state.player.statuses), enemy, 'strike');
         preview.hits ??= effect.hits ?? 1;
         break;
       case 'pull':
         addKind('pull');
-        preview.pull = (preview.pull ?? 0) + effect.amount;
+        preview.pull = (preview.pull ?? 0) + changedPreview(effect.amount, enemy, 'pull');
         break;
       case 'gainBlock':
         addKind('defend');
@@ -95,6 +106,26 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
         break;
       case 'drawCards':
       case 'gainEnergy':
+      case 'slowCap':
+      case 'gainPatience':
+      case 'heal':
+      case 'multiplyStatus':
+      case 'loseHold':
+      case 'patienceToHold':
+      case 'keepHold':
+      case 'delayed':
+      case 'echoDamage':
+      case 'ifIntent':
+      case 'ifNoAttack':
+      case 'coil':
+      case 'venomNow':
+      case 'power':
+      case 'swapHealthAndWill':
+      case 'venomBonus':
+      case 'venomCoating':
+      case 'flipIntent':
+      case 'rerollIntent':
+      case 'holdFromIntent':
         addKind('buff');
         break;
     }

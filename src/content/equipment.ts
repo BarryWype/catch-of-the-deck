@@ -10,7 +10,7 @@ export const equipment: EquipmentDef[] = [
     id: 'reliableReel',
     name: 'Reliable Reel',
     icon: '🎣',
-    description: 'Creatures’ Panic rises 20% slower (at least 1, rounded up).',
+    description: 'Creatures’ Will rises 20% slower (at least 1, rounded up).',
     effects: [{ type: 'slowEscape', percent: 20 }],
   },
   {
@@ -31,7 +31,7 @@ export const equipment: EquipmentDef[] = [
     id: 'strongRod',
     name: 'Strong Rod',
     icon: '🎋',
-    description: 'Cards that lower Panic lower it 25% more (rounded up).',
+    description: 'Your Drain drains 25% more (rounded up).',
     effects: [{ type: 'strongerPull', percent: 25 }],
   },
   {

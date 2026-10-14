@@ -63,7 +63,7 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
 - **Fights:**
   - **On the map:** a fight node shows its fishing spot, not a specific creature (bosses show their name).
   - **On arrival:** `travelTo` draws an encounter from its spot at the level's tier (`encountersFor`). A companion gains a bond point at every fight.
-  - **Card reward:** after a win, one of 3 cards must be taken. Eel companions (`rewardSkips`, `rewardRerolls`) allow skipping, or rerolling for 3 other cards, a few times per level (`rewardOptions`; the counts reset on each level).
+  - **Card reward:** after a win, one of 3 cards must be taken. They come from the families of the creatures of that fight (`fightFamilies`, `rollCardRewards`), topped up from every family; an event's card reward draws from every family. Each slot is rare with `RunState.rarePity` percent (`RARE_CHANCE` 10, +`RARE_PITY_STEP` 2 per slot that wasn't, back to 10 on a rare). The card set and its rules are in CARD_REWORK.md. Eel companions (`rewardSkips`, `rewardRerolls`) allow skipping, or rerolling for 3 other cards, a few times per level (`rewardOptions`; the counts reset on each level).
 - **Events:**
   - **On arrival:** `visitEvent` either starts a surprise fight against any creature of the level's tier (`EVENT_FIGHT_CHANCE`, 10%) or draws one of the events allowed at that column (`minColumn`).
   - **Treasure nodes** (`visitTreasure`) draw among the events marked `treasure` instead, which never come up as ordinary events.
@@ -82,19 +82,20 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
   - **On screen:** they swim away (the flee animation) instead of the capture net.
   - **Why:** the victory text gives the node's `releaseReason`, e.g. "Blue crab is too feisty to keep, so you let it go."
 
-## Combat and the Panic bar
+## Combat and the Will bar
 
 - **Turns:**
-  - **Start of the turn:** block resets, energy refills and you draw 5 cards.
-  - **End of the turn:** the hand is discarded and statuses tick (**Poison** deals its stacks as damage, ignoring Block, then decreases). Each enemy then acts on its shown intent and its escape bar rises.
+  - **Start of the turn:** **Venom** hits (its charges as damage, ignoring Block, then one charge less; `tickVenom`), block resets, energy refills and you draw 5 cards.
+  - **End of the turn:** the hand is discarded and durations tick down. Each creature then takes its Venom (if that wears it out, it's caught before acting), acts on its shown intent, and its escape bar rises.
   - **Win/lose check:** after every effect.
-- **Grit** (`PLAYER_HP_NAME`): the player's HP is shown as **Grit**, the will to keep fishing, in its own orange bar. It works like HP (`hp`, `maxHp` in the code): creatures' Strikes wear it down, and the fight is lost when it runs out.
-- **Hold** (`PLAYER_BLOCK_NAME`): the player's Block is shown as **Hold**, their hold on the line (the starter defence card is called Hold). It soaks both kinds of creature move; creatures' own Block is still called Block.
+- **Grit** (`terms.grit`): the player's HP is shown as **Grit**, the will to keep fishing, in its own orange bar. It works like HP (`hp`, `maxHp` in the code): creatures' Strikes wear it down, and the fight is lost when it runs out.
+- **Hold** (`terms.hold`): the player's Block is shown as **Hold**, their hold on the line (the starter defence card is called Hold). It soaks both kinds of creature move; creatures' own Block is still called Block.
+- **Fight scaling** (`startFight` in `run.ts`): each fight is tougher by `ENCOUNTER_GROWTH_PERCENT` (2%) per fight already started this run (`RunState.fights`). `createCombat` raises the creatures' rolled Health in proportion when it adds up to less than `hpPool` (`ENCOUNTER_HP_POOL`, 50), and gives each a `damageScale` so its Strike and Pull moves average `damage`: `ENCOUNTER_DAMAGE` (9), or a roll of `MINI_BOSS_DAMAGE` / `BOSS_DAMAGE` with no growth; in a group, each gets its share × `GROUP_DAMAGE_PERCENT` (110%). `damageScale` multiplies the move's `moveScale`, so statuses and the intent preview use it too.
 - **Creature moves** (`content/behaviors.ts`) each have a `tag`, checked against their effects on startup:
   - **Strike:** deals damage. What gets past the Hold wears down Grit.
   - **Pull:** has a `pull` effect (creature moves only). What gets past the Hold raises the creature's own escape bar.
   - The intent shows the tag, and the damage or pull to expect.
-- **Escape bar** (shown to the player as **Panic**, name in `ESCAPE_BAR_NAME`). Each creature has:
+- **Escape bar** (shown to the player as **Will**, `terms.will`). Each creature has:
   - **`escape`:** the bar, which starts at `escapeStart`.
   - **`escapeRate`:** how much the bar rises after the creature's turn. **Snared** stops the rise for a turn.
   - **`escapeAt`:** when the bar reaches it, the creature flees. The fight ends as `fled`, with no reward and no capture.
@@ -103,13 +104,13 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
   - **Hold:** after the creatures act, every `HOLD_PER_PATIENCE` (3) Hold left over (beyond what companion bonuses keep for next turn) is spent for one.
   - **Effect:** each point slows every creature's rise by `PATIENCE_ESCAPE_PERCENT` (10%) of its `escapeRate`, rounded up (`escapeRise`), so at most by half. A card's `patienceCost` must be paid in Patience on top of its energy cost, and spends it.
 - **Capture:** a creature at 0 HP **or** with its bar pushed to 0 is out of the fight and captured (`isAlive`).
-- **Card effects on the bar:**
-  - **`changeEscape`:** moves the bar.
-  - **`changeEscapeRate`:** changes the rise rate for the rest of the fight.
+- **Card effects on the bar** (keywords in card text):
+  - **Drain** (`changeEscape` with a negative amount): lowers the bar by a flat amount. Positive amounts raise it.
+  - **Slow** (status `slow`, applied with `applyStatus`): each stack makes the bar rise `SLOW_PERCENT` (20%) slower, and one wears off at the end of the creature's turn. In `escapeRise` it adds up with Patience (10% a point), capped at `MAX_SLOW_PERCENT` (80%), then cuts the rise (rounded up, at least 1). A `slowCap` card effect raises that cap for the rest of the fight (`CombatState.slowCap`, never lowered). The Reliable Reel and the Giant companions instead lower `escapeRate` itself when the fight starts.
 - **Builds use the bar differently** (see `content/cards.ts`):
-  - **Rod fishing** manages tension: big hits raise Panic, skills calm and tire the fish.
+  - **Rod fishing** manages tension: big hits raise its Will, skills Drain and tire the fish.
   - **Spear fishing** strikes hard, and its wounds slow the rise.
-  - **Foraging** barely deals damage: it snares creatures and calms them down to 0.
+  - **Foraging** barely deals damage: it snares creatures and Drains them down to 0.
 
 ## Aquariums: the bucket and the home aquarium
 
@@ -152,6 +153,15 @@ There are two separate collections of creatures. They never share creatures, exc
 
 Anything meant to last between runs (score, unlocks, statistics) belongs in the **profile**, never in `RunState`.
 
+## Creature families
+
+Families (`content/families.ts`, `FamilyDef`) group temperaments by a shared identity: Venom, Shell, Swift, Hunter, Endurance, Patient, Trickster, Flashy, Camo and Slimy. A temperament can be in several (clawed creatures are Shell and Camo). It's a lookup only (`engine/families.ts`):
+
+- **`familiesOf(temperament)`** and **`creatureFamilies(enemyId)`** give a creature's families, through its temperament.
+- **`cardsOfferedBy(enemyId)`**: the cards whose `family` is one of them. That's what each creature can offer; nothing uses it in the game yet.
+- **Checked on startup:** every family's temperaments exist, every creature's temperament is in at least one family, and every card's `family` exists.
+- `identity` and `focus` are design notes, translated but not shown yet.
+
 ## Companions: bonuses from brought creatures
 
 Creatures brought from the home aquarium on the companions screen (`RunState.companions`, always the first entries of the bucket) give a bonus from their **temperament** for the whole run. Creatures captured during the run are **angry** (💢 in the bucket) and give nothing. Selling a companion ends its bonus; the max HP it gave stays.
@@ -162,7 +172,7 @@ Creatures brought from the home aquarium on the companions screen (`RunState.com
   - 2 species: doubled (`COMPANION_SCALE_CAP`).
   - 3 species (`FULL_SCHOOL`): still doubled, plus the `fullSchool` effects.
 - **Effects** (`CompanionEffect` in `engine/types.ts`):
-  - **Passive modifiers,** read with `bonusTotal`: bonus Block, kept Block, bonus damage, first-attack damage, dodged attacks, extra Panic reduction, slower escape, max HP, healing after fights, sell bonus.
+  - **Passive modifiers,** read with `bonusTotal`: bonus Block, kept Block, bonus damage, first-attack damage, dodged attacks, extra Drain, a slower Will, max HP, healing after fights, sell bonus.
   - **Triggered effects,** `{ type: 'trigger', on, effect }`: any card effect, resolved as the player by `fireTriggers` with its numbers as written (no Strength or other bonuses). The triggers are `combatStart`, `firstAttackEachTurn`, `firstAttackEachFight`, `fullBlock`, `hitByEnemy` and `firstBelowHalfHp`. For the attack and hit triggers, `target` means the enemy attacked or attacking. Block from triggers that fire during the enemies' turn lasts into the player's next turn.
 - **Where they apply:**
   - `createRun` adds the max HP.
@@ -188,7 +198,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
   3. A file that can't be upgraded is ignored rather than crashing: no Resume, or a fresh profile.
 
   Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond. Version 4 saves were on a generated map: they can't be resumed.
-- **Resume** restores every saved field, so the player returns to the same screen. Mid-fight saves include the hand, energy and Panic.
+- **Resume** restores every saved field, so the player returns to the same screen. Mid-fight saves include the hand, energy and Will.
 
 ## Desktop app and releases
 
@@ -202,7 +212,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 
 Every word the player reads comes from a language file in `src/locales/`, so the game can be played in English or French (Options → Language), and other languages can be added.
 
-- **`en.ts`** is the reference: the game's own words (`terms`: Grit, Hold, Panic, Patience), the text written by the rules (`engine`: card text, the fight log, companion bonuses, events, shop) and the screens' text (`ui`).
+- **`en.ts`** is the reference: the game's own words (`terms`: Grit, Hold, Will, Patience), the text written by the rules (`engine`: card text, the fight log, companion bonuses, events, shop) and the screens' text (`ui`).
 - **`<code>.ts`** (e.g. `fr.ts`) has exactly the same keys, which TypeScript checks.
 - **`<code>-content.ts`** names the content by id: creatures, cards, moves, builds, equipment, companions, events, shop items, fishing spots, levels, and the map's place names and release reasons (keyed by their English text). English content is the content files themselves; `localizeContent` (`content/localize.ts`) swaps in a language's words, and anything missing stays English.
 - **Templates:** `{name}` is filled in by the game, `{@grit}` is one of the language's terms, and `singular|plural` picks a form from `{n}` by the language's plural rules (`formatMessage`, `engine/text.ts`).
@@ -214,7 +224,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 ## Animation and performance
 
 - **Transform and opacity only:** UI animations and transitions only change `transform` (or `translate`, `scale`, `rotate`) and `opacity`, which the browser can run without re-laying out or repainting the page.
-  - **Bars:** they scale (`scaleX`); the Panic bar's next-turn preview slides between two clipping windows.
+  - **Bars:** they scale (`scaleX`); the Will bar's next-turn preview slides between two clipping windows.
   - **Hover and target glows:** these sit on their own pseudo-element and fade in.
   - **Shadows and filters:** drop shadows or filters around something that animates are replaced by still shadows.
 - **Sprites** (`AnimatedSprite.vue`): the sheet slides behind a one-frame window with a CSS `steps()` animation. There are no timers or re-renders per frame, and the end of a one-shot clip is its `animationend`.
@@ -263,7 +273,7 @@ Percentages in equipment and event effects are whole numbers (20 = 20%), and res
 
 **Equipment effects** (`EquipmentEffect`, applied by the engine):
 - **`slowEscape`:** the Reliable Reel.
-- **`strongerPull`:** the Strong Rod. Player effects that lower Panic lower it a share more (`CombatState.pullPercent`).
+- **`strongerPull`:** the Strong Rod. The player's Drain drains a share more (`CombatState.pullPercent`).
 - **`sellOnCapture`:** the Sharp Spear.
 - **`passerbyBonus`:** the Rubber Duck.
 - **`bondOnCapture`:** the Soft Net. Catches come home with that bond (`bringCatchHome`).

@@ -4,7 +4,7 @@ import { isDebuff, statusDescription, statusName, type StatusId, type Statuses }
 
 const props = defineProps<{ statuses: Statuses }>();
 
-const ICONS: Record<StatusId, string> = { strength: '💪', vulnerable: '💔', weak: '🥀', snared: '🕸️', poison: '☠️' };
+const ICONS: Record<StatusId, string> = { strength: '💪', vulnerable: '💔', weak: '🥀', snared: '🕸️', venom: '☠️', slow: '🐌', cowed: '😨', intimidated: '🦷', lured: '🎏', distracted: '✨', dazzled: '🌈' };
 const entries = computed(() => Object.entries(props.statuses) as Array<[StatusId, number]>);
 </script>
 

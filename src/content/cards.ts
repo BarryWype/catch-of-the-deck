@@ -1,408 +1,285 @@
 import type { CardDef } from '../engine';
-import { FORAGING_TARGETS, ROD_TARGETS, SPEAR_TARGETS } from './builds';
 
 /**
- * Every card in the game. Rules text is generated from `effects`
- * (set `description` to override it). See README → "Adding a card".
+ * Every card in the game. Rules text is generated from `effects` (set `description` to override
+ * it). See README → "Adding a card".
  *
- * A damage `bonus` adds damage per hit against the listed creature types,
- * e.g. `bonus: { against: ROD_TARGETS }`.
- *
- * Panic (the escape bar) is how each build plays differently:
- * - Rod fishing manages line tension: hard reels hit big but make the fish
- *   panic, while playing the line calms it down and tires it out.
- * - Spear fishing strikes fast: big hits that panic the creature, and wounds
- *   that pin it so its Panic rises slower for the rest of the fight.
- * - Foraging barely hurts anything: it snares creatures so their Panic stops
- *   rising, and coaxes them calm until they can be scooped up at 0.
- * `build` cards are only offered as rewards to that build.
+ * - `type`: 'attack' | 'defense' | 'drain' | 'support' | 'power'. Attack and Drain cards count as
+ *   attacks for the rules that count them. Powers leave play and last the whole fight.
+ * - `rarity`: 'normal' | 'rare'.
+ * - `family` (families.ts): creatures of that family offer it as a reward. Starter cards have none
+ *   and are never offered.
+ * - `target`: 'enemy' (dragged onto a creature), 'random' (a random creature), or 'none'.
+ * - `patienceCost`: Patience it costs on top of its energy `cost`.
+ * - `tags`: what it's about, stored for later.
+ * The full list and the rules behind it are in CARD_REWORK.md.
  */
 export const cards: CardDef[] = [
-  // --- Starter: shared ------------------------------------------------------
+  // --- Starter ------------------------------------------------------------------
+  { id: 'tug', name: 'Tug', art: '🎣', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', tags: ['damage'], effects: [{ type: 'dealDamage', amount: 5 }] },
+  { id: 'holdTight', name: 'Hold Tight', art: '✊', type: 'defense', rarity: 'normal', cost: 1, target: 'none', tags: ['hold'], effects: [{ type: 'gainBlock', amount: 5 }] },
   {
-    id: 'bucket',
-    name: 'Hold',
-    art: '✊',
-    type: 'skill',
-    rarity: 'starter',
-    cost: 1,
-    target: 'none',
-    effects: [{ type: 'gainBlock', amount: 5 }],
+    id: 'steadyHand', name: 'Steady Hand', art: '🫴', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy',
+    tags: ['damage', 'patience'], effects: [{ type: 'dealDamage', amount: 10 }],
+  },
+  { id: 'reelIn', name: 'Reel In', art: '🧵', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', tags: ['drain'], effects: [{ type: 'changeEscape', amount: -7 }] },
+
+  // --- Shell ----------------------------------------------------------------------
+  {
+    id: 'hardShell', name: 'Hard Shell', art: '🛡️', type: 'power', rarity: 'rare', cost: 2, target: 'none', family: 'shell', tags: ['hold'],
+    effects: [{ type: 'power', power: 'hardShell' }],
+  },
+  {
+    id: 'bareTeeth', name: 'Bare Teeth', art: '😬', type: 'defense', rarity: 'normal', cost: 1, target: 'random', family: 'shell', tags: ['hold', 'intent'],
+    effects: [{ type: 'applyStatus', status: 'intimidated', amount: 1 }, { type: 'gainBlock', amount: 3 }],
+  },
+  {
+    id: 'thickShell', name: 'Thick Shell', art: '🦪', type: 'defense', rarity: 'normal', cost: 1, patienceCost: 1, target: 'none', family: 'shell',
+    tags: ['hold', 'patience', 'delayed'], effects: [{ type: 'gainBlock', amount: 4 }, { type: 'delayed', turns: 2, effects: [{ type: 'gainBlock', amount: 4 }] }],
+  },
+  {
+    id: 'weatherTheStorm', name: 'Weather the Storm', art: '⛈️', type: 'defense', rarity: 'normal', cost: 0, patienceCost: 4, target: 'none', family: 'shell',
+    tags: ['hold', 'patience', 'delayed'], effects: [{ type: 'gainBlock', amount: 10 }, { type: 'delayed', turns: 1, effects: [{ type: 'gainBlock', amount: 10 }] }],
+  },
+  {
+    id: 'shellUp', name: 'Shell Up', art: '🐚', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'shell', tags: ['hold'],
+    effects: [{ type: 'gainBlock', amount: 6 }, { type: 'keepHold' }],
   },
 
-  // --- Starter: rod fishing -------------------------------------------------
+  // --- Venom ----------------------------------------------------------------------
   {
-    id: 'cast',
-    name: 'Cast',
-    art: '🎣',
-    type: 'attack',
-    rarity: 'starter',
-    cost: 1,
-    target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: ROD_TARGETS } }],
+    id: 'stingsAndSpines', name: 'Stings and Spines', art: '🌵', type: 'power', rarity: 'rare', cost: 2, target: 'none', family: 'venom', tags: ['venom', 'drain'],
+    effects: [{ type: 'power', power: 'stingsAndSpines', amount: 2 }],
   },
   {
-    id: 'setTheHook',
-    name: 'Set the Hook',
-    art: '🪝',
-    type: 'attack',
-    rarity: 'starter',
-    cost: 2,
-    target: 'enemy',
-    effects: [
-      { type: 'dealDamage', amount: 7, bonus: { against: ROD_TARGETS } },
-      { type: 'applyStatus', status: 'vulnerable', amount: 2 },
-      { type: 'changeEscape', amount: -8 },
-    ],
-  },
-
-  // --- Starter: spear fishing -----------------------------------------------
-  {
-    id: 'stick',
-    name: 'Sharp Stick',
-    art: '🪵',
-    type: 'attack',
-    rarity: 'starter',
-    cost: 1,
-    target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: SPEAR_TARGETS } }],
+    id: 'envenomedHooks', name: 'Envenomed Hooks', art: '🪝', type: 'power', rarity: 'rare', cost: 1, target: 'none', family: 'venom', tags: ['venom'],
+    effects: [{ type: 'power', power: 'envenomedHooks', amount: 1 }],
   },
   {
-    id: 'harpoon',
-    name: 'Harpoon',
-    art: '🔱',
-    type: 'attack',
-    rarity: 'starter',
-    cost: 2,
-    target: 'enemy',
-    effects: [
-      { type: 'dealDamage', amount: 10, bonus: { against: SPEAR_TARGETS } },
-      { type: 'changeEscapeRate', amount: -2 },
-    ],
+    id: 'painWithTheTide', name: 'Pain Comes with the Tide', art: '🌊', type: 'support', rarity: 'normal', cost: 1, patienceCost: 1, target: 'random', family: 'venom',
+    tags: ['venom', 'patience'], effects: [{ type: 'venomNow' }],
+  },
+  {
+    id: 'toxicDread', name: 'Toxic Dread', art: '☠️', type: 'support', rarity: 'rare', cost: 2, target: 'random', family: 'venom', tags: ['venom'],
+    effects: [{ type: 'multiplyStatus', status: 'venom', factor: 2, max: 10 }, { type: 'venomBonus', amount: 3 }],
+  },
+  { id: 'toxicCoating', name: 'Toxic Coating', art: '🧪', type: 'support', rarity: 'rare', cost: 1, target: 'none', family: 'venom', tags: ['venom'], effects: [{ type: 'venomCoating', amount: 2 }] },
+  {
+    id: 'sting', name: 'Sting', art: '🐝', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'venom', tags: ['damage', 'venom'],
+    effects: [{ type: 'dealDamage', amount: 2 }, { type: 'applyStatus', status: 'venom', amount: 3 }],
+  },
+  {
+    id: 'numbingSting', name: 'Numbing Sting', art: '💉', type: 'support', rarity: 'normal', cost: 1, target: 'random', family: 'venom', tags: ['venom', 'slow'],
+    effects: [{ type: 'applyStatus', status: 'venom', amount: 2 }, { type: 'applyStatus', status: 'slow', amount: 2 }],
+  },
+  {
+    id: 'venomBarb', name: 'Venom Barb', art: '🪝', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'venom', tags: ['damage', 'venom'],
+    effects: [{ type: 'dealDamage', amount: 6 }, { type: 'applyStatus', status: 'venom', amount: 2 }],
+  },
+  {
+    id: 'lunge', name: 'Lunge', art: '🦂', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy', family: 'venom', tags: ['damage', 'venom', 'patience'],
+    effects: [{ type: 'dealDamage', amount: 8 }, { type: 'applyStatus', status: 'venom', amount: 3 }],
   },
 
-  // --- Starter: foraging ----------------------------------------------------
+  // --- Hunter ---------------------------------------------------------------------
+  { id: 'coiled', name: 'Coiled', art: '🐍', type: 'support', rarity: 'normal', cost: 1, target: 'none', family: 'hunter', tags: ['damage', 'drain'], effects: [{ type: 'coil' }] },
   {
-    id: 'smallNet',
-    name: 'Small Net',
-    art: '🥅',
-    type: 'attack',
-    rarity: 'starter',
-    cost: 1,
-    target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, bonus: { against: FORAGING_TARGETS } }],
+    id: 'severeBite', name: 'Severe Bite', art: '🦷', type: 'attack', rarity: 'rare', cost: 2, target: 'enemy', family: 'hunter', tags: ['damage', 'delayed'],
+    effects: [{ type: 'dealDamage', amount: 8 }, { type: 'echoDamage', share: 0.5 }],
   },
   {
-    id: 'crabNet',
-    name: 'Crab Net',
-    art: '🦀',
-    type: 'attack',
-    rarity: 'starter',
-    cost: 2,
-    target: 'enemy',
-    effects: [
-      { type: 'dealDamage', amount: 7, bonus: { against: FORAGING_TARGETS } },
-      { type: 'applyStatus', status: 'weak', amount: 2 },
-      { type: 'applyStatus', status: 'snared', amount: 1 },
-    ],
+    id: 'seizeTheLull', name: 'Seize the Lull', art: '🌊', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'hunter', tags: ['damage', 'slow'],
+    effects: [{ type: 'dealDamage', amount: 6, perStatus: { status: 'slow', amount: 2 } }],
+  },
+  {
+    id: 'rightTiming', name: 'Right Timing', art: '⏱️', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy', family: 'hunter',
+    tags: ['damage', 'drain', 'patience'], effects: [{ type: 'dealDamage', amount: 7 }, { type: 'changeEscape', amount: -7 }],
+  },
+  {
+    id: 'savageBite', name: 'Savage Bite', art: '🦈', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'hunter', tags: ['damage', 'tradeoff'],
+    effects: [{ type: 'dealDamage', amount: 10 }, { type: 'changeEscape', amount: 6 }],
   },
 
-  // --- Rewards: rod fishing ---------------------------------------------------
+  // --- Swift ----------------------------------------------------------------------
   {
-    id: 'reelHard',
-    name: 'Reel Hard',
-    art: '🎣',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    build: 'rod',
-    effects: [
-      { type: 'dealDamage', amount: 9, bonus: { against: ROD_TARGETS } },
-      { type: 'changeEscape', amount: 8 },
-    ],
+    id: 'baitBall', name: 'Bait Ball', art: '🐟', type: 'power', rarity: 'rare', cost: 1, target: 'none', family: 'swift', tags: ['drain'],
+    effects: [{ type: 'power', power: 'baitBall', amount: 3 }],
   },
   {
-    id: 'playTheLine',
-    name: 'Play the Line',
-    art: '🧵',
-    type: 'skill',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    build: 'rod',
-    effects: [
-      { type: 'changeEscape', amount: -10 },
-      { type: 'gainBlock', amount: 4 },
-    ],
+    id: 'callAMate', name: 'Call a Mate', art: '📣', type: 'defense', rarity: 'normal', cost: 0, patienceCost: 2, target: 'none', family: 'swift',
+    tags: ['hold', 'patience', 'delayed'], effects: [{ type: 'delayed', turns: 1, effects: [{ type: 'gainBlock', amount: 8 }] }],
   },
   {
-    id: 'tireItOut',
-    name: 'Tire It Out',
-    art: '🌀',
-    type: 'skill',
-    rarity: 'uncommon',
-    cost: 1,
-    target: 'enemy',
-    build: 'rod',
-    exhaust: true,
-    effects: [{ type: 'changeEscapeRate', amount: -3 }],
+    id: 'dartingNips', name: 'Darting Nips', art: '🐟', type: 'attack', rarity: 'normal', cost: 1, target: 'none', family: 'swift', tags: ['damage', 'multihit'],
+    effects: [{ type: 'dealDamage', amount: 2, hits: 4, target: 'randomEnemy' }],
   },
   {
-    id: 'bigHaul',
-    name: 'Big Haul',
-    art: '🐋',
-    type: 'attack',
-    rarity: 'rare',
-    cost: 2,
-    target: 'enemy',
-    build: 'rod',
-    effects: [
-      { type: 'dealDamage', amount: 18, bonus: { against: ROD_TARGETS } },
-      { type: 'changeEscape', amount: 15 },
-    ],
+    id: 'mirrorImage', name: 'Mirror Image', art: '🪞', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'swift', tags: ['hold', 'draw'],
+    effects: [{ type: 'gainBlock', amount: 5 }, { type: 'drawCards', amount: 1 }],
+  },
+  {
+    id: 'dartingBites', name: 'Darting Bites', art: '🐠', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'swift', tags: ['damage', 'multihit', 'draw'],
+    effects: [{ type: 'dealDamage', amount: 2, hits: 3 }, { type: 'drawCards', amount: 1 }],
+  },
+  {
+    id: 'quickFlick', name: 'Quick Flick', art: '💨', type: 'attack', rarity: 'normal', cost: 0, target: 'enemy', family: 'swift', tags: ['damage', 'draw'],
+    effects: [{ type: 'dealDamage', amount: 3 }, { type: 'drawCards', amount: 1 }],
+  },
+  {
+    id: 'safetyInNumbers', name: 'Safety in Numbers', art: '🐡', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'swift', tags: ['hold', 'draw'],
+    effects: [{ type: 'gainBlock', amount: 4 }, { type: 'drawCards', amount: 2 }],
   },
 
-  // --- Rewards: spear fishing -------------------------------------------------
+  // --- Endurance ------------------------------------------------------------------
   {
-    id: 'lunge',
-    name: 'Lunge',
-    art: '🤿',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    build: 'spear',
-    effects: [
-      { type: 'dealDamage', amount: 9, bonus: { against: SPEAR_TARGETS } },
-      { type: 'changeEscape', amount: 6 },
-    ],
+    id: 'musselBait', name: 'Mussel Bait', art: '🦐', type: 'drain', rarity: 'normal', cost: 2, target: 'enemy', family: 'endurance', tags: ['drain', 'delayed'],
+    effects: [{ type: 'delayed', turns: 3, effects: [{ type: 'changeEscape', amount: -6 }] }],
   },
   {
-    id: 'finStrike',
-    name: 'Fin Strike',
-    art: '🗡️',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    build: 'spear',
-    effects: [
-      { type: 'dealDamage', amount: 5, bonus: { against: SPEAR_TARGETS } },
-      { type: 'changeEscapeRate', amount: -2 },
-    ],
+    id: 'wearThemOut', name: 'Wear Them Out', art: '🥱', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'endurance', tags: ['drain', 'slow'],
+    effects: [{ type: 'changeEscape', amount: 0, perStatus: { status: 'slow', amount: -3 } }],
   },
   {
-    id: 'stillWater',
-    name: 'Still Water',
-    art: '🫧',
-    type: 'skill',
-    rarity: 'uncommon',
-    cost: 0,
-    target: 'enemy',
-    build: 'spear',
-    effects: [{ type: 'changeEscape', amount: -6 }],
+    id: 'tireOut', name: 'Tire Out', art: '😮‍💨', type: 'support', rarity: 'rare', cost: 2, target: 'random', family: 'endurance', tags: ['slow'],
+    effects: [{ type: 'applyStatus', status: 'snared', amount: 2 }],
+  },
+  { id: 'wearDown', name: 'Wear Down', art: '🪨', type: 'drain', rarity: 'normal', cost: 2, target: 'enemy', family: 'endurance', tags: ['drain'], effects: [{ type: 'changeEscape', amount: -15 }] },
+  {
+    id: 'heavyLine', name: 'Heavy Line', art: '⚓', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'endurance', tags: ['drain', 'slow'],
+    effects: [{ type: 'changeEscape', amount: -5 }, { type: 'applyStatus', status: 'slow', amount: 2 }],
   },
   {
-    id: 'trident',
-    name: 'Trident',
-    art: '🔱',
-    type: 'attack',
-    rarity: 'rare',
-    cost: 2,
-    target: 'enemy',
-    build: 'spear',
-    effects: [
-      { type: 'dealDamage', amount: 6, hits: 3, bonus: { against: SPEAR_TARGETS } },
-      { type: 'changeEscape', amount: 10 },
-    ],
+    id: 'slowSqueeze', name: 'Slow Squeeze', art: '🫳', type: 'drain', rarity: 'normal', cost: 1, patienceCost: 1, target: 'enemy', family: 'endurance', tags: ['drain', 'patience'],
+    effects: [{ type: 'changeEscape', amount: -12 }],
   },
 
-  // --- Rewards: foraging ------------------------------------------------------
+  // --- Patient --------------------------------------------------------------------
   {
-    id: 'tangleNet',
-    name: 'Tangle Net',
-    art: '🕸️',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    build: 'foraging',
-    effects: [
-      { type: 'dealDamage', amount: 2, bonus: { against: FORAGING_TARGETS } },
-      { type: 'applyStatus', status: 'snared', amount: 2 },
-    ],
+    id: 'oldAsTheRiver', name: 'Old as the River', art: '🐢', type: 'power', rarity: 'rare', cost: 2, target: 'none', family: 'patient', tags: ['damage', 'patience'],
+    effects: [{ type: 'power', power: 'oldAsTheRiver', amount: 3 }],
   },
   {
-    id: 'scatterBait',
-    name: 'Scatter Bait',
-    art: '🪱',
-    type: 'skill',
-    rarity: 'common',
-    cost: 1,
-    target: 'none',
-    build: 'foraging',
-    effects: [{ type: 'changeEscape', amount: -8, target: 'allEnemies' }],
+    id: 'stillAsAStone', name: 'Still as a Stone', art: '🗿', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'patient', tags: ['hold', 'patience'],
+    effects: [{ type: 'gainBlock', amount: 6 }, { type: 'gainPatience', amount: 1 }],
   },
   {
-    id: 'gentleScoop',
-    name: 'Gentle Scoop',
-    art: '🤲',
-    type: 'skill',
-    rarity: 'uncommon',
-    cost: 1,
-    target: 'enemy',
-    build: 'foraging',
-    exhaust: true,
-    effects: [{ type: 'changeEscape', amount: -15 }],
+    id: 'danglingLure', name: 'Dangling Lure', art: '🪱', type: 'support', rarity: 'normal', cost: 1, target: 'random', family: 'patient', tags: ['slow', 'patience'],
+    effects: [{ type: 'applyStatus', status: 'slow', amount: 4 }, { type: 'gainPatience', amount: 1 }],
   },
   {
-    id: 'crabTrap',
-    name: 'Crab Trap',
-    art: '🪤',
-    type: 'skill',
-    rarity: 'rare',
-    cost: 2,
-    target: 'enemy',
-    build: 'foraging',
-    exhaust: true,
-    effects: [
-      { type: 'applyStatus', status: 'snared', amount: 3 },
-      { type: 'changeEscape', amount: -10 },
-    ],
+    id: 'suddenGulp', name: 'Sudden Gulp', art: '🐊', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy', family: 'patient', tags: ['damage', 'patience'],
+    effects: [{ type: 'dealDamage', amount: 14 }],
   },
 
-  // --- Rewards: gear picked up along the shore ----------------------------
   {
-    id: 'doubleCast',
-    name: 'Double Cast',
-    art: '🎣',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    effects: [{ type: 'dealDamage', amount: 5, hits: 2 }],
+    id: 'bePrepared', name: 'Be Prepared', art: '🎒', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'patient', tags: ['hold', 'patience'],
+    effects: [{ type: 'patienceToHold', per: 4 }],
+  },
+
+  // --- Trickster ------------------------------------------------------------------
+  {
+    id: 'menacingPresence', name: 'Menacing Presence', art: '👁️', type: 'support', rarity: 'normal', cost: 0, patienceCost: 2, target: 'none', family: 'trickster',
+    tags: ['intent', 'patience'], effects: [{ type: 'applyStatus', status: 'cowed', amount: 1, target: 'allEnemies' }],
   },
   {
-    id: 'skippingStones',
-    name: 'Skipping Stones',
-    art: '🪨',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'none',
-    effects: [{ type: 'dealDamage', amount: 3, hits: 3, target: 'randomEnemy' }],
+    id: 'duckAndJab', name: 'Duck and Jab', art: '🥊', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'trickster',
+    tags: ['damage', 'tradeoff', 'intent', 'conditional'],
+    effects: [{ type: 'ifIntent', tag: 'strike', then: [{ type: 'dealDamage', amount: 12 }, { type: 'changeEscape', amount: 6 }], else: [{ type: 'dealDamage', amount: 4 }] }],
   },
   {
-    id: 'oarSwing',
-    name: 'Oar Swing',
-    art: '🛶',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
+    id: 'letItRun', name: 'Let It Run', art: '🏃', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'trickster',
+    tags: ['drain', 'tradeoff', 'intent', 'conditional'],
+    effects: [{ type: 'ifIntent', tag: 'pull', then: [{ type: 'changeEscape', amount: -14 }, { type: 'heal', amount: 6 }], else: [{ type: 'changeEscape', amount: -5 }] }],
+  },
+  {
+    id: 'boggedDown', name: 'Bogged Down', art: '🥾', type: 'support', rarity: 'normal', cost: 0, target: 'random', family: 'trickster', tags: ['slow', 'tradeoff'],
+    effects: [{ type: 'multiplyStatus', status: 'slow', factor: 2 }, { type: 'changeEscape', amount: 5 }],
+  },
+  {
+    id: 'turnTheTables', name: 'Turn the Tables', art: '🔄', type: 'support', rarity: 'rare', cost: 2, target: 'random', family: 'trickster', tags: ['tradeoff'],
+    effects: [{ type: 'swapHealthAndWill' }],
+  },
+  {
+    id: 'tickle', name: 'Tickle', art: '🪶', type: 'drain', rarity: 'normal', cost: 0, target: 'enemy', family: 'trickster', tags: ['drain', 'tradeoff'],
+    effects: [{ type: 'changeEscape', amount: -10 }, { type: 'heal', amount: 6 }],
+  },
+  {
+    id: 'cheapShot', name: 'Cheap Shot', art: '👊', type: 'attack', rarity: 'normal', cost: 0, target: 'enemy', family: 'trickster', tags: ['damage', 'tradeoff'],
+    effects: [{ type: 'dealDamage', amount: 5 }, { type: 'changeEscape', amount: 5 }],
+  },
+
+  // --- Flashy ---------------------------------------------------------------------
+  {
+    id: 'dazzle', name: 'Dazzle', art: '🌈', type: 'support', rarity: 'normal', cost: 1, target: 'random', family: 'flashy', tags: ['intent', 'tradeoff'],
+    effects: [{ type: 'applyStatus', status: 'dazzled', amount: 2 }],
+  },
+  {
+    id: 'spinnerLure', name: 'Spinner Lure', art: '🎏', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'flashy', tags: ['drain', 'intent'],
+    effects: [{ type: 'changeEscape', amount: -6 }, { type: 'applyStatus', status: 'lured', amount: 1 }],
+  },
+  {
+    id: 'flashOfColour', name: 'Flash of Colour', art: '✨', type: 'support', rarity: 'normal', cost: 0, target: 'random', family: 'flashy', tags: ['intent', 'draw'],
+    effects: [{ type: 'applyStatus', status: 'distracted', amount: 4 }, { type: 'drawCards', amount: 1 }],
+  },
+  {
+    id: 'glitterBurst', name: 'Glitter Burst', art: '🎆', type: 'support', rarity: 'rare', cost: 1, target: 'random', family: 'flashy', tags: ['intent'],
+    effects: [{ type: 'flipIntent' }],
+  },
+  {
+    id: 'adaptation', name: 'Adaptation', art: '🦎', type: 'attack', rarity: 'rare', cost: 1, target: 'enemy', family: 'flashy',
+    tags: ['damage', 'drain', 'tradeoff', 'intent', 'conditional'],
     effects: [
-      { type: 'dealDamage', amount: 9 },
-      { type: 'drawCards', amount: 1 },
-      { type: 'changeEscape', amount: 5 },
+      {
+        type: 'ifIntent', tag: 'strike',
+        then: [{ type: 'dealDamage', amount: 10 }, { type: 'changeEscape', amount: 10 }],
+        else: [{ type: 'changeEscape', amount: -10 }, { type: 'heal', amount: 10 }],
+      },
     ],
   },
+  { id: 'colourShift', name: 'Colour Shift', art: '🎨', type: 'support', rarity: 'normal', cost: 0, target: 'random', family: 'flashy', tags: ['intent'], effects: [{ type: 'rerollIntent' }] },
+
+  // --- Camo -----------------------------------------------------------------------
   {
-    id: 'paddleSplash',
-    name: 'Paddle Splash',
-    art: '💦',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'enemy',
-    effects: [
-      { type: 'gainBlock', amount: 5 },
-      { type: 'dealDamage', amount: 5 },
-      { type: 'changeEscape', amount: 3 },
-    ],
+    id: 'perfectDisguise', name: 'Perfect Disguise', art: '🦑', type: 'power', rarity: 'rare', cost: 2, target: 'none', family: 'camo', tags: ['hold', 'slow', 'conditional'],
+    effects: [{ type: 'power', power: 'perfectDisguise', amount: 6 }],
   },
   {
-    id: 'heavySinker',
-    name: 'Heavy Sinker',
-    art: '⚓',
-    type: 'attack',
-    rarity: 'common',
-    cost: 2,
-    target: 'enemy',
-    effects: [
-      { type: 'dealDamage', amount: 12 },
-      { type: 'applyStatus', status: 'weak', amount: 2 },
-    ],
+    id: 'lieLow', name: 'Lie Low', art: '🌿', type: 'defense', rarity: 'normal', cost: 1, target: 'random', family: 'camo', tags: ['hold', 'slow', 'conditional'],
+    effects: [{ type: 'gainBlock', amount: 6 }, { type: 'ifNoAttack', then: [{ type: 'applyStatus', status: 'slow', amount: 2 }] }],
   },
   {
-    id: 'wideNet',
-    name: 'Wide Net',
-    art: '🕸️',
-    type: 'attack',
-    rarity: 'common',
-    cost: 1,
-    target: 'none',
-    effects: [
-      { type: 'dealDamage', amount: 4, target: 'allEnemies' },
-      { type: 'applyStatus', status: 'vulnerable', amount: 1, target: 'allEnemies' },
-    ],
+    id: 'unseenApproach', name: 'Unseen Approach', art: '🥷', type: 'drain', rarity: 'normal', cost: 0, target: 'enemy', family: 'camo', tags: ['drain', 'conditional'],
+    effects: [{ type: 'ifNoAttack', then: [{ type: 'changeEscape', amount: -10 }], else: [{ type: 'changeEscape', amount: -5 }] }],
   },
   {
-    id: 'rainCoat',
-    name: 'Rain Coat',
-    art: '🧥',
-    type: 'skill',
-    rarity: 'common',
-    cost: 1,
-    target: 'none',
-    effects: [
-      { type: 'gainBlock', amount: 8 },
-      { type: 'drawCards', amount: 1 },
-    ],
+    id: 'shadowTheFish', name: 'Shadow the Fish', art: '👤', type: 'defense', rarity: 'normal', cost: 1, target: 'random', family: 'camo', tags: ['hold', 'intent'],
+    effects: [{ type: 'holdFromIntent', max: 12 }],
   },
   {
-    id: 'tackleBox',
-    name: 'Tackle Box',
-    art: '🧰',
-    type: 'skill',
-    rarity: 'uncommon',
-    cost: 0,
-    target: 'none',
-    effects: [{ type: 'drawCards', amount: 3 }],
+    id: 'fromNowhere', name: 'From Nowhere', art: '🫥', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 1, target: 'enemy', family: 'camo', tags: ['damage', 'hold', 'patience'],
+    effects: [{ type: 'dealDamage', amount: 0, fromHold: true }, { type: 'loseHold', share: 0.5 }],
+  },
+
+  // --- Slimy ----------------------------------------------------------------------
+  {
+    id: 'pushTheLimits', name: 'Push the Limits', art: '🧲', type: 'power', rarity: 'rare', cost: 1, target: 'none', family: 'slimy', tags: ['slow'],
+    effects: [{ type: 'power', power: 'pushTheLimits' }],
   },
   {
-    id: 'grandmasSandwich',
-    name: "Grandma's Sandwich",
-    art: '🥪',
-    type: 'skill',
-    rarity: 'uncommon',
-    cost: 1,
-    target: 'none',
-    exhaust: true,
-    effects: [{ type: 'gainEnergy', amount: 2 }],
+    id: 'deadWeight', name: 'Dead Weight', art: '🪨', type: 'power', rarity: 'rare', cost: 1, target: 'none', family: 'slimy', tags: ['slow'],
+    effects: [{ type: 'power', power: 'deadWeight', amount: 1 }],
   },
   {
-    id: 'reelItIn',
-    name: 'Reel It In',
-    art: '🧵',
-    type: 'skill',
-    rarity: 'uncommon',
-    cost: 1,
-    target: 'enemy',
-    exhaust: true,
-    effects: [
-      { type: 'applyStatus', status: 'strength', amount: -2 },
-      { type: 'changeEscape', amount: -10 },
-    ],
+    id: 'gooeyMess', name: 'Gooey Mess', art: '🫠', type: 'power', rarity: 'rare', cost: 2, target: 'none', family: 'slimy', tags: ['hold', 'intent'],
+    effects: [{ type: 'power', power: 'gooeyMess', amount: 3 }],
   },
   {
-    id: 'luckyHat',
-    name: 'Lucky Hat',
-    art: '👒',
-    type: 'power',
-    rarity: 'rare',
-    cost: 1,
-    target: 'none',
-    effects: [{ type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }],
+    id: 'stickySlime', name: 'Sticky Slime', art: '🫧', type: 'defense', rarity: 'normal', cost: 1, target: 'random', family: 'slimy', tags: ['hold', 'slow'],
+    effects: [{ type: 'gainBlock', amount: 4 }, { type: 'applyStatus', status: 'slow', amount: 3 }],
+  },
+  { id: 'slimeCoat', name: 'Slime Coat', art: '🐌', type: 'support', rarity: 'normal', cost: 1, target: 'random', family: 'slimy', tags: ['slow'], effects: [{ type: 'applyStatus', status: 'slow', amount: 5 }] },
+  {
+    id: 'stickySnare', name: 'Sticky Snare', art: '🕸️', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'slimy', tags: ['damage', 'drain'],
+    effects: [{ type: 'dealDamage', amount: 4 }, { type: 'changeEscape', amount: -5 }],
   },
 ];

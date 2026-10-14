@@ -15,7 +15,7 @@ const props = withDefaults(
   { description: undefined, playable: true, selected: false, effective: false },
 );
 
-const TYPE_ICON: Record<CardDef['type'], string> = { attack: '⚔️', skill: '🛡️', power: '✨' };
+const TYPE_ICON: Record<CardDef['type'], string> = { attack: '⚔️', defense: '🛡️', drain: '🧲', support: '🌀', power: '✨' };
 const text = computed(() => props.description ?? describeCard(props.card));
 /** Rules text longer than this gets a smaller font so it stays inside the card. */
 const LONG_TEXT = 85;
@@ -70,7 +70,10 @@ const parts = computed(() =>
   text-align: center;
   cursor: pointer;
   box-shadow: 0 4px 10px rgb(0 0 0 / 0.4);
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  /* Grows from its bottom edge, so a hovered card rises out of the hand. The same easing both
+     ways: moving from card to card, one settles back while the next lifts. */
+  transform-origin: 50% 100%;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease;
 }
 /* The deeper hover shadow fades in on its own layer, so only opacity animates. */
 .card::after {
@@ -80,14 +83,16 @@ const parts = computed(() =>
   border-radius: inherit;
   box-shadow: 0 10px 18px rgb(0 0 0 / 0.5);
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.22s ease;
   pointer-events: none;
 }
 .card:hover:not(.unplayable)::after { opacity: 1; }
-.card.skill { --frame: var(--skill); }
+.card.defense { --frame: var(--skill); }
+.card.drain { --frame: var(--drain); }
+.card.support { --frame: var(--support); }
 .card.power { --frame: var(--power); }
-.card:hover:not(.unplayable) { transform: translateY(-12px); }
-.card.selected { transform: translateY(-20px); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
+.card:hover:not(.unplayable) { z-index: 2; transform: translateY(-16px) scale(1.08); }
+.card.selected { z-index: 2; transform: translateY(-20px) scale(1.08); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
 .card.unplayable { opacity: 0.5; cursor: not-allowed; }
 
 .cost {
@@ -116,7 +121,6 @@ const parts = computed(() =>
   font-weight: 800;
 }
 .name { font-weight: 700; font-size: 0.95rem; margin: 2px 0 6px 12px; }
-.rarity-uncommon .name { color: #8ecbff; }
 .rarity-rare .name { color: #ffd76a; }
 .art {
   display: grid;
@@ -159,4 +163,8 @@ const parts = computed(() =>
 .real { font-weight: 800; }
 .real.up { color: #7ee08a; }
 .real.down { color: #ff8a80; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .card::after { transition: none; }
+}
 </style>

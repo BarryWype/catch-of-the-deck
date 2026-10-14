@@ -7,11 +7,11 @@ const props = defineProps<{ escape: number; escapeAt: number; escapeRate: number
 const percent = (value: number) => (props.escapeAt > 0 ? Math.min(100, (100 * value) / props.escapeAt) : 0);
 const fill = computed(() => percent(props.escape));
 const next = computed(() => percent(props.escape + props.escapeRate) - fill.value);
-const text = computed(() => t('bars.panic', { escape: props.escape, escapeAt: props.escapeAt, rate: props.escapeRate }));
+const text = computed(() => t('bars.will', { escape: props.escape, escapeAt: props.escapeAt, rate: props.escapeRate }));
 </script>
 
 <template>
-  <div v-tip="{ title: text, body: t('bars.panicTip') }" class="panicbar">
+  <div v-tip="{ title: text, body: t('bars.willTip') }" class="panicbar">
     <div class="fill" :style="{ transform: `scaleX(${fill / 100})` }" />
     <!-- Next turn's rise, from `fill` to `fill + next`: the outer window's right edge and the
          inner one's left edge slide there, so only transforms change. -->

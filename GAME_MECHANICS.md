@@ -13,9 +13,9 @@ Each turn you get **3 energy** and draw **5 cards**. Cards cost energy to play. 
 You win a fight by catching every creature. A creature is caught when **either**:
 
 - its **health** reaches 0 (you've worn it out), **or**
-- its **escape bar** is pushed all the way down to 0 (you've calmed it and reeled it in).
+- its **Will** bar is drained all the way down to 0 (it's given up, and you reel it in).
 
-You lose a creature if its escape bar fills up: it gets away.
+You lose a creature if its Will bar fills up: it gets away.
 
 You lose the whole run if your **Grit** runs out.
 
@@ -23,25 +23,31 @@ You lose the whole run if your **Grit** runs out.
 
 ### Grit
 
-Grit is your will to keep fishing: your health, in effect. You start with **80**. Creatures' **Strikes** wear it down. It carries over from fight to fight, so a draining fight early on makes the next ones harder. Some events, the shop and a few companions let you recover Grit.
+Grit is your will to keep fishing: your health, in effect. You start with **60**. Creatures' **Strikes** wear it down. It carries over from fight to fight, so a draining fight early on makes the next ones harder. Some events, the shop and a few companions let you recover Grit.
 
 If Grit reaches 0, you give up: the run is over, and **everything in your bucket is lost**, including the creatures you brought from home.
 
 ### Hold
 
-Hold is your grip on the line: your defence. You get it from cards like **Hold** (the ✊ card in every starter deck). It shows as ✊ next to your Grit bar.
+Hold is your grip on the line: your defence. You get it from Defense cards like **Hold Tight** (in every starter deck). It shows as ✊ next to your Grit bar.
 
 Hold soaks up **both** kinds of creature moves (see Strike and Pull below), in the order the creatures act. Whatever gets past your Hold lands.
 
 Hold lasts until the creatures have acted, then it's gone, unless it turns into Patience (below).
 
-### Attack
+### Cards
 
-Attack cards (red) deal damage to a creature's **health**. Drag an attack card onto the creature you want to hit.
+There are five kinds of card:
 
-Every fishing style is **strong against** some creature types (shown under the creature's name). Your style's cards deal **20% more damage** to those, and glow **Effective!** when the bonus applies.
+| Kind | What it does |
+|---|---|
+| **Attack** (red) | Damages a creature's **health**. |
+| **Drain** (teal) | Drains a creature's **Will**. |
+| **Defense** (blue) | Gives you **Hold**. |
+| **Support** (purple) | Slows, weakens or tricks creatures, or helps you. |
+| **Power** (gold) | Lasts the rest of the fight once played. |
 
-Some cards don't hit health at all: they calm a creature down, lowering its escape bar instead. Others, like Hold, are dragged anywhere on the battlefield.
+Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (⏳) on top of energy.
 
 ### Patience
 
@@ -50,7 +56,7 @@ Patience is what you earn by waiting calmly instead of rushing. You get Patience
 - **1 point per energy you didn't spend**, and
 - **1 point for every 3 Hold left over** after the creatures have acted (the Hold you didn't need).
 
-You can have up to **5** points, and they last for the whole fight. Each point makes every creature's escape bar rise **10% slower**, so 5 points halve it. Some cards also cost Patience to play, on top of energy (shown as ⏳ on the card).
+You can have up to **5** points, and they last for the whole fight. Each point makes every creature's Will rise **10% slower**, so 5 points halve it (on top of any Slow). Some cards also cost Patience to play, on top of energy (shown as ⏳ on the card).
 
 ## The creatures' side
 
@@ -58,15 +64,25 @@ You can have up to **5** points, and they last for the whole fight. Each point m
 
 The red bar under a creature. Your attacks bring it down; at 0, the creature is caught.
 
-### The escape bar (Panic)
+The creatures of a fight have **at least 50 Health together**. Smaller ones get more to reach it; bigger ones keep their own. That pool grows **2% for every fight you've already had this run**: by your 8th fight it's 50 × 1.14 = 57.
 
-The other bar under a creature: how close it is to breaking free. It:
+### Will
+
+The other bar under a creature: its will to break free. It:
 
 - **starts part way up** when the fight begins,
 - **rises a little every turn** by itself (shown as "+N/turn", slowed by your Patience),
 - **jumps up** when the creature **Pulls** and gets past your Hold.
 
-If it fills up, the creature escapes. If you push it down to 0 with calming cards, you catch it.
+If it fills up, the creature escapes. If you Drain it down to 0, you catch it.
+
+### Keywords
+
+| Keyword | What it does |
+|---|---|
+| **Drain** | Lowers a creature's Will by a flat amount. "Drain 10" takes 10 off its Will bar. |
+| **Slow** | A creature's stacks of Slow make its Will rise **20% slower each**, and one stack wears off at the end of each of its turns. With 2 Slow, a +10 a turn becomes +6, then +8 the turn after. It adds up with your Patience, but a creature's Will can only be slowed **80%** at most (some cards raise that to 90% for the fight). |
+| **Venom** | At the start of its bearer's turn, it deals as much damage as it has charges (Hold doesn't stop it), then loses one charge. 3 Venom deals 3, then 2, then 1. |
 
 ### Strike and Pull
 
@@ -75,7 +91,9 @@ Above each creature you can see what it will do next (its **intent**), tagged **
 | | What it does | What stops it |
 |---|---|---|
 | **Strike** 🗡️ | Wears down your **Grit** (a tail hit, pinched fingers, a stinky squirt…) | Your Hold soaks it first; the rest comes off your Grit |
-| **Pull** 🎣 | Drags on the line to get away (a run, a dive, wedging under a rock…) | Your Hold soaks it first; the rest raises its escape bar |
+| **Pull** 🎣 | Drags on the line to get away (a run, a dive, wedging under a rock…) | Your Hold soaks it first; the rest raises its Will |
+
+How hard a creature hits depends on the fight, not just on the creature. Its moves keep their differences, but they **average 9** (Strike or Pull), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 9 ÷ 2 × 1.1 ≈ 5 each. A **mini-boss** averages 12–14 and a **boss** 15–18 (rolled each fight).
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
@@ -106,7 +124,7 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 ## Between fights
 
-- **Card rewards:** after a win, pick one of three cards to add to your deck. You have to take one (Eel companions can let you skip or reroll a few times per age).
+- **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't. You have to take one (Eel companions can let you skip or reroll a few times per age).
 - **Events** (?): something happens: a choice, a find, sometimes a surprise fight.
 - **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them.
 - **Treasure** (T): a free find before the boss.

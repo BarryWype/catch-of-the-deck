@@ -2,12 +2,12 @@ import { bonusTotal } from './companions';
 import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, PLAYER_ID, STARTING_HAND_SIZE } from './constants';
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
-import { fireTriggers, isAlive, resolveEffect } from './effects';
+import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
 import { chooseIntent, executeIntent } from './intents';
 import { discardHand, drawCards } from './piles';
 import { nextInt, shuffleInPlace } from './rng';
 import { escapeRise, tickStatuses } from './statuses';
-import type { CombatAction, CombatState, CompanionEffect, GameData } from './types';
+import type { CardDef, Combatant, CombatAction, CombatState, CompanionEffect, Effect, EnemyState, GameData } from './types';
 import { addLog, clone } from './util';
 
 export interface CombatConfig {
@@ -22,6 +22,10 @@ export interface CombatConfig {
   equipment?: string[];
   /** Companion bonuses, already scaled (`companionEffects`). */
   bonuses?: CompanionEffect[];
+  /** The least Health the creatures have together (raised in proportion when they roll less). */
+  hpPool?: number;
+  /** What each creature's Strike and Pull moves average: they're all scaled to it. */
+  damage?: number;
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -74,6 +78,17 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
     });
   });
 
+  const rolled = state.enemies.reduce((sum, e) => sum + e.maxHp, 0);
+  if (config.hpPool && rolled > 0 && rolled < config.hpPool) {
+    for (const enemy of state.enemies) enemy.hp = enemy.maxHp = Math.ceil((enemy.maxHp * config.hpPool) / rolled);
+  }
+  if (config.damage) {
+    for (const enemy of state.enemies) {
+      const values = data.enemies[enemy.defId].moves.map((m) => moveValue(m)).filter((v) => v > 0);
+      if (values.length) enemy.damageScale = (config.damage * values.length) / values.reduce((a, b) => a + b, 0);
+    }
+  }
+
   for (const effect of equipmentEffects(config.equipment ?? [], data)) {
     if (effect.type !== 'slowEscape') continue;
     for (const enemy of state.enemies) enemy.escapeRate -= escapeRateReduction(enemy.escapeRate, effect.percent);
@@ -111,6 +126,17 @@ export function validateAction(state: CombatState, action: CombatAction, data: G
   return null;
 }
 
+/** Attack and Drain cards count as attacks (`firstAttackEachTurn`, "if you haven't played an attack this turn"…). */
+export function isAttackCard(def: CardDef): boolean {
+  return def.type === 'attack' || def.type === 'drain';
+}
+
+/** A random creature still in the fight, for cards played on a random creature. */
+function randomLivingEnemy(state: CombatState): EnemyState | undefined {
+  const living = state.enemies.filter(isAlive);
+  return living.length ? living[nextInt(state, 0, living.length - 1)] : undefined;
+}
+
 /** Can this card in hand be played right now (ignoring target choice)? */
 export function isCardPlayable(state: CombatState, cardUid: string, data: GameData): boolean {
   if (state.phase !== 'playerTurn') return false;
@@ -144,19 +170,50 @@ export function replayCombat(config: CombatConfig, actions: CombatAction[], data
 
 // --- internals (operate on the private working copy) -----------------------
 
-/** Block the player keeps into their next turn (companion bonuses). */
+/** Block the player keeps into their next turn (companion bonuses, or all of it after `keepHold`). */
 function keptBlock(state: CombatState): number {
+  if (state.keepHold || powerCount(state, 'hardShell')) return state.player.block;
   return bonusTotal(state.bonuses, 'keepBlock') + state.bonusTracker.carriedBlock;
+}
+
+/** Venom hits at the start of its bearer's turn, then loses a charge. */
+function venomStrikes(state: CombatState, combatant: Combatant): void {
+  venomHits(state, combatant, true);
+}
+
+/** A random creature still in the fight takes this (Powers' effects, numbers as written). */
+function onRandomCreature(state: CombatState, effect: Effect): void {
+  const target = randomLivingEnemy(state);
+  if (target) resolveEffect(state, effect, { sourceId: PLAYER_ID, targetId: target.id, raw: true });
 }
 
 function startPlayerTurn(state: CombatState): void {
   state.turn++;
+  addLog(state, text('log.turn', { n: state.turn }));
+  venomStrikes(state, state.player);
+  if (checkCombatEnd(state)) return;
   state.player.block = Math.min(state.player.block, keptBlock(state));
+  state.keepHold = false;
   state.bonusTracker.carriedBlock = 0;
   state.bonusTracker.attacksThisTurn = 0;
+  state.thisTurn = {};
+  if (runDelayedEffects(state)) return;
   state.player.energy = state.player.maxEnergy;
-  addLog(state, text('log.turn', { n: state.turn }));
   drawCards(state, STARTING_HAND_SIZE);
+}
+
+/** Effects waiting for this turn (`delayed`, `echoDamage`), after the Hold reset. True if they ended the fight. */
+function runDelayedEffects(state: CombatState): boolean {
+  const due = state.delayed ?? [];
+  state.delayed = [];
+  for (const d of due) {
+    for (const effect of d.effects) {
+      resolveEffect(state, effect, { sourceId: PLAYER_ID, targetId: d.targetId, raw: d.raw, fromCard: true });
+      if (checkCombatEnd(state)) return true;
+    }
+    if (d.turnsLeft > 1) state.delayed.push({ ...d, turnsLeft: d.turnsLeft - 1 });
+  }
+  return false;
 }
 
 function playCard(state: CombatState, cardUid: string, targetId: string | undefined, data: GameData): void {
@@ -168,9 +225,17 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   state.player.energy -= def.cost;
   state.player.patience -= def.patienceCost ?? 0;
   addLog(state, text('log.plays', { who: state.player.name, card: def.name }));
+  // Old as the River: Patience spent hurts a random creature.
+  const river = powerTotal(state, 'oldAsTheRiver') * (def.patienceCost ?? 0);
+  if (river > 0) onRandomCreature(state, { type: 'dealDamage', amount: river });
+  if (checkCombatEnd(state)) {
+    state.piles.discard.push(card);
+    return;
+  }
 
   const tracker = state.bonusTracker;
-  const attack = def.type === 'attack';
+  const attack = isAttackCard(def);
+  const attacksBefore = tracker.attacksThisTurn;
   const firstOfTurn = attack && tracker.attacksThisTurn === 0;
   const firstOfFight = attack && tracker.attacksThisFight === 0;
   if (attack) {
@@ -180,10 +245,17 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
 
   const ctx = {
     sourceId: PLAYER_ID,
-    targetId: def.target === 'enemy' ? targetId : undefined,
+    targetId: def.target === 'enemy' ? targetId : def.target === 'random' ? randomLivingEnemy(state)?.id : undefined,
     damagePercent: firstOfFight ? bonusTotal(state.bonuses, 'firstAttackDamage') : 0,
+    data,
+    attack,
+    attacksBefore,
+    fromCard: true,
   };
-  for (const effect of def.effects) {
+  // Coiled: the next attack's numbers are doubled.
+  const coiled = attack && !!state.thisTurn?.coiled;
+  if (coiled) state.thisTurn!.coiled = false;
+  for (const effect of coiled ? def.effects.map(doubled) : def.effects) {
     resolveEffect(state, effect, ctx);
     if (checkCombatEnd(state)) break;
   }
@@ -192,6 +264,13 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
     const hit = ctx.targetId ?? state.enemies.find(isAlive)?.id;
     if (firstOfTurn) fireTriggers(state, 'firstAttackEachTurn', hit);
     if (firstOfFight) fireTriggers(state, 'firstAttackEachFight', hit);
+    checkCombatEnd(state);
+  }
+
+  // Bait Ball: a 0-cost card Drains a random creature.
+  const bait = def.cost === 0 && state.phase === 'playerTurn' ? powerTotal(state, 'baitBall') : 0;
+  if (bait > 0) {
+    onRandomCreature(state, { type: 'changeEscape', amount: -bait });
     checkCombatEnd(state);
   }
 
@@ -209,6 +288,12 @@ function gainPatience(state: CombatState, amount: number, reason: 'waits' | 'ste
 }
 
 function endTurn(state: CombatState, data: GameData): void {
+  // Perfect Disguise: a quiet turn (no attack) gives Hold, and Slows a random creature.
+  const disguises = state.bonusTracker.attacksThisTurn === 0 ? powerCount(state, 'perfectDisguise') : 0;
+  if (disguises) {
+    resolveEffect(state, { type: 'gainBlock', amount: powerTotal(state, 'perfectDisguise') }, { sourceId: PLAYER_ID, raw: true });
+    for (let i = 0; i < disguises; i++) onRandomCreature(state, { type: 'applyStatus', status: 'slow', amount: 1 });
+  }
   gainPatience(state, state.player.energy, 'waits');
   discardHand(state);
   tickStatuses(state.player);
@@ -217,17 +302,22 @@ function endTurn(state: CombatState, data: GameData): void {
   for (const enemy of state.enemies) {
     if (!isAlive(enemy)) continue;
     enemy.block = 0;
+    const deadWeight = powerTotal(state, 'deadWeight');
+    if (deadWeight > 0) resolveEffect(state, { type: 'applyStatus', status: 'slow', amount: deadWeight }, { sourceId: PLAYER_ID, targetId: enemy.id, raw: true });
+    venomStrikes(state, enemy);
+    // Venom can wear a creature out before it acts: it's caught.
+    if (checkCombatEnd(state)) return;
+    if (!isAlive(enemy)) continue;
     executeIntent(state, enemy, data);
     if (checkCombatEnd(state)) return;
-    if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + escapeRise(enemy, state.player.patience));
+    if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + escapeRise(enemy, state.player.patience, state.slowCap));
     if (checkCombatEnd(state)) return;
   }
   for (const enemy of state.enemies) {
     if (!isAlive(enemy)) continue;
-    tickStatuses(enemy);
+    tickStatuses(enemy, powerCount(state, 'pushTheLimits') ? ['slow'] : []);
     chooseIntent(state, enemy, data);
   }
-  // Poison can finish a creature off.
   if (checkCombatEnd(state)) return;
 
   // Hold the creatures didn't wear through, and that isn't kept for next turn, turns into Patience.

@@ -350,7 +350,7 @@ function dragStyle(card: CardInstance) {
 function onCardClick(card: CardInstance) {
   if (!isCardPlayable(props.state, card.uid, props.data)) return;
   const def = props.data.cards[card.defId];
-  if (def.target === 'none') play(card.uid);
+  if (def.target !== 'enemy') play(card.uid);
   else if (livingEnemies.value.length === 1) play(card.uid, livingEnemies.value[0].id);
   else selectedUid.value = selectedUid.value === card.uid ? null : card.uid;
 }
@@ -391,7 +391,7 @@ function endTurn() {
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(state, enemy, data)"
-          :escape-bar="{ escape: enemy.escape, escapeAt: enemy.escapeAt, escapeRate: escapeRise(enemy, state.player.patience) }"
+          :escape-bar="{ escape: enemy.escape, escapeAt: enemy.escapeAt, escapeRate: escapeRise(enemy, state.player.patience, state.slowCap) }"
           :data-enemy-id="enemy.id"
           :targetable="(!!selectedUid || (!!drag?.aimed && drag.moved)) && isAlive(enemy)"
           :class="{ aimed: drag?.targetId === enemy.id }"

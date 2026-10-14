@@ -22,9 +22,9 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     fullSchool: [{ type: 'keepBlock', amount: 2 }],
   },
   {
-    id: 'crustacean',
+    id: 'clawed',
     name: 'Pinch',
-    temperamentName: 'Crustacean',
+    temperamentName: 'Clawed',
     icon: '🦀',
     description: 'When you fully block an attack, deal 2 damage back.',
     bestBuild: 'foraging',
@@ -36,11 +36,11 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     name: 'Sting',
     temperamentName: 'Jellyfish',
     icon: '🪼',
-    description: 'Your first attack each turn applies 1 Poison.',
+    description: 'Your first attack each turn applies 1 Venom.',
     bestBuild: 'any',
-    effects: [{ type: 'trigger', on: 'firstAttackEachTurn', effect: { type: 'applyStatus', status: 'poison', amount: 1 } }],
+    effects: [{ type: 'trigger', on: 'firstAttackEachTurn', effect: { type: 'applyStatus', status: 'venom', amount: 1 } }],
     fullSchool: [
-      { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'poison', amount: 2, target: 'allEnemies' } },
+      { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'venom', amount: 2, target: 'allEnemies' } },
     ],
   },
   {
@@ -51,7 +51,7 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     description: 'When an enemy hits you, it takes 1 damage.',
     bestBuild: 'any',
     effects: [{ type: 'trigger', on: 'hitByEnemy', effect: { type: 'dealDamage', amount: 1 } }],
-    fullSchool: [{ type: 'trigger', on: 'hitByEnemy', effect: { type: 'applyStatus', status: 'poison', amount: 1 } }],
+    fullSchool: [{ type: 'trigger', on: 'hitByEnemy', effect: { type: 'applyStatus', status: 'venom', amount: 1 } }],
   },
   {
     id: 'puffer',
@@ -102,7 +102,7 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     name: 'Tire Out',
     temperamentName: 'Fighter',
     icon: '🏋️',
-    description: 'Cards that lower Panic lower it by 2 more.',
+    description: 'Your Drain drains 2 more.',
     bestBuild: 'rod',
     effects: [{ type: 'bonusEscapeReduction', amount: 2 }],
     fullSchool: [
@@ -114,7 +114,7 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     name: 'Presence',
     temperamentName: 'Giant',
     icon: '🐋',
-    description: '+8 max Grit, and enemies\' escape rate is reduced by 10%.',
+    description: '+8 max Grit, and creatures’ Will rises 10% slower.',
     bestBuild: 'rod',
     effects: [
       { type: 'bonusMaxHp', amount: 8 },
