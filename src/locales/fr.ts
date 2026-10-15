@@ -233,6 +233,16 @@ export const fr: Messages = {
   },
 
   ui: {
+    keywords: {
+      grit: { text: 'Ton envie de continuer à pêcher. Les Frappes des créatures l’entament, et elle se garde d’un combat à l’autre : à 0, la partie est perdue.' },
+      hold: { text: 'Ta prise sur la ligne. Elle encaisse les Frappes et les Tractions avant qu’elles ne t’atteignent, et disparaît au début de ton tour ; ce qui reste après le tour des créatures devient de la {@patience}.' },
+      will: { text: 'L’envie de la créature de se libérer. Elle monte à chaque tour et avec ses Tractions : pleine, la créature s’échappe ; drainée à 0, elle est attrapée.' },
+      drain: { forms: 'Draine, draine, Drainage, drainage, Drainer, drainé', text: 'Fait baisser la {@will} d’une créature. À 0 de {@will}, elle est attrapée.' },
+      strike: { forms: 'Frappe, Frappes, Frapper', text: 'Une action de créature qui entame ta {@grit}. Ta {@hold} l’encaisse d’abord.' },
+      pull: { forms: 'Traction, Tractions, Tire, Tirer', text: 'Une action de créature qui tire sur la ligne et fait monter sa propre {@will}. Ta {@hold} l’encaisse d’abord.' },
+      exhaust: { forms: 'Épuisement', text: 'Une fois jouée, la carte disparaît pour le reste du combat.' },
+      block: { forms: 'Blocage', text: 'Le Blocage d’une créature encaisse les dégâts de tes attaques jusqu’à son prochain tour.' },
+    },
     common: {
       back: '← Retour',
       cancel: 'Annuler',

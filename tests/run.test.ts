@@ -33,8 +33,8 @@ import {
 } from '../src/engine';
 import { play, repeat, setup, testData, withNodeKind } from './fixtures';
 
-/** Standing on the fixtures' mini-boss: rare cards can be offered. */
-const pastMiniBoss = (run: RunState): RunState => ({ ...run, position: '2', visited: [...run.visited, '1a', '2'] });
+/** Past the fixtures' mini-boss: rare cards can be offered. */
+const pastMiniBoss = (run: RunState): RunState => ({ ...run, position: '3a', visited: [...run.visited, '1a', '2', '3a'] });
 
 describe('run', () => {
   it('starts with the starter deck at full HP, on the map start', () => {
@@ -106,6 +106,20 @@ describe('run', () => {
     expect(offered.run.rarePity).toBe(100);
     // The mini-boss's own reward can be rare.
     expect(rollCardRewards({ ...before, position: '2', visited: [...before.visited, '1a', '2'] }, data, { families: ['a'] }).choices).toContain('r1');
+  });
+
+  it("the mini-boss's reward always has at least one rare card", () => {
+    const card = (id: string, rarity: 'normal' | 'rare') => ({ ...testData.cards.twin, id, family: 'a', rarity });
+    const data = { ...testData, cards: { n1: card('n1', 'normal'), n2: card('n2', 'normal'), n3: card('n3', 'normal'), r1: card('r1', 'rare') } };
+    for (let seed = 1; seed <= 20; seed++) {
+      const atMiniBoss = { ...createRun(seed, testData, 'basic'), position: '2', visited: [START_NODE_ID, '1a', '2'], rarePity: 0 };
+      const offered = rollCardRewards(atMiniBoss, data, { families: ['a'] });
+      expect(offered.choices).toContain('r1');
+      expect(offered.run.rarePity).toBe(10);
+      // Elsewhere, a slot with a 0% chance is never rare; at the mini-boss, even a single slot is.
+      expect(rollCardRewards(pastMiniBoss(atMiniBoss), data, { families: ['a'], count: 1 }).choices).not.toContain('r1');
+      expect(rollCardRewards(atMiniBoss, data, { families: ['a'], count: 1 }).choices).toEqual(['r1']);
+    }
   });
 
   it('a reroll draws from the same families', () => {

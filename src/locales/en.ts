@@ -239,6 +239,21 @@ export const en = {
 
   /** Text on the screens. */
   ui: {
+    /**
+     * Words in combat text that show an explanation on hover (`KeywordText.vue`). `forms` are the
+     * ways each is written, comma-separated; Grit, Hold, Will, Patience and the statuses are found by
+     * their own names.
+     */
+    keywords: {
+      grit: { text: "Your will to keep fishing. Creatures' Strikes wear it down, and it carries over between fights: at 0 the run is lost." },
+      hold: { text: 'Your grip on the line. It soaks Strikes and Pulls before they reach you, and goes at the start of your turn; what is left after the creatures act becomes {@patience}.' },
+      will: { text: "A creature's will to break free. It rises every turn and with its Pulls: full, the creature escapes; drained to 0, it's caught." },
+      drain: { forms: 'Drain, drain, drains, drained', text: "Lowers a creature's {@will}. At 0 {@will}, it's caught." },
+      strike: { forms: 'Strike, Strikes', text: 'A creature move that wears down your {@grit}. Your {@hold} soaks it first.' },
+      pull: { forms: 'Pull, Pulls', text: "A creature move that drags on the line, raising its own {@will}. Your {@hold} soaks it first." },
+      exhaust: { forms: 'Exhaust', text: 'Once played, the card is gone for the rest of the fight.' },
+      block: { forms: 'Block', text: "A creature's Block soaks your attack damage until its next turn." },
+    },
     common: {
       back: '← Back',
       cancel: 'Cancel',

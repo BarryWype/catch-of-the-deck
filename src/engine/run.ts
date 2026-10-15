@@ -371,7 +371,8 @@ export function raresUnlocked(run: RunState): boolean {
  * Offer `count` distinct cards from the families' cards (never starter cards), topped up from every
  * family's when they run short. Each slot is rare with the run's `rarePity` chance: back to
  * `RARE_CHANCE` when a rare card is offered, `RARE_PITY_STEP` higher for every slot that isn't.
- * Before `raresUnlocked`, only normal cards are offered, and the chance doesn't grow.
+ * Before `raresUnlocked`, only normal cards are offered, and the chance doesn't grow. A mini-boss's
+ * reward always has at least one rare card: the last slot is rare if none of the others were.
  */
 export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardOptions = {}): { run: RunState; choices: string[] } {
   const { count = CARD_REWARD_COUNT, exclude = [] } = opts;
@@ -379,6 +380,7 @@ export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardO
   const families = [...(opts.families ?? run.rewardFamilies)];
   next.rewardFamilies = families;
   const rares = raresUnlocked(run);
+  const miniBoss = rares && findNode(run.map, run.position)?.kind === 'miniBoss';
   const offerable = Object.values(data.cards).filter(
     (c) => c.family !== undefined && (c.build === undefined || c.build === run.build) && (rares || c.rarity !== 'rare'),
   );
@@ -388,7 +390,9 @@ export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardO
 
   const choices: string[] = [];
   for (let slot = 0; slot < count; slot++) {
-    const rarity = rares && nextFloat(next) * 100 < next.rarePity ? 'rare' : 'normal';
+    const rolled = rares && nextFloat(next) * 100 < next.rarePity ? 'rare' : 'normal';
+    const noRareYet = !choices.some((id) => data.cards[id].rarity === 'rare');
+    const rarity = miniBoss && slot === count - 1 && noRareYet ? 'rare' : rolled;
     const left = (pool: CardDef[]) => pool.filter((c) => !choices.includes(c.id));
     const candidates = [
       left(theirs).filter((c) => c.rarity === rarity),

@@ -23,6 +23,7 @@ import {
   type GameData,
 } from '../engine';
 import CardView from './CardView.vue';
+import KeywordText from './KeywordText.vue';
 import { t, term } from './i18n';
 import CombatantView from './CombatantView.vue';
 import {
@@ -404,7 +405,7 @@ function endTurn() {
         <li v-for="note in caughtNotes" :key="note.id">{{ note.text }}</li>
       </TransitionGroup>
       <ol class="log">
-        <li v-for="(line, i) in recentLog" :key="state.log.length - i">{{ line }}</li>
+        <li v-for="(line, i) in recentLog" :key="state.log.length - i"><KeywordText :text="line" /></li>
       </ol>
     </section>
 
@@ -468,7 +469,7 @@ function endTurn() {
         <template v-if="state.phase === 'won'">
           <h2>{{ t('combat.victory') }}</h2>
           <p v-if="releaseReason">
-            {{ t(state.enemies.length > 1 ? 'combat.releasedMany' : 'combat.releasedOne', { names: releasedNames, reason: releaseReason }) }}
+            <KeywordText :text="t(state.enemies.length > 1 ? 'combat.releasedMany' : 'combat.releasedOne', { names: releasedNames, reason: releaseReason })" />
           </p>
           <p v-else-if="instantSale !== null">{{ t('combat.soldOnSpot', { coins: instantSale }) }}</p>
           <button @click="emit('claimVictory')">{{ t('combat.chooseReward') }}</button>
@@ -485,7 +486,7 @@ function endTurn() {
         </template>
         <template v-else>
           <h2>{{ t('combat.defeatTitle') }}</h2>
-          <p>{{ t('combat.defeatText', { n: state.turn }) }}</p>
+          <p><KeywordText :text="t('combat.defeatText', { n: state.turn })" /></p>
           <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
           <button @click="emit('menu')">{{ t('complete.toMenu') }}</button>
         </template>

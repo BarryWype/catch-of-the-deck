@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { describeCard, type CardDef } from '../engine';
 import { t } from './i18n';
+import KeywordText from './KeywordText.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -47,7 +48,7 @@ const parts = computed(() =>
       <span>
         <template v-for="(part, i) in parts" :key="i">
           <template v-if="'real' in part">{{ part.base }} <b class="real" :class="part.up ? 'up' : 'down'">({{ part.real }})</b></template>
-          <template v-else>{{ part.text }}</template>
+          <KeywordText v-else :text="part.text" />
         </template>
       </span>
     </span>
