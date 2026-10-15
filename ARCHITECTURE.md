@@ -91,7 +91,10 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
 - **Creature moves** (`content/behaviors.ts`) each have a `tag`, checked against their effects on startup:
   - **Strike:** deals damage. What gets past the Hold wears down Grit.
   - **Pull:** has a `pull` effect (creature moves only). What gets past the Hold raises the creature's own escape bar.
-  - The intent shows the tag, and the damage or pull to expect.
+  - **Quiet moves** (`rest`, `feed`, `windUp`, `guard`, `buff`): no damage or pull, and left out of the fight scaling (`createCombat` averages Strikes and Pulls only). `skipWillRise` on a move (Rest, Feed) keeps the escape bar still that turn (`endTurn`). Feed heals with `healPercent`. A Wind-up applies the `windUp` status: `nextMoveMods` makes the next move's Strike or Pull `WIND_UP_PERCENT` (50%) bigger and uses it up; a mini-boss's or boss's Wind-up also gives 1 Strength (`EnemyState.boss`, from `CombatConfig.bosses`). `flipIntent` only turns a Strike into a Pull and back.
+  - **Strength from moves** is capped at `MAX_MOVE_STRENGTH` (3) per creature per fight (`EnemyState.strengthGained`, in the `applyStatus` effect); starting Strength doesn't count. Only the predator move set, Pike and Red piranha have Strength moves (a test checks it).
+  - Weighted patterns can cap one move's repeats with `maxRepeat`.
+  - The intent shows the tag (with its own icon and tooltip for quiet moves), and the damage or pull to expect, Wind-up included.
 - **Escape bar** (shown to the player as **Will**, `terms.will`). Each creature has:
   - **`escape`:** the bar, which starts at `escapeStart`.
   - **`escapeRate`:** how much the bar rises after the creature's turn. **Snared** stops the rise for a turn.

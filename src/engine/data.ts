@@ -147,14 +147,24 @@ export function validateContent(source: ContentSource): string[] {
       if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);
       moveIds.add(move.id);
       checkEffects(`${where} move "${move.id}"`, move.effects);
-      const effectType = move.tag === 'strike' ? 'dealDamage' : move.tag === 'pull' ? 'pull' : undefined;
-      if (!effectType) errors.push(`${where} move "${move.id}": tag must be 'strike' or 'pull'.`);
-      else if (!move.effects.some((e) => e.type === effectType)) {
-        errors.push(`${where} move "${move.id}": a ${move.tag} move needs a "${effectType}" effect.`);
-      }
+      // What each kind of move must have; only Strikes deal damage and only Pulls pull.
+      const needs: Record<string, (e: Effect) => boolean> = {
+        strike: (e) => e.type === 'dealDamage',
+        pull: (e) => e.type === 'pull',
+        rest: () => true,
+        feed: (e) => e.type === 'healPercent',
+        windUp: (e) => e.type === 'applyStatus' && e.status === 'windUp',
+        guard: (e) => e.type === 'gainBlock',
+        buff: (e) => e.type === 'applyStatus' && e.status === 'strength',
+      };
+      const need = needs[move.tag];
+      if (!need) errors.push(`${where} move "${move.id}": unknown tag "${move.tag}".`);
+      else if (move.tag !== 'rest' && !move.effects.some(need)) errors.push(`${where} move "${move.id}": a ${move.tag} move is missing its effect.`);
+      if (move.tag !== 'strike' && move.effects.some((e) => e.type === 'dealDamage')) errors.push(`${where} move "${move.id}": only Strikes deal damage.`);
+      if (move.tag !== 'pull' && move.effects.some((e) => e.type === 'pull')) errors.push(`${where} move "${move.id}": only Pulls pull.`);
     }
     const p = enemy.pattern;
-    const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : [])];
+    const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : []), ...Object.keys(p.maxRepeat ?? {})];
     for (const id of referenced) {
       if (!moveIds.has(id)) errors.push(`${where}: pattern references unknown move "${id}".`);
     }

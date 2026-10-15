@@ -8,7 +8,7 @@ import type { CombatState, EnemyMove, EnemyState, GameData, MoveTag } from './ty
 import { text } from './text';
 import { addLog } from './util';
 
-export type IntentKind = 'attack' | 'pull' | 'defend' | 'buff' | 'debuff';
+export type IntentKind = 'attack' | 'pull' | 'defend' | 'buff' | 'debuff' | 'rest' | 'feed' | 'windUp';
 
 /** What the UI shows above an enemy: icons plus the numbers they'll really deal. */
 export interface IntentPreview {
@@ -45,9 +45,11 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
     enemy.intent = pattern.firstMove;
     return;
   }
-  const max = pattern.maxConsecutive ?? Infinity;
-  const recent = history.slice(-max);
-  const exhausted = (id: string) => recent.length >= max && recent.every((m) => m === id);
+  const exhausted = (id: string) => {
+    const max = pattern.maxRepeat?.[id] ?? pattern.maxConsecutive ?? Infinity;
+    const recent = history.slice(-max);
+    return recent.length >= max && recent.every((m) => m === id);
+  };
   let entries = Object.entries(pattern.weights).filter(([id, w]) => w > 0 && !exhausted(id));
   if (entries.length === 0) entries = Object.entries(pattern.weights);
   enemy.intent = pickWeighted(state, entries);
@@ -65,6 +67,8 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
     resolveEffect(state, effect, ctx);
     if (state.player.hp <= 0) break;
   }
+  // A mini-boss's or boss's Wind-up also makes it stronger.
+  if (move.tag === 'windUp' && enemy.boss) resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, ctx);
   enemy.moveHistory.push(move.id);
 }
 
@@ -86,6 +90,10 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   const addKind = (k: IntentKind) => {
     if (!preview.kinds.includes(k)) preview.kinds.push(k);
   };
+  // Quiet moves show what they are first.
+  const QUIET_KINDS: Partial<Record<MoveTag, IntentKind>> = { rest: 'rest', feed: 'feed', windUp: 'windUp', guard: 'defend', buff: 'buff' };
+  const quiet = QUIET_KINDS[move.tag];
+  if (quiet) addKind(quiet);
   for (const effect of move.effects) {
     switch (effect.type) {
       case 'dealDamage':
@@ -102,7 +110,10 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
         preview.block = (preview.block ?? 0) + effect.amount;
         break;
       case 'applyStatus':
-        addKind((effect.target ?? 'target') === 'self' && effect.amount > 0 ? 'buff' : 'debuff');
+        // A Wind-up's own status is already its icon.
+        if (effect.status !== 'windUp') addKind((effect.target ?? 'target') === 'self' && effect.amount > 0 ? 'buff' : 'debuff');
+        break;
+      case 'healPercent':
         break;
       case 'drawCards':
       case 'gainEnergy':

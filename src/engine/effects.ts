@@ -1,5 +1,5 @@
 import { bonusTotal } from './companions';
-import { MAX_PATIENCE, MAX_SLOW_PERCENT, PLAYER_ID } from './constants';
+import { MAX_MOVE_STRENGTH, MAX_PATIENCE, MAX_SLOW_PERCENT, PLAYER_ID } from './constants';
 import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
 import { drawCards } from './piles';
 import { nextInt } from './rng';
@@ -163,9 +163,17 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
     }
     case 'applyStatus':
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
-        addStatus(t, effect.status, effect.amount);
-        const key = effect.amount >= 0 ? 'log.statusGained' : 'log.statusLost';
-        addLog(state, text(key, { who: t.name, n: Math.abs(effect.amount), status: statusName(effect.status) }));
+        let amount = effect.amount;
+        // A creature's moves give it MAX_MOVE_STRENGTH Strength at most per fight.
+        if (effect.status === 'strength' && amount > 0 && t === source && 'escape' in t) {
+          const enemy = t as EnemyState;
+          amount = Math.min(amount, MAX_MOVE_STRENGTH - (enemy.strengthGained ?? 0));
+          if (amount <= 0) continue;
+          enemy.strengthGained = (enemy.strengthGained ?? 0) + amount;
+        }
+        addStatus(t, effect.status, amount);
+        const key = amount >= 0 ? 'log.statusGained' : 'log.statusLost';
+        addLog(state, text(key, { who: t.name, n: Math.abs(amount), status: statusName(effect.status) }));
       }
       return;
     case 'drawCards':
@@ -232,7 +240,9 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         const enemy = t as EnemyState;
         const current = intentMove(enemy, ctx.data);
         const moves = ctx.data.enemies[enemy.defId]?.moves ?? [];
-        const options = moves.filter((m) => m.id !== current?.id && (effect.type === 'rerollIntent' || (current && m.tag !== current.tag)));
+        // A flip turns a Strike into a Pull and back; a quiet move has nothing to flip to.
+        const other = current?.tag === 'strike' ? 'pull' : current?.tag === 'pull' ? 'strike' : undefined;
+        const options = moves.filter((m) => m.id !== current?.id && (effect.type === 'rerollIntent' || m.tag === other));
         if (!options.length) continue;
         const move = options[nextInt(state, 0, options.length - 1)];
         enemy.intent = move.id;
@@ -267,6 +277,13 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
     case 'heal':
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         const healed = Math.min(effect.amount, t.maxHp - t.hp);
+        t.hp += healed;
+        if (healed) addLog(state, text('log.heal', { who: t.name, n: healed }));
+      }
+      return;
+    case 'healPercent':
+      for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
+        const healed = Math.min(Math.ceil((t.maxHp * effect.percent) / 100), t.maxHp - t.hp);
         t.hp += healed;
         if (healed) addLog(state, text('log.heal', { who: t.name, n: healed }));
       }

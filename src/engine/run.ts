@@ -192,6 +192,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
       bonuses: companionEffects(next.companions, data),
       hpPool: Math.ceil((ENCOUNTER_HP_POOL * growth) / 100),
       damage: enemies.length > 1 ? (damage / enemies.length) * (GROUP_DAMAGE_PERCENT / 100) : damage,
+      bosses: !!bossDamage,
     },
     data,
   );

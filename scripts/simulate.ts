@@ -78,8 +78,13 @@ interface FightRecord {
   caughtByHealth: number;
   caughtByWill: number;
   escaped: number;
-  /** The creatures' total Health and average move damage this fight (after scaling). */
+  /** The creatures' total Health this fight (after scaling). */
   hpPool: number;
+  /** The player's Patience when the fight ended. */
+  patience: number;
+  /** Moves the creatures played, and how many were quiet (neither Strike nor Pull). */
+  creatureTurns: number;
+  quietTurns: number;
 }
 interface RunRecord {
   seed: number;
@@ -192,8 +197,15 @@ function fight(run: RunState, combat: CombatState, kind: FightRecord['kind'], in
     caughtByWill: combat.enemies.filter((e) => e.hp > 0 && e.escape <= 0).length,
     escaped: combat.enemies.filter((e) => isAlive(e) && e.escape >= e.escapeAt).length,
     hpPool,
+    patience: combat.player.patience,
+    ...creatureTurns(combat),
   };
   return { combat, record };
+}
+
+function creatureTurns(combat: CombatState): { creatureTurns: number; quietTurns: number } {
+  const tags = combat.enemies.flatMap((e) => e.moveHistory.map((id) => data.enemies[e.defId].moves.find((m) => m.id === id)?.tag));
+  return { creatureTurns: tags.length, quietTurns: tags.filter((tag) => tag !== 'strike' && tag !== 'pull').length };
 }
 
 function pickReward(run: RunState, families: string[], pick: (n: number) => number): RunState {
@@ -325,12 +337,29 @@ for (const level of levelNames) {
       turns: avg(fs.map((f) => f.turns)),
       gritLost: avg(fs.map((f) => f.gritLost)),
       hpPool: avg(fs.map((f) => f.hpPool)),
+      patience: avg(fs.map((f) => f.patience)),
+      quiet: pct(fs.reduce((s, f) => s + f.quietTurns, 0), fs.reduce((s, f) => s + f.creatureTurns, 0)),
       'by Health': pct(fs.reduce((s, f) => s + f.caughtByHealth, 0), creatures),
       'by Will': pct(fs.reduce((s, f) => s + f.caughtByWill, 0), creatures),
     };
   }
 }
 console.table(groups);
+
+console.log('All ages together (the balance targets: normal fights 4–6 turns, 8–12 Grit lost, 10–20% escapes; Patience 2–3; 25–40% quiet turns)');
+const byKind: Record<string, object> = {};
+for (const [name, kinds] of [['normal fights', ['fight', 'eventFight']], ['mini-boss', ['miniBoss']], ['boss', ['boss']]] as const) {
+  const fs = fights.filter((f) => (kinds as readonly string[]).includes(f.kind));
+  byKind[name] = {
+    n: fs.length,
+    turns: avg(fs.map((f) => f.turns)),
+    gritLost: avg(fs.map((f) => f.gritLost)),
+    escape: pct(fs.filter((f) => f.result === 'fled').length, fs.length),
+    patience: avg(fs.map((f) => f.patience)),
+    quiet: pct(fs.reduce((s, f) => s + f.quietTurns, 0), fs.reduce((s, f) => s + f.creatureTurns, 0)),
+  };
+}
+console.table(byKind);
 
 const perCreature = new Map<string, FightRecord[]>();
 for (const f of fights) for (const id of new Set(f.enemies)) perCreature.set(id, [...(perCreature.get(id) ?? []), f]);

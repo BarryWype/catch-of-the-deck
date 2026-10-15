@@ -14,7 +14,9 @@ export type StatusId =
   | 'intimidated'
   | 'lured'
   | 'distracted'
-  | 'dazzled';
+  | 'dazzled'
+  // A creature's own Wind-up: its next move's Strike or Pull is bigger (`nextMoveMods`).
+  | 'windUp';
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /**
@@ -108,6 +110,8 @@ export type Effect =
   | { type: 'gainPatience'; amount: number }
   /** The target heals this much, never above its max health. */
   | { type: 'heal'; amount: number; target?: EffectTarget }
+  /** Heal `percent` of max Health (rounded up). Creature moves (Feed). */
+  | { type: 'healPercent'; percent: number; target?: EffectTarget }
   /** For the rest of the fight, escape bars can be slowed by up to `amount` percent (instead of `MAX_SLOW_PERCENT`); it never lowers it. */
   | { type: 'slowCap'; amount: number }
   /** Creature moves only: it pulls on the line. The player's Hold takes it first; the rest raises its escape bar. */
@@ -341,13 +345,20 @@ export interface CreatureTypeDef {
  * What a creature's move does to the angler: a `strike` wears down their Grit (it deals damage),
  * a `pull` drags on the line to escape (it has a `pull` effect). The player's Hold soaks both.
  */
-export type MoveTag = 'strike' | 'pull';
+/**
+ * What a creature's move does. Strike and Pull are scaled to the fight (`createCombat`); the
+ * others are quiet moves, never scaled: rest (nothing), feed (heals), windUp (its next move is
+ * bigger), guard (Block only), buff (Strength only).
+ */
+export type MoveTag = 'strike' | 'pull' | 'rest' | 'feed' | 'windUp' | 'guard' | 'buff';
 
 export interface EnemyMove {
   id: string;
   name: string;
   tag: MoveTag;
   effects: Effect[];
+  /** Its Will doesn't rise at the end of the turn it plays this (Rest, Feed). */
+  skipWillRise?: boolean;
 }
 
 /** A cell in a sprite sheet. `index` is 1-based, counted left to right, top to bottom. Display-only. */
@@ -359,8 +370,8 @@ export interface SpriteRef {
 export type IntentPattern =
   /** Play `moves` in order; after the last one, loop back to index `loopFrom` (default 0). */
   | { type: 'sequence'; moves: string[]; loopFrom?: number }
-  /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row. */
-  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number };
+  /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row; `maxRepeat` sets it per move. */
+  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number; maxRepeat?: Record<string, number> };
 
 export interface EnemyDef {
   id: string;
@@ -581,6 +592,10 @@ export interface EnemyState extends Combatant {
   escapeRate: number;
   /** Its moves' Strike and Pull are multiplied by this (the fight's damage, see `createCombat`). */
   damageScale?: number;
+  /** A mini-boss or boss: its Wind-ups also give Strength. */
+  boss?: boolean;
+  /** Strength its moves gave it this fight (at most `MAX_MOVE_STRENGTH`; starting Strength aside). */
+  strengthGained?: number;
 }
 
 export interface CardInstance {

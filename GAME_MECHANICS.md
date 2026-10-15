@@ -97,6 +97,19 @@ How hard a creature hits depends on the fight, not just on the creature. Its mov
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
+Not every turn is a Strike or a Pull. Creatures also have **quiet turns**, a chance to attack freely:
+
+| Intent | What it does |
+|---|---|
+| **Rest** 💤 | Nothing. Its Will doesn't rise this turn. |
+| **Feed** 🍤 | It heals 8% of its Health. Its Will doesn't rise this turn. |
+| **Wind-up** ⚠️ | Nothing now, but its **next** move is 50% bigger (the intent shows the bigger number). Get your Hold ready. |
+| **Guard** 🛡 | It gains Block only. |
+
+Quiet turns don't count when a fight's damage is set, so they're real breathing room: the other moves don't get bigger to make up for them.
+
+**Strength** (+1 damage per hit, for the whole fight) is rare: only predators (Pike, Red piranha and the like) and mini-bosses and bosses gain it from their moves. Mini-bosses and bosses gain 1 with every Wind-up. A creature can gain **3 at most** in a fight, on top of the Strength some big creatures start with.
+
 ## Aging: Kid, Adult and Elder
 
 A run has three acts, and you grow older from one to the next:

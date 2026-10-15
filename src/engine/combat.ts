@@ -3,7 +3,7 @@ import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, PLAYER_ID, STARTING_HAND_
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
-import { chooseIntent, executeIntent } from './intents';
+import { chooseIntent, executeIntent, getIntentMove } from './intents';
 import { discardHand, drawCards } from './piles';
 import { nextInt, shuffleInPlace } from './rng';
 import { escapeRise, tickStatuses } from './statuses';
@@ -24,8 +24,10 @@ export interface CombatConfig {
   bonuses?: CompanionEffect[];
   /** The least Health the creatures have together (raised in proportion when they roll less). */
   hpPool?: number;
-  /** What each creature's Strike and Pull moves average: they're all scaled to it. */
+  /** What each creature's Strike and Pull moves average: they're all scaled to it (quiet moves aren't counted). */
   damage?: number;
+  /** A mini-boss or boss fight: the creatures' Wind-ups also give them Strength. */
+  bosses?: boolean;
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -75,6 +77,7 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
       escape: def.escapeStart,
       escapeAt: def.escapeAt,
       escapeRate: def.escapeRate,
+      ...(config.bosses ? { boss: true } : {}),
     });
   });
 
@@ -84,7 +87,10 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   }
   if (config.damage) {
     for (const enemy of state.enemies) {
-      const values = data.enemies[enemy.defId].moves.map((m) => moveValue(m)).filter((v) => v > 0);
+      const values = data.enemies[enemy.defId].moves
+        .filter((m) => m.tag === 'strike' || m.tag === 'pull')
+        .map((m) => moveValue(m))
+        .filter((v) => v > 0);
       if (values.length) enemy.damageScale = (config.damage * values.length) / values.reduce((a, b) => a + b, 0);
     }
   }
@@ -308,9 +314,10 @@ function endTurn(state: CombatState, data: GameData): void {
     // Venom can wear a creature out before it acts: it's caught.
     if (checkCombatEnd(state)) return;
     if (!isAlive(enemy)) continue;
+    const move = getIntentMove(enemy, data);
     executeIntent(state, enemy, data);
     if (checkCombatEnd(state)) return;
-    if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + escapeRise(enemy, state.player.patience, state.slowCap));
+    if (isAlive(enemy) && !move?.skipWillRise) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + escapeRise(enemy, state.player.patience, state.slowCap));
     if (checkCombatEnd(state)) return;
   }
   for (const enemy of state.enemies) {

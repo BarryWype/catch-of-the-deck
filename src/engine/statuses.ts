@@ -1,4 +1,4 @@
-import { MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SLOW_PERCENT } from './constants';
+import { MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SLOW_PERCENT, WIND_UP_PERCENT } from './constants';
 import { escapeRateReduction } from './equipment';
 import { text } from './text';
 import type { Combatant, EnemyState, MoveTag, StatusId } from './types';
@@ -26,6 +26,8 @@ export const STATUS_META: Record<StatusId, StatusMeta> = {
   // Lasts its stacks in turns.
   dazzled: { kind: 'debuff', decays: true },
   snared: { kind: 'debuff', decays: true },
+  // Used up by the creature's next move (see `nextMoveMods`).
+  windUp: { kind: 'buff', decays: false },
 };
 
 export const statusName = (id: StatusId) => text(`status.${id}.name`);
@@ -66,6 +68,10 @@ export function nextMoveMods(enemy: Combatant, tag: MoveTag): { scale: number; l
   const used: StatusId[] = [];
   let scale = 1;
   let less = 0;
+  if (has('windUp')) {
+    scale *= 1 + WIND_UP_PERCENT / 100;
+    used.push('windUp');
+  }
   if (has('cowed')) {
     scale *= 0.5;
     used.push('cowed');

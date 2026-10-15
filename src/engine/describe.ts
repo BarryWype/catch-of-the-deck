@@ -109,6 +109,8 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       return text(effect.share === 0.5 ? 'describe.echoHalf' : 'describe.echo', { n: Math.round(effect.share * 100) });
     case 'heal':
       return text(`describe.heal.${effect.target ?? 'target'}`, { n: effect.amount });
+    case 'healPercent':
+      return text('describe.healPercent', { n: effect.percent });
     case 'changeEscape':
       if (effect.perStatus && effect.amount === 0) {
         return text('describe.drainPer', { n: Math.abs(effect.perStatus.amount), status: statusName(effect.perStatus.status) });

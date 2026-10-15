@@ -136,7 +136,9 @@ export const fr: Messages = {
         lured: { target: 'Si la prochaine action de la créature est une Traction, elle est réduite de moitié.' },
         distracted: { target: 'La prochaine Frappe de la créature inflige {n} de moins.' },
         dazzled: { target: 'Pendant {n} tours, les Frappes de la créature infligent 50 % de moins, mais sa {@will} monte 50 % plus vite.' },
+        windUp: { self: 'Son prochain coup est 50 % plus fort.' },
       },
+      healPercent: 'Récupère {n} % de sa Santé.',
       echo: 'Au début de ton prochain tour, inflige à nouveau {n} % des dégâts infligés.',
       multiply: 'Double la {status} de la créature.',
       multiplyMax: 'Double la {status} de la créature (+{max} au plus).',
@@ -160,6 +162,7 @@ export const fr: Messages = {
       dazzled: { name: 'Ébloui', description: 'Ses Frappes infligent 50 % de moins, mais sa {@will} monte 50 % plus vite. Diminue à la fin du tour.' },
       venom: { name: 'Venin', description: 'Au début de son tour, perd autant de vie (malgré le Blocage), puis perd une charge.' },
       snared: { name: 'Empêtré', description: 'Sa {@will} ne monte pas. Diminue à la fin du tour.' },
+      windUp: { name: 'Élan', description: 'Se prépare : son prochain coup est 50 % plus fort.' },
     },
     companion: {
       trigger: '{when} : {rule}',
@@ -319,7 +322,7 @@ export const fr: Messages = {
       },
       moves: {
         title: 'Frappe et Traction :',
-        text: 'les Frappes entament ta {@grit}, les Tractions font monter la barre de {@will} de la créature. La {@hold} retient les deux.',
+        text: 'les Frappes entament ta {@grit}, les Tractions font monter la barre de {@will} de la créature. La {@hold} retient les deux. Certains tours sont calmes : repos 💤 ou repas 🍤 (sa {@will} ne monte pas), garde 🛡, ou élan ⚠️ (son prochain coup est 50 % plus fort).',
       },
       patience: {
         title: '{@patience} :',
@@ -459,6 +462,18 @@ export const fr: Messages = {
     intent: {
       strike: 'Frappe',
       pull: 'Traction',
+      rest: 'Repos',
+      feed: 'Repas',
+      windUp: 'Élan',
+      guard: 'Garde',
+      buff: 'Renfort',
+      hint: {
+        rest: 'Se repose : ni Frappe ni Traction, sa {@will} ne monte pas.',
+        feed: 'Se nourrit : récupère de la Santé, sa {@will} ne monte pas.',
+        windUp: 'Se prépare : prochain coup +50 %.',
+        guard: 'En garde : gagne du Blocage.',
+        buff: 'Devient plus fort.',
+      },
     },
     drawer: {
       open: 'Ouvrir : {title}',

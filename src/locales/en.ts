@@ -141,7 +141,9 @@ export const en = {
         lured: { target: "If the creature's next move is a Pull, it's halved." },
         distracted: { target: "The creature's next Strike deals {n} less." },
         dazzled: { target: "For {n} turns, the creature's Strikes deal 50% less, but its {@will} rises 50% faster." },
+        windUp: { self: 'Its next move is 50% bigger.' },
       },
+      healPercent: 'Heals {n}% of its Health.',
       echo: 'At the start of your next turn, deal {n}% of the damage dealt again.',
       multiply: "Double the creature's {status}.",
       multiplyMax: "Double the creature's {status} (+{max} at most).",
@@ -165,6 +167,7 @@ export const en = {
       dazzled: { name: 'Dazzled', description: 'Its Strikes deal 50% less, but its {@will} rises 50% faster. Decreases at end of turn.' },
       venom: { name: 'Venom', description: 'At the start of its turn, loses that much health (ignoring Block), then loses a charge.' },
       snared: { name: 'Snared', description: "Its {@will} doesn't rise. Decreases at end of turn." },
+      windUp: { name: 'Wind-up', description: 'Preparing: its next move is 50% bigger.' },
     },
     companion: {
       trigger: '{when}: {rule}',
@@ -324,7 +327,7 @@ export const en = {
       },
       moves: {
         title: 'Strike and Pull:',
-        text: "Strike moves wear down your {@grit}, Pull moves raise the creature's {@will} bar. {@hold} stops both.",
+        text: "Strike moves wear down your {@grit}, Pull moves raise the creature's {@will} bar. {@hold} stops both. Some turns are quiet: resting 💤 or feeding 🍤 (its {@will} doesn't rise), guarding 🛡, or winding up ⚠️ (its next move is 50% bigger).",
       },
       patience: {
         title: '{@patience}:',
@@ -464,6 +467,18 @@ export const en = {
     intent: {
       strike: 'Strike',
       pull: 'Pull',
+      rest: 'Rest',
+      feed: 'Feed',
+      windUp: 'Wind-up',
+      guard: 'Guard',
+      buff: 'Buff',
+      hint: {
+        rest: "Resting: no Strike or Pull, its {@will} won't rise.",
+        feed: "Feeding: heals, its {@will} won't rise.",
+        windUp: 'Preparing: next move +50%.',
+        guard: 'Guarding: gains Block.',
+        buff: 'Getting stronger.',
+      },
     },
     drawer: {
       open: 'Open: {title}',

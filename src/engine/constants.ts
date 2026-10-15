@@ -20,7 +20,7 @@ export const HOLD_PER_PATIENCE = 3;
 /** The least Health a fight's creatures have together, before `ENCOUNTER_GROWTH_PERCENT`. */
 export const ENCOUNTER_HP_POOL = 50;
 /** What a fight's creatures' moves average, Strike or Pull, before `ENCOUNTER_GROWTH_PERCENT`. Split between them in a group. */
-export const ENCOUNTER_DAMAGE = 7.2;
+export const ENCOUNTER_DAMAGE = 8;
 /** How much a fight's Health pool and damage grow, in percent, per fight already gone through this run. */
 export const ENCOUNTER_GROWTH_PERCENT = 2;
 /** A creature's share of the damage in a group of several, in percent. */

@@ -1,5 +1,5 @@
 import type { Habitat, Statuses } from '../engine';
-import type { Behavior, BehaviorId } from './behaviors';
+import { WIND_UP, type Behavior, type BehaviorId } from './behaviors';
 import type { CreatureType } from './creatureTypes';
 
 /**
@@ -81,9 +81,10 @@ export const creatures: CreatureDef[] = [
     moves: {
       moves: [
         { id: 'frenzy', name: 'Shred the Bait', tag: 'strike', effects: [{ type: 'dealDamage', amount: 3, hits: 3 }] },
-        { id: 'smellBlood', name: 'Smell Blood', tag: 'pull', effects: [{ type: 'pull', amount: 4 }, { type: 'applyStatus', status: 'strength', amount: 2, target: 'self' }] },
+        { id: 'circle', name: 'Circle', tag: 'rest', skipWillRise: true, effects: [] },
+        { id: 'smellBlood', name: 'Smell Blood', tag: 'buff', effects: [{ type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }] },
       ],
-      pattern: { type: 'sequence', moves: ['frenzy', 'frenzy', 'smellBlood'] },
+      pattern: { type: 'sequence', moves: ['frenzy', 'circle', 'smellBlood', 'frenzy'] },
     },
   },
   { no: 19, id: 'lionfish', name: 'Lionfish', scientific: 'Pterois volitans', type: 'rockFish', water: 'salt', tier: 2, hp: [34, 40], sellValue: 9, breedChance: 0.1, escapeAt: 105, escapeStart: 44, escapeRate: 6, temperament: 'venomous' },
@@ -128,9 +129,9 @@ export const creatures: CreatureDef[] = [
       moves: [
         { id: 'snap', name: 'Snap the Lure', tag: 'strike', effects: [{ type: 'dealDamage', amount: 11 }] },
         { id: 'thrash', name: 'Tail Hit', tag: 'strike', effects: [{ type: 'dealDamage', amount: 7 }, { type: 'gainBlock', amount: 5 }] },
-        { id: 'lurk', name: 'Lurk in the Reeds', tag: 'pull', effects: [{ type: 'pull', amount: 7 }, { type: 'applyStatus', status: 'strength', amount: 3, target: 'self' }, { type: 'gainBlock', amount: 4 }] },
+        { id: 'lurk', name: 'Lurk in the Reeds', tag: 'windUp', effects: [WIND_UP, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, { type: 'gainBlock', amount: 4 }] },
       ],
-      pattern: { type: 'weighted', firstMove: 'snap', weights: { snap: 25, thrash: 30, lurk: 45 }, maxConsecutive: 1 },
+      pattern: { type: 'weighted', firstMove: 'snap', weights: { lurk: 40, thrash: 30, snap: 30 }, maxConsecutive: 1 },
     },
   },
   { no: 55, id: 'commonBarbel', name: 'Common barbel', scientific: 'Barbus barbus', type: 'sportFish', water: 'fresh', tier: 1, hp: [26, 30], sellValue: 6, breedChance: 0.1, escapeAt: 105, escapeStart: 26, escapeRate: 14, temperament: 'fighter' },
