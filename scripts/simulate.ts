@@ -82,9 +82,13 @@ interface FightRecord {
   hpPool: number;
   /** The player's Patience when the fight ended. */
   patience: number;
-  /** Moves the creatures played, and how many were quiet (neither Strike nor Pull). */
+  /** Moves the creatures played, by role (a heavy turn is the move right after a Wind-up). */
   creatureTurns: number;
-  quietTurns: number;
+  normalTurns: number;
+  paceTurns: number;
+  specialTurns: number;
+  windUpTurns: number;
+  heavyTurns: number;
 }
 interface RunRecord {
   seed: number;
@@ -150,6 +154,11 @@ function evaluate(s: CombatState): number {
     score -= after >= p.escapeAt ? 1e5 : (100 * p.pull * unsoaked) / p.escapeAt;
   }
   score += 3 * (s.player.statuses.strength ?? 0) + 5 * (s.powers?.length ?? 0) + 2 * s.player.patience;
+  // Junk in hand: Grit lost at the end of the turn, or less Hold.
+  for (const card of s.piles.hand) {
+    const inHand = data.cards[card.defId]?.inHand;
+    score -= 8 * (inHand?.gritAtEndOfTurn ?? 0) + 3 * (inHand?.holdLess ?? 0);
+  }
   return score;
 }
 
@@ -203,9 +212,28 @@ function fight(run: RunState, combat: CombatState, kind: FightRecord['kind'], in
   return { combat, record };
 }
 
-function creatureTurns(combat: CombatState): { creatureTurns: number; quietTurns: number } {
-  const tags = combat.enemies.flatMap((e) => e.moveHistory.map((id) => data.enemies[e.defId].moves.find((m) => m.id === id)?.tag));
-  return { creatureTurns: tags.length, quietTurns: tags.filter((tag) => tag !== 'strike' && tag !== 'pull').length };
+const ROLES = ['normal', 'pace', 'special', 'windUp', 'heavy'] as const;
+
+function creatureTurns(combat: CombatState) {
+  const roles = combat.enemies.flatMap((e) => {
+    const moves = e.moveHistory.map((id) => data.enemies[e.defId].moves.find((m) => m.id === id));
+    return moves.map((m, i) => (moves[i - 1]?.role === 'windUp' ? 'heavy' : (m?.role ?? 'normal')));
+  });
+  const count = (role: (typeof ROLES)[number]) => roles.filter((r) => r === role).length;
+  return {
+    creatureTurns: roles.length,
+    normalTurns: count('normal'),
+    paceTurns: count('pace'),
+    specialTurns: count('special'),
+    windUpTurns: count('windUp'),
+    heavyTurns: count('heavy'),
+  };
+}
+
+/** Each role's share of the creatures' turns in these fights. */
+function roleShares(fs: FightRecord[]): Record<string, string> {
+  const total = fs.reduce((s, f) => s + f.creatureTurns, 0);
+  return Object.fromEntries(ROLES.map((role) => [role, pct(fs.reduce((s, f) => s + f[`${role}Turns`], 0), total)]));
 }
 
 function pickReward(run: RunState, families: string[], pick: (n: number) => number): RunState {
@@ -338,7 +366,6 @@ for (const level of levelNames) {
       gritLost: avg(fs.map((f) => f.gritLost)),
       hpPool: avg(fs.map((f) => f.hpPool)),
       patience: avg(fs.map((f) => f.patience)),
-      quiet: pct(fs.reduce((s, f) => s + f.quietTurns, 0), fs.reduce((s, f) => s + f.creatureTurns, 0)),
       'by Health': pct(fs.reduce((s, f) => s + f.caughtByHealth, 0), creatures),
       'by Will': pct(fs.reduce((s, f) => s + f.caughtByWill, 0), creatures),
     };
@@ -346,7 +373,7 @@ for (const level of levelNames) {
 }
 console.table(groups);
 
-console.log('All ages together (the balance targets: normal fights 4–6 turns, 8–12 Grit lost, 10–20% escapes; Patience 2–3; 25–40% quiet turns)');
+console.log('All ages together (the balance targets: fights 4–6 turns, 8–10 Grit lost in normal fights, 10–20% escapes; Patience 2–3)');
 const byKind: Record<string, object> = {};
 for (const [name, kinds] of [['normal fights', ['fight', 'eventFight']], ['mini-boss', ['miniBoss']], ['boss', ['boss']]] as const) {
   const fs = fights.filter((f) => (kinds as readonly string[]).includes(f.kind));
@@ -356,7 +383,7 @@ for (const [name, kinds] of [['normal fights', ['fight', 'eventFight']], ['mini-
     gritLost: avg(fs.map((f) => f.gritLost)),
     escape: pct(fs.filter((f) => f.result === 'fled').length, fs.length),
     patience: avg(fs.map((f) => f.patience)),
-    quiet: pct(fs.reduce((s, f) => s + f.quietTurns, 0), fs.reduce((s, f) => s + f.creatureTurns, 0)),
+    ...roleShares(fs),
   };
 }
 console.table(byKind);

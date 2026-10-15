@@ -1,5 +1,5 @@
 import type { Habitat, Statuses } from '../engine';
-import { WIND_UP, type Behavior, type BehaviorId } from './behaviors';
+import { move, STEAL, WIND_UP, type Behavior, type BehaviorId } from './behaviors';
 import type { CreatureType } from './creatureTypes';
 
 /**
@@ -80,11 +80,12 @@ export const creatures: CreatureDef[] = [
     temperament: 'predator',
     moves: {
       moves: [
-        { id: 'frenzy', name: 'Shred the Bait', tag: 'strike', effects: [{ type: 'dealDamage', amount: 3, hits: 3 }] },
-        { id: 'circle', name: 'Circle', tag: 'rest', skipWillRise: true, effects: [] },
-        { id: 'smellBlood', name: 'Smell Blood', tag: 'buff', effects: [{ type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }] },
+        move('frenzy', 'Shred the Bait', 'strike', 'normal', { hits: 3 }),
+        move('strip', 'Strip the Hook', 'strike', 'light', { role: 'special', extras: [STEAL] }),
+        move('smellBlood', 'Smell Blood', 'pull', 'light', { extras: [{ type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }] }),
+        move('circle', 'Circle', 'pull', 'light', { role: 'pace' }),
       ],
-      pattern: { type: 'sequence', moves: ['frenzy', 'circle', 'smellBlood', 'frenzy'] },
+      pattern: { type: 'weighted', weights: { frenzy: 40, strip: 20, smellBlood: 15, circle: 25 } },
     },
   },
   { no: 19, id: 'lionfish', name: 'Lionfish', scientific: 'Pterois volitans', type: 'rockFish', water: 'salt', tier: 2, hp: [34, 40], sellValue: 9, breedChance: 0.1, escapeAt: 105, escapeStart: 44, escapeRate: 6, temperament: 'venomous' },
@@ -127,11 +128,17 @@ export const creatures: CreatureDef[] = [
     temperament: 'predator',
     moves: {
       moves: [
-        { id: 'snap', name: 'Snap the Lure', tag: 'strike', effects: [{ type: 'dealDamage', amount: 11 }] },
-        { id: 'thrash', name: 'Tail Hit', tag: 'strike', effects: [{ type: 'dealDamage', amount: 7 }, { type: 'gainBlock', amount: 5 }] },
-        { id: 'lurk', name: 'Lurk in the Reeds', tag: 'windUp', effects: [WIND_UP, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, { type: 'gainBlock', amount: 4 }] },
+        move('snap', 'Snap the Lure', 'strike', 'normal'),
+        move('thrash', 'Tail Hit', 'strike', 'light', { extras: [{ type: 'gainBlock', amount: 5 }] }),
+        move('lurk', 'Lurk in the Reeds', 'pull', 'light', {
+          role: 'windUp',
+          followUp: 'snap',
+          extras: [WIND_UP, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, { type: 'gainBlock', amount: 4 }],
+        }),
+        move('grab', 'Grab the Bait', 'strike', 'light', { role: 'special', extras: [{ type: 'applyStatus', status: 'baitGrabbed', amount: 1 }] }),
+        move('holdStill', 'Hold Still', 'pull', 'light', { role: 'pace' }),
       ],
-      pattern: { type: 'weighted', firstMove: 'snap', weights: { lurk: 40, thrash: 30, snap: 30 }, maxConsecutive: 1 },
+      pattern: { type: 'weighted', weights: { snap: 30, thrash: 20, lurk: 20, grab: 15, holdStill: 15 } },
     },
   },
   { no: 55, id: 'commonBarbel', name: 'Common barbel', scientific: 'Barbus barbus', type: 'sportFish', water: 'fresh', tier: 1, hp: [26, 30], sellValue: 6, breedChance: 0.1, escapeAt: 105, escapeStart: 26, escapeRate: 14, temperament: 'fighter' },

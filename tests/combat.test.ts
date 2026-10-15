@@ -379,7 +379,7 @@ describe('strikes and pulls', () => {
       tugger: {
         ...testData.enemies.dummy,
         id: 'tugger',
-        moves: [{ id: 'tug', name: 'Tug', tag: 'pull' as const, effects: [{ type: 'pull' as const, amount: 8 }] }],
+        moves: [{ id: 'tug', name: 'Tug', tag: 'pull' as const, intensity: 'normal' as const, effects: [{ type: 'pull' as const, amount: 8 }] }],
         pattern: { type: 'sequence' as const, moves: ['tug'] },
       },
     },

@@ -11,11 +11,14 @@ const props = withDefaults(
     selected?: boolean;
     /** Its type bonus applies to the current target: highlight it. */
     effective?: boolean;
+    /** Its energy cost right now, when a tax changes it (`cardCost`). */
+    cost?: number;
   }>(),
-  { description: undefined, playable: true, selected: false, effective: false },
+  { description: undefined, playable: true, selected: false, effective: false, cost: undefined },
 );
 
-const TYPE_ICON: Record<CardDef['type'], string> = { attack: '⚔️', defense: '🛡️', drain: '🧲', support: '🌀', power: '✨' };
+const TYPE_ICON: Record<CardDef['type'], string> = { attack: '⚔️', defense: '🛡️', drain: '🧲', support: '🌀', power: '✨', junk: '🗑️' };
+const shownCost = computed(() => props.cost ?? props.card.cost);
 const text = computed(() => props.description ?? describeCard(props.card));
 /** Rules text longer than this gets a smaller font so it stays inside the card. */
 const LONG_TEXT = 85;
@@ -35,7 +38,7 @@ const parts = computed(() =>
     :class="[card.type, `rarity-${card.rarity}`, { unplayable: !playable, selected, effective }]"
     :aria-disabled="!playable"
   >
-    <span class="cost">{{ card.cost }}</span>
+    <span class="cost" :class="{ taxed: shownCost > card.cost }">{{ card.unplayable ? '–' : shownCost }}</span>
     <span v-if="card.patienceCost" v-tip="t('card.patienceCost', { n: card.patienceCost })" class="patience-cost">⏳{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
     <span class="art">{{ card.art ?? TYPE_ICON[card.type] }}</span>
@@ -91,6 +94,8 @@ const parts = computed(() =>
 .card.drain { --frame: var(--drain); }
 .card.support { --frame: var(--support); }
 .card.power { --frame: var(--power); }
+.card.junk { --frame: var(--junk); }
+.cost.taxed { color: #e06060; }
 .card:hover:not(.unplayable) { z-index: 2; transform: translateY(-16px) scale(1.08); }
 .card.selected { z-index: 2; transform: translateY(-20px) scale(1.08); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
 .card.unplayable { opacity: 0.5; cursor: not-allowed; }

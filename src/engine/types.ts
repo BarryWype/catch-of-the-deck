@@ -15,8 +15,17 @@ export type StatusId =
   | 'lured'
   | 'distracted'
   | 'dazzled'
-  // A creature's own Wind-up: its next move's Strike or Pull is bigger (`nextMoveMods`).
-  | 'windUp';
+  // A creature's own Wind-up: its next move is its heavy move, and bigger (`nextMoveMods`).
+  | 'windUp'
+  // A creature dug in until its next turn: the player's attacks deal less (Burrow).
+  | 'burrowed'
+  // On the player, from creatures' special moves, for their next turn:
+  | 'tangled'
+  | 'numbFingers'
+  | 'pinchedHand'
+  | 'skittish'
+  | 'spines'
+  | 'baitGrabbed';
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /**
@@ -88,6 +97,8 @@ export type Effect =
   | { type: 'venomCoating'; amount: number }
   /** `then` if the target's next move has this tag, `else` otherwise. */
   | { type: 'ifIntent'; tag: MoveTag; then: Effect[]; else?: Effect[] }
+  /** `then` if the target has any `status` (e.g. it's Slowed), `else` otherwise. */
+  | { type: 'ifStatus'; status: StatusId; then: Effect[]; else?: Effect[] }
   /** The target's next move becomes a random move of the other tag (Strike ↔ Pull), if it has one. */
   | { type: 'flipIntent'; target?: EffectTarget }
   /** The target's next move becomes another of its moves, picked at random. */
@@ -110,14 +121,24 @@ export type Effect =
   | { type: 'gainPatience'; amount: number }
   /** The target heals this much, never above its max health. */
   | { type: 'heal'; amount: number; target?: EffectTarget }
-  /** Heal `percent` of max Health (rounded up). Creature moves (Feed). */
+  /** Heal `percent` of max Health (rounded up). Creature moves (Graze). */
   | { type: 'healPercent'; percent: number; target?: EffectTarget }
+  /** The creature's next move is hidden from the player (Ink). */
+  | { type: 'ink' }
+  /** A junk card (`card` id) goes into the player's discard pile, if the deck holds fewer than `MAX_JUNK_CARDS`. */
+  | { type: 'addJunk'; card: string }
+  /** The player loses Patience (none below 0). */
+  | { type: 'stealPatience'; amount: number }
+  /** A mini-boss's or boss's Second Wind: points move from its higher bar into the low one. */
+  | { type: 'secondWind' }
   /** For the rest of the fight, escape bars can be slowed by up to `amount` percent (instead of `MAX_SLOW_PERCENT`); it never lowers it. */
   | { type: 'slowCap'; amount: number }
   /** Creature moves only: it pulls on the line. The player's Hold takes it first; the rest raises its escape bar. */
-  | { type: 'pull'; amount: number };
+  /** `heavyIfNoHold`: a heavy Pull instead when the player has no Hold (Shake the Hook). */
+  | { type: 'pull'; amount: number; heavyIfNoHold?: boolean };
 
-export type CardType = 'attack' | 'defense' | 'drain' | 'support' | 'power';
+/** `junk`: dropped into the deck by creatures' special moves for the fight (`addJunk`), never offered. */
+export type CardType = 'attack' | 'defense' | 'drain' | 'support' | 'power' | 'junk';
 /** Attack and Drain cards are "attacks" for every rule that counts them (`isAttackCard`). */
 export type CardRarity = 'normal' | 'rare';
 
@@ -145,6 +166,10 @@ export interface CardDef {
   tags?: string[];
   /** Optional text override. Normally generated from `effects`. */
   description?: string;
+  /** It can't be played (Pebble in the Boot). */
+  unplayable?: boolean;
+  /** What a junk card does while it sits in the hand: Grit lost if it's still there at the end of the turn, Hold taken off every Hold card. */
+  inHand?: { gritAtEndOfTurn?: number; holdLess?: number };
   /** Placeholder art (emoji). Display-only; ignored by the engine. */
   art?: string;
 }
@@ -345,20 +370,28 @@ export interface CreatureTypeDef {
  * What a creature's move does to the angler: a `strike` wears down their Grit (it deals damage),
  * a `pull` drags on the line to escape (it has a `pull` effect). The player's Hold soaks both.
  */
+/** What a creature's move does: Strike (damage to Grit) or Pull (raises its Will). */
+export type MoveTag = 'strike' | 'pull';
+
+/** A move's size before the fight scales it: light ×0.5, normal ×1, heavy ×1.4 (`MOVE_INTENSITY`). */
+export type MoveIntensity = 'light' | 'normal' | 'heavy';
+
 /**
- * What a creature's move does. Strike and Pull are scaled to the fight (`createCombat`); the
- * others are quiet moves, never scaled: rest (nothing), feed (heals), windUp (its next move is
- * bigger), guard (Block only), buff (Strength only).
+ * A move's part in its set. `pace`: its Will rises half as much that turn. `special`: a trick
+ * (Ink, junk cards, taxes…). `windUp`: its next move is `followUp`, played heavy and bigger.
+ * `heavy`: only ever played right after a Wind-up. Normal moves have none.
  */
-export type MoveTag = 'strike' | 'pull' | 'rest' | 'feed' | 'windUp' | 'guard' | 'buff';
+export type MoveRole = 'pace' | 'special' | 'windUp' | 'heavy';
 
 export interface EnemyMove {
   id: string;
   name: string;
   tag: MoveTag;
+  intensity: MoveIntensity;
+  role?: MoveRole;
+  /** A Wind-up's heavy move, played right after it. */
+  followUp?: string;
   effects: Effect[];
-  /** Its Will doesn't rise at the end of the turn it plays this (Rest, Feed). */
-  skipWillRise?: boolean;
 }
 
 /** A cell in a sprite sheet. `index` is 1-based, counted left to right, top to bottom. Display-only. */
@@ -370,8 +403,8 @@ export interface SpriteRef {
 export type IntentPattern =
   /** Play `moves` in order; after the last one, loop back to index `loopFrom` (default 0). */
   | { type: 'sequence'; moves: string[]; loopFrom?: number }
-  /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row; `maxRepeat` sets it per move. */
-  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number; maxRepeat?: Record<string, number> };
+  /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row. A special never follows a special, and a Wind-up never follows Ink. */
+  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number };
 
 export interface EnemyDef {
   id: string;
@@ -390,6 +423,8 @@ export interface EnemyDef {
   escapeRate: number;
   moves: EnemyMove[];
   pattern: IntentPattern;
+  /** Its pattern as a mini-boss or boss (a fixed `sequence`); `pattern` otherwise. */
+  bossPattern?: IntentPattern;
   /** Statuses the enemy starts every fight with, e.g. `{ strength: 2 }`. */
   startingStatuses?: Statuses;
   /** Creature type ids, matched by card damage bonuses. */
@@ -590,10 +625,17 @@ export interface EnemyState extends Combatant {
   escape: number;
   escapeAt: number;
   escapeRate: number;
-  /** Its moves' Strike and Pull are multiplied by this (the fight's damage, see `createCombat`). */
+  /** Its moves' Strike and Pull are multiplied by this (the fight's damage, see `createCombat`), before Strength and statuses. */
   damageScale?: number;
-  /** A mini-boss or boss: its Wind-ups also give Strength. */
+  /** How much tougher this fight is than the base one (its damage ÷ `ENCOUNTER_TURN_AVERAGE`): scales Skittish and Second Wind. */
+  fightScale?: number;
+  /** A mini-boss or boss: it follows its `bossPattern`, its Wind-ups also give Strength, and it has a Second Wind. */
   boss?: boolean;
+  /** Its next move is hidden from the player (`ink`); `inked` is set by the Ink move until that next move is picked. */
+  inked?: boolean;
+  intentHidden?: boolean;
+  /** Its Second Wind has been telegraphed (once per fight). */
+  secondWindUsed?: boolean;
   /** Strength its moves gave it this fight (at most `MAX_MOVE_STRENGTH`; starting Strength aside). */
   strengthGained?: number;
 }
@@ -635,7 +677,11 @@ export interface CombatState {
   /** Powers played this fight, in order (`power` effects). */
   powers?: { power: PowerId; amount: number }[];
   /** What lasts until the end of the player's turn (`coil`, `venomBonus`, `venomCoating`). */
-  thisTurn?: { coiled?: boolean; venomBonus?: number; venomCoating?: number };
+  thisTurn?: { coiled?: boolean; venomBonus?: number; venomCoating?: number; cardsPlayed?: number };
+  /** Creatures whose Skittish is on the player this turn: playing `SKITTISH_CARDS` cards raises their Will. */
+  skittishFrom?: string[];
+  /** Junk cards added this fight, for their ids. */
+  junkAdded?: number;
   /** Set by `keepHold`: the player's Hold stays at the start of their next turn. */
   keepHold?: boolean;
   /** How much escape bars can be slowed this fight, in percent, when a card raised it (`slowCap`). `MAX_SLOW_PERCENT` otherwise. */

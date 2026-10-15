@@ -1,5 +1,15 @@
 import { bonusTotal } from './companions';
-import { MAX_MOVE_STRENGTH, MAX_PATIENCE, MAX_SLOW_PERCENT, PLAYER_ID } from './constants';
+import {
+  BURROW_PERCENT,
+  MAX_JUNK_CARDS,
+  MAX_MOVE_STRENGTH,
+  MAX_PATIENCE,
+  MAX_SLOW_PERCENT,
+  PINCHED_HAND_HOLD,
+  PLAYER_ID,
+  SECOND_WIND_POINTS,
+  SPINES_GRIT,
+} from './constants';
 import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
 import { drawCards } from './piles';
 import { nextInt } from './rng';
@@ -20,6 +30,8 @@ export interface EffectContext {
   dealt?: number;
   /** The game data, for effects that look at creatures' moves (`ifIntent`, `flipIntent`…). */
   data?: GameData;
+  /** A creature's move at the fight's size (`EnemyState.damageScale`), before Strength and statuses. */
+  amountScale?: number;
   /** A creature's move changed by its statuses (`nextMoveMods`): share of it that lands, and how much less its Strike deals. */
   moveScale?: number;
   strikeLess?: number;
@@ -120,9 +132,18 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           const fromPlayer = source.id === PLAYER_ID;
           const companionBonus = fromPlayer && !ctx.raw ? bonusTotal(state.bonuses, 'bonusDamage') : 0;
           const venomBonus = ctx.attack && getStatus(t, 'venom') > 0 ? (state.thisTurn?.venomBonus ?? 0) : 0;
-          const base = (effect.fromHold ? state.player.block : effect.amount) + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
+          const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : (ctx.amountScale ?? 1));
+          const base = written + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
           let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses, isStrongAgainst(effect.bonus, tagsOf(t)));
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
+          // Burrow: the player's attacks do less until the creature's next turn.
+          if (fromPlayer && getStatus(t, 'burrowed') > 0) amount = Math.floor((amount * (100 - BURROW_PERCENT)) / 100);
+          // Spines: every hit of an attack card pricks the player.
+          if (fromPlayer && ctx.attack && getStatus(state.player, 'spines') > 0) {
+            const pricked = Math.min(state.player.hp, SPINES_GRIT);
+            state.player.hp -= pricked;
+            if (pricked) addLog(state, text('log.spines', { who: state.player.name, n: pricked }));
+          }
           const enemyAttack = !fromPlayer && t.id === PLAYER_ID;
           if (enemyAttack) amount = changedStrike(ctx, amount);
           if (enemyAttack && state.bonusTracker.dodged < bonusTotal(state.bonuses, 'dodgeAttacks')) {
@@ -144,7 +165,9 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       return;
     }
     case 'gainBlock': {
-      const amount = effect.amount + (source.id === PLAYER_ID ? bonusTotal(state.bonuses, 'bonusBlock') : 0);
+      let amount = effect.amount + (source.id === PLAYER_ID ? bonusTotal(state.bonuses, 'bonusBlock') : 0);
+      // Pinched Hand and Tangled Lines in hand: Hold cards give less.
+      if (ctx.fromCard && ctx.data && source.id === PLAYER_ID) amount = Math.max(0, amount - holdTax(state, ctx.data));
       source.block += amount;
       addLog(state, text(source.id === PLAYER_ID ? 'log.gainHold' : 'log.gainBlock', { who: source.name, n: amount }));
       return;
@@ -153,7 +176,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       if (!('escape' in source)) return;
       const enemy = source as EnemyState;
       // Gooey Mess takes its share off first.
-      const pull = Math.max(0, Math.floor(effect.amount * (ctx.moveScale ?? 1)) - powerTotal(state, 'gooeyMess'));
+      const pull = Math.max(0, Math.floor(effect.amount * (ctx.amountScale ?? 1) * (ctx.moveScale ?? 1)) - powerTotal(state, 'gooeyMess'));
       const held = Math.min(state.player.block, pull);
       state.player.block -= held;
       enemy.escape = Math.min(enemy.escapeAt, enemy.escape + pull - held);
@@ -172,6 +195,8 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           enemy.strengthGained = (enemy.strengthGained ?? 0) + amount;
         }
         addStatus(t, effect.status, amount);
+        // Skittish remembers whose Will the player's busy turn raises.
+        if (effect.status === 'skittish' && 'escape' in source) (state.skittishFrom ??= []).push(source.id);
         const key = amount >= 0 ? 'log.statusGained' : 'log.statusLost';
         addLog(state, text(key, { who: t.name, n: Math.abs(amount), status: statusName(effect.status) }));
       }
@@ -227,6 +252,11 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
     case 'venomCoating':
       (state.thisTurn ??= {}).venomCoating = (state.thisTurn.venomCoating ?? 0) + effect.amount;
       return;
+    case 'ifStatus': {
+      const target = ctx.targetId === undefined ? undefined : getCombatant(state, ctx.targetId);
+      for (const e of target && getStatus(target, effect.status) > 0 ? effect.then : (effect.else ?? [])) resolveEffect(state, e, ctx);
+      return;
+    }
     case 'ifIntent': {
       const enemy = ctx.targetId === undefined ? undefined : getCombatant(state, ctx.targetId);
       const move = enemy && ctx.data && 'intent' in enemy ? intentMove(enemy as EnemyState, ctx.data) : undefined;
@@ -240,9 +270,9 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         const enemy = t as EnemyState;
         const current = intentMove(enemy, ctx.data);
         const moves = ctx.data.enemies[enemy.defId]?.moves ?? [];
-        // A flip turns a Strike into a Pull and back; a quiet move has nothing to flip to.
-        const other = current?.tag === 'strike' ? 'pull' : current?.tag === 'pull' ? 'strike' : undefined;
-        const options = moves.filter((m) => m.id !== current?.id && (effect.type === 'rerollIntent' || m.tag === other));
+        // A flip turns a Strike into a Pull and back. Heavy moves only come after a Wind-up.
+        const other = current?.tag === 'strike' ? 'pull' : 'strike';
+        const options = moves.filter((m) => m.id !== current?.id && m.role !== 'heavy' && (effect.type === 'rerollIntent' || m.tag === other));
         if (!options.length) continue;
         const move = options[nextInt(state, 0, options.length - 1)];
         enemy.intent = move.id;
@@ -281,6 +311,40 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (healed) addLog(state, text('log.heal', { who: t.name, n: healed }));
       }
       return;
+    case 'ink':
+      if ('escape' in source) (source as EnemyState).inked = true;
+      return;
+    case 'addJunk': {
+      const piles = state.piles;
+      const junk = [...piles.draw, ...piles.hand, ...piles.discard].filter((c) => ctx.data?.cards[c.defId]?.type === 'junk').length;
+      if (junk >= MAX_JUNK_CARDS || !ctx.data?.cards[effect.card]) return;
+      piles.discard.push({ uid: `junk${(state.junkAdded = (state.junkAdded ?? 0) + 1)}`, defId: effect.card });
+      addLog(state, text('log.junk', { name: source.name, card: ctx.data.cards[effect.card].name }));
+      return;
+    }
+    case 'stealPatience': {
+      const lost = Math.min(effect.amount, state.player.patience);
+      state.player.patience -= lost;
+      if (lost) addLog(state, text('log.losePatience', { who: state.player.name, n: lost }));
+      return;
+    }
+    case 'secondWind': {
+      if (!('escape' in source)) return;
+      const enemy = source as EnemyState;
+      // Points move from the fuller bar into the emptier one, never emptying either.
+      const points = Math.round(SECOND_WIND_POINTS * (enemy.fightScale ?? 1));
+      if (enemy.hp / enemy.maxHp < enemy.escape / enemy.escapeAt) {
+        const moved = Math.min(points, enemy.escape - 1, enemy.maxHp - enemy.hp);
+        enemy.escape -= moved;
+        enemy.hp += moved;
+      } else {
+        const moved = Math.min(points, enemy.hp - 1, enemy.escapeAt - 1 - enemy.escape);
+        enemy.hp -= moved;
+        enemy.escape += moved;
+      }
+      addLog(state, text('log.secondWind', { name: enemy.name, hp: enemy.hp, escape: enemy.escape, escapeAt: enemy.escapeAt }));
+      return;
+    }
     case 'healPercent':
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         const healed = Math.min(Math.ceil((t.maxHp * effect.percent) / 100), t.maxHp - t.hp);
@@ -357,16 +421,23 @@ function intentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
 }
 
 /**
- * What a move is worth: its total Strike damage or its Pull; 0 otherwise. As written, or, given
- * the creature and the player, as it would land (their statuses and the creature's `damageScale`).
+ * What a move is worth: its total Strike damage or its Pull; 0 otherwise. As written (its
+ * intensity), or, given the creature and the player, as it would land in this fight (rounded down).
  */
 export function moveValue(move: EnemyMove, enemy?: EnemyState, player?: Combatant): number {
+  const scale = enemy?.damageScale ?? 1;
   const value = move.effects.reduce((sum, e) => {
-    if (e.type === 'dealDamage') return sum + (enemy && player ? calculateDamage(e.amount, enemy.statuses, player.statuses) : e.amount) * (e.hits ?? 1);
-    if (e.type === 'pull') return sum + e.amount;
+    if (e.type === 'dealDamage') return sum + (enemy && player ? calculateDamage(e.amount * scale, enemy.statuses, player.statuses) : e.amount) * (e.hits ?? 1);
+    if (e.type === 'pull') return sum + e.amount * (enemy ? scale : 1);
     return sum;
   }, 0);
-  return Math.floor(value * (enemy?.damageScale ?? 1));
+  return enemy ? Math.floor(value) : value;
+}
+
+/** How much less Hold a Hold card gives right now: Pinched Hand, and each Tangled Line in hand. */
+export function holdTax(state: CombatState, data: GameData): number {
+  const lines = state.piles.hand.reduce((sum, c) => sum + (data.cards[c.defId]?.inHand?.holdLess ?? 0), 0);
+  return (getStatus(state.player, 'pinchedHand') > 0 ? PINCHED_HAND_HOLD : 0) + lines;
 }
 
 /** An effect's extra amount from its target's stacks of a status (`perStatus`). */

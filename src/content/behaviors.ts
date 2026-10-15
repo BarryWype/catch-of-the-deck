@@ -1,278 +1,244 @@
-import type { EnemyMove, IntentPattern } from '../engine';
+import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type MoveIntensity, type MoveRole, type MoveTag, type StatusId } from '../engine';
 
 /**
  * Shared move sets. A creature in creatures.ts picks one by name, so
  * rebalancing e.g. every predator happens here, in one place.
  *
- * Every move has a `tag`:
- * - 'strike': it wears down the angler's Grit (a `dealDamage` effect: a tiring
- *   fight, a stinky squirt, pinched fingers…).
- * - 'pull': it drags on the line to get away (a `pull` effect, raising its own
- *   escape bar: a run, a dive, wedging under a rock…).
- * - quiet moves, never scaled to the fight (only Strikes and Pulls are):
- *   'rest' (nothing; add `skipWillRise: true` so its Will doesn't rise that turn),
- *   'feed' (a `healPercent` effect, and `skipWillRise`), 'windUp' (applies `windUp`
- *   to itself: its next move's Strike or Pull is 50% bigger), 'guard' (Block only),
- *   'buff' (Strength only).
- * The player's Hold soaks Strikes and Pulls; what gets past it lands. Moves can add
- * other effects (statuses, Block: the creature holding on), but keep to one tag.
- * Strength from moves is kept to the predators, Pike, Red piranha, and mini-bosses
- * and bosses (whose Wind-ups also give 1), MAX_MOVE_STRENGTH per fight at most.
- * From a creature's point of view, `target` (the default) is the player and
- * `self` is itself.
- * Patterns: 'sequence' plays moves in order (looping from `loopFrom`);
- * 'weighted' picks randomly by weight, never more than `maxConsecutive` in a row
- * (`maxRepeat` sets it for one move).
+ * Every move is a Strike (wears down the angler's Grit) or a Pull (drags on the line,
+ * raising its own Will), of an intensity: light, normal or heavy. Only the intensities
+ * matter: each fight scales a creature's moves so they average ENCOUNTER_TURN_AVERAGE
+ * per turn, as often as the pattern plays them (`turnAverage`). The player's Hold soaks
+ * both. Moves can add extras (Block, Weak, Strength…).
+ *
+ * Roles (`role`): exactly one `pace` per set (light, its Will rises half as much that
+ * turn); up to two `special`s (light tricks: Ink, junk cards, taxes…; never twice in a
+ * row); a `windUp` (light) whose `followUp` is played heavy and WIND_UP_PERCENT bigger;
+ * `heavy` moves only ever come right after their Wind-up.
+ * Strength from moves is kept to the predators, Pike, Red piranha, and mini-bosses and
+ * bosses (whose Wind-ups also give 1), MAX_MOVE_STRENGTH per fight at most.
+ * Patterns: 'weighted' for ordinary creatures; `bossPattern`, a fixed 'sequence', when the
+ * creature is a mini-boss or boss.
  */
 export interface Behavior {
   moves: EnemyMove[];
   pattern: IntentPattern;
+  /** Its pattern as a mini-boss or boss. */
+  bossPattern?: IntentPattern;
 }
 
-export const WIND_UP = { type: 'applyStatus', status: 'windUp', amount: 1, target: 'self' } as const;
-/** Catch Breath and other plain rests: nothing happens, and the Will doesn't rise. */
-const rest = (id: string, name: string): EnemyMove => ({ id, name, tag: 'rest', skipWillRise: true, effects: [] });
+/** A normal move's Strike or Pull before the fight scales it (only the ratios between moves matter). */
+const POINTS = 12;
+
+/** A move: its Strike (split over `hits`) or Pull at its intensity, then its extras. */
+export function move(
+  id: string,
+  name: string,
+  tag: MoveTag,
+  intensity: MoveIntensity,
+  opts: { hits?: number; role?: MoveRole; followUp?: string; extras?: Effect[]; heavyIfNoHold?: boolean } = {},
+): EnemyMove {
+  const amount = MOVE_INTENSITY[intensity] * POINTS;
+  const main: Effect =
+    tag === 'strike'
+      ? { type: 'dealDamage', amount: amount / (opts.hits ?? 1), ...(opts.hits ? { hits: opts.hits } : {}) }
+      : { type: 'pull', amount, ...(opts.heavyIfNoHold ? { heavyIfNoHold: true } : {}) };
+  return {
+    id,
+    name,
+    tag,
+    intensity,
+    ...(opts.role ? { role: opts.role } : {}),
+    ...(opts.followUp ? { followUp: opts.followUp } : {}),
+    effects: [main, ...(opts.extras ?? [])],
+  };
+}
+
+export const WIND_UP: Effect = { type: 'applyStatus', status: 'windUp', amount: 1, target: 'self' };
+const block = (amount: number): Effect => ({ type: 'gainBlock', amount });
+const onYou = (status: StatusId, amount = 1): Effect => ({ type: 'applyStatus', status, amount });
+const strength: Effect = { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' };
+export const STEAL: Effect = { type: 'stealPatience', amount: 1 };
+const INK: Effect = { type: 'ink' };
+const BURROW: Effect = { type: 'applyStatus', status: 'burrowed', amount: 1, target: 'self' };
+const junk = (card: string): Effect => ({ type: 'addJunk', card });
+const special = { role: 'special' as const };
+const pace = { role: 'pace' as const };
+const windUp = (followUp: string, extras: Effect[] = []) => ({ role: 'windUp' as const, followUp, extras: [WIND_UP, ...extras] });
 
 export const behaviors = {
   /** Small, colourful, more annoying than dangerous. */
   reefFish: {
     moves: [
-      { id: 'nibble', name: 'Steal the Bait', tag: 'strike', effects: [{ type: 'dealDamage', amount: 5 }] },
-      { id: 'dartAway', name: 'Dart for Cover', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 4 }] },
-      { id: 'flashColors', name: 'Flashy Zigzag', tag: 'pull', effects: [{ type: 'pull', amount: 4 }, { type: 'applyStatus', status: 'weak', amount: 1 }] },
-      rest('catchBreath', 'Catch Breath'),
+      move('nip', 'Nip at the Lure', 'strike', 'normal'),
+      move('dartAway', 'Dart for Cover', 'pull', 'normal', { extras: [block(4)] }),
+      move('nibble', 'Steal the Bait', 'strike', 'light', { ...special, extras: [STEAL] }),
+      move('flashColors', 'Flashy Zigzag', 'pull', 'light', pace),
     ],
-    pattern: {
-      type: 'weighted',
-      firstMove: 'nibble',
-      weights: { nibble: 35, dartAway: 25, flashColors: 15, catchBreath: 25 },
-      maxConsecutive: 2,
-      maxRepeat: { catchBreath: 1 },
-    },
+    pattern: { type: 'weighted', weights: { nip: 35, dartAway: 25, nibble: 20, flashColors: 20 } },
   },
 
-  /** Tiny fish that attack in many small hits. */
+  /** Tiny fish in a shoal: many small bites, and they get under your skin. */
   schooling: {
     moves: [
-      { id: 'swarm', name: 'Nibble Frenzy', tag: 'strike', effects: [{ type: 'dealDamage', amount: 2, hits: 3 }] },
-      { id: 'scatter', name: 'Scatter', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 3 }] },
-      { id: 'regroup', name: 'Regroup', tag: 'rest', skipWillRise: true, effects: [{ type: 'gainBlock', amount: 3 }] },
+      move('swarm', 'Nibble Frenzy', 'strike', 'normal', { hits: 3 }),
+      move('scatter', 'Scatter', 'pull', 'normal', { extras: [block(3)] }),
+      move('regroup', 'Regroup', 'pull', 'light', pace),
+      move('startle', 'Startle the School', 'pull', 'light', { ...special, extras: [onYou('skittish')] }),
+      move('weave', 'Weave Through the Line', 'pull', 'light', { ...special, extras: [junk('tangledLine')] }),
     ],
-    pattern: { type: 'sequence', moves: ['swarm', 'scatter', 'regroup'] },
+    pattern: { type: 'weighted', weights: { swarm: 30, scatter: 25, regroup: 20, startle: 12, weave: 13 } },
   },
 
   /** Hunters: they size up the lure, then shake hard and run. */
   predator: {
     moves: [
-      {
-        id: 'lunge',
-        name: 'Jolt the Rod',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 7 },
-          { type: 'applyStatus', status: 'vulnerable', amount: 1 },
-        ],
-      },
-      { id: 'sizeUp', name: 'Size Up the Lure', tag: 'windUp', effects: [WIND_UP] },
-      { id: 'bite', name: 'Head Shake', tag: 'strike', effects: [{ type: 'dealDamage', amount: 11 }] },
-      {
-        id: 'circle',
-        name: 'Screaming Run',
-        tag: 'pull',
-        effects: [
-          { type: 'pull', amount: 9 },
-          { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' },
-        ],
-      },
+      move('lunge', 'Jolt the Rod', 'strike', 'normal', { extras: [onYou('vulnerable')] }),
+      move('circle', 'Screaming Run', 'pull', 'normal', { extras: [strength] }),
+      move('sizeUp', 'Size Up the Lure', 'pull', 'light', windUp('bite')),
+      move('bite', 'Head Shake', 'strike', 'heavy', { role: 'heavy' }),
+      move('grab', 'Grab the Bait', 'strike', 'light', { ...special, extras: [onYou('baitGrabbed')] }),
+      move('circleLure', 'Circle the Lure', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['lunge', 'sizeUp', 'bite', 'circle'] },
+    pattern: { type: 'weighted', weights: { lunge: 30, circle: 20, sizeUp: 15, grab: 15, circleLure: 20 } },
   },
 
-  /** Spines and venom: weakens you, then lies still. */
+  /** Spines and venom. */
   venomous: {
     moves: [
-      {
-        id: 'sting',
-        name: 'Spiny Flick',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 5 },
-          { type: 'applyStatus', status: 'weak', amount: 1 },
-        ],
-      },
-      rest('lieStill', 'Lie Still'),
-      { id: 'raiseSpines', name: 'Dive for the Rocks', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 6 }] },
-      { id: 'bristle', name: 'Bristle', tag: 'guard', effects: [{ type: 'gainBlock', amount: 6 }] },
-      {
-        id: 'venomStrike',
-        name: 'Prickly Thrash',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 9 },
-          { type: 'applyStatus', status: 'vulnerable', amount: 1 },
-        ],
-      },
+      move('venomStrike', 'Prickly Thrash', 'strike', 'normal', { extras: [onYou('vulnerable')] }),
+      move('raiseSpines', 'Dive for the Rocks', 'pull', 'normal', { extras: [block(6)] }),
+      move('sting', 'Spiny Flick', 'strike', 'light', { ...special, extras: [onYou('venom', 2)] }),
+      move('bristle', 'Raise Spines', 'pull', 'light', { ...special, extras: [onYou('spines', 2)] }),
+      move('lieStill', 'Lie Still', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['sting', 'lieStill', 'raiseSpines', 'bristle', 'venomStrike', 'lieStill'] },
+    pattern: { type: 'weighted', weights: { venomStrike: 25, raiseSpines: 25, sting: 15, bristle: 15, lieStill: 20 } },
   },
 
-  /** Inflates and digs in, pokes, then has to deflate. */
+  /** Inflates and pokes, then has to deflate. */
   puffer: {
     moves: [
-      { id: 'puffUp', name: 'Puff Up', tag: 'pull', effects: [{ type: 'pull', amount: 5 }, { type: 'gainBlock', amount: 8 }] },
-      { id: 'spikeJab', name: 'Grumpy Spines', tag: 'strike', effects: [{ type: 'dealDamage', amount: 7 }] },
-      rest('deflate', 'Deflate'),
-      {
-        id: 'bump',
-        name: 'Water Splash',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 4 },
-          { type: 'applyStatus', status: 'weak', amount: 1 },
-        ],
-      },
+      move('spikeJab', 'Grumpy Spines', 'strike', 'normal'),
+      move('paddle', 'Paddle Away', 'pull', 'normal'),
+      move('puffUp', 'Puff Up', 'pull', 'light', { ...special, extras: [block(6), onYou('spines', 2)] }),
+      move('bump', 'Water Splash', 'strike', 'light', { extras: [onYou('weak')] }),
+      move('deflate', 'Deflate', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['puffUp', 'spikeJab', 'deflate', 'bump'] },
+    pattern: { type: 'weighted', weights: { spikeJab: 30, paddle: 25, puffUp: 20, bump: 10, deflate: 15 } },
   },
 
   /** Hides, waits, then strikes hard. Hit it while it's hiding! */
   ambusher: {
     moves: [
-      { id: 'lurk', name: 'Into the Weed', tag: 'pull', effects: [{ type: 'pull', amount: 8 }, { type: 'gainBlock', amount: 4 }] },
-      { id: 'lieInWait', name: 'Lie in Wait', tag: 'windUp', effects: [WIND_UP] },
-      { id: 'ambush', name: 'Ambush the Lure', tag: 'strike', effects: [{ type: 'dealDamage', amount: 14 }] },
+      move('snap', 'Snap at the Lure', 'strike', 'normal'),
+      move('lurk', 'Into the Weed', 'pull', 'normal', { extras: [block(4)] }),
+      move('stirSilt', 'Stir the Silt', 'pull', 'light', { ...special, extras: [INK] }),
+      move('lieInWait', 'Lie in Wait', 'pull', 'light', windUp('ambush')),
+      move('ambush', 'Ambush the Lure', 'strike', 'heavy', { role: 'heavy' }),
+      move('settle', 'Settle in the Sand', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['lurk', 'lieInWait', 'ambush'] },
+    pattern: { type: 'weighted', weights: { snap: 25, lurk: 25, stirSilt: 15, lieInWait: 15, settle: 20 } },
   },
 
   /** Game fish that put up a fight on the line, and need to catch their breath. */
   fighter: {
     moves: [
-      { id: 'tailSlap', name: 'Tail Hit', tag: 'strike', effects: [{ type: 'dealDamage', amount: 8 }] },
-      { id: 'leap', name: 'Leap Out', tag: 'pull', effects: [{ type: 'pull', amount: 8 }, { type: 'gainBlock', amount: 4 }] },
-      { id: 'thrash', name: 'Water Splash', tag: 'strike', effects: [{ type: 'dealDamage', amount: 4, hits: 2 }] },
-      rest('catchBreath', 'Catch Breath'),
+      move('tailSlap', 'Tail Hit', 'strike', 'normal'),
+      move('leap', 'Leap Out', 'pull', 'normal', { extras: [block(4)] }),
+      move('thrash', 'Water Splash', 'strike', 'light', { hits: 2 }),
+      move('shake', 'Shake the Hook', 'pull', 'light', { ...special, heavyIfNoHold: true }),
+      move('catchBreath', 'Catch Breath', 'pull', 'light', pace),
     ],
-    pattern: { type: 'weighted', weights: { tailSlap: 30, leap: 25, thrash: 20, catchBreath: 25 }, maxConsecutive: 1 },
+    pattern: { type: 'weighted', weights: { tailSlap: 30, leap: 25, thrash: 10, shake: 15, catchBreath: 20 } },
   },
 
-  /** Huge and slow: sounds deep, drifts, heaves, then wears you out. */
+  /** Huge and slow: sounds deep, heaves, then hangs off the line like dead weight. */
   giant: {
     moves: [
-      { id: 'dive', name: 'Sound Deep', tag: 'pull', effects: [{ type: 'pull', amount: 12 }, { type: 'gainBlock', amount: 6 }] },
-      rest('drift', 'Drift'),
-      { id: 'heave', name: 'Heave', tag: 'windUp', effects: [WIND_UP] },
-      { id: 'ram', name: 'Dead Weight', tag: 'strike', effects: [{ type: 'dealDamage', amount: 15 }] },
-      {
-        id: 'bodySlam',
-        name: 'Boring Fight',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 10 },
-          { type: 'applyStatus', status: 'weak', amount: 1 },
-        ],
-      },
+      move('ram', 'Dead Weight', 'strike', 'normal'),
+      move('longRun', 'Long Run', 'pull', 'normal'),
+      move('dive', 'Sound Deep', 'pull', 'light', { ...special, extras: [BURROW] }),
+      move('heave', 'Heave', 'strike', 'light', windUp('ram')),
+      move('drift', 'Drift', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['dive', 'drift', 'heave', 'ram', 'bodySlam', 'drift'] },
+    pattern: { type: 'weighted', weights: { ram: 25, longRun: 25, dive: 15, heave: 15, drift: 20 } },
+    bossPattern: { type: 'sequence', moves: ['ram', 'longRun', 'dive', 'heave', 'ram', 'drift'] },
   },
 
-  /** Wriggles, hides in the rocks, coils, then wriggles again. */
+  /** Wriggles, hides in the rocks, coils, then wriggles hard. */
   eel: {
     moves: [
-      { id: 'doubleBite', name: 'Slimy Wriggle', tag: 'strike', effects: [{ type: 'dealDamage', amount: 4, hits: 2 }] },
-      { id: 'coil', name: 'Hide in the Rocks', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 4 }] },
-      { id: 'coilUp', name: 'Coil', tag: 'windUp', effects: [WIND_UP] },
+      move('doubleBite', 'Slimy Wriggle', 'strike', 'normal', { hits: 4 }),
+      move('coil', 'Hide in the Rocks', 'pull', 'normal', { extras: [block(4)] }),
+      move('coilUp', 'Coil', 'pull', 'light', windUp('doubleBite')),
+      move('slime', 'Slime the Line', 'strike', 'light', { ...special, extras: [junk('slimySeaweed')] }),
+      move('crevice', 'Rest in the Crevice', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['doubleBite', 'coil', 'coilUp', 'doubleBite'] },
+    pattern: { type: 'weighted', weights: { doubleBite: 30, coil: 25, coilUp: 15, slime: 15, crevice: 15 } },
+    bossPattern: { type: 'sequence', moves: ['doubleBite', 'slime', 'coil', 'coilUp', 'doubleBite', 'crevice'] },
   },
 
-  /** Shells: very hard to crack, weak attacks. */
+  /** Shells: very hard to crack. */
   armored: {
     moves: [
-      { id: 'clampShut', name: 'Bury in the Sand', tag: 'pull', effects: [{ type: 'pull', amount: 5 }, { type: 'gainBlock', amount: 10 }] },
-      rest('restOnRocks', 'Rest on the Rocks'),
-      { id: 'snap', name: 'Clamp the Fingers', tag: 'strike', effects: [{ type: 'dealDamage', amount: 6 }] },
-      {
-        id: 'spit',
-        name: 'Squirt',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 3 },
-          { type: 'applyStatus', status: 'weak', amount: 1 },
-        ],
-      },
+      move('spit', 'Squirt', 'strike', 'normal', { extras: [onYou('weak')] }),
+      move('clampShut', 'Bury in the Sand', 'pull', 'normal', { extras: [block(8)] }),
+      move('clampTight', 'Clamp Shut', 'pull', 'light', { ...special, extras: [BURROW] }),
+      move('snap', 'Clamp the Fingers', 'strike', 'light', { ...special, extras: [onYou('pinchedHand')] }),
+      move('restOnRocks', 'Rest on the Rocks', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['clampShut', 'restOnRocks', 'snap', 'spit'] },
+    pattern: { type: 'weighted', weights: { spit: 25, clampShut: 25, clampTight: 15, snap: 15, restOnRocks: 20 } },
   },
 
-  /** Drifting stingers that leave you exposed. */
+  /** Drifting stingers. */
   jellyfish: {
     moves: [
-      {
-        id: 'sting',
-        name: 'Stinging Tendrils',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 4 },
-          { type: 'applyStatus', status: 'vulnerable', amount: 1 },
-        ],
-      },
-      { id: 'drift', name: 'Drift Away', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 3 }] },
-      { id: 'tangle', name: 'Tangle the Line', tag: 'pull', effects: [{ type: 'pull', amount: 4 }, { type: 'applyStatus', status: 'weak', amount: 1 }] },
-      rest('pulse', 'Pulse'),
+      move('wrap', 'Wrap Around', 'strike', 'normal'),
+      move('drift', 'Drift Away', 'pull', 'normal', { extras: [block(3)] }),
+      move('sting', 'Stinging Tendrils', 'strike', 'light', { ...special, extras: [onYou('venom', 2)] }),
+      move('tangle', 'Tangle the Line', 'pull', 'light', { ...special, extras: [onYou('tangled')] }),
+      move('pulse', 'Pulse', 'pull', 'light', pace),
     ],
-    pattern: { type: 'weighted', firstMove: 'sting', weights: { sting: 35, drift: 20, tangle: 15, pulse: 30 }, maxConsecutive: 1 },
+    pattern: { type: 'weighted', weights: { wrap: 25, drift: 25, sting: 15, tangle: 15, pulse: 20 } },
   },
 
   /** Octopus and squid: ink, many suckers, a change of colour, then anchored to a rock. */
   cephalopod: {
     moves: [
-      {
-        id: 'inkCloud',
-        name: 'Ink Cloud',
-        tag: 'pull',
-        effects: [
-          { type: 'pull', amount: 5 },
-          { type: 'applyStatus', status: 'weak', amount: 2 },
-          { type: 'gainBlock', amount: 3 },
-        ],
-      },
-      { id: 'tentacles', name: 'Suction Grip', tag: 'strike', effects: [{ type: 'dealDamage', amount: 3, hits: 3 }] },
-      { id: 'changeColour', name: 'Change Colour', tag: 'windUp', effects: [WIND_UP] },
-      { id: 'squeeze', name: 'Rock Anchor', tag: 'pull', effects: [{ type: 'pull', amount: 9 }] },
+      move('tentacles', 'Suction Grip', 'strike', 'normal', { hits: 3 }),
+      move('squeeze', 'Rock Anchor', 'pull', 'normal'),
+      move('inkCloud', 'Ink Cloud', 'pull', 'light', { ...special, extras: [block(3), INK] }),
+      move('venomBite', 'Venomous Bite', 'strike', 'light', { ...special, extras: [onYou('numbFingers')] }),
+      move('changeColour', 'Change Colour', 'pull', 'light', windUp('tentacles')),
+      move('hover', 'Hover', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['inkCloud', 'tentacles', 'changeColour', 'squeeze'] },
+    pattern: { type: 'weighted', weights: { tentacles: 25, squeeze: 20, inkCloud: 15, venomBite: 10, changeColour: 15, hover: 15 } },
+    bossPattern: { type: 'sequence', moves: ['tentacles', 'inkCloud', 'squeeze', 'venomBite', 'changeColour', 'tentacles', 'hover'] },
   },
 
-  /** Crabs, lobsters and other crustaceans: pinch, wedge in, raise the claws, pinch, back off, breathe. */
+  /** Crabs, lobsters and other crustaceans: pinch, wedge in, raise the claws, crush. */
   clawed: {
     moves: [
-      { id: 'pinch', name: 'Pinch the Fingers', tag: 'strike', effects: [{ type: 'dealDamage', amount: 7 }] },
-      { id: 'shellUp', name: 'Wedge Under a Rock', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 6 }] },
-      { id: 'brandishClaws', name: 'Raise the Claws', tag: 'windUp', effects: [WIND_UP] },
-      { id: 'raiseClaws', name: 'Scuttle Backwards', tag: 'pull', effects: [{ type: 'pull', amount: 5 }] },
-      rest('catchBreath', 'Catch Breath'),
+      move('pinch', 'Pinch the Fingers', 'strike', 'normal'),
+      move('shellUp', 'Wedge Under a Rock', 'pull', 'normal', { extras: [block(6)] }),
+      move('brandishClaws', 'Raise the Claws', 'strike', 'light', windUp('crush')),
+      move('crush', 'Crushing Pinch', 'strike', 'heavy', { role: 'heavy' }),
+      move('kickSand', 'Kick Up Sand', 'pull', 'light', { ...special, extras: [junk('pebbleInTheBoot')] }),
+      move('raiseClaws', 'Scuttle Backwards', 'pull', 'light', pace),
     ],
-    pattern: { type: 'sequence', moves: ['pinch', 'shellUp', 'brandishClaws', 'pinch', 'raiseClaws', 'catchBreath'] },
+    pattern: { type: 'weighted', weights: { pinch: 30, shellUp: 25, brandishClaws: 15, kickSand: 15, raiseClaws: 15 } },
+    bossPattern: { type: 'sequence', moves: ['pinch', 'shellUp', 'kickSand', 'brandishClaws', 'crush', 'raiseClaws'] },
   },
 
   /** Slugs, stars, worms and other things on the sea floor: they also stop to graze. */
   bottomDweller: {
     moves: [
-      {
-        id: 'ooze',
-        name: 'Slimy Ooze',
-        tag: 'strike',
-        effects: [
-          { type: 'dealDamage', amount: 2 },
-          { type: 'applyStatus', status: 'weak', amount: 1 },
-        ],
-      },
-      { id: 'prickle', name: 'Stinky Squirt', tag: 'strike', effects: [{ type: 'dealDamage', amount: 5 }] },
-      { id: 'harden', name: 'Stick to the Bottom', tag: 'pull', effects: [{ type: 'pull', amount: 6 }, { type: 'gainBlock', amount: 5 }] },
-      { id: 'graze', name: 'Graze', tag: 'feed', skipWillRise: true, effects: [{ type: 'healPercent', percent: 8, target: 'self' }] },
+      move('prickle', 'Stinky Squirt', 'strike', 'normal'),
+      move('harden', 'Stick to the Bottom', 'pull', 'normal', { extras: [block(5)] }),
+      move('ooze', 'Slimy Ooze', 'strike', 'light', { ...special, extras: [junk('slimySeaweed')] }),
+      move('stirSilt', 'Stir the Silt', 'pull', 'light', { ...special, extras: [INK] }),
+      move('graze', 'Graze', 'pull', 'light', { ...pace, extras: [{ type: 'healPercent', percent: 5, target: 'self' }] }),
     ],
-    pattern: { type: 'weighted', weights: { prickle: 30, harden: 25, ooze: 15, graze: 30 }, maxConsecutive: 1 },
+    pattern: { type: 'weighted', weights: { prickle: 30, harden: 25, ooze: 15, stirSilt: 10, graze: 20 } },
   },
 } satisfies Record<string, Behavior>;
 

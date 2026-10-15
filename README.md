@@ -28,6 +28,7 @@ npm run dev        # start the dev server, then open the printed URL
 npm test           # run the engine test suite
 npm run build      # type-check (incl. the DOM-free engine check) + production build
 npm run simulate -- --runs 300   # a bot plays 300 runs and prints balance stats
+npm run reward-shares            # share of each card type in tier-1 rewards, by fishing spot
 ```
 
 Add `?seed=12345` to the URL to replay a specific run. The current seed is shown in the top bar.
@@ -125,6 +126,7 @@ Effect reference:
 | `loseHold`, `patienceToHold`, `keepHold` | `share` / `per` / — | Lose a share of your Hold; trade all Patience for Hold; keep your Hold into next turn |
 | `delayed`, `echoDamage` | `turns` + `effects` / `share` | Repeat effects at the start of your next turns; deal a share of the damage dealt again next turn |
 | `ifIntent`, `ifNoAttack` | `tag` + `then`/`else` / `then`/`else` | Depending on the creature's next move (Strike or Pull), or on whether you've played an attack this turn |
+| `ifStatus` | `status` + `then`/`else` | Depending on whether the target has that status (e.g. it's Slowed) |
 | `flipIntent`, `rerollIntent`, `holdFromIntent` | — / — / `max` | Change the creature's next move, or gain Hold from it |
 | `coil`, `venomBonus`, `venomCoating` | — / `amount` / `amount` | This turn: double the next attack; +damage to Venomed creatures; Venom on every hit |
 | `venomNow`, `swapHealthAndWill` | — | Venom hits now; swap health % and Will % |

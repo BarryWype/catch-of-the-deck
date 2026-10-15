@@ -1,7 +1,7 @@
-import { MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SLOW_PERCENT, WIND_UP_PERCENT } from './constants';
+import { BURROW_PERCENT, MAX_SLOW_PERCENT, MOVE_INTENSITY, PATIENCE_ESCAPE_PERCENT, SLOW_PERCENT, WIND_UP_PERCENT } from './constants';
 import { escapeRateReduction } from './equipment';
 import { text } from './text';
-import type { Combatant, EnemyState, MoveTag, StatusId } from './types';
+import type { Combatant, EnemyMove, EnemyState, StatusId } from './types';
 
 /** How a status behaves. Its name and description are text (`status.<id>` in a language file). */
 export interface StatusMeta {
@@ -28,10 +28,21 @@ export const STATUS_META: Record<StatusId, StatusMeta> = {
   snared: { kind: 'debuff', decays: true },
   // Used up by the creature's next move (see `nextMoveMods`).
   windUp: { kind: 'buff', decays: false },
+  // Gone when the creature's next turn starts (`endTurn`).
+  burrowed: { kind: 'buff', decays: false },
+  // On the player, for their next turn.
+  tangled: { kind: 'debuff', decays: true },
+  numbFingers: { kind: 'debuff', decays: true },
+  pinchedHand: { kind: 'debuff', decays: true },
+  skittish: { kind: 'debuff', decays: true },
+  spines: { kind: 'debuff', decays: true },
+  // Used up once the player has drawn their next hand (`startPlayerTurn`).
+  baitGrabbed: { kind: 'debuff', decays: false },
 };
 
 export const statusName = (id: StatusId) => text(`status.${id}.name`);
-export const statusDescription = (id: StatusId) => text(`status.${id}.description`, { slowPercent: SLOW_PERCENT, maxSlowPercent: MAX_SLOW_PERCENT });
+export const statusDescription = (id: StatusId) =>
+  text(`status.${id}.description`, { slowPercent: SLOW_PERCENT, maxSlowPercent: MAX_SLOW_PERCENT, windUpPercent: WIND_UP_PERCENT, burrowPercent: BURROW_PERCENT });
 
 export function getStatus(combatant: Combatant, id: StatusId): number {
   return combatant.statuses[id] ?? 0;
@@ -61,15 +72,17 @@ export const DAZZLE_PERCENT = 50;
 /**
  * How a creature's next move is changed by its statuses: the share of its total Strike damage or
  * Pull that lands (`scale`, rounded down), how much less a Strike deals (`less`), and which
- * statuses it uses up.
+ * statuses it uses up. After a Wind-up the move is played heavy (`MOVE_INTENSITY.heavy`), then
+ * `WIND_UP_PERCENT` bigger.
  */
-export function nextMoveMods(enemy: Combatant, tag: MoveTag): { scale: number; less: number; used: StatusId[] } {
+export function nextMoveMods(enemy: Combatant, move: EnemyMove): { scale: number; less: number; used: StatusId[] } {
   const has = (id: StatusId) => getStatus(enemy, id) > 0;
   const used: StatusId[] = [];
+  const tag = move.tag;
   let scale = 1;
   let less = 0;
   if (has('windUp')) {
-    scale *= 1 + WIND_UP_PERCENT / 100;
+    scale *= (MOVE_INTENSITY.heavy / MOVE_INTENSITY[move.intensity]) * (1 + WIND_UP_PERCENT / 100);
     used.push('windUp');
   }
   if (has('cowed')) {

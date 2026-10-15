@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gameData } from '../src/content';
-import { applyAction, describeCard, type CombatState } from '../src/engine';
+import { applyAction, describeCard, resolveEffect, type CombatState, type Effect } from '../src/engine';
 import { repeat, setup } from './fixtures';
 
 /** A fight with the real cards: `cards` in hand (repeated), against `enemies`. */
@@ -145,7 +145,7 @@ describe('delayed cards', () => {
 });
 
 describe('cards that read or change the next move', () => {
-  // Clownfish (reef fish): `nibble` is a Strike of 5, `dartAway` a Pull of 6 (+4 Block), `flashColors` a Pull of 4.
+  // Clownfish (reef fish), unscaled: `nip` is a Strike of 12, `nibble` (Steal the Bait) a light Strike of 6, `dartAway` a Pull of 12 (+4 Block), `flashColors` a light Pull of 6.
   const about = (s: CombatState, intent: string): CombatState => ({ ...s, enemies: s.enemies.map((e) => ({ ...e, intent, escapeRate: 0 })) });
   const endTurn = (s: CombatState) => applyAction({ ...s, player: { ...s.player, energy: 0 } }, { type: 'endTurn' }, gameData);
   const grit = (s: CombatState) => s.player.hp;
@@ -179,7 +179,7 @@ describe('cards that read or change the next move', () => {
     const s = playCard({ ...s0, player: { ...s0.player, patience: 2 } }, 'menacingPresence');
     expect(s.enemies[0].statuses.cowed).toBe(1);
     const after = endTurn(s);
-    expect(grit(s) - grit(after)).toBe(2); // 5 halved, rounded down
+    expect(grit(s) - grit(after)).toBe(3); // 6 halved
     expect(after.enemies[0].statuses.cowed).toBeUndefined();
     expect(describeCard(gameData.cards.menacingPresence)).toBe('The next Strike or Pull of every creature is halved.');
   });
@@ -187,27 +187,27 @@ describe('cards that read or change the next move', () => {
   it('Bare Teeth halves the next Strike only; Spinner Lure the next Pull only', () => {
     const teeth = playCard(about(fight(['bareTeeth']), 'nibble'), 'bareTeeth');
     expect(teeth.player.block).toBe(3);
-    // 5 halved = 2, all soaked by the 3 Hold.
+    // 6 halved = 3, all soaked by the 3 Hold.
     expect(grit(teeth) - grit(endTurn(teeth))).toBe(0);
     const pulled = playCard(about(fight(['bareTeeth']), 'dartAway'), 'bareTeeth');
     expect(endTurn(pulled).enemies[0].statuses.intimidated).toBe(1);
     const lure = playCard(about(fight(['spinnerLure']), 'dartAway'), 'spinnerLure');
-    // Pull of 6 halved to 3.
-    expect(endTurn(lure).enemies[0].escape - lure.enemies[0].escape).toBe(3);
+    // Pull of 12 halved to 6.
+    expect(endTurn(lure).enemies[0].escape - lure.enemies[0].escape).toBe(6);
   });
 
   it('Flash of Colour: the next Strike deals 4 less, and draw a card', () => {
     const s0 = about(fight(['flashOfColour']), 'nibble');
     const s = playCard(s0, 'flashOfColour');
     expect(s.piles.hand).toHaveLength(s0.piles.hand.length);
-    expect(grit(s) - grit(endTurn(s))).toBe(1);
+    expect(grit(s) - grit(endTurn(s))).toBe(2); // 6 − 4
   });
 
   it('Dazzle: for 2 turns, Strikes deal half, and the Will rises 50% faster (not Pulls)', () => {
     const s0 = about(fight(['dazzle']), 'nibble');
     const s = { ...playCard(s0, 'dazzle'), enemies: playCard(s0, 'dazzle').enemies.map((e) => ({ ...e, escapeRate: 10 })) };
     const after = endTurn(s);
-    expect(grit(s) - grit(after)).toBe(2);
+    expect(grit(s) - grit(after)).toBe(3);
     expect(after.enemies[0].escape - s.enemies[0].escape).toBe(15);
     expect(after.enemies[0].statuses.dazzled).toBe(1);
   });
@@ -216,14 +216,14 @@ describe('cards that read or change the next move', () => {
     for (let seed = 1; seed <= 5; seed++) {
       const flipped = playCard(about(fight(['glitterBurst'], ['clownfish'], seed), 'nibble'), 'glitterBurst');
       expect(['dartAway', 'flashColors']).toContain(flipped.enemies[0].intent);
-      expect(playCard(about(fight(['glitterBurst'], ['clownfish'], seed), 'dartAway'), 'glitterBurst').enemies[0].intent).toBe('nibble');
+      expect(playCard(about(fight(['glitterBurst'], ['clownfish'], seed), 'dartAway'), 'glitterBurst').enemies[0].intent).toMatch(/^(nip|nibble)$/);
       expect(playCard(about(fight(['colourShift'], ['clownfish'], seed), 'nibble'), 'colourShift').enemies[0].intent).not.toBe('nibble');
     }
   });
 
   it('Shadow the Fish: Hold equal to the next Strike or Pull, 12 at most', () => {
-    expect(playCard(about(fight(['shadowTheFish']), 'nibble'), 'shadowTheFish').player.block).toBe(5);
-    expect(playCard(about(fight(['shadowTheFish']), 'dartAway'), 'shadowTheFish').player.block).toBe(6);
+    expect(playCard(about(fight(['shadowTheFish']), 'nibble'), 'shadowTheFish').player.block).toBe(6);
+    expect(playCard(about(fight(['shadowTheFish']), 'dartAway'), 'shadowTheFish').player.block).toBe(12);
     const big = fight(['shadowTheFish'], ['bluefinTuna']);
     expect(playCard(about(big, 'ram'), 'shadowTheFish').player.block).toBe(12);
   });
@@ -369,18 +369,82 @@ describe('Powers', () => {
   it('Gooey Mess: every Pull loses 3 before reaching your Hold', () => {
     const s0 = rich(fight(['gooeyMess']));
     const s = playCard({ ...s0, enemies: [{ ...s0.enemies[0], intent: 'dartAway', escapeRate: 0 }] }, 'gooeyMess');
-    // Dart for Cover pulls 6: 3 get through.
-    expect(endTurn(s, false).enemies[0].escape - s.enemies[0].escape).toBe(3);
+    // Dart for Cover pulls 12: 9 get through.
+    expect(endTurn(s, false).enemies[0].escape - s.enemies[0].escape).toBe(9);
   });
 
   it('Perfect Disguise: a turn without attacks gives 6 Hold and 1 Slow on a random creature', () => {
-    // The clownfish is about to Steal the Bait (a Strike of 5): the Hold takes it.
+    // The clownfish is about to Steal the Bait (a Strike of 6): the Hold takes it.
     const s0 = rich(fight(['perfectDisguise', 'tug', 'tug', 'tug', 'tug']));
     const s = playCard({ ...s0, enemies: [{ ...s0.enemies[0], intent: 'nibble' }] }, 'perfectDisguise');
     const quiet = endTurn(s, false);
     expect(quiet.player.hp).toBe(s.player.hp);
     expect(quiet.log.some((line) => line.includes('gained 1 Slow'))).toBe(true);
     const attacked = endTurn(playCard(s, 'tug'), false);
-    expect(s.player.hp - attacked.player.hp).toBe(5);
+    expect(s.player.hp - attacked.player.hp).toBe(6);
+  });
+});
+
+describe('attack cards from the Flashy, Patient and Endurance families', () => {
+  const about = (s: CombatState, intent: string): CombatState => ({ ...s, enemies: s.enemies.map((e) => ({ ...e, intent, escapeRate: 0 })) });
+  const endTurn = (s: CombatState) => applyAction({ ...s, player: { ...s.player, energy: 0 } }, { type: 'endTurn' }, gameData);
+  const grit = (s: CombatState) => s.player.hp;
+
+  it('Flash Strike: 6 damage, and the next Strike deals 3 less', () => {
+    const s0 = about(fight(['flashStrike']), 'nibble');
+    const s = playCard(s0, 'flashStrike');
+    expect(s0.enemies[0].hp - s.enemies[0].hp).toBe(6);
+    expect(grit(s) - grit(endTurn(s))).toBe(3); // 6 − 3
+  });
+
+  it('Lure and Lunge: 10 damage if the shown move is a Pull, 5 if it is a Strike', () => {
+    const s0 = fight(['lureAndLunge']);
+    const dealt = (move: string) => s0.enemies[0].hp - playCard(about(s0, move), 'lureAndLunge').enemies[0].hp;
+    expect(dealt('dartAway')).toBe(10);
+    expect(dealt('nibble')).toBe(5);
+    expect(dealt('nip')).toBe(5);
+    expect(describeCard(gameData.cards.lureAndLunge)).toBe('If the creature is about to Pull: deal 10 damage. Otherwise: deal 5 damage.');
+  });
+
+  it('Patient Strike and The Long Wait spend Patience for big hits', () => {
+    const s0 = fight(['patientStrike', 'theLongWait', 'patientStrike', 'theLongWait', 'patientStrike'], ['blueCrab']);
+    const patient = { ...s0, player: { ...s0.player, patience: 4 } };
+    const strike = playCard(patient, 'patientStrike');
+    expect(patient.enemies[0].hp - strike.enemies[0].hp).toBe(10);
+    expect(strike.player).toMatchObject({ patience: 3, energy: 2 });
+    const wait = playCard(strike, 'theLongWait');
+    expect(strike.enemies[0].hp - wait.enemies[0].hp).toBe(15);
+    expect(wait.player).toMatchObject({ patience: 0, energy: 2 });
+    // No Patience, no play.
+    expect(() => playCard(s0, 'patientStrike')).toThrow();
+  });
+
+  it('Steady Haul: 5 damage and Drain 5', () => {
+    const s0 = fight(['steadyHaul']);
+    const s = playCard(s0, 'steadyHaul');
+    expect(s0.enemies[0].hp - s.enemies[0].hp).toBe(5);
+    expect(s0.enemies[0].escape - s.enemies[0].escape).toBe(5);
+  });
+
+  it('Tiring Blow: 10 damage, Drain 8, or Drain 12 if the creature is Slowed', () => {
+    const s0 = fight(['tiringBlow']);
+    const plain = playCard(s0, 'tiringBlow');
+    expect(s0.enemies[0].hp - plain.enemies[0].hp).toBe(10);
+    expect(s0.enemies[0].escape - plain.enemies[0].escape).toBe(8);
+    const slowed: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], statuses: { slow: 1 } }] };
+    expect(slowed.enemies[0].escape - playCard(slowed, 'tiringBlow').enemies[0].escape).toBe(12);
+    expect(describeCard(gameData.cards.tiringBlow)).toBe('Deal 10 damage. If the creature has Slow: drain 12. Otherwise: drain 8.');
+  });
+
+  it('ifStatus checks the target, and does nothing without an `else`', () => {
+    const s0 = fight(['tug']);
+    const effect: Effect = { type: 'ifStatus', status: 'venom', then: [{ type: 'dealDamage', amount: 4 }] };
+    const venomed = structuredClone(s0);
+    venomed.enemies[0].statuses.venom = 2;
+    resolveEffect(venomed, effect, { sourceId: 'player', targetId: 'e0', data: gameData });
+    expect(s0.enemies[0].hp - venomed.enemies[0].hp).toBe(4);
+    const clean = structuredClone(s0);
+    resolveEffect(clean, effect, { sourceId: 'player', targetId: 'e0', data: gameData });
+    expect(clean.enemies[0].hp).toBe(s0.enemies[0].hp);
   });
 });

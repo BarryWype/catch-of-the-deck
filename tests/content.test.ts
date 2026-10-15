@@ -17,9 +17,9 @@ describe('game content', () => {
     }
   });
 
-  it('starter cards have no family, so they are never offered; every other card has one', () => {
+  it('starter and junk cards have no family, so they are never offered; every other card has one', () => {
     const starters = new Set(Object.values(gameData.builds).flatMap((b) => b.starterDeck));
-    for (const card of Object.values(gameData.cards)) expect(card.family === undefined, card.id).toBe(starters.has(card.id));
+    for (const card of Object.values(gameData.cards)) expect(card.family === undefined, card.id).toBe(starters.has(card.id) || card.type === 'junk');
   });
 
   it('every creature type is the specialty of exactly one build', () => {
@@ -123,7 +123,7 @@ describe('content validation', () => {
   const base: ContentSource = {
     character: { name: 'C', maxHp: 10, home: { name: 'Home' } },
     cards: [{ id: 'a', name: 'A', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', effects: [{ type: 'dealDamage', amount: 1 }] }],
-    enemies: [{ id: 'e', name: 'E', hp: [5, 5], escapeAt: 50, escapeStart: 25, escapeRate: 10, moves: [{ id: 'm', name: 'M', tag: 'pull', effects: [{ type: 'pull', amount: 1 }] }], pattern: { type: 'sequence', moves: ['m'] } }],
+    enemies: [{ id: 'e', name: 'E', hp: [5, 5], escapeAt: 50, escapeStart: 25, escapeRate: 10, moves: [{ id: 'm', name: 'M', tag: 'pull', intensity: 'normal' as const, effects: [{ type: 'pull', amount: 1 }] }], pattern: { type: 'sequence', moves: ['m'] } }],
     encounters: [{ id: 'x', name: 'X', enemies: ['e'] }],
     builds: [{ id: 'b', name: 'B', description: '', starterDeck: ['a'], strongAgainst: [] }],
     creatureTypes: [{ id: 't', name: 'T' }],
@@ -152,15 +152,20 @@ describe('content validation', () => {
   });
 
   it('catches moves whose kind doesn\'t match their effects, and cards that pull', () => {
-    const strikeWithoutDamage = { ...base.enemies[0], moves: [{ id: 'm', name: 'M', tag: 'strike' as const, effects: [{ type: 'pull' as const, amount: 1 }] }] };
+    const strikeWithoutDamage = { ...base.enemies[0], moves: [{ id: 'm', name: 'M', tag: 'strike' as const, intensity: 'normal' as const, effects: [{ type: 'pull' as const, amount: 1 }] }] };
     expect(validateContent({ ...base, enemies: [strikeWithoutDamage] })).toEqual([
-      expect.stringContaining('a strike move is missing its effect'),
+      expect.stringContaining('a strike move needs a "dealDamage" effect'),
       expect.stringContaining('only Pulls pull'),
     ]);
-    const restThatHits = { ...base.enemies[0], moves: [{ id: 'm', name: 'M', tag: 'rest' as const, effects: [{ type: 'dealDamage' as const, amount: 1 }] }] };
-    expect(validateContent({ ...base, enemies: [restThatHits] })).toEqual([expect.stringContaining('only Strikes deal damage')]);
-    const emptyWindUp = { ...base.enemies[0], moves: [{ id: 'm', name: 'M', tag: 'windUp' as const, effects: [] }] };
-    expect(validateContent({ ...base, enemies: [emptyWindUp] })).toEqual([expect.stringContaining('a windUp move is missing its effect')]);
+    // A Wind-up needs its heavy move and its status; a heavy move only comes right after it.
+    const pull = (id: string, extra: object = {}) => ({ id, name: id, tag: 'pull' as const, intensity: 'light' as const, effects: [{ type: 'pull' as const, amount: 1 }], ...extra });
+    const lostWindUp = { ...base.enemies[0], moves: [pull('w', { role: 'windUp' as const })], pattern: { type: 'sequence' as const, moves: ['w'] } };
+    expect(validateContent({ ...base, enemies: [lostWindUp] })).toEqual([
+      expect.stringContaining('a Wind-up needs a `followUp` move'),
+      expect.stringContaining('applies the windUp status'),
+    ]);
+    const weightedHeavy = { ...base.enemies[0], moves: [pull('m'), pull('h', { role: 'heavy' as const })], pattern: { type: 'weighted' as const, weights: { m: 1, h: 1 } } };
+    expect(validateContent({ ...base, enemies: [weightedHeavy] })).toEqual([expect.stringContaining('heavy move "h" can\'t have a weight')]);
     const pullingCard = { ...base.cards[0], effects: [...base.cards[0].effects, { type: 'pull' as const, amount: 1 }] };
     expect(validateContent({ ...base, cards: [pullingCard] })).toEqual([expect.stringContaining('only creature moves can pull')]);
   });

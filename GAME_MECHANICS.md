@@ -93,20 +93,44 @@ Above each creature you can see what it will do next (its **intent**), tagged **
 | **Strike** 🗡️ | Wears down your **Grit** (a tail hit, pinched fingers, a stinky squirt…) | Your Hold soaks it first; the rest comes off your Grit |
 | **Pull** 🎣 | Drags on the line to get away (a run, a dive, wedging under a rock…) | Your Hold soaks it first; the rest raises its Will |
 
-How hard a creature hits depends on the fight, not just on the creature. Its moves keep their differences, but they **average 8** (Strike or Pull), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 8 ÷ 2 × 1.1 ≈ 4.4 each. A **mini-boss** averages 9–10 and a **boss** 10–12 (rolled each fight).
+How hard a creature hits depends on the fight, not just on the creature. Each of its moves is **light**, **normal** or **heavy** (×0.5, ×1, ×1.4), and the fight sizes them so the creature deals **5.5 per turn on average** (Strike or Pull, light turns included), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 5.5 ÷ 2 × 1.1 ≈ 3 each. A **mini-boss** averages 9–10 per turn and a **boss** 10–12 (rolled each fight).
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
-Not every turn is a Strike or a Pull. Creatures also have **quiet turns**, a chance to attack freely:
+### What a creature's turn can be
+
+The icon above a creature tells you what kind of move is coming:
 
 | Intent | What it does |
 |---|---|
-| **Rest** 💤 | Nothing. Its Will doesn't rise this turn. |
-| **Feed** 🍤 | It heals 8% of its Health. Its Will doesn't rise this turn. |
-| **Wind-up** ⚠️ | Nothing now, but its **next** move is 50% bigger (the intent shows the bigger number). Get your Hold ready. |
-| **Guard** 🛡 | It gains Block only. |
+| **Pace** 💤 | A light move: its Will rises **half as much** that turn. A breather for you. |
+| **Wind-up** ⚠️ | A light move, but its **next** move is its **heavy** one, 30% bigger on top (the intent shows the real number). Get your Hold ready. |
+| **Heavy** 💥 | Its big move. It only ever comes right after a Wind-up. |
+| **Special** | A light move with a trick (below). About a quarter of creatures' turns. Never two in a row. |
+| **?** | Hidden by Ink: you can't see what it will do. |
 
-Quiet turns don't count when a fight's damage is set, so they're real breathing room: the other moves don't get bigger to make up for them.
+### Specials
+
+| Special | What it does to you |
+|---|---|
+| **Ink** 🦑 | Its next move is hidden ("?"). Never right before a Wind-up, so a heavy move is always announced. |
+| **Pebble in the Boot** 🗑️ | A junk card in your discard pile: it can't be played. |
+| **Slimy Seaweed** 🗑️ | Junk: costs 1 energy to get rid of (for this fight). Still in your hand at the end of your turn? Lose 2 Grit. |
+| **Tangled Line** 🗑️ | Junk: costs 1 energy to get rid of. While it's in your hand, your Hold cards give 1 less. |
+| **Tangled** 🪢 | Next turn, your Drain cards cost 1 more. |
+| **Numb Fingers** 🥶 | Next turn, your Attack cards cost 1 more. |
+| **Pinched Hand** 🤏 | Next turn, your Hold cards give 2 less. |
+| **Venom** ☠️ | Same as on creatures: at the start of your turn, lose Grit equal to your Venom, then 1 Venom wears off. |
+| **Steal the Bait** 🫳 | You lose 1 Patience. |
+| **Skittish** 😬 | Next turn, if you play 3 cards or more, its Will rises by 6. |
+| **Spines** 🦔 | For 2 turns, each hit of your attacks costs you 1 Grit. |
+| **Burrow** 🕳️ | Until its next turn, your attacks deal 50% less (Drain works normally). |
+| **Grab the Bait** 🎣 | Next turn, after you draw, you drop a random card. |
+| **Shake the Hook** 🪝 | A light Pull, but heavy if you have no Hold when it lands. |
+
+A creature can't put more than 3 junk cards in your deck at once, and they're all gone when the fight ends.
+
+**Second Wind** 🌬️: mini-bosses and bosses only, once per fight. When their Health or Will drops below 25%, they show Second Wind as their next move, then move 15 points from their fuller bar into the low one (more in tougher fights).
 
 **Strength** (+1 damage per hit, for the whole fight) is rare: only predators (Pike, Red piranha and the like) and mini-bosses and bosses gain it from their moves. Mini-bosses and bosses gain 1 with every Wind-up. A creature can gain **3 at most** in a fight, on top of the Strength some big creatures start with.
 

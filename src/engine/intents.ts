@@ -1,19 +1,25 @@
-import { PLAYER_ID } from './constants';
+import { MOVE_INTENSITY, PLAYER_ID, SECOND_WIND_PERCENT } from './constants';
 import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { pickWeighted } from './rng';
 import { nextMoveMods } from './statuses';
-import type { CombatState, EnemyMove, EnemyState, GameData, MoveTag } from './types';
+import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveRole, MoveTag } from './types';
 import { text } from './text';
 import { addLog } from './util';
 
-export type IntentKind = 'attack' | 'pull' | 'defend' | 'buff' | 'debuff' | 'rest' | 'feed' | 'windUp';
+export type IntentKind = 'attack' | 'pull' | 'defend' | 'buff' | 'debuff';
 
 /** What the UI shows above an enemy: icons plus the numbers they'll really deal. */
 export interface IntentPreview {
   moveName: string;
-  tag: MoveTag;
+  /** Strike or Pull; `secondWind` for a mini-boss's or boss's Second Wind. */
+  tag: MoveTag | 'secondWind';
+  role?: MoveRole;
+  /** What its special does (`intent.special.<key>` in the UI), with the name of the junk card it adds, if any. */
+  special?: { key: string; card?: string };
+  /** Hidden by Ink: shown as "?", with no numbers. */
+  hidden?: boolean;
   description: string;
   kinds: IntentKind[];
   damage?: number;
@@ -23,13 +29,50 @@ export interface IntentPreview {
   block?: number;
 }
 
+/** A mini-boss's or boss's Second Wind: not in its move set, telegraphed once (`telegraphSecondWind`). */
+export const SECOND_WIND_ID = 'secondWind';
+function secondWindMove(): EnemyMove {
+  return { id: SECOND_WIND_ID, name: text('move.secondWind'), tag: 'pull', intensity: 'light', effects: [{ type: 'secondWind' }] };
+}
+
 export function getIntentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
+  if (enemy.intent === SECOND_WIND_ID) return secondWindMove();
   return data.enemies[enemy.defId]?.moves.find((m) => m.id === enemy.intent);
 }
 
-/** Decide (and store) the enemy's next move from its intent pattern. */
+/** The pattern a creature follows in this fight: its `bossPattern` as a mini-boss or boss. */
+export function patternOf(enemy: EnemyState, data: GameData): IntentPattern {
+  const def = data.enemies[enemy.defId];
+  return (enemy.boss && def.bossPattern) || def.pattern;
+}
+
+/**
+ * A mini-boss or boss whose Health or Will has dropped below `SECOND_WIND_PERCENT` shows its
+ * Second Wind as its next move, once per fight. True if it did. A Will that starts that low
+ * only counts once the player has pushed it below where it started.
+ */
+export function telegraphSecondWind(enemy: EnemyState, data: GameData): boolean {
+  if (!enemy.boss || enemy.secondWindUsed || enemy.hp <= 0 || enemy.escape <= 0) return false;
+  const low = (value: number, max: number) => value * 100 < max * SECOND_WIND_PERCENT;
+  const willDropped = low(enemy.escape, enemy.escapeAt) && enemy.escape < (data.enemies[enemy.defId]?.escapeStart ?? 0);
+  if (!low(enemy.hp, enemy.maxHp) && !willDropped) return false;
+  enemy.secondWindUsed = true;
+  enemy.intent = SECOND_WIND_ID;
+  enemy.intentHidden = false;
+  return true;
+}
+
+/**
+ * Decide (and store) the enemy's next move from its intent pattern. A Wind-up is always followed
+ * by its heavy move; in a weighted pattern, heavy moves come only that way, a special never
+ * follows a special, and a Wind-up never follows Ink.
+ */
 export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameData): void {
-  const pattern = data.enemies[enemy.defId].pattern;
+  enemy.intentHidden = !!enemy.inked;
+  enemy.inked = false;
+  if (telegraphSecondWind(enemy, data)) return;
+  const moves = data.enemies[enemy.defId].moves;
+  const pattern = patternOf(enemy, data);
   const history = enemy.moveHistory;
 
   if (pattern.type === 'sequence') {
@@ -41,79 +84,114 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
     return;
   }
 
+  const last = moves.find((m) => m.id === history[history.length - 1]);
+  if (last?.role === 'windUp' && last.followUp) {
+    enemy.intent = last.followUp;
+    return;
+  }
   if (history.length === 0 && pattern.firstMove) {
     enemy.intent = pattern.firstMove;
     return;
   }
-  const exhausted = (id: string) => {
-    const max = pattern.maxRepeat?.[id] ?? pattern.maxConsecutive ?? Infinity;
-    const recent = history.slice(-max);
-    return recent.length >= max && recent.every((m) => m === id);
+  const max = pattern.maxConsecutive ?? Infinity;
+  const recent = history.slice(-max);
+  const allowed = (id: string) => {
+    const move = moves.find((m) => m.id === id);
+    if (!move || move.role === 'heavy') return false;
+    if (last?.role === 'special' && move.role === 'special') return false;
+    if (last?.effects.some((e) => e.type === 'ink') && move.role === 'windUp') return false;
+    return !(recent.length >= max && recent.every((m) => m === id));
   };
-  let entries = Object.entries(pattern.weights).filter(([id, w]) => w > 0 && !exhausted(id));
-  if (entries.length === 0) entries = Object.entries(pattern.weights);
+  let entries = Object.entries(pattern.weights).filter(([id, w]) => w > 0 && allowed(id));
+  if (entries.length === 0) entries = Object.entries(pattern.weights).filter(([, w]) => w > 0);
   enemy.intent = pickWeighted(state, entries);
+}
+
+/** How much bigger a move is than usual: its statuses (`nextMoveMods`), and a heavy Shake the Hook when the player has no Hold. */
+function moveMods(state: CombatState, enemy: EnemyState, move: EnemyMove) {
+  const mods = nextMoveMods(enemy, move);
+  const shake = state.player.block === 0 && move.effects.some((e) => e.type === 'pull' && e.heavyIfNoHold);
+  return { ...mods, scale: shake ? (mods.scale * MOVE_INTENSITY.heavy) / MOVE_INTENSITY[move.intensity] : mods.scale };
 }
 
 export function executeIntent(state: CombatState, enemy: EnemyState, data: GameData): void {
   const move = getIntentMove(enemy, data);
   if (!move) return;
+  enemy.intentHidden = false;
   addLog(state, text('log.uses', { name: enemy.name, move: move.name }));
   // Statuses the player put on it change this move, and are used up by it.
-  const mods = nextMoveMods(enemy, move.tag);
+  const mods = moveMods(state, enemy, move);
   for (const id of mods.used) delete enemy.statuses[id];
-  const ctx = { sourceId: enemy.id, targetId: PLAYER_ID, moveScale: mods.scale * (enemy.damageScale ?? 1), strikeLess: mods.less };
+  const ctx = { sourceId: enemy.id, targetId: PLAYER_ID, amountScale: enemy.damageScale ?? 1, moveScale: mods.scale, strikeLess: mods.less, data };
   for (const effect of move.effects) {
     resolveEffect(state, effect, ctx);
     if (state.player.hp <= 0) break;
   }
   // A mini-boss's or boss's Wind-up also makes it stronger.
-  if (move.tag === 'windUp' && enemy.boss) resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, ctx);
-  enemy.moveHistory.push(move.id);
+  if (move.role === 'windUp' && enemy.boss) resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, ctx);
+  if (move.id !== SECOND_WIND_ID) enemy.moveHistory.push(move.id);
 }
 
-/** A hit or Pull of the creature's next move as its statuses change it (per hit: close to the total for multi-hit Strikes). */
-function changedPreview(amount: number, enemy: EnemyState, tag: MoveTag): number {
-  const { scale, less } = nextMoveMods(enemy, tag);
-  return Math.max(0, Math.floor(amount * scale * (enemy.damageScale ?? 1)) - less);
+/** The move's effects with its Strikes and Pulls at this fight's size (`damageScale`), for its description. */
+function scaledEffects(move: EnemyMove, enemy: EnemyState): Effect[] {
+  const scale = enemy.damageScale ?? 1;
+  return move.effects.map((e) => (e.type === 'dealDamage' || e.type === 'pull' ? { ...e, amount: Math.floor(e.amount * scale) } : e));
+}
+
+/** What a special move does, for its icon and tooltip. */
+function specialOf(move: EnemyMove, data: GameData): IntentPreview['special'] {
+  for (const e of move.effects) {
+    if (e.type === 'ink') return { key: 'ink' };
+    if (e.type === 'addJunk') return { key: 'junk', card: data.cards[e.card]?.name ?? e.card };
+    if (e.type === 'stealPatience') return { key: 'steal' };
+    if (e.type === 'secondWind') return { key: 'secondWind' };
+    if (e.type === 'pull' && e.heavyIfNoHold) return { key: 'shake' };
+    if (e.type === 'applyStatus' && move.role === 'special') return { key: e.status };
+  }
+  return undefined;
 }
 
 export function previewIntent(state: CombatState, enemy: EnemyState, data: GameData): IntentPreview | null {
   const move = getIntentMove(enemy, data);
   if (!move) return null;
+  if (enemy.intentHidden) return { moveName: '?', tag: move.tag, hidden: true, description: '', kinds: [] };
   const preview: IntentPreview = {
     moveName: move.name,
-    tag: move.tag,
-    description: describeEffects(move.effects, { byCreature: true }),
+    tag: move.id === SECOND_WIND_ID ? 'secondWind' : move.tag,
+    role: move.role,
+    special: specialOf(move, data),
+    description: describeEffects(scaledEffects(move, enemy), { byCreature: true }),
     kinds: [],
   };
   const addKind = (k: IntentKind) => {
     if (!preview.kinds.includes(k)) preview.kinds.push(k);
   };
-  // Quiet moves show what they are first.
-  const QUIET_KINDS: Partial<Record<MoveTag, IntentKind>> = { rest: 'rest', feed: 'feed', windUp: 'windUp', guard: 'defend', buff: 'buff' };
-  const quiet = QUIET_KINDS[move.tag];
-  if (quiet) addKind(quiet);
+  const { scale, less } = moveMods(state, enemy, move);
+  const size = enemy.damageScale ?? 1;
   for (const effect of move.effects) {
     switch (effect.type) {
       case 'dealDamage':
         addKind('attack');
-        preview.damage ??= changedPreview(calculateDamage(effect.amount, enemy.statuses, state.player.statuses), enemy, 'strike');
+        preview.damage ??= Math.max(0, Math.floor(calculateDamage(effect.amount * size, enemy.statuses, state.player.statuses) * scale) - less);
         preview.hits ??= effect.hits ?? 1;
         break;
       case 'pull':
         addKind('pull');
-        preview.pull = (preview.pull ?? 0) + changedPreview(effect.amount, enemy, 'pull');
+        preview.pull = (preview.pull ?? 0) + Math.floor(effect.amount * size * scale);
         break;
       case 'gainBlock':
         addKind('defend');
         preview.block = (preview.block ?? 0) + effect.amount;
         break;
       case 'applyStatus':
-        // A Wind-up's own status is already its icon.
-        if (effect.status !== 'windUp') addKind((effect.target ?? 'target') === 'self' && effect.amount > 0 ? 'buff' : 'debuff');
+        // A Wind-up's own status, and a special's, are already its icon.
+        if (effect.status !== 'windUp' && move.role !== 'special') addKind((effect.target ?? 'target') === 'self' && effect.amount > 0 ? 'buff' : 'debuff');
         break;
       case 'healPercent':
+      case 'ink':
+      case 'addJunk':
+      case 'stealPatience':
+      case 'secondWind':
         break;
       case 'drawCards':
       case 'gainEnergy':
@@ -127,6 +205,7 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
       case 'delayed':
       case 'echoDamage':
       case 'ifIntent':
+      case 'ifStatus':
       case 'ifNoAttack':
       case 'coil':
       case 'venomNow':

@@ -1,6 +1,6 @@
 import { addBond, BOND_PER_ENCOUNTER, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
-import { BOSS_DAMAGE, ENCOUNTER_DAMAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MINI_BOSS_DAMAGE } from './constants';
+import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, layoutCoast, START_NODE_ID, type CoastPlacement, type GameMap, type MapNode } from './map';
@@ -167,7 +167,7 @@ export function travelTo(run: RunState, nodeId: string, data: GameData): { run: 
 /**
  * Start the fight at `node` (advancing `next`'s RNG): an encounter from its fishing spot at its
  * tier (`encountersFor`), only decided on arrival. Its creatures get at least `ENCOUNTER_HP_POOL`
- * Health together and moves averaging `ENCOUNTER_DAMAGE`, both growing with every fight before it
+ * Health together and deal `ENCOUNTER_TURN_AVERAGE` per turn on average, both growing with every fight before it
  * (a mini-boss and a boss roll their own damage instead); a group splits the damage
  * (`GROUP_DAMAGE_PERCENT` of a share each).
  */
@@ -180,7 +180,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   const growth = 100 + ENCOUNTER_GROWTH_PERCENT * next.fights;
   next.fights++;
   const bossDamage = node.kind === 'miniBoss' ? MINI_BOSS_DAMAGE : node.kind === 'boss' ? BOSS_DAMAGE : null;
-  const damage = bossDamage ? nextInt(next, bossDamage[0], bossDamage[1]) : (ENCOUNTER_DAMAGE * growth) / 100;
+  const damage = bossDamage ? nextInt(next, bossDamage[0], bossDamage[1]) : (ENCOUNTER_TURN_AVERAGE * growth) / 100;
   return createCombat(
     {
       seed: combatSeed,

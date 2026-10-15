@@ -7,6 +7,7 @@ import {
   isCardEffectiveAgainst,
   instantSaleValue,
   isAlive,
+  cardCost,
   isCardPlayable,
   PLAYER_ID,
   previewIntent,
@@ -423,6 +424,7 @@ function endTurn() {
           :card="data.cards[card.defId]"
           :description="cardText(card)"
           :playable="isCardPlayable(state, card.uid, data)"
+          :cost="cardCost(state, data.cards[card.defId])"
           :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
           :effective="isEffective(card)"
           :data-card-uid="card.uid"

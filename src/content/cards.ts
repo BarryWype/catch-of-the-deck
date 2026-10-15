@@ -152,6 +152,18 @@ export const cards: CardDef[] = [
     id: 'slowSqueeze', name: 'Slow Squeeze', art: '🫳', type: 'drain', rarity: 'normal', cost: 1, patienceCost: 1, target: 'enemy', family: 'endurance', tags: ['drain', 'patience'],
     effects: [{ type: 'changeEscape', amount: -12 }],
   },
+  {
+    id: 'steadyHaul', name: 'Steady Haul', art: '🧵', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'endurance', tags: ['damage', 'drain'],
+    effects: [{ type: 'dealDamage', amount: 5 }, { type: 'changeEscape', amount: -5 }],
+  },
+  {
+    id: 'tiringBlow', name: 'Tiring Blow', art: '🥊', type: 'attack', rarity: 'rare', cost: 2, target: 'enemy', family: 'endurance',
+    tags: ['damage', 'drain', 'slow', 'conditional'],
+    effects: [
+      { type: 'dealDamage', amount: 10 },
+      { type: 'ifStatus', status: 'slow', then: [{ type: 'changeEscape', amount: -12 }], else: [{ type: 'changeEscape', amount: -8 }] },
+    ],
+  },
 
   // --- Patient --------------------------------------------------------------------
   {
@@ -169,6 +181,14 @@ export const cards: CardDef[] = [
   {
     id: 'suddenGulp', name: 'Sudden Gulp', art: '🐊', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy', family: 'patient', tags: ['damage', 'patience'],
     effects: [{ type: 'dealDamage', amount: 14 }],
+  },
+  {
+    id: 'patientStrike', name: 'Patient Strike', art: '🎯', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 1, target: 'enemy', family: 'patient', tags: ['damage', 'patience'],
+    effects: [{ type: 'dealDamage', amount: 10 }],
+  },
+  {
+    id: 'theLongWait', name: 'The Long Wait', art: '⏳', type: 'attack', rarity: 'normal', cost: 0, patienceCost: 3, target: 'enemy', family: 'patient', tags: ['damage', 'patience'],
+    effects: [{ type: 'dealDamage', amount: 15 }],
   },
 
   {
@@ -236,6 +256,15 @@ export const cards: CardDef[] = [
       },
     ],
   },
+  {
+    id: 'flashStrike', name: 'Flash Strike', art: '⚡', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'flashy', tags: ['damage', 'intent'],
+    effects: [{ type: 'dealDamage', amount: 6 }, { type: 'applyStatus', status: 'distracted', amount: 3 }],
+  },
+  {
+    id: 'lureAndLunge', name: 'Lure and Lunge', art: '🪝', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'flashy',
+    tags: ['damage', 'intent', 'conditional'],
+    effects: [{ type: 'ifIntent', tag: 'pull', then: [{ type: 'dealDamage', amount: 10 }], else: [{ type: 'dealDamage', amount: 5 }] }],
+  },
   { id: 'colourShift', name: 'Colour Shift', art: '🎨', type: 'support', rarity: 'normal', cost: 0, target: 'random', family: 'flashy', tags: ['intent'], effects: [{ type: 'rerollIntent' }] },
 
   // --- Camo -----------------------------------------------------------------------
@@ -282,4 +311,9 @@ export const cards: CardDef[] = [
     id: 'stickySnare', name: 'Sticky Snare', art: '🕸️', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'slimy', tags: ['damage', 'drain'],
     effects: [{ type: 'dealDamage', amount: 4 }, { type: 'changeEscape', amount: -5 }],
   },
+
+  // --- Junk: creatures' special moves slip these into the deck for the fight (`addJunk`) ---
+  { id: 'pebbleInTheBoot', name: 'Pebble in the Boot', art: '🥾', type: 'junk', rarity: 'normal', cost: 0, target: 'none', unplayable: true, effects: [] },
+  { id: 'slimySeaweed', name: 'Slimy Seaweed', art: '🌿', type: 'junk', rarity: 'normal', cost: 1, target: 'none', exhaust: true, inHand: { gritAtEndOfTurn: 2 }, effects: [] },
+  { id: 'tangledLine', name: 'Tangled Line', art: '🧶', type: 'junk', rarity: 'normal', cost: 1, target: 'none', exhaust: true, inHand: { holdLess: 1 }, effects: [] },
 ];

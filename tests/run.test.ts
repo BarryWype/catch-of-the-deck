@@ -257,25 +257,26 @@ describe('travelling the map', () => {
     expect(travelTo(atOne, '2', testData).combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
   });
 
-  it("gives a fight's creatures at least 50 Health and moves averaging 8, both 2% more per fight before it", () => {
+  it("gives a fight's creatures at least 50 Health and 5.5 per turn on average, both 2% more per fight before it", () => {
     const start = createRun(5, testData, 'basic');
     const first = travelTo(start, '1a', testData);
-    // The dummy's 100 Health is already above the pool; its 10-damage hit is brought to 8.
+    // The dummy's 100 Health is already above the pool; its only move, a 10-damage hit, is brought to 5.5.
     expect(first.combat.enemies[0].maxHp).toBe(100);
-    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(8);
+    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(5);
     expect(first.run.fights).toBe(1);
     const later = travelTo({ ...first.run, fights: 7 }, '2', testData).combat;
     expect(later.enemies[0].maxHp).toBe(57);
   });
 
   it('splits the damage in a group, and a mini-boss rolls 9–10', () => {
-    const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (7.2 / 2) * 1.1 }, testData);
+    const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (5.5 / 2) * 1.1 }, testData);
     expect(previewIntent(group, group.enemies[0], testData)?.damage).toBe(3);
     const atOne = travelTo(createRun(5, testData, 'basic'), '1a', testData).run;
     const miniBoss = travelTo(atOne, '2', testData).combat;
     expect(miniBoss.enemies[0].maxHp).toBe(51);
-    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(9);
-    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(10);
+    // Its Strike of 1 and its Pull of 0 average 0.5 a turn: scaled to 9–10, the Strike deals 18–20.
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(18);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(20);
   });
 
   it('refuses nodes that are not adjacent to the current position', () => {

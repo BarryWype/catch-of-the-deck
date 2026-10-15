@@ -1,7 +1,7 @@
 {
   "name": "spire-slice",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "electron:dev": "VITE_DEV_SERVER_URL=http://localhost:5190 electron .",
     "electron:build": "npm run build && electron-builder",
-    "simulate": "node scripts/simulate.mjs"
+    "simulate": "node scripts/simulate.mjs",
+    "reward-shares": "node scripts/reward-shares.mjs"
   },
   "dependencies": {
     "vue": "^3.5.12"

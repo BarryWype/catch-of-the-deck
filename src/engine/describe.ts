@@ -1,5 +1,5 @@
 import { calculateDamage, isStrongAgainst } from './damage';
-import { STRONG_BONUS_PERCENT } from './constants';
+import { STRONG_BONUS_PERCENT, WIND_UP_PERCENT } from './constants';
 import { statusName } from './statuses';
 import { hasText, text } from './text';
 import type { CardDef, Effect, Statuses } from './types';
@@ -49,9 +49,17 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
     case 'gainBlock':
       return text(opts.byCreature ? 'describe.gainBlock' : 'describe.gainHold', { n: effect.amount });
     case 'pull':
-      return text('describe.pull', { n: effect.amount });
+      return text('describe.pull', { n: effect.amount }) + (effect.heavyIfNoHold ? ` ${text('describe.heavyIfNoHold')}` : '');
+    case 'ink':
+      return text('describe.ink');
+    case 'addJunk':
+      return text('describe.addJunk', { card: text(`describe.junkName.${effect.card}`) });
+    case 'stealPatience':
+      return text('describe.stealPatience', { n: effect.amount });
+    case 'secondWind':
+      return text('describe.secondWind');
     case 'applyStatus': {
-      const params = { n: Math.abs(effect.amount), status: statusName(effect.status) };
+      const params = { n: Math.abs(effect.amount), status: statusName(effect.status), windUpPercent: WIND_UP_PERCENT };
       const target = effect.target ?? 'target';
       // Statuses that change the next move say what they do (`describe.statusText.<status>.<target>`).
       const own = `describe.statusText.${effect.status}.${target}`;
@@ -80,6 +88,11 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
     case 'ifIntent': {
       const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
       const then = text(`describe.if.${effect.tag}`, { rules: lower(describeEffects(effect.then, opts)) });
+      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
+    }
+    case 'ifStatus': {
+      const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+      const then = text('describe.ifStatus', { status: statusName(effect.status), rules: lower(describeEffects(effect.then, opts)) });
       return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
     }
     case 'ifNoAttack': {
@@ -138,7 +151,10 @@ export function isCardEffectiveAgainst(card: CardDef, tags: readonly string[]): 
 export function describeCard(card: CardDef, opts: DescribeOptions = {}): string {
   if (card.description) return card.description;
   const parts = card.effects.map((e) => describeEffect(e, opts));
+  if (card.unplayable) parts.push(text('describe.unplayable'));
+  if (card.inHand?.gritAtEndOfTurn) parts.push(text('describe.inHandGrit', { n: card.inHand.gritAtEndOfTurn }));
+  if (card.inHand?.holdLess) parts.push(text('describe.inHandHold', { n: card.inHand.holdLess }));
   if (card.target === 'random') parts.push(text('describe.onRandom'));
-  if (card.exhaust) parts.push(text('describe.exhaust'));
+  if (card.exhaust) parts.push(text(card.type === 'junk' ? 'describe.clearJunk' : 'describe.exhaust'));
   return parts.join(' ');
 }

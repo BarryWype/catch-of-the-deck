@@ -118,3 +118,16 @@ next one starts.
 | Savage Bite | Attack | 1 | 0 | Deal 10 damage. The creature gains 6 Will. | Hunter | damage, tradeoff | normal |
 | Lunge | Attack | 1 | 2 | Deal 8 damage. Apply Venom 3. | Venom | damage, venom, patience | normal |
 | Toxic Coating | Support | 1 | 0 | For the rest of this turn, your attacks also apply Venom 2. | Venom | venom | rare |
+
+### Attack cards added later
+
+Added to raise the share of Attack cards in rewards (about 30% → 37–40% on most spots; see `npm run reward-shares`). Tiring Blow's "if Slowed" uses the generic `ifStatus` effect; Lure and Lunge uses `ifIntent` (the intent shown, so a quiet move counts as "not a Pull").
+
+| Name | Type | Energy | Patience | Effect | Family | Tags | Rarity |
+|---|---|---|---|---|---|---|---|
+| Flash Strike | Attack | 1 | 0 | Deal 6 damage. The creature's next Strike deals 3 less. | Flashy | damage, intent | normal |
+| Lure and Lunge | Attack | 1 | 0 | Deal 5 damage. If the creature's next move is a Pull, deal 10 instead. | Flashy | damage, intent, conditional | normal |
+| Patient Strike | Attack | 1 | 1 | Deal 10 damage. | Patient | damage, patience | normal |
+| The Long Wait | Attack | 0 | 3 | Deal 15 damage. | Patient | damage, patience | normal |
+| Steady Haul | Attack | 1 | 0 | Deal 5 damage. Drain 5. | Endurance | damage, drain | normal |
+| Tiring Blow | Attack | 2 | 0 | Deal 10 damage. Drain 8. If the creature is Slowed, Drain 12 instead. | Endurance | damage, drain, slow, conditional | rare |
