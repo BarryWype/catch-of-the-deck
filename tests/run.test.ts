@@ -257,12 +257,12 @@ describe('travelling the map', () => {
     expect(travelTo(atOne, '2', testData).combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
   });
 
-  it("gives a fight's creatures at least 50 Health and moves averaging 7.2, both 2% more per fight before it", () => {
+  it("gives a fight's creatures at least 50 Health and moves averaging 8, both 2% more per fight before it", () => {
     const start = createRun(5, testData, 'basic');
     const first = travelTo(start, '1a', testData);
-    // The dummy's 100 Health is already above the pool; its 10-damage hit is brought to 7 (7.2, rounded down).
+    // The dummy's 100 Health is already above the pool; its 10-damage hit is brought to 8.
     expect(first.combat.enemies[0].maxHp).toBe(100);
-    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(7);
+    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(8);
     expect(first.run.fights).toBe(1);
     const later = travelTo({ ...first.run, fights: 7 }, '2', testData).combat;
     expect(later.enemies[0].maxHp).toBe(57);

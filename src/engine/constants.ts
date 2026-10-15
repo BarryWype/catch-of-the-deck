@@ -13,6 +13,10 @@ export const PATIENCE_ESCAPE_PERCENT = 10;
 export const SLOW_PERCENT = 20;
 /** The most a creature's escape bar can be slowed, in percent (Slow and Patience together). */
 export const MAX_SLOW_PERCENT = 80;
+/** How much bigger a creature's move is after its Wind-up, in percent. */
+export const WIND_UP_PERCENT = 50;
+/** The most Strength a creature's moves can give it in a fight (starting Strength aside). */
+export const MAX_MOVE_STRENGTH = 3;
 /** The most Patience the player can have. */
 export const MAX_PATIENCE = 5;
 /** Hold left at the end of the creatures' turn becomes 1 Patience per this much. */

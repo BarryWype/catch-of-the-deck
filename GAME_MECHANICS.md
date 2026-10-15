@@ -93,7 +93,7 @@ Above each creature you can see what it will do next (its **intent**), tagged **
 | **Strike** 🗡️ | Wears down your **Grit** (a tail hit, pinched fingers, a stinky squirt…) | Your Hold soaks it first; the rest comes off your Grit |
 | **Pull** 🎣 | Drags on the line to get away (a run, a dive, wedging under a rock…) | Your Hold soaks it first; the rest raises its Will |
 
-How hard a creature hits depends on the fight, not just on the creature. Its moves keep their differences, but they **average 7.2** (Strike or Pull), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 7.2 ÷ 2 × 1.1 ≈ 4 each. A **mini-boss** averages 9–10 and a **boss** 10–12 (rolled each fight).
+How hard a creature hits depends on the fight, not just on the creature. Its moves keep their differences, but they **average 8** (Strike or Pull), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 8 ÷ 2 × 1.1 ≈ 4.4 each. A **mini-boss** averages 9–10 and a **boss** 10–12 (rolled each fight).
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
