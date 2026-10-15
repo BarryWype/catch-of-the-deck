@@ -20,11 +20,11 @@ export const HOLD_PER_PATIENCE = 3;
 /** The least Health a fight's creatures have together, before `ENCOUNTER_GROWTH_PERCENT`. */
 export const ENCOUNTER_HP_POOL = 50;
 /** What a fight's creatures' moves average, Strike or Pull, before `ENCOUNTER_GROWTH_PERCENT`. Split between them in a group. */
-export const ENCOUNTER_DAMAGE = 9;
+export const ENCOUNTER_DAMAGE = 7.2;
 /** How much a fight's Health pool and damage grow, in percent, per fight already gone through this run. */
 export const ENCOUNTER_GROWTH_PERCENT = 2;
 /** A creature's share of the damage in a group of several, in percent. */
 export const GROUP_DAMAGE_PERCENT = 110;
 /** What a mini-boss's and a boss's moves average (rolled each fight, no growth). */
-export const MINI_BOSS_DAMAGE: [number, number] = [12, 14];
-export const BOSS_DAMAGE: [number, number] = [15, 18];
+export const MINI_BOSS_DAMAGE: [number, number] = [10, 11];
+export const BOSS_DAMAGE: [number, number] = [12, 14];

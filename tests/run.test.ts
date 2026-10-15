@@ -243,25 +243,25 @@ describe('travelling the map', () => {
     expect(travelTo(atOne, '2', testData).combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
   });
 
-  it("gives a fight's creatures at least 50 Health and moves averaging 9, both 2% more per fight before it", () => {
+  it("gives a fight's creatures at least 50 Health and moves averaging 7.2, both 2% more per fight before it", () => {
     const start = createRun(5, testData, 'basic');
     const first = travelTo(start, '1a', testData);
-    // The dummy's 100 Health is already above the pool; its 10-damage hit is brought to 9.
+    // The dummy's 100 Health is already above the pool; its 10-damage hit is brought to 7 (7.2, rounded down).
     expect(first.combat.enemies[0].maxHp).toBe(100);
-    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(9);
+    expect(previewIntent(first.combat, first.combat.enemies[0], testData)?.damage).toBe(7);
     expect(first.run.fights).toBe(1);
     const later = travelTo({ ...first.run, fights: 7 }, '2', testData).combat;
     expect(later.enemies[0].maxHp).toBe(57);
   });
 
-  it('splits the damage in a group, and a mini-boss rolls 12–14', () => {
-    const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (9 / 2) * 1.1 }, testData);
-    expect(previewIntent(group, group.enemies[0], testData)?.damage).toBe(4);
+  it('splits the damage in a group, and a mini-boss rolls 10–11', () => {
+    const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (7.2 / 2) * 1.1 }, testData);
+    expect(previewIntent(group, group.enemies[0], testData)?.damage).toBe(3);
     const atOne = travelTo(createRun(5, testData, 'basic'), '1a', testData).run;
     const miniBoss = travelTo(atOne, '2', testData).combat;
     expect(miniBoss.enemies[0].maxHp).toBe(51);
-    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(12);
-    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(14);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(10);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(11);
   });
 
   it('refuses nodes that are not adjacent to the current position', () => {
