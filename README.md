@@ -27,9 +27,12 @@ npm install
 npm run dev        # start the dev server, then open the printed URL
 npm test           # run the engine test suite
 npm run build      # type-check (incl. the DOM-free engine check) + production build
+npm run simulate -- --runs 300   # a bot plays 300 runs and prints balance stats
 ```
 
 Add `?seed=12345` to the URL to replay a specific run. The current seed is shown in the top bar.
+
+**Balance simulation** (`scripts/simulate.ts`): a bot plays whole runs with the real engine and content, then prints run outcomes, survival fight by fight, win/escape/death rates and Grit lost by level and fight kind, and the creatures that escape most or cost the most Grit. Runs are seeded 1, 2, 3…, so the same command gives the same numbers until the game changes: run it before and after a change to compare. `--seed 500` starts elsewhere, every simulation is saved in `simulation/` (git-ignored) as `<date-time>-runs.csv` and `<date-time>-fights.csv`, one row per run and per fight, for a spreadsheet (`--out sim` names them `sim-runs.csv` and `sim-fights.csv`), and `--log 3` prints run 3's fight logs to see how the bot plays. The bot plays greedily, card by card, and picks paths, rewards and events at random: it's a stand-in for a player, so read its numbers as trends rather than as what a person would get.
 
 ## How to play
 
