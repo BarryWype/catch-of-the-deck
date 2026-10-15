@@ -61,7 +61,7 @@ export const behaviors = {
         tag: 'pull',
         effects: [
           { type: 'pull', amount: 9 },
-          { type: 'applyStatus', status: 'strength', amount: 2, target: 'self' },
+          { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' },
         ],
       },
     ],
@@ -131,7 +131,7 @@ export const behaviors = {
         effects: [
           { type: 'pull', amount: 8 },
           { type: 'gainBlock', amount: 4 },
-          { type: 'applyStatus', status: 'strength', amount: 2, target: 'self' },
+          { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' },
         ],
       },
       { id: 'ambush', name: 'Ambush the Lure', tag: 'strike', effects: [{ type: 'dealDamage', amount: 14 }] },
@@ -258,7 +258,7 @@ export const behaviors = {
         tag: 'pull',
         effects: [
           { type: 'pull', amount: 5 },
-          { type: 'applyStatus', status: 'strength', amount: 2, target: 'self' },
+          { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' },
         ],
       },
       { id: 'pinch', name: 'Pinch the Fingers', tag: 'strike', effects: [{ type: 'dealDamage', amount: 7 }] },

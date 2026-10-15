@@ -93,7 +93,7 @@ Above each creature you can see what it will do next (its **intent**), tagged **
 | **Strike** 🗡️ | Wears down your **Grit** (a tail hit, pinched fingers, a stinky squirt…) | Your Hold soaks it first; the rest comes off your Grit |
 | **Pull** 🎣 | Drags on the line to get away (a run, a dive, wedging under a rock…) | Your Hold soaks it first; the rest raises its Will |
 
-How hard a creature hits depends on the fight, not just on the creature. Its moves keep their differences, but they **average 7.2** (Strike or Pull), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 7.2 ÷ 2 × 1.1 ≈ 4 each. A **mini-boss** averages 10–11 and a **boss** 12–14 (rolled each fight).
+How hard a creature hits depends on the fight, not just on the creature. Its moves keep their differences, but they **average 7.2** (Strike or Pull), growing 2% per fight like Health. In a group, each creature gets its share of that plus 10%: two creatures average 7.2 ÷ 2 × 1.1 ≈ 4 each. A **mini-boss** averages 9–10 and a **boss** 10–12 (rolled each fight).
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
@@ -124,7 +124,7 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 ## Between fights
 
-- **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't. You have to take one (Eel companions can let you skip or reroll a few times per age).
+- **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). You have to take one (Eel companions can let you skip or reroll a few times per age).
 - **Events** (?): something happens: a choice, a find, sometimes a surprise fight.
 - **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them.
 - **Treasure** (T): a free find before the boss.

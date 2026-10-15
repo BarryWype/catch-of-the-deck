@@ -44,7 +44,7 @@ const props = defineProps<{
   newEggs: number;
   releaseReason: string | null;
 }>();
-const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; restart: [] }>();
+const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; menu: [] }>();
 
 const PATIENCE_TIP = t('combat.patienceTip', { hold: HOLD_PER_PATIENCE, percent: PATIENCE_ESCAPE_PERCENT, max: MAX_PATIENCE });
 
@@ -465,7 +465,6 @@ function endTurn() {
       <div class="panel">
         <template v-if="state.phase === 'won'">
           <h2>{{ t('combat.victory') }}</h2>
-          <p>{{ t('combat.wonIn', { n: state.turn, grit: state.player.hp }) }}</p>
           <p v-if="releaseReason">
             {{ t(state.enemies.length > 1 ? 'combat.releasedMany' : 'combat.releasedOne', { names: releasedNames, reason: releaseReason }) }}
           </p>
@@ -486,7 +485,7 @@ function endTurn() {
           <h2>{{ t('combat.defeatTitle') }}</h2>
           <p>{{ t('combat.defeatText', { n: state.turn }) }}</p>
           <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
-          <button @click="emit('restart')">{{ t('common.startNewRun') }}</button>
+          <button @click="emit('menu')">{{ t('complete.toMenu') }}</button>
         </template>
       </div>
     </div>

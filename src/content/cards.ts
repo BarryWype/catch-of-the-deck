@@ -218,7 +218,7 @@ export const cards: CardDef[] = [
     effects: [{ type: 'changeEscape', amount: -6 }, { type: 'applyStatus', status: 'lured', amount: 1 }],
   },
   {
-    id: 'flashOfColour', name: 'Flash of Colour', art: '✨', type: 'support', rarity: 'normal', cost: 0, target: 'random', family: 'flashy', tags: ['intent', 'draw'],
+    id: 'flashOfColour', name: 'Flash of Colour', art: '✨', type: 'support', rarity: 'normal', cost: 0, target: 'enemy', family: 'flashy', tags: ['intent', 'draw'],
     effects: [{ type: 'applyStatus', status: 'distracted', amount: 4 }, { type: 'drawCards', amount: 1 }],
   },
   {
@@ -277,7 +277,7 @@ export const cards: CardDef[] = [
     id: 'stickySlime', name: 'Sticky Slime', art: '🫧', type: 'defense', rarity: 'normal', cost: 1, target: 'random', family: 'slimy', tags: ['hold', 'slow'],
     effects: [{ type: 'gainBlock', amount: 4 }, { type: 'applyStatus', status: 'slow', amount: 3 }],
   },
-  { id: 'slimeCoat', name: 'Slime Coat', art: '🐌', type: 'support', rarity: 'normal', cost: 1, target: 'random', family: 'slimy', tags: ['slow'], effects: [{ type: 'applyStatus', status: 'slow', amount: 5 }] },
+  { id: 'slimeCoat', name: 'Slime Coat', art: '🐌', type: 'support', rarity: 'normal', cost: 1, target: 'enemy', family: 'slimy', tags: ['slow'], effects: [{ type: 'applyStatus', status: 'slow', amount: 5 }] },
   {
     id: 'stickySnare', name: 'Sticky Snare', art: '🕸️', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'slimy', tags: ['damage', 'drain'],
     effects: [{ type: 'dealDamage', amount: 4 }, { type: 'changeEscape', amount: -5 }],

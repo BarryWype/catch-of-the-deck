@@ -205,7 +205,6 @@ export const fr: Messages = {
       back: '← Retour',
       cancel: 'Annuler',
       newEggs: '🥚 Un œuf a été pondu dans ton aquarium !|🥚 {n} œufs ont été pondus dans ton aquarium !',
-      startNewRun: 'Nouvelle partie',
     },
     app: {
       floor: 'Étape {n}',
@@ -257,7 +256,6 @@ export const fr: Messages = {
       exhaustPile: 'Cartes épuisées',
       exhaust: 'Épuisées {n}',
       victory: 'Victoire !',
-      wonIn: 'Gagné en {n} tour avec {grit} de {@grit} restante.|Gagné en {n} tours avec {grit} de {@grit} restante.',
       and: ' et ',
       releasedOne: '{names} : {reason}, alors tu le relâches.',
       releasedMany: '{names} : {reason}, alors tu les relâches.',

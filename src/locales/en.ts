@@ -211,7 +211,6 @@ export const en = {
       back: '← Back',
       cancel: 'Cancel',
       newEggs: '🥚 An egg was laid in your home aquarium!|🥚 {n} eggs were laid in your home aquarium!',
-      startNewRun: 'Start a new run',
     },
     app: {
       floor: 'Floor {n}',
@@ -262,7 +261,6 @@ export const en = {
       exhaustPile: 'Exhausted cards',
       exhaust: 'Exhaust {n}',
       victory: 'Victory!',
-      wonIn: 'You won in {n} turn with {grit} {@grit} left.|You won in {n} turns with {grit} {@grit} left.',
       and: ' and ',
       releasedOne: '{names} is {reason}, so you let it go.',
       releasedMany: '{names} are {reason}, so you let them go.',

@@ -134,7 +134,7 @@ function startNewRun() {
       @action="game.dispatch"
       @claim-victory="game.claimVictory"
       @leave="game.leaveFight"
-      @restart="newRun"
+      @menu="game.toMenu"
     />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <section v-else-if="screen === 'leave'" class="complete">
@@ -168,8 +168,7 @@ function startNewRun() {
       </template>
       <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
       <div class="complete-actions">
-        <button class="ghost" @click="game.toMenu">{{ t('complete.toMenu') }}</button>
-        <button @click="newRun">{{ t('common.startNewRun') }}</button>
+        <button @click="game.toMenu">{{ t('complete.toMenu') }}</button>
       </div>
     </section>
   </main>

@@ -33,6 +33,9 @@ import {
 } from '../src/engine';
 import { play, repeat, setup, testData, withNodeKind } from './fixtures';
 
+/** Standing on the fixtures' mini-boss: rare cards can be offered. */
+const pastMiniBoss = (run: RunState): RunState => ({ ...run, position: '2', visited: [...run.visited, '1a', '2'] });
+
 describe('run', () => {
   it('starts with the starter deck at full HP, on the map start', () => {
     const run = createRun(5, testData, 'basic');
@@ -59,7 +62,7 @@ describe('run', () => {
       cards: { a1: card('a1', 'a'), a2: card('a2', 'a'), a3: card('a3', 'a'), a4: card('a4', 'a'), b1: card('b1', 'b'), b2: card('b2', 'b'), b3: card('b3', 'b') },
     };
     for (let seed = 1; seed <= 20; seed++) {
-      const run = { ...createRun(seed, testData, 'basic'), rarePity: 0 };
+      const run = { ...pastMiniBoss(createRun(seed, testData, 'basic')), rarePity: 0 };
       expect(rollCardRewards(run, data, { families: ['a'] }).choices.every((id) => id.startsWith('a'))).toBe(true);
       // Family b has 3 cards: all of them. One card short: the rest from any family.
       expect(rollCardRewards(run, data, { families: ['b'] }).choices.sort()).toEqual(['b1', 'b2', 'b3']);
@@ -71,7 +74,7 @@ describe('run', () => {
   it('a slot is rare with the run’s pity chance: 10%, +2% per slot that wasn’t rare, back to 10% after a rare', () => {
     const card = (id: string, rarity: 'normal' | 'rare') => ({ ...testData.cards.twin, id, family: 'a', rarity });
     const data = { ...testData, cards: { n1: card('n1', 'normal'), n2: card('n2', 'normal'), n3: card('n3', 'normal'), r1: card('r1', 'rare'), r2: card('r2', 'rare') } };
-    const run = createRun(5, testData, 'basic');
+    const run = pastMiniBoss(createRun(5, testData, 'basic'));
     expect(run.rarePity).toBe(10);
     // A sure rare first: the pity goes back to 10, then rises by 2 for each normal slot (one rare card only).
     const oneRare = { ...data, cards: { n1: data.cards.n1, n2: data.cards.n2, n3: data.cards.n3, r1: data.cards.r1 } };
@@ -92,6 +95,17 @@ describe('run', () => {
     }
     expect(rare / total).toBeGreaterThan(0.1);
     expect(rare / total).toBeLessThan(0.25);
+  });
+
+  it('offers no rare card before the first mini-boss, and the pity waits too', () => {
+    const card = (id: string, rarity: 'normal' | 'rare') => ({ ...testData.cards.twin, id, family: 'a', rarity });
+    const data = { ...testData, cards: { n1: card('n1', 'normal'), r1: card('r1', 'rare'), r2: card('r2', 'rare') } };
+    const before = { ...createRun(5, testData, 'basic'), rarePity: 100 };
+    const offered = rollCardRewards(before, data, { families: ['a'] });
+    expect(offered.choices).toEqual(['n1']);
+    expect(offered.run.rarePity).toBe(100);
+    // The mini-boss's own reward can be rare.
+    expect(rollCardRewards({ ...before, position: '2', visited: [...before.visited, '1a', '2'] }, data, { families: ['a'] }).choices).toContain('r1');
   });
 
   it('a reroll draws from the same families', () => {
@@ -254,14 +268,14 @@ describe('travelling the map', () => {
     expect(later.enemies[0].maxHp).toBe(57);
   });
 
-  it('splits the damage in a group, and a mini-boss rolls 10–11', () => {
+  it('splits the damage in a group, and a mini-boss rolls 9–10', () => {
     const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (7.2 / 2) * 1.1 }, testData);
     expect(previewIntent(group, group.enemies[0], testData)?.damage).toBe(3);
     const atOne = travelTo(createRun(5, testData, 'basic'), '1a', testData).run;
     const miniBoss = travelTo(atOne, '2', testData).combat;
     expect(miniBoss.enemies[0].maxHp).toBe(51);
-    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(10);
-    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(11);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeGreaterThanOrEqual(9);
+    expect(previewIntent(miniBoss, miniBoss.enemies[0], testData)?.damage).toBeLessThanOrEqual(10);
   });
 
   it('refuses nodes that are not adjacent to the current position', () => {

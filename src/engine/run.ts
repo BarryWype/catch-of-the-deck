@@ -361,24 +361,33 @@ export interface CardRewardOptions {
   exclude?: readonly string[];
 }
 
+/** Rare cards are only offered from the run's first mini-boss on (its own reward included). */
+export function raresUnlocked(run: RunState): boolean {
+  return run.level > 0 || run.visited.some((id) => findNode(run.map, id)?.kind === 'miniBoss');
+}
+
 /**
  * Offer `count` distinct cards from the families' cards (never starter cards), topped up from every
  * family's when they run short. Each slot is rare with the run's `rarePity` chance: back to
  * `RARE_CHANCE` when a rare card is offered, `RARE_PITY_STEP` higher for every slot that isn't.
+ * Before `raresUnlocked`, only normal cards are offered, and the chance doesn't grow.
  */
 export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardOptions = {}): { run: RunState; choices: string[] } {
   const { count = CARD_REWARD_COUNT, exclude = [] } = opts;
   const next = clone(run);
   const families = [...(opts.families ?? run.rewardFamilies)];
   next.rewardFamilies = families;
-  const offerable = Object.values(data.cards).filter((c) => c.family !== undefined && (c.build === undefined || c.build === run.build));
+  const rares = raresUnlocked(run);
+  const offerable = Object.values(data.cards).filter(
+    (c) => c.family !== undefined && (c.build === undefined || c.build === run.build) && (rares || c.rarity !== 'rare'),
+  );
   const fresh = offerable.filter((c) => !exclude.includes(c.id));
   const everyFamily = fresh.length >= count ? fresh : offerable;
   const theirs = families.length ? everyFamily.filter((c) => families.includes(c.family!)) : everyFamily;
 
   const choices: string[] = [];
   for (let slot = 0; slot < count; slot++) {
-    const rarity = nextFloat(next) * 100 < next.rarePity ? 'rare' : 'normal';
+    const rarity = rares && nextFloat(next) * 100 < next.rarePity ? 'rare' : 'normal';
     const left = (pool: CardDef[]) => pool.filter((c) => !choices.includes(c.id));
     const candidates = [
       left(theirs).filter((c) => c.rarity === rarity),
@@ -389,7 +398,7 @@ export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardO
     if (!candidates) break;
     const card = candidates[nextInt(next, 0, candidates.length - 1)];
     choices.push(card.id);
-    next.rarePity = card.rarity === 'rare' ? RARE_CHANCE : next.rarePity + RARE_PITY_STEP;
+    if (rares) next.rarePity = card.rarity === 'rare' ? RARE_CHANCE : next.rarePity + RARE_PITY_STEP;
   }
   return { run: next, choices };
 }

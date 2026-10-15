@@ -26,5 +26,5 @@ export const ENCOUNTER_GROWTH_PERCENT = 2;
 /** A creature's share of the damage in a group of several, in percent. */
 export const GROUP_DAMAGE_PERCENT = 110;
 /** What a mini-boss's and a boss's moves average (rolled each fight, no growth). */
-export const MINI_BOSS_DAMAGE: [number, number] = [10, 11];
-export const BOSS_DAMAGE: [number, number] = [12, 14];
+export const MINI_BOSS_DAMAGE: [number, number] = [9, 10];
+export const BOSS_DAMAGE: [number, number] = [10, 12];
