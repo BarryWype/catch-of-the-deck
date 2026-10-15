@@ -13,9 +13,9 @@ export const FORAGING_TARGETS: CreatureType[] = ['crustacean', 'shellfish', 'cri
 const STARTER_DECK = ['tug', 'tug', 'tug', 'tug', 'holdTight', 'holdTight', 'holdTight', 'holdTight', 'steadyHand', 'reelIn'];
 
 /**
- * Starting builds, chosen before the first fight. Each sets the starter deck and offers starting
- * items to pick one from (`startingItems`, equipment.ts). A build with a `level` can only be picked
- * from that level on; runs start on the first level (Kid), so those aren't offered yet.
+ * Starting builds. Each sets the starter deck, and can offer starting items to pick one from
+ * (`startingItems`, equipment.ts). A build with a `level` can only start from that level on.
+ * There's no build choice for now: every run starts with the first one (`startingBuilds`), no item.
  */
 export const builds: BuildDef[] = [
   {
@@ -25,7 +25,6 @@ export const builds: BuildDef[] = [
     starterDeck: STARTER_DECK,
     strongAgainst: ROD_TARGETS,
     sprite: { sheet: 'gear', index: 1 },
-    startingItems: ['reliableReel', 'strongRod', 'handline'],
   },
   {
     id: 'spear',
@@ -34,7 +33,6 @@ export const builds: BuildDef[] = [
     starterDeck: STARTER_DECK,
     strongAgainst: SPEAR_TARGETS,
     sprite: { sheet: 'gear', index: 29 },
-    startingItems: ['sharpSpear'],
     level: 'adult',
   },
   {
@@ -44,6 +42,5 @@ export const builds: BuildDef[] = [
     starterDeck: STARTER_DECK,
     strongAgainst: FORAGING_TARGETS,
     sprite: { sheet: 'gear', index: 23 },
-    startingItems: ['rubberDuck', 'softNet', 'crabHook'],
   },
 ];

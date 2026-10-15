@@ -52,7 +52,7 @@ import {
   type SavedGame,
 } from './saveStore';
 
-export type Screen = 'menu' | 'build' | 'companions' | 'map' | 'combat' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
+export type Screen = 'menu' | 'companions' | 'map' | 'combat' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
 
 /**
  * Thin glue between Vue and the engine: holds the current immutable states in
@@ -160,7 +160,7 @@ export function useGame(initialSeed: number) {
 
   // Autosave after every change; a lost or finished run deletes the save.
   watch([run, combat, screen, rewardChoices, eventId, shopVisit], () => {
-    if (!run.value || screen.value === 'menu' || screen.value === 'build' || screen.value === 'companions') return;
+    if (!run.value || screen.value === 'menu' || screen.value === 'companions') return;
     if (screen.value === 'complete' || combat.value?.phase === 'lost') {
       savedGame.value = null;
       clearSavedGame();
@@ -216,36 +216,21 @@ export function useGame(initialSeed: number) {
     run.value = null;
     combat.value = null;
     broughtSlots.value = [];
-    screen.value = 'build';
-  }
-
-  /** The build and starting item picked on the build screen, until the run starts. */
-  const pickedBuild = ref<{ build: string; item?: string } | null>(null);
-
-  /** Build picked: next, choose who to bring along (skipped when the home aquarium is empty). */
-  function chooseBuild(build: string, item?: string) {
-    pickedBuild.value = { build, item };
+    // Next, choose who to bring along (skipped when the home aquarium is empty).
     if (homeAquarium.value.length) screen.value = 'companions';
     else startRun();
   }
 
-  /** Back from choosing companions to the build screen. */
-  function backToBuild() {
-    screen.value = 'build';
-  }
-
+  /** Every run starts with the first build: there's no build choice for now. */
   function startRun() {
-    if (!pickedBuild.value) return;
-    const { build, item } = pickedBuild.value;
     // The brought creatures leave the home aquarium now: like the rest of the bucket, they only
     // come back if the run is successful.
-    run.value = createRun(seed.value, gameData, build, brought.value, item);
+    run.value = createRun(seed.value, gameData, startingBuilds(gameData)[0].id, brought.value);
     if (brought.value.length) {
       homeAquarium.value = homeLeft.value;
       broughtSlots.value = [];
       saveProfile();
     }
-    pickedBuild.value = null;
     screen.value = 'map';
   }
 
@@ -419,10 +404,7 @@ export function useGame(initialSeed: number) {
     eventId,
     shopVisit,
     dispatch,
-    chooseBuild,
-    backToBuild,
     startRun,
-    pickedBuild,
     travel,
     claimVictory,
     leaveFight,

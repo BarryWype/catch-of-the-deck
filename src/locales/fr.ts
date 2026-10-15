@@ -219,7 +219,7 @@ export const fr: Messages = {
     },
     companions: {
       title: 'Qui t’accompagne ?',
-      hint: '— clique sur des créatures de ton aquarium pour en emmener jusqu’à {n}, ou pars seul.',
+      hint: 'Clique sur des créatures de ton aquarium pour en emmener jusqu’à {n}, ou pars seul.',
       slotsFull: 'Toutes les places sont prises.',
       start: 'Partir pêcher',
     },

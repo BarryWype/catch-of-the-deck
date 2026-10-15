@@ -225,7 +225,7 @@ export const en = {
     },
     companions: {
       title: 'Who comes along?',
-      hint: '— click creatures in your home aquarium to bring up to {n}, or go alone.',
+      hint: 'Click creatures in your home aquarium to bring up to {n}, or go alone.',
       slotsFull: 'All session slots are taken.',
       start: 'Start fishing',
     },

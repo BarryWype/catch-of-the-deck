@@ -101,12 +101,8 @@ describe('creatures', () => {
 });
 
 describe('equipment', () => {
-  it('each build offers its starting items; only Kid builds can start a run', () => {
-    expect(Object.fromEntries(Object.values(gameData.builds).map((b) => [b.id, b.startingItems]))).toEqual({
-      rod: ['reliableReel', 'strongRod', 'handline'],
-      spear: ['sharpSpear'],
-      foraging: ['rubberDuck', 'softNet', 'crabHook'],
-    });
+  it('no build offers starting items for now; only Kid builds can start a run', () => {
+    for (const build of Object.values(gameData.builds)) expect(build.startingItems ?? []).toEqual([]);
     expect(startingBuilds(gameData).map((b) => b.id)).toEqual(['rod', 'foraging']);
   });
 

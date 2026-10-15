@@ -26,7 +26,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 ## Screen flow
 
 ```
-menu ──New run──▶ build ──Fish with…──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ card reward ──▶ map …
+menu ──New run──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ card reward ──▶ map …
   ▲                                  │  ├─▶ event (10%: a fight instead) ─▶ map
   │                                  │  ├─▶ treasure ─▶ map
   │                                  │  └─▶ shop ─▶ map
@@ -37,11 +37,8 @@ menu ──New run──▶ build ──Fish with…──▶ companions ──S
 ```
 
 - **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). **Temporary, when ticked in Options** ("Show debug panel", remembered per device in localStorage): a 🛠 Debug drawer on the left edge starts a fresh run straight into each act's mini-boss or boss fight (`debugStartAt`). Above it, a 📘 tab opens **How to play**, a short bullet-point guide to the rules (the full one is GAME_MECHANICS.md). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature. All three drawers use `SideDrawer.vue` (an edge tab, a sliding panel, Esc or the backdrop to close). Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), and how many are in the home aquarium.
-- **Build selection** (`BuildSelect.vue`, its own screen, **← Back** at the top left returns to the menu): the builds a run can start with (`startingBuilds`), side by side.
-  - **Which builds:** a run starts as the Kid, so only builds without a later `level` are offered (Rod fishing and Foraging; Spear fishing is set to `adult`).
-  - **Shown:** each build's description, strong-against types, full starter deck, and its **starting items** (`startingItems`). The player picks one, the first by default.
-  - **Next:** **Fish with…** goes to the companions screen.
-- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature offers **Bring for the session**, and ✕ puts it back. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the builds. With an empty home aquarium this step is skipped.
+- **No build choice for now** (`BuildSelect.vue` is unused): every run starts with the first build that can start a run (`startingBuilds`: Rod fishing), without a starting item. **New run** goes straight to the companions screen.
+- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature offers **Bring for the session**, and ✕ puts it back. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the menu. With an empty home aquarium this step is skipped.
 
 ## A run
 
@@ -121,7 +118,7 @@ There are two separate collections of creatures. They never share creatures, exc
 | What | The creatures caught during the current run | The creatures brought back from won runs |
 | Where in code | `RunState.bucket` (creature ids) | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
-| Shown | Below the map and the shop (🪣 Bucket) | Menu background, build selection (🏠 Home aquarium) |
+| Shown | Below the map and the shop (🪣 Bucket) | Menu background, companions screen (🏠 Home aquarium) |
 | Interactive | Yes: click a creature to sell it for coins | On the companions screen only: click a creature to bring it for the session |
 
 **Lifecycle:**
@@ -134,7 +131,7 @@ There are two separate collections of creatures. They never share creatures, exc
 4. **Lost run, abandoned run (New run over a save), or the boss fleeing:** the bucket is lost. The home aquarium gets nothing from it.
 5. **Breeding, after every run that ends** (won, session finished, lost, or the boss fleeing, but not an abandoned run):
    - **Laying:** `layEggs` gives each species with at least two in the home aquarium one roll at its `breedChance` (per creature in `content/creatures.ts`, 10% for all for now). After a successful run it runs once the bucket has joined the home aquarium, so new catches can breed straight away.
-   - **Eggs:** each egg holds one creature id and is saved in `Profile.eggs`. `EggTray.vue` shows the eggs at the bottom of the window between runs (menu, build selection, end screen), playing the idle animation.
+   - **Eggs:** each egg holds one creature id and is saved in `Profile.eggs`. `EggTray.vue` shows the eggs at the bottom of the window between runs (menu, companions screen, end screen), playing the idle animation.
    - **Hatching:** clicking an egg plays the hatching animation. Then `hatchEgg` moves its creature into the home aquarium, and the creature is shown in the centre with a halo and streamers until the next click.
    - **Colours:** all eggs are beige for now. Planned rarity order: beige → white → purple → gold.
 
@@ -265,7 +262,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 | `STARTING_HAND_SIZE`, `BASE_ENERGY`, `VULNERABLE_MULTIPLIER`, `WEAK_MULTIPLIER`, `STRONG_BONUS_PERCENT` | `engine/constants.ts` | Combat basics, and the extra damage of cards against their build's creature types |
 | `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier`, `water` | `content/creatures.ts` | Per-creature balance, and where it lives |
 | Item prices and limits | `content/shop.ts` | Shop |
-| `startingItems`, `level` per build; item effects | `content/builds.ts`, `content/equipment.ts` | Which builds start a run, and the items to pick from |
+| `startingItems`, `level` per build; item effects | `content/builds.ts`, `content/equipment.ts` | Which builds start a run, and the items to pick from (none for now) |
 | Temperament bonuses, `COMPANION_SCALE_CAP`, `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales |
 | `BOND_BY_TIER`, `bondToFull`, `BOND_PER_ENCOUNTER`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |
 

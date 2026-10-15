@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
-import BuildSelect from './BuildSelect.vue';
 import CombatView from './CombatView.vue';
 import EggTray from './EggTray.vue';
 import EventScreen from './EventScreen.vue';
@@ -27,7 +26,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, pickedBuild, runEnd, rewardLeft } = game;
+const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft } = game;
 
 function newRun() {
   game.newRun(randomSeed());
@@ -58,7 +57,7 @@ function startNewRun() {
   <header class="topbar">
     <h1>Spire Slice</h1>
     <div v-if="screen !== 'menu'" class="run-info">
-      <template v-if="run && screen !== 'build'">
+      <template v-if="run">
         <span>{{ data.builds[run.build]?.name }}</span>
         <span>{{ t('app.floor', { n: run.floor }) }}</span>
         <span v-tip="term('grit')">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
@@ -72,28 +71,13 @@ function startNewRun() {
   </header>
 
   <main>
-    <MenuScreen
-      v-if="screen === 'menu'"
-      :can-resume="!!savedGame"
-      :home-aquarium="homeAquarium"
-      :creature-book="creatureBook"
-      :data="data"
-      @resume="game.resume"
-      @new-run="askNewRun(newRunFromMenu)"
-      @reset="game.resetProgress"
-      @debug-start="(level, kind) => game.debugStartAt(level, kind, randomSeed())"
-    />
-    <!-- After the build: pick up to SESSION_SLOTS creatures from home to bring along. -->
-    <div v-else-if="screen === 'companions' && pickedBuild" class="build-layout">
+    <!-- Before a run: pick up to SESSION_SLOTS creatures from home to bring along. -->
+    <div v-if="screen === 'companions'" class="build-layout">
       <header class="companions-head">
-        <button class="ghost" @click="game.backToBuild">{{ t('common.back') }}</button>
+        <button class="ghost" @click="game.toMenu">{{ t('common.back') }}</button>
         <div>
           <h2>{{ t('companions.title') }}</h2>
-          <p>
-            {{ data.builds[pickedBuild.build]?.name }}
-            <template v-if="pickedBuild.item"> · {{ data.equipment[pickedBuild.item]?.name }}</template>
-            {{ t('companions.hint', { n: SESSION_SLOTS }) }}
-          </p>
+          <p>{{ t('companions.hint', { n: SESSION_SLOTS }) }}</p>
         </div>
       </header>
       <div class="home-row">
@@ -114,7 +98,17 @@ function startNewRun() {
         </div>
       </div>
     </div>
-    <BuildSelect v-else-if="screen === 'build' || !run" :data="data" @choose="game.chooseBuild" @back="game.toMenu" />
+    <MenuScreen
+      v-else-if="screen === 'menu' || !run"
+      :can-resume="!!savedGame"
+      :home-aquarium="homeAquarium"
+      :creature-book="creatureBook"
+      :data="data"
+      @resume="game.resume"
+      @new-run="askNewRun(newRunFromMenu)"
+      @reset="game.resetProgress"
+      @debug-start="(level, kind) => game.debugStartAt(level, kind, randomSeed())"
+    />
     <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
       <MapView v-if="screen === 'map'" :run="run" :data="data" @travel="game.travel" />
@@ -190,7 +184,7 @@ function startNewRun() {
   </dialog>
 
   <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
-  <EggTray v-if="['menu', 'build', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
+  <EggTray v-if="['menu', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
 
   <!-- Every hover text in the app (v-tip) is drawn here. -->
   <TooltipLayer />
