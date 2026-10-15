@@ -375,6 +375,12 @@ const plants = [
   to { transform: translateX(30px); }
 }
 
+/* Small screens: a shorter tank, smaller creatures. */
+@media (max-width: 700px), (max-height: 500px) {
+  .aquarium { min-height: 150px; }
+  .tank { --size: 72px; }
+  .sell-panel { max-width: 200px; font-size: 0.85rem; }
+}
 @media (prefers-reduced-motion: reduce) {
   .resident, .bob, .plant, .rays { animation: none; }
   .resident { transform: translateX(var(--rest)); }

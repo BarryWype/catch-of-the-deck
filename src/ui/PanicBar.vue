@@ -55,4 +55,7 @@ const text = computed(() => t('bars.will', { escape: props.escape, escapeAt: pro
   white-space: nowrap;
   text-shadow: 0 1px 2px #000;
 }
+@media (max-width: 700px), (max-height: 500px) {
+  .panicbar { width: 120px; }
+}
 </style>

@@ -19,6 +19,9 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
 
 <style scoped>
 .healthbar { display: flex; align-items: center; gap: 6px; width: 170px; }
+@media (max-width: 700px), (max-height: 500px) {
+  .healthbar { width: 120px; }
+}
 .bar {
   position: relative;
   flex: 1;

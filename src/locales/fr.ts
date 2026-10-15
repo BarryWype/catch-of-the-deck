@@ -289,6 +289,7 @@ export const fr: Messages = {
       dropOnCreature: 'Lâche-la sur une créature…',
       dropOnBattlefield: 'Lâche-la sur le terrain…',
       chooseTarget: 'Choisis une cible…',
+      playAgain: 'Touche-la encore, ou le terrain, pour la jouer…',
       energy: 'Énergie',
       drawPile: 'Pioche',
       draw: 'Pioche {n}',

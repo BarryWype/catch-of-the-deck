@@ -7,6 +7,7 @@ import SpriteView from './SpriteView.vue';
 import PanicBar from './PanicBar.vue';
 import StatusList from './StatusList.vue';
 import type { AnimationClip } from './sprites';
+import { COMPACT_QUERY, useMedia } from './useScreen';
 
 withDefaults(
   defineProps<{
@@ -27,6 +28,7 @@ withDefaults(
   { clip: undefined, animationKey: 0, sprite: undefined, intent: null, subtitle: undefined, escapeBar: undefined },
 );
 defineEmits<{ select: []; animationDone: [] }>();
+const compact = useMedia(COMPACT_QUERY);
 </script>
 
 <template>
@@ -39,11 +41,11 @@ defineEmits<{ select: []; animationDone: [] }>();
         v-if="clip"
         :clip="clip"
         :play-key="animationKey"
-        :size="168"
+        :size="compact ? 100 : 168"
         :aria-label="combatant.name"
         @done="$emit('animationDone')"
       />
-      <SpriteView v-else-if="sprite" :sprite="sprite" :size="128" :aria-label="combatant.name" />
+      <SpriteView v-else-if="sprite" :sprite="sprite" :size="compact ? 84 : 128" :aria-label="combatant.name" />
       <span v-else>{{ portrait }}</span>
     </div>
     <div class="name">{{ combatant.name }}</div>
@@ -78,7 +80,9 @@ defineEmits<{ select: []; animationDone: [] }>();
   pointer-events: none;
 }
 .targetable::before { opacity: 1; }
-.targetable:hover::before { background: rgb(255 255 255 / 0.09); }
+@media (hover: hover) {
+  .targetable:hover::before { background: rgb(255 255 255 / 0.09); }
+}
 .intent-slot { min-height: 44px; display: flex; align-items: flex-end; }
 .portrait {
   display: grid;
@@ -117,4 +121,10 @@ defineEmits<{ select: []; animationDone: [] }>();
 .dead.animated { opacity: 1; filter: none; }
 .dead.animated > :not(.portrait) { opacity: 0.35; }
 .targetable { cursor: crosshair; }
+/* Small screens: less room around a smaller creature. */
+@media (max-width: 700px), (max-height: 500px) {
+  .combatant { padding: 4px 6px; gap: 3px; }
+  .intent-slot { min-height: 36px; }
+  .portrait { min-height: 84px; font-size: 3rem; }
+}
 </style>

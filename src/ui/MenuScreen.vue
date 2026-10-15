@@ -229,4 +229,14 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 .debug p { margin: 0 0 4px; color: var(--muted); font-size: 0.85rem; }
 .debug button { padding: 8px 12px; background: rgb(15 18 25 / 0.6); color: var(--text); text-align: left; }
 .show-menu { position: absolute; top: 12px; right: 16px; z-index: 1; padding: 8px 14px; }
+
+/* Small screens: a smaller panel, which scrolls itself rather than being cut off when the phone
+   lies flat. (Not the menu: the drawers hide off its edges, and a scrolling menu would reveal them.) */
+@media (max-width: 700px), (max-height: 500px) {
+  .menu { padding: 12px 44px 48px; }
+  .panel { gap: 14px; padding: 18px 22px; max-height: 100%; overflow-y: auto; }
+  .panel h2 { font-size: 2rem; }
+  .buttons { width: 210px; gap: 8px; }
+  .buttons button { padding: 10px; font-size: 1rem; }
+}
 </style>

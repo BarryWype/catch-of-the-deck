@@ -83,8 +83,10 @@ function onHatched(index: number) {
   filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.5));
   transition: transform 0.15s ease;
 }
-.egg:hover,
 .egg:focus-visible { transform: translateY(-4px); background: none; }
+@media (hover: hover) {
+  .egg:hover { transform: translateY(-4px); background: none; }
+}
 
 .reveal {
   position: fixed;
@@ -126,5 +128,11 @@ function onHatched(index: number) {
 
 @media (prefers-reduced-motion: reduce) {
   .halo, .creature, .reveal { animation: none; }
+}
+
+/* A short screen (a phone lying flat): a smaller burst, so the hatchling and its name fit. */
+@media (max-height: 500px) {
+  .burst { transform: scale(0.6); margin: -64px; }
+  .reveal h2 { font-size: 1.4rem; }
 }
 </style>

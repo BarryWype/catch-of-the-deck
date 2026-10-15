@@ -58,7 +58,7 @@ function startNewRun() {
     <h1>Spire Slice</h1>
     <div v-if="screen !== 'menu'" class="run-info">
       <template v-if="run">
-        <span>{{ data.builds[run.build]?.name }}</span>
+        <span class="build-name">{{ data.builds[run.build]?.name }}</span>
         <span>{{ t('app.floor', { n: run.floor }) }}</span>
         <span v-tip="term('grit')">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
         <span v-tip="t('app.coins')">🪙 {{ run.coins }}</span>
@@ -66,7 +66,7 @@ function startNewRun() {
       </template>
       <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
       <button class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
-      <button class="ghost" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
+      <button class="ghost new-run" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
     </div>
   </header>
 
@@ -196,7 +196,7 @@ function startNewRun() {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: calc(100vh - 64px);
+  height: 100%;
   padding-bottom: 12px;
 }
 .map-layout .aquarium { flex: 1; }
@@ -207,7 +207,7 @@ function startNewRun() {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: calc(100vh - 64px);
+  height: 100%;
   padding-bottom: 12px;
 }
 .build-layout .home-row { display: flex; flex: 1; min-height: 0; gap: 12px; }
@@ -226,4 +226,16 @@ function startNewRun() {
 .leave-icon { font-size: 4rem; line-height: 1; }
 .new-eggs { color: var(--highlight); font-weight: 600; }
 .complete-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Small screens: the bucket and the home aquarium get less room, the slots go under the aquarium. */
+@media (max-width: 700px), (max-height: 500px) {
+  .map-layout, .build-layout { gap: 8px; padding-bottom: 8px; }
+  .build-layout { height: auto; min-height: 100%; }
+  .build-layout .home-row { flex-direction: column; }
+  .build-layout .aquarium { min-height: 220px; }
+  .companions-head { gap: 10px; }
+  .companions-head h2 { font-size: 1.1rem; }
+  .complete { padding: 6vh 0 16px; text-align: center; }
+  .complete h2 { font-size: 1.5rem; }
+}
 </style>

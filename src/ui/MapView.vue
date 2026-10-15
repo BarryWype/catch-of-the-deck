@@ -11,6 +11,7 @@ import {
   type RunState,
 } from '../engine';
 import { t } from './i18n';
+import { TOUCH_QUERY, useMedia } from './useScreen';
 import basemapUrl from './assets/map/basemap.png';
 import seaUrl from './assets/map/sea.png';
 
@@ -23,8 +24,9 @@ const COAST_HEIGHT = 150;
 /** Every map layer image (coast features, sea features) is this size. */
 const LAYER = { width: 1000, height: 150 };
 const RADIUS = 12;
-/** Node markers keep the same size on screen whatever the zoom: 1 = RADIUS pixels. */
-const NODE_SIZE = 0.9;
+/** Node markers keep the same size on screen whatever the zoom: 1 = RADIUS pixels. Bigger for a finger. */
+const touch = useMedia(TOUCH_QUERY);
+const nodeSize = computed(() => (touch.value ? 1.3 : 0.9));
 
 const layerUrls = import.meta.glob<string>('./assets/map/**/*.png', { eager: true, query: '?url', import: 'default' });
 
@@ -114,7 +116,7 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
   }
 }
 
-/** The map is never shorter than this; a level wider than the screen then scrolls sideways. */
+/** The map is never shorter than this (unless the screen is very short); a level wider than the screen then scrolls sideways. */
 const MIN_HEIGHT = 300;
 
 /** The part of the art shown: the whole width, and as far out to sea as the age goes, so the map zooms out as you grow. */
@@ -122,18 +124,24 @@ const view = computed(() => ({ x: 0, y: 0, width: ART_WIDTH, height: level.value
 
 /** Share of the screen under the top bar the map takes, above the bucket. */
 const MAP_SHARE = 0.6;
-/** The top bar, and the gap and padding of the map layout (App.vue), in pixels. */
-const CHROME_HEIGHT = 88;
 
-// MAP_SHARE of the screen's height, scrolling sideways when that's wider than the screen.
+// MAP_SHARE of the room under the top bar (its layout's height), scrolling sideways when that's
+// wider than the screen. On a short screen it may take up to 3/4 of it to stay readable.
+const root = ref<HTMLElement>();
 const scroller = ref<HTMLElement>();
-const windowHeight = ref(window.innerHeight);
-const onResize = () => (windowHeight.value = window.innerHeight);
-onMounted(() => window.addEventListener('resize', onResize));
-onBeforeUnmount(() => window.removeEventListener('resize', onResize));
+const room = ref(window.innerHeight);
+let resizes: ResizeObserver | undefined;
+onMounted(() => {
+  const layout = root.value?.parentElement;
+  if (!layout) return;
+  resizes = new ResizeObserver(() => (room.value = layout.clientHeight));
+  resizes.observe(layout);
+  room.value = layout.clientHeight;
+});
+onBeforeUnmount(() => resizes?.disconnect());
 const size = computed(() => {
   const ratio = view.value.width / view.value.height;
-  const height = Math.max(MIN_HEIGHT, (windowHeight.value - CHROME_HEIGHT) * MAP_SHARE);
+  const height = Math.max(Math.min(MIN_HEIGHT, room.value * 0.75), room.value * MAP_SHARE);
   return { width: height * ratio, height };
 });
 /** Screen pixels per art unit. */
@@ -163,7 +171,7 @@ function choose(node: MapNode) {
 </script>
 
 <template>
-  <section class="map-screen">
+  <section ref="root" class="map-screen">
     <ul v-if="equipment.length || bonuses.length" class="equipment" :aria-label="t('map.equipment')">
       <li
         v-for="item in equipment"
@@ -245,7 +253,7 @@ function choose(node: MapNode) {
           :key="node.id"
           class="node"
           :class="[node.kind, nodeState(node), { strong: isStrong(node) }]"
-          :transform="`translate(${node.x} ${node.y}) scale(${NODE_SIZE / scale})`"
+          :transform="`translate(${node.x} ${node.y}) scale(${nodeSize / scale})`"
           :role="destinations.has(node.id) ? 'button' : undefined"
           :tabindex="destinations.has(node.id) ? 0 : undefined"
           v-tip="tooltipFor(node)"
@@ -256,6 +264,8 @@ function choose(node: MapNode) {
           <!-- Highlight ring: where you are, or where you can go. -->
           <circle v-if="nodeState(node) === 'current' || nodeState(node) === 'available'" class="ring" :r="node.kind === 'boss' ? 26 : 19" />
           <circle v-if="node.kind === 'start'" class="hit" r="26" />
+          <!-- A finger-sized target around small nodes. -->
+          <circle v-else-if="touch" class="hit" r="18" />
           <template v-else-if="node.kind === 'fight'">
             <circle class="body" :r="RADIUS" :style="{ fill: node.spot ? data.spots[node.spot]?.color : undefined }" />
             <text class="code" dominant-baseline="central" text-anchor="middle">{{ node.spot ?? '!' }}</text>

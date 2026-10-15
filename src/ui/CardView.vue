@@ -90,14 +90,16 @@ const parts = computed(() =>
   transition: opacity 0.22s ease;
   pointer-events: none;
 }
-.card:hover:not(.unplayable)::after { opacity: 1; }
+@media (hover: hover) {
+  .card:hover:not(.unplayable)::after { opacity: 1; }
+  .card:hover:not(.unplayable) { z-index: 2; transform: translateY(-16px) scale(1.08); }
+}
 .card.defense { --frame: var(--skill); }
 .card.drain { --frame: var(--drain); }
 .card.support { --frame: var(--support); }
 .card.power { --frame: var(--power); }
 .card.junk { --frame: var(--junk); }
 .cost.taxed { color: #e06060; }
-.card:hover:not(.unplayable) { z-index: 2; transform: translateY(-16px) scale(1.08); }
 .card.selected { z-index: 2; transform: translateY(-20px) scale(1.08); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
 .card.unplayable { opacity: 0.5; cursor: not-allowed; }
 
@@ -169,6 +171,18 @@ const parts = computed(() =>
 .real { font-weight: 800; }
 .real.up { color: #7ee08a; }
 .real.down { color: #ff8a80; }
+
+/* Small screens: a smaller card, its text a little smaller. */
+@media (max-width: 700px), (max-height: 500px) {
+  .card { width: 118px; height: 166px; padding: 6px; border-radius: 10px; }
+  .name { font-size: 0.82rem; margin: 2px 0 4px 12px; }
+  .art { height: 40px; font-size: 1.4rem; }
+  .type { margin: -6px 0 4px; font-size: 0.6rem; }
+  .desc { font-size: 0.7rem; line-height: 1.2; }
+  .desc.long { font-size: 0.6rem; }
+  .cost { width: 26px; height: 26px; line-height: 22px; top: -8px; left: -8px; }
+  .card.selected { transform: translateY(-14px) scale(1.05); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .card, .card::after { transition: none; }

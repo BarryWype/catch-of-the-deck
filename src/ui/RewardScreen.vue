@@ -35,5 +35,12 @@ const tagNames = computed(() => creatureTypeNames(props.data));
 .options { display: flex; gap: 12px; }
 .choices { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
 .choices :deep(.card) { transform: scale(1.15); transform-origin: center; }
-.choices :deep(.card:hover) { transform: scale(1.22) translateY(-10px); }
+@media (hover: hover) {
+  .choices :deep(.card:hover) { transform: scale(1.22) translateY(-10px); }
+}
+/* Small screens: the cards at their own size, so three fit. */
+@media (max-width: 700px), (max-height: 500px) {
+  .choices { gap: 10px; }
+  .choices :deep(.card) { transform: none; }
+}
 </style>

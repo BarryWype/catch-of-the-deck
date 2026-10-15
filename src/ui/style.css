@@ -22,9 +22,22 @@
 
 * { box-sizing: border-box; }
 
-body { margin: 0; min-height: 100vh; background: var(--bg); }
+body { margin: 0; min-height: 100vh; background: var(--bg); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 
-#app { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+/* The window's real height (100dvh: without the phone browser's bars): the top bar, then the
+   screen below it, which scrolls on its own when it doesn't fit. Clear of a phone's notch. */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(16px, env(safe-area-inset-left));
+}
+#app > main { flex: 1; min-height: 0; overflow-y: auto; }
+/* No double-tap zoom on taps: quick taps stay taps. */
+button, a, [tabindex], [role='button'] { touch-action: manipulation; }
 
 button {
   padding: 8px 16px;
@@ -36,7 +49,9 @@ button {
   font-weight: 700;
   cursor: pointer;
 }
-button:hover:not(:disabled) { filter: brightness(1.1); }
+@media (hover: hover) {
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+}
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 button.ghost { background: transparent; color: var(--muted); border: 1px solid #3a3e4a; font-weight: 500; }
 
@@ -51,6 +66,14 @@ button.ghost { background: transparent; color: var(--muted); border: 1px solid #
 .topbar h1 { margin: 0; font-size: 1.3rem; letter-spacing: 0.04em; }
 .run-info { display: flex; align-items: center; gap: 16px; font-size: 0.9rem; flex-wrap: wrap; }
 .seed { color: var(--muted); cursor: help; }
+
+/* Small screens (COMPACT_QUERY in useScreen.ts): a one-line top bar, the title and seed left out. */
+@media (max-width: 700px), (max-height: 500px) {
+  .topbar { padding: 6px 0; gap: 8px; }
+  .topbar h1, .run-info .seed, .run-info .build-name, .run-info .new-run { display: none; }
+  .run-info { gap: 10px; font-size: 0.8rem; width: 100%; justify-content: space-between; }
+  .run-info button { padding: 4px 10px; }
+}
 
 /* Confirmation dialogs (<dialog class="confirm">). */
 .confirm {

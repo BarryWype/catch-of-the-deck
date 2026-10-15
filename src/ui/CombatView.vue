@@ -320,6 +320,9 @@ function onPointerUp(event: PointerEvent) {
   const d = drag.value;
   stopDrag();
   if (!d?.moved) return;
+  // The click that ends a drag isn't a tap.
+  justDragged = true;
+  setTimeout(() => (justDragged = false), 0);
   if (d.aimed && d.targetId) play(d.uid, d.targetId);
   else if (!d.aimed && d.overBattlefield) play(d.uid);
 }
@@ -348,22 +351,42 @@ function dragStyle(card: CardInstance) {
   return { transform: `translate(${d.x - d.startX}px, ${d.y - d.startY}px) rotate(${(d.x - d.startX) / 40}deg) scale(1.05)` };
 }
 
-/** Keyboard play (Enter / Space on a card): mouse and touch drag instead. */
-function onCardClick(card: CardInstance) {
-  if (!isCardPlayable(props.state, card.uid, props.data)) return;
+let justDragged = false;
+
+/**
+ * A tap or click selects a card: tap it again (or the battlefield) to play it, or a creature for
+ * a card aimed at one. Keyboard play (Enter / Space) plays it at once, or picks its target first.
+ * Dragging plays it too.
+ */
+function onCardClick(card: CardInstance, event: MouseEvent) {
+  if (justDragged || !isCardPlayable(props.state, card.uid, props.data)) return;
   const def = props.data.cards[card.defId];
+  const onlyEnemy = livingEnemies.value.length === 1 ? livingEnemies.value[0] : undefined;
+  const again = selectedUid.value === card.uid;
+  if (event.detail !== 0 && !again) {
+    selectedUid.value = card.uid;
+    return;
+  }
   if (def.target !== 'enemy') play(card.uid);
-  else if (livingEnemies.value.length === 1) play(card.uid, livingEnemies.value[0].id);
-  else selectedUid.value = selectedUid.value === card.uid ? null : card.uid;
+  else if (onlyEnemy) play(card.uid, onlyEnemy.id);
+  else selectedUid.value = again ? null : card.uid;
 }
 
 function onEnemyClick(enemy: EnemyState) {
   if (selectedUid.value && isAlive(enemy)) play(selectedUid.value, enemy.id);
 }
 
+/** A selected card that isn't aimed at a creature plays when the battlefield is tapped. */
+function onBattlefieldClick() {
+  const card = selectedUid.value ? props.state.piles.hand.find((c) => c.uid === selectedUid.value) : undefined;
+  if (card && props.data.cards[card.defId].target !== 'enemy') play(card.uid);
+}
+
 const hint = computed(() => {
   if (drag.value?.moved) return drag.value.aimed ? t('combat.dropOnCreature') : t('combat.dropOnBattlefield');
-  return selectedUid.value ? t('combat.chooseTarget') : null;
+  const selected = selectedUid.value ? props.state.piles.hand.find((c) => c.uid === selectedUid.value) : undefined;
+  if (!selected) return null;
+  return props.data.cards[selected.defId].target === 'enemy' ? t('combat.chooseTarget') : t('combat.playAgain');
 });
 
 function endTurn() {
@@ -374,7 +397,12 @@ function endTurn() {
 
 <template>
   <div class="combat" :class="{ dragging: drag?.moved, 'on-target': !!drag?.targetId }">
-    <section ref="battlefield" class="battlefield" :class="{ 'drop-zone': drag?.moved && !drag.aimed, 'drop-ready': drag?.moved && !drag.aimed && drag.overBattlefield }">
+    <section
+      ref="battlefield"
+      class="battlefield"
+      :class="{ 'drop-zone': drag?.moved && !drag.aimed, 'drop-ready': drag?.moved && !drag.aimed && drag.overBattlefield }"
+      @click="onBattlefieldClick"
+    >
       <CombatantView
         :combatant="state.player"
         :portrait="data.character.portrait ?? '🧑'"
@@ -432,7 +460,7 @@ function endTurn() {
           :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
           :style="dragStyle(card)"
           @pointerdown="onCardPointerDown(card, $event)"
-          @click="$event.detail === 0 && onCardClick(card)"
+          @click="onCardClick(card, $event)"
         />
         <p v-if="hint" class="hint">{{ hint }}</p>
       </div>
@@ -497,7 +525,7 @@ function endTurn() {
 
 <style scoped>
 .new-eggs { color: var(--highlight); font-weight: 600; }
-.combat { position: relative; display: flex; flex-direction: column; gap: 16px; min-height: calc(100vh - 80px); }
+.combat { position: relative; display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
 
 .battlefield {
   position: relative;
@@ -625,4 +653,56 @@ function endTurn() {
 }
 .panel { padding: 28px 40px; border-radius: 16px; background: var(--panel); text-align: center; }
 .panel h2 { margin: 0 0 8px; font-size: 2rem; }
+
+/* Small screens (COMPACT_QUERY): creatures wrap, the counters and End Turn go in a row above the
+   hand, and the hand scrolls sideways (a sideways swipe scrolls, an upward drag still plays). The
+   fight log is left out: the cards and intents say what happens. */
+@media (max-width: 700px), (max-height: 500px) {
+  .combat { gap: 8px; }
+  .battlefield { flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 8px 4px; }
+  .enemies { flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
+  .log { display: none; }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6px; padding: 0 0 6px; }
+  .controls .side { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 6px 10px; min-width: 0; }
+  .controls .side:last-child { justify-content: flex-end; }
+  .hand {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-wrap: nowrap;
+    justify-content: safe center;
+    overflow-x: auto;
+    min-height: 0;
+    padding: 20px 6px 8px;
+    scrollbar-width: none;
+  }
+  .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
+  /* Out of the scrolling hand, so it's never cut off: just above it, in the middle of the screen. */
+  .hint {
+    position: fixed;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 182px);
+    left: 50%;
+    z-index: 6;
+    transform: translateX(-50%);
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgb(15 18 25 / 0.85);
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+  .energy { width: 48px; height: 48px; font-size: 1.1rem; }
+  .end-turn { padding: 10px 14px; }
+  .pile, .patience-count { font-size: 0.75rem; }
+  .panel { padding: 20px 22px; margin: 0 12px; }
+  .panel h2 { font-size: 1.5rem; }
+}
+
+/* A phone lying flat: too short to stack them, so the battlefield on the left, the counters and
+   the hand on the right. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .combat { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); height: 100%; min-height: 0; gap: 8px; }
+  .battlefield { min-height: 0; overflow-y: auto; align-content: center; }
+  .controls { align-content: end; align-self: end; }
+  .hint { left: 75%; }
+}
 </style>

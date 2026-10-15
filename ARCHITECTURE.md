@@ -207,6 +207,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 - **Build:** `npm run electron:build` runs the typecheck, builds the game, then packages it into `release/`. macOS builds are ad-hoc signed (`"identity": "-"`, hardened runtime off) until there's a certificate: unsigned, a downloaded app is reported as "damaged" and can't be opened at all; ad-hoc signed, macOS only warns about an unidentified developer.
 - **Artifacts** have fixed names, so the README's "latest" download links never change: `slay-the-fish-mac-arm64.dmg`, `slay-the-fish-windows.exe`, `slay-the-fish-linux.AppImage`.
 - **Release:** pushing a `v*` tag runs `.github/workflows/release.yml`. It builds and tests on macOS, Windows and Linux, then publishes a GitHub Release with the three installers. The tag should match `"version"` in `package.json`.
+- **Web version:** the same tag also runs `.github/workflows/pages.yml`, which tests, builds (`npm run build`, relative paths so it works under `/slay-the-fish/`) and publishes `dist/` to GitHub Pages. It can be run by hand from the Actions tab. In the browser, saves live in localStorage, per browser.
 - **Loading from disk:** `vite.config.ts` uses `base: './'` so the built page loads its assets with relative paths from disk.
 
 ## Languages

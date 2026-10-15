@@ -299,6 +299,7 @@ export const en = {
       dropOnCreature: 'Drop it on a creature…',
       dropOnBattlefield: 'Drop it on the battlefield…',
       chooseTarget: 'Choose a target…',
+      playAgain: 'Tap it again, or the battlefield, to play it…',
       energy: 'Energy',
       drawPile: 'Draw pile',
       draw: 'Draw {n}',

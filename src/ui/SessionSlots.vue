@@ -56,6 +56,10 @@ const bonuses = computed(() =>
 
 <style scoped>
 .session-slots { display: flex; flex-direction: column; gap: 6px; width: 230px; overflow-y: auto; }
+/* Small screens: the slots sit under the aquarium, across its width. */
+@media (max-width: 700px), (max-height: 500px) {
+  .session-slots { width: 100%; }
+}
 header { font-weight: 700; padding: 0 4px; }
 .slot {
   display: flex;
