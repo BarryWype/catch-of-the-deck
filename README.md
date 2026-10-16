@@ -2,6 +2,10 @@
 
 A vertical slice of a Slay the Spire–style deck-building roguelike, built with TypeScript, Vite, Vue 3 and Vitest. It uses no game framework.
 
+## Play
+
+**In the browser** (desktop or phone, no install): [barrywype.github.io/slay-the-fish](https://barrywype.github.io/slay-the-fish/). It's updated with every release, and progress is saved in that browser.
+
 ## Download
 
 Desktop app, always the latest version:

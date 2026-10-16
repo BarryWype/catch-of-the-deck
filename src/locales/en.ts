@@ -260,9 +260,8 @@ export const en = {
       newEggs: '🥚 An egg was laid in your home aquarium!|🥚 {n} eggs were laid in your home aquarium!',
     },
     app: {
-      floor: 'Floor {n}',
       coins: 'Coins',
-      deck: 'Deck {n}',
+      deckTip: '{n} card in your deck|{n} cards in your deck',
       seed: 'Seed {n}',
       seedTitle: 'Run seed',
       seedDetail: 'Open with ?seed=N in the URL to replay this run',

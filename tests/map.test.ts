@@ -90,6 +90,13 @@ describe.each(gameData.levels.map((level, i) => [level.id, i] as const))('the ge
     }
   });
 
+  it('sometimes puts a shop where an event would be', () => {
+    const shops = maps.map(({ columns }) => columns.flat().filter((n) => n.kind === 'shop').length);
+    expect(shops.every((n) => n >= 2)).toBe(true); // the two fixed ones
+    expect(shops.some((n) => n > 2)).toBe(true);
+    expect(shops.some((n) => n === 2)).toBe(true); // most events stay events
+  });
+
   it('links each column only to the next, and every node can be reached from the house', () => {
     for (const { columns } of maps) {
       const nodes = columns.flat();

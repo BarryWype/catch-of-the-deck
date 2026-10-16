@@ -163,7 +163,7 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 - **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). The mini-boss's own reward always has at least one rare card. You have to take one (Eel companions can let you skip or reroll a few times per age).
 - **Events** (?): something happens: a choice, a find, sometimes a surprise fight.
-- **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them.
+- **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them. A few of them stand where an event might have been on the map.
 - **Treasure** (T): a free find before the boss.
 
 ## Home

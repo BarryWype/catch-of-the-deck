@@ -55,24 +55,62 @@ button {
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 button.ghost { background: transparent; color: var(--muted); border: 1px solid #3a3e4a; font-weight: 500; }
 
+/* The bar above every screen of a run: the act being played on the left, its numbers on the right. */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 12px 0;
+  padding: 10px 0;
 }
-.topbar h1 { margin: 0; font-size: 1.3rem; letter-spacing: 0.04em; }
-.run-info { display: flex; align-items: center; gap: 16px; font-size: 0.9rem; flex-wrap: wrap; }
+.act { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.act b { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.03em; }
+.act-place { color: var(--muted); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-info { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; flex-wrap: wrap; }
+
+/* Number pills: Grit (with a miniature of the fight's Grit bar), coins, deck size. */
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border: 1px solid #3a3e4a;
+  border-radius: 999px;
+  background: var(--panel);
+  font-variant-numeric: tabular-nums;
+}
+.stat b { font-weight: 700; }
+.stat.grit .bar {
+  width: 56px;
+  height: 8px;
+  border-radius: 999px;
+  background: #3a2716; /* The fight's Grit bar, in miniature. */
+  overflow: hidden;
+  border: 1px solid #0006;
+}
+.stat.grit .bar i { display: block; height: 100%; border-radius: inherit; background: var(--grit); }
+.stat.grit .max { color: var(--muted); font-weight: 500; }
+.stat.coins { border-color: #6b5426; background: linear-gradient(180deg, #3a3020, #2b2416); }
+.stat.coins .coin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe08a, var(--energy) 60%, #a5741b);
+  box-shadow: 0 0 6px rgb(242 182 66 / 0.4);
+}
+.stat.deck { color: var(--text); }
 .seed { color: var(--muted); cursor: help; }
 
-/* Small screens (COMPACT_QUERY in useScreen.ts): a one-line top bar, the title and seed left out. */
+/* Small screens (COMPACT_QUERY in useScreen.ts): a one-line top bar, the seed and New run left out. */
 @media (max-width: 700px), (max-height: 500px) {
   .topbar { padding: 6px 0; gap: 8px; }
-  .topbar h1, .run-info .seed, .run-info .build-name, .run-info .new-run { display: none; }
-  .run-info { gap: 10px; font-size: 0.8rem; width: 100%; justify-content: space-between; }
+  .run-info .seed, .run-info .new-run { display: none; }
+  .run-info { gap: 6px; font-size: 0.8rem; }
+  .run-info .stat { padding: 3px 9px; }
   .run-info button { padding: 4px 10px; }
+  .act b { font-size: 1rem; }
+  .act-place { display: none; }
 }
 
 /* Confirmation dialogs (<dialog class="confirm">). */

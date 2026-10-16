@@ -130,13 +130,16 @@ const NODE_GAP = 24;
 const EXTRA_LINK_CHANCE = 0.3;
 /** Chance that a fight turns into an event. */
 const SURPRISE_EVENT_CHANCE = 0.1;
+/** Chance that an event turns out to be a shop instead. */
+const EVENT_SHOP_CHANCE = 0.1;
 
 /**
  * A generated level. Columns 1–7 go from the start to the mini-boss (column 8), columns 9–15 on to
  * the boss (column 16). Each column takes 2–4 of the coast features within its stretch of the
- * map as fights at their spot; when it has fewer than 2, events fill in. A level's `firstColumn`
- * replaces column 1 with the same fights every run. After the mini-boss come a
- * shop and the leave node; there's another shop before it, and a treasure before the boss.
+ * map as fights at their spot; when it has fewer than 2, events fill in. Each event has a chance
+ * to come out as a shop instead. A level's `firstColumn` replaces column 1 with the same fights
+ * every run. After the mini-boss come a shop and the leave node; there's another shop before it,
+ * and a treasure before the boss.
  */
 function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlacement[], data: GameData, holder: RngHolder): GameMap {
   const { miniBoss, boss, escape, eventBand = [10, level.height - 10] } = level;
@@ -207,7 +210,7 @@ function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlace
         if (nodes.length >= MIN_NODES) break;
         if (!free(y)) continue;
         taken.push(y);
-        nodes.push(node('', column, centre, y, 'event'));
+        nodes.push(node('', column, centre, y, nextFloat(holder) < EVENT_SHOP_CHANCE ? 'shop' : 'event'));
       }
       const ids = 'abcdefgh';
       const built = nodes.sort((a, b) => a.y - b.y).map((n, i) => ({ ...n, id: `${level.id}-${column}${ids[i]}` }));
@@ -235,7 +238,8 @@ function generateLevelMap(level: LevelDef, levelIndex: number, coast: CoastPlace
   const nextToEvent = (n: MapNode) =>
     nodes.some((other) => other.kind === 'event' && (other.next.includes(n.id) || n.next.includes(other.id)));
   for (const n of columns.slice(level.firstColumn ? 2 : 1).flat()) {
-    if (n.kind === 'fight' && nextFloat(holder) < SURPRISE_EVENT_CHANCE && !nextToEvent(n)) becomes(n, 'event');
+    if (n.kind === 'fight' && nextFloat(holder) < SURPRISE_EVENT_CHANCE && !nextToEvent(n))
+      becomes(n, nextFloat(holder) < EVENT_SHOP_CHANCE ? 'shop' : 'event');
   }
   columns[0] = [startNode(level, columns[1].map((n) => n.id))];
   return { columns };

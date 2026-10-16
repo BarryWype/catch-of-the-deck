@@ -147,13 +147,15 @@ const size = computed(() => {
 /** Screen pixels per art unit. */
 const scale = computed(() => size.value.width / view.value.width);
 
-/** When the map is wider than the screen, keep the current position near the left, with what's next in view. */
+/** When the map is wider than the screen, keep the current position near the left, with what's next in view.
+ * The map is freshly mounted every time the player lands on it, and a visible slide in from the
+ * left edge would spoil that landing — so it always jumps (a resize re-centers instantly too). */
 watch(
   [() => props.run.position, scale],
   async () => {
     await nextTick();
     const here = findNode(props.run.map, props.run.position);
-    if (here) scroller.value?.scrollTo({ left: (here.x - view.value.x) * scale.value - 120, behavior: 'smooth' });
+    if (here) scroller.value?.scrollTo({ left: (here.x - view.value.x) * scale.value - 120, behavior: 'auto' });
   },
   { immediate: true },
 );

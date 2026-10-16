@@ -249,9 +249,8 @@ export const fr: Messages = {
       newEggs: '🥚 Un œuf a été pondu dans ton aquarium !|🥚 {n} œufs ont été pondus dans ton aquarium !',
     },
     app: {
-      floor: 'Étape {n}',
       coins: 'Pièces',
-      deck: 'Deck {n}',
+      deckTip: '{n} carte dans ton deck|{n} cartes dans ton deck',
       seed: 'Graine {n}',
       seedTitle: 'Graine de la partie',
       seedDetail: 'Ouvre le jeu avec ?seed=N dans l’adresse pour rejouer cette partie',

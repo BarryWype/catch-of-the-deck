@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
@@ -28,6 +28,15 @@ function initialSeed() {
 const game = useGame(initialSeed());
 const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft } = game;
 
+/**
+ * The top bar's title: the act being played, from its level's "age · place" name. It replaces
+ * the old "Floor N", which counted won encounters rather than floors.
+ */
+const act = computed(() => {
+  const [age, place] = (data.levels[run.value?.level ?? 0]?.name ?? '').split(' · ');
+  return { age, place: place ?? '' };
+});
+
 function newRun() {
   game.newRun(randomSeed());
 }
@@ -54,16 +63,22 @@ function startNewRun() {
 </script>
 
 <template>
-  <header class="topbar">
-    <h1>Spire Slice</h1>
-    <div v-if="screen !== 'menu'" class="run-info">
-      <template v-if="run">
-        <span class="build-name">{{ data.builds[run.build]?.name }}</span>
-        <span>{{ t('app.floor', { n: run.floor }) }}</span>
-        <span v-tip="term('grit')">💪 {{ combat?.player.hp ?? run.hp }}/{{ run.maxHp }}</span>
-        <span v-tip="t('app.coins')">🪙 {{ run.coins }}</span>
-        <span>🂠 {{ t('app.deck', { n: run.deck.length }) }}</span>
-      </template>
+  <header v-if="run && screen !== 'menu'" class="topbar">
+    <div class="act">
+      <b>{{ act.age }}</b>
+      <span v-if="act.place" class="act-place">{{ act.place }}</span>
+    </div>
+    <div class="run-info">
+      <!-- In a fight the Grit bar under the fisherman already shows this; skip it there. -->
+      <span v-if="screen !== 'combat'" class="stat grit" v-tip="term('grit')">
+        <span class="bar" aria-hidden="true"><i :style="{ width: `${Math.round((100 * run.hp) / run.maxHp)}%` }"></i></span>
+        <b>{{ run.hp }}<span class="max">/{{ run.maxHp }}</span></b>
+      </span>
+      <span class="stat coins" v-tip="t('app.coins')">
+        <i class="coin" aria-hidden="true"></i>
+        <b>{{ run.coins }}</b>
+      </span>
+      <span class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })">🂠 <b>{{ run.deck.length }}</b></span>
       <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
       <button class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
       <button class="ghost new-run" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
