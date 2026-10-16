@@ -91,8 +91,13 @@ const parts = computed(() =>
   pointer-events: none;
 }
 @media (hover: hover) {
-  .card:hover:not(.unplayable)::after { opacity: 1; }
-  .card:hover:not(.unplayable) { z-index: 2; transform: translateY(-16px) scale(1.08); }
+  .card:hover::after { opacity: 1; }
+  /* The hand lifts its cards higher than this (they hang below the screen edge) by setting
+     --card-hover-lift; everywhere else the default keeps the lift small. */
+  .card:hover { z-index: 2; transform: translateY(var(--card-hover-lift, -16px)) scale(1.08); }
+  /* A card that can't be played lifts and un-dims like the rest, so its text can be read; the
+     forbidden cursor keeps the signal that it won't play. */
+  .card:hover.unplayable { opacity: 1; }
 }
 .card.defense { --frame: var(--skill); }
 .card.drain { --frame: var(--drain); }

@@ -7,36 +7,42 @@ const props = defineProps<{ escape: number; escapeAt: number; escapeRate: number
 const percent = (value: number) => (props.escapeAt > 0 ? Math.min(100, (100 * value) / props.escapeAt) : 0);
 const fill = computed(() => percent(props.escape));
 const next = computed(() => percent(props.escape + props.escapeRate) - fill.value);
+/** The fill's colour follows how full the bar is: calm blue when it's low, dark orange as the
+ * escape nears. */
+const tint = computed(() => `color-mix(in srgb, #4fa6c7, #a34700 ${Math.round(fill.value)}%)`);
 const text = computed(() => t('bars.will', { escape: props.escape, escapeAt: props.escapeAt, rate: props.escapeRate }));
 </script>
 
 <template>
   <div v-tip="{ title: text, body: t('bars.willTip') }" class="panicbar">
-    <div class="fill" :style="{ transform: `scaleX(${fill / 100})` }" />
+    <div class="fill" :style="{ transform: `scaleX(${fill / 100})`, background: tint }" />
     <!-- Next turn's rise, from `fill` to `fill + next`: the outer window's right edge and the
          inner one's left edge slide there, so only transforms change. -->
     <div class="next-window" :style="{ transform: `translateX(${fill + next - 100}%)` }">
       <div class="next" :style="{ transform: `translateX(${100 - next}%)` }" />
     </div>
     <span class="label">{{ text }}</span>
+    <!-- The ends of the tug of war: down to the hook (caught) or off to open water (fled). -->
+    <span v-tip="t('bars.captureTip')" class="end left">🪝</span>
+    <span v-tip="t('bars.fleeTip')" class="end right">💨</span>
   </div>
 </template>
 
 <style scoped>
 .panicbar {
   position: relative;
-  width: 170px;
-  height: 14px;
-  border-radius: 7px;
+  width: 220px;
+  /* The Will is a creature's second life bar, so it's tall (three times its old height) and wide. */
+  height: 42px;
+  border-radius: 12px;
   background: #1b2b3a;
   overflow: hidden;
   border: 1px solid #0006;
 }
 .fill {
   height: 100%;
-  background: linear-gradient(90deg, #4fa6c7, #e8a33d);
   transform-origin: left;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, background 0.3s ease;
 }
 .next-window { position: absolute; inset: 0; overflow: hidden; transition: transform 0.3s ease; }
 .next {
@@ -50,12 +56,23 @@ const text = computed(() => t('bars.will', { escape: props.escape, escapeAt: pro
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
   text-shadow: 0 1px 2px #000;
 }
+.end {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  text-shadow: 0 1px 2px #000;
+}
+.end.left { left: 10px; }
+.end.right { right: 10px; }
 @media (max-width: 700px), (max-height: 500px) {
-  .panicbar { width: 120px; }
+  .panicbar { width: 160px; }
 }
 </style>

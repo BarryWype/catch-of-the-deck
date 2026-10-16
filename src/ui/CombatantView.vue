@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { isAlive, PLAYER_ID, type Combatant, type IntentPreview, type SpriteRef } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import HealthBar from './HealthBar.vue';
@@ -9,7 +10,7 @@ import StatusList from './StatusList.vue';
 import type { AnimationClip } from './sprites';
 import { COMPACT_QUERY, useMedia } from './useScreen';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     combatant: Combatant;
     portrait: string;
@@ -24,11 +25,21 @@ withDefaults(
     subtitle?: string;
     /** Escape bar, for creatures. */
     escapeBar?: { escape: number; escapeAt: number; escapeRate: number };
+    /** Artwork scale: creatures are 1.2, mini-bosses and bosses 1.3; the player stays at 1. */
+    scale?: number;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, subtitle: undefined, escapeBar: undefined },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, subtitle: undefined, escapeBar: undefined, scale: 1 },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
+/** The animated art is drawn into size x size frames; the static sprite, the portrait box and
+ * the emoji fallback follow the same scale. */
+const animatedSize = computed(() => Math.round((compact.value ? 100 : 168) * props.scale));
+const stillSize = computed(() => Math.round((compact.value ? 84 : 128) * props.scale));
+const portraitStyle = computed(() => ({
+  minHeight: `${stillSize.value}px`,
+  fontSize: `${(compact.value ? 3 : 4.5) * props.scale}rem`,
+}));
 </script>
 
 <template>
@@ -36,22 +47,25 @@ const compact = useMedia(COMPACT_QUERY);
     <div class="intent-slot">
       <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
     </div>
-    <div class="portrait">
+    <!-- A creature's health bar sits above its sprite, its Will bar under its name; the player's
+         Grit bar stays under the name. -->
+    <HealthBar v-if="combatant.id !== PLAYER_ID" :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" />
+    <div class="portrait" :style="portraitStyle">
       <AnimatedSprite
         v-if="clip"
         :clip="clip"
         :play-key="animationKey"
-        :size="compact ? 100 : 168"
+        :size="animatedSize"
         :aria-label="combatant.name"
         @done="$emit('animationDone')"
       />
-      <SpriteView v-else-if="sprite" :sprite="sprite" :size="compact ? 84 : 128" :aria-label="combatant.name" />
+      <SpriteView v-else-if="sprite" :sprite="sprite" :size="stillSize" :aria-label="combatant.name" />
       <span v-else>{{ portrait }}</span>
     </div>
     <div class="name">{{ combatant.name }}</div>
     <div v-if="subtitle" class="subtitle">{{ subtitle }}</div>
     <PanicBar v-if="escapeBar" v-bind="escapeBar" />
-    <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" :grit="combatant.id === PLAYER_ID" />
+    <HealthBar v-if="combatant.id === PLAYER_ID" :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" grit />
     <StatusList :statuses="combatant.statuses" />
   </div>
 </template>
@@ -116,6 +130,8 @@ const compact = useMedia(COMPACT_QUERY);
   color: var(--muted);
   letter-spacing: 0.03em;
 }
+/* Air between the creature's name block and its Will bar. */
+.panicbar { margin-top: 8px; }
 .dead { opacity: 0.35; filter: grayscale(1); }
 /* Animated combatants show their capture/defeat animation instead of fading out. */
 .dead.animated { opacity: 1; filter: none; }

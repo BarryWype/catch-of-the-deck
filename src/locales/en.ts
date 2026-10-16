@@ -507,6 +507,8 @@ export const en = {
     bars: {
       will: '{@will} {escape}/{escapeAt} (+{rate}/turn)',
       willTip: 'It flees when the bar fills, and is caught if it drops to 0.',
+      captureTip: 'Bring its Will down to 0 and it’s caught.',
+      fleeTip: 'Let its Will fill up and it gets away.',
       block: '{n} Block',
     },
     intent: {

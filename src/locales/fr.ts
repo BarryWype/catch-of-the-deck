@@ -497,6 +497,8 @@ export const fr: Messages = {
     bars: {
       will: '{@will} {escape}/{escapeAt} (+{rate}/tour)',
       willTip: 'Elle s’échappe quand la barre est pleine, et elle est attrapée si elle tombe à 0.',
+      captureTip: 'Fais tomber sa Volonté à 0 et elle est attrapée.',
+      fleeTip: 'Laisse sa Volonté se remplir et elle s’échappe.',
       block: '{n} de Blocage',
     },
     intent: {

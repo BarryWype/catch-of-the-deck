@@ -26,6 +26,7 @@ import CardView from './CardView.vue';
 import KeywordText from './KeywordText.vue';
 import { t, term } from './i18n';
 import CombatantView from './CombatantView.vue';
+import { COMPACT_QUERY, useMedia } from './useScreen';
 import {
   animatedSheetFor,
   creatureClip,
@@ -351,6 +352,26 @@ function dragStyle(card: CardInstance) {
   return { transform: `translate(${d.x - d.startX}px, ${d.y - d.startY}px) rotate(${(d.x - d.startX) / 40}deg) scale(1.05)` };
 }
 
+/**
+ * The hand is held, not laid out: each card tilts a few degrees off upright, and the further it
+ * sits from the middle, the lower it dips. The card's own transforms (hover, selected, drag)
+ * stay on the card, so they still lift it straight out of the fan. Compact screens scroll the
+ * hand sideways instead, so there the cards lie flat.
+ */
+const DEGREES_PER_CARD = 4.5;
+const MAX_TILT_DEG = 14;
+/** How far an outer card dips, growing with the square of its distance from the middle. */
+const DIP_PER_CARD = 0.5;
+const compact = useMedia(COMPACT_QUERY);
+
+function slotStyle(card: CardInstance, index: number, count: number) {
+  if (compact.value) return undefined;
+  if (drag.value?.moved && !drag.value.aimed && drag.value.uid === card.uid) return { transform: 'none' };
+  const offset = index - (count - 1) / 2;
+  const tilt = Math.max(-MAX_TILT_DEG, Math.min(MAX_TILT_DEG, offset * DEGREES_PER_CARD));
+  return { transform: `rotate(${tilt}deg) translateY(${offset * offset * DIP_PER_CARD}px)` };
+}
+
 let justDragged = false;
 
 /**
@@ -417,6 +438,7 @@ function endTurn() {
           :combatant="enemy"
           :portrait="data.enemies[enemy.defId].portrait ?? '👹'"
           :sprite="data.enemies[enemy.defId].sprite"
+          :scale="releaseReason ? 1.3 : 1.2"
           :subtitle="typeLabel(enemy)"
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
@@ -447,21 +469,21 @@ function endTurn() {
       </div>
 
       <div class="hand">
-        <CardView
-          v-for="card in state.piles.hand"
-          :key="card.uid"
-          :card="data.cards[card.defId]"
-          :description="cardText(card)"
-          :playable="isCardPlayable(state, card.uid, data)"
-          :cost="cardCost(state, data.cards[card.defId])"
-          :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
-          :effective="isEffective(card)"
-          :data-card-uid="card.uid"
-          :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
-          :style="dragStyle(card)"
-          @pointerdown="onCardPointerDown(card, $event)"
-          @click="onCardClick(card, $event)"
-        />
+        <span v-for="(card, i) in state.piles.hand" :key="card.uid" class="slot" :style="slotStyle(card, i, state.piles.hand.length)">
+          <CardView
+            :card="data.cards[card.defId]"
+            :description="cardText(card)"
+            :playable="isCardPlayable(state, card.uid, data)"
+            :cost="cardCost(state, data.cards[card.defId])"
+            :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
+            :effective="isEffective(card)"
+            :data-card-uid="card.uid"
+            :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
+            :style="dragStyle(card)"
+            @pointerdown="onCardPointerDown(card, $event)"
+            @click="onCardClick(card, $event)"
+          />
+        </span>
         <p v-if="hint" class="hint">{{ hint }}</p>
       </div>
 
@@ -525,7 +547,7 @@ function endTurn() {
 
 <style scoped>
 .new-eggs { color: var(--highlight); font-weight: 600; }
-.combat { position: relative; display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
+.combat { position: relative; display: flex; flex-direction: column; gap: 16px; min-height: 100%; /* Clips the part of the cards held below the screen edge, without making the page scroll. */ overflow: clip; }
 
 .battlefield {
   position: relative;
@@ -582,9 +604,26 @@ function endTurn() {
   justify-content: center;
   gap: 8px;
   padding-top: 24px;
-  min-height: 230px;
+  min-height: 180px;
   align-items: flex-end;
-  flex-wrap: wrap;
+  /* Cards hang below the screen edge, so a hover must lift them fully clear of it — with the
+     small lift, the bottom lines of a long rules text stayed cut off. */
+  --card-hover-lift: -60px;
+  /* One row, always: a hand that doesn't fit overlaps fan-style instead of wrapping into rows
+     (which would leave the upper rows floating above the screen edge). */
+  flex-wrap: nowrap;
+}
+/* Each card sits in a slot that holds the fan (tilt and dip); the card's own transforms (hover
+   lift, selected, drag) apply on top of it. The slot's bottom margin pulls each card below the
+   screen edge (clipped by .combat), like cards held in a real hand — and it frees the space the
+   battlefield now uses. A slot narrower than its card lets crowded hands overlap; the pivot
+   (70px = half a card) and the tilt then stay with the card, not the shrunken slot. */
+.slot {
+  display: flex;
+  min-width: 0;
+  margin-bottom: -40px;
+  transform-origin: 70px 100%;
+  transition: transform 0.25s ease;
 }
 .hint { position: absolute; top: -6px; margin: 0; color: var(--highlight); font-weight: 600; pointer-events: none; }
 
@@ -621,6 +660,7 @@ function endTurn() {
 }
 @media (prefers-reduced-motion: reduce) {
   .played-card.thrown, .played-card.flared { animation-duration: 0.01s; }
+  .slot { transition: none; }
 }
 
 .energy {
@@ -674,7 +714,10 @@ function endTurn() {
     min-height: 0;
     padding: 20px 6px 8px;
     scrollbar-width: none;
+    /* No part of the card is hidden here, so the normal lift is enough. */
+    --card-hover-lift: -16px;
   }
+  .hand .slot { flex-shrink: 0; margin-bottom: 0; }
   .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
   /* Out of the scrolling hand, so it's never cut off: just above it, in the middle of the screen. */
   .hint {
