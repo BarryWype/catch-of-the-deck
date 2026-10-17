@@ -103,9 +103,9 @@ const body = computed(() => {
   background: #2a2d36;
   font-size: 1rem;
 }
-.icon svg { width: 17px; height: 17px; }
+.icon svg { width: 35px; height: 35px; }
 .icon path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.icon b { font-size: 0.85rem; }
+.icon b { font-size: 1.5rem; }
 .icon b.blocked { text-decoration: line-through; opacity: 0.65; }
 /* Red for the Strike, the Will bar's teal for the Pull, green up and red down for the rest —
    each shape also tells its kind apart on its own. */
@@ -124,8 +124,8 @@ const body = computed(() => {
 /* Small screens: tighter chips, and a move name that wraps rather than overflowing. */
 @media (max-width: 700px), (max-height: 500px) {
   .icon { padding: 2px 6px; }
-  .icon svg { width: 15px; height: 15px; }
-  .icon b { font-size: 0.78rem; }
+  .icon svg { width: 35px; height: 35px; }
+  .icon b { font-size: 1.5rem; }
   .intent { gap: 3px; margin-bottom: 5px; }
   .move { font-size: 0.7rem; max-width: 190px; text-align: center; line-height: 1.25; }
 }

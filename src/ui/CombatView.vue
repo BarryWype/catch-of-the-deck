@@ -675,8 +675,6 @@ function endTurn() {
 
       <div class="side">
         <button class="end-turn" :disabled="!isPlayerTurn" @click="endTurn">{{ t('combat.endTurn') }}</button>
-        <div v-tip="t('combat.discardPile')" class="pile">♻️ {{ t('combat.discard', { n: state.piles.discard.length }) }}</div>
-        <div v-tip="t('combat.exhaustPile')" class="pile">🔥 {{ t('combat.exhaust', { n: state.piles.exhaust.length }) }}</div>
       </div>
     </section>
 
@@ -918,19 +916,26 @@ function endTurn() {
 
 /* Mid-width windows: the hand doesn't fit beside both side panels. It keeps its cards whole and
    scrolls sideways instead (like compact screens' hand), so no card is squeezed into a sliver.
-   A scroll container would clip the cards that hang below the screen edge, so here they sit
-   flush with the compact lift, and a sideways swipe still scrolls (touch-action: pan-x). */
+   A scroll container clips at its own edges, so the top padding holds the whole hover lift and the
+   matching negative margin slides the container over the battlefield's bottom edge: a hovered
+   card rises above the fight section, like on wide windows. Only the slots take pointer events
+   (the container's top strip covers the battlefield, which must stay clickable), and a dragged
+   card goes fixed to escape the scroll clip while it follows the pointer. */
 @media (min-width: 701px) and (max-width: 1050px) {
   .hand {
     justify-content: safe center;
     overflow-x: auto;
+    overflow-y: hidden;
     min-height: 0;
-    padding: 20px 6px 8px;
-    --card-hover-lift: -16px;
+    margin-top: -60px;
+    padding: 84px 45px 8px;
+    --card-hover-lift: -60px;
     scrollbar-width: thin;
+    pointer-events: none;
   }
-  .hand .slot { flex-shrink: 0; margin-bottom: 0; }
+  .hand .slot { flex-shrink: 0; margin-bottom: 0; pointer-events: auto; }
   .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
+  .hand :deep(.card.held) { position: fixed; }
 }
 .combat.dragging, .combat.dragging :deep(*) { cursor: grabbing !important; }
 .combat.on-target, .combat.on-target :deep(*) {
@@ -987,8 +992,11 @@ function endTurn() {
 }
 
 .energy {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -997,12 +1005,16 @@ function endTurn() {
   font-weight: 800;
   box-shadow: 0 0 16px rgb(242 182 66 / 0.45);
 }
-.energy-icon { font-size: 1rem; }
+.energy-icon { font-size: 2rem; }
+/* Flush against its counter: the icon and the count share line-height 1. */
+.energy-icon, .energy-count { line-height: 1; }
 .energy-count { font-size: 1.1rem; }
 .pile { font-size: 0.85rem; color: var(--muted); }
 .patience {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -1011,7 +1023,8 @@ function endTurn() {
   cursor: help;
   box-shadow: 0 0 16px rgb(111 183 227 / 0.45);
 }
-.patience-icon { font-size: 1rem; }
+.patience-icon { font-size: 2rem; }
+.patience-icon, .patience-count { line-height: 1; }
 .patience-count { font-size: 1.1rem; font-weight: 800; }
 .patience.empty { opacity: 0.55; }
 .patience:focus { outline: none; }
@@ -1076,10 +1089,10 @@ function endTurn() {
     font-size: 0.8rem;
   }
   .energy { width: 48px; height: 48px; }
-  .energy-icon { font-size: 0.8rem; }
+  .energy-icon { font-size: 1.6rem; }
   .energy-count { font-size: 0.9rem; }
   .patience { width: 48px; height: 48px; }
-  .patience-icon { font-size: 0.8rem; }
+  .patience-icon { font-size: 1.6rem; }
   .patience-count { font-size: 0.9rem; }
   .end-turn { padding: 10px 14px; }
   .pile { font-size: 0.75rem; }
