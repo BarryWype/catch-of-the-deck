@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { t } from './i18n';
 
@@ -40,7 +41,7 @@ defineExpose({ close: () => (open.value = false) });
     v-tip="title"
     @click="show"
   >
-    {{ icon }}
+    <GameIcon :icon="icon" />
   </button>
   <div class="scrim" :class="{ open }" @click="open = false" />
   <aside
@@ -53,7 +54,7 @@ defineExpose({ close: () => (open.value = false) });
     :inert="!open"
   >
     <header>
-      <h2>{{ icon }} {{ title }}</h2>
+      <h2><GameIcon :icon="icon" /> {{ title }}</h2>
       <slot name="header" />
       <button ref="closeButton" class="ghost close" :aria-label="t('drawer.close', { title })" @click="open = false">✕</button>
     </header>

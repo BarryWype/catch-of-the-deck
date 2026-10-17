@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
 import { creatureTypeNames, describeCard, startingBuilds, type BuildDef, type GameData } from '../engine';
 import CardView from './CardView.vue';
@@ -60,7 +61,7 @@ function deckSummary(build: BuildDef) {
           <div class="items" role="radiogroup" :aria-label="t('build.startingItemOf', { build: build.name })">
             <label v-for="id in build.startingItems" :key="id" class="item" :class="{ selected: itemOf(build) === id }">
               <input type="radio" :name="`item-${build.id}`" :value="id" :checked="itemOf(build) === id" @change="picked[build.id] = id" />
-              <span class="item-icon">{{ data.equipment[id]?.icon ?? '🎒' }}</span>
+              <span class="item-icon"><GameIcon :icon="data.equipment[id]?.icon ?? '🎒'" /></span>
               <span>
                 <b>{{ data.equipment[id]?.name }}</b>
                 <small>{{ data.equipment[id]?.description }}</small>

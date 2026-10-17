@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { t } from './i18n';
 
@@ -37,8 +38,8 @@ const escapesNext = computed(
       <!-- Just the values, inside the bar; the hover says how fast the bar rises. -->
       <span class="value">{{ escape }}/{{ escapeAt }}</span>
       <!-- The ends of the tug of war: down to the hook (caught) or off to open water (fled). -->
-      <span v-tip="t('bars.captureTip')" class="end left">🪝</span>
-      <span v-tip="t('bars.fleeTip')" class="end right">💨</span>
+      <span v-tip="t('bars.captureTip')" class="end left"><GameIcon icon="🪝" /></span>
+      <span v-tip="t('bars.fleeTip')" class="end right"><GameIcon icon="💨" /></span>
     </div>
     <p v-if="escapesNext" class="escapes now">{{ t('bars.escapeNext') }}</p>
     <p v-else-if="escapesIn" class="escapes">{{ escapesIn }}</p>

@@ -115,13 +115,6 @@ button.ghost {
 .stat.grit .bar i { display: block; height: 100%; border-radius: inherit; background: var(--grit); }
 .stat.grit .max { color: var(--muted); font-weight: 500; }
 .stat.coins { border-color: #6b5426; background: linear-gradient(180deg, #3a3020, #2b2416); }
-.stat.coins .coin {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffe08a, var(--energy) 60%, #a5741b);
-  box-shadow: 0 0 6px rgb(242 182 66 / 0.4);
-}
 .stat.deck { color: var(--text); }
 .seed { color: var(--muted); cursor: help; }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
 import { creatureTypeNames, describeCard, shopItemBlocked, type GameData, type RunState, type ShopItemDef, type ShopVisit } from '../engine';
 import CardView from './CardView.vue';
@@ -29,7 +30,7 @@ function onPickCard(index: number) {
 
 <template>
   <section class="shop">
-    <div class="icon">🛒</div>
+    <div class="icon"><GameIcon icon="🪙" /></div>
     <h2>{{ t('shop.title') }}</h2>
     <p class="wallet">{{ t('shop.wallet', { coins: run.coins, grit: run.hp, max: run.maxHp }) }}</p>
 
@@ -50,10 +51,10 @@ function onPickCard(index: number) {
     <template v-else>
       <div class="items">
         <div v-for="item in data.shop" :key="item.id" class="item">
-          <span class="item-icon">{{ item.icon ?? '🎁' }}</span>
+          <span class="item-icon"><GameIcon :icon="item.icon ?? '🎁'" /></span>
           <strong>{{ item.name }}</strong>
           <span class="text">{{ effectText(item) }}{{ item.limit ? ` ${t('shop.oncePerVisit')}` : '' }}</span>
-          <button :disabled="!!shopItemBlocked(item, run, visit)" @click="onBuy(item)">🪙 {{ item.price }}</button>
+          <button :disabled="!!shopItemBlocked(item, run, visit)" @click="onBuy(item)"><GameIcon icon="🪙" /> {{ item.price }}</button>
           <span class="blocked">{{ shopItemBlocked(item, run, visit) ?? '' }}</span>
         </div>
       </div>

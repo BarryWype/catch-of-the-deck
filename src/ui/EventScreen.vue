@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { t } from './i18n';
 import { describeEventEffect, eventChoiceBlocked, type GameData, type RunState } from '../engine';
@@ -18,7 +19,7 @@ const choices = computed(() =>
 
 <template>
   <section class="event">
-    <div class="icon">{{ event.icon ?? '❓' }}</div>
+    <div class="icon"><GameIcon :icon="event.icon ?? '❓'" /></div>
     <h2>{{ event.name }}</h2>
     <p class="description">{{ event.description }}</p>
     <div class="choices">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import {
   bonusTotal,
@@ -584,7 +585,7 @@ function endTurn() {
         </div>
         <div class="orbs">
           <div v-tip="t('combat.energy')" class="energy">
-            <span class="energy-icon" aria-hidden="true">⚡</span>
+            <span class="energy-icon" aria-hidden="true"><GameIcon icon="⚡" /></span>
             <span class="energy-count">{{ state.player.energy }}/{{ state.player.maxEnergy }}</span>
           </div>
           <div

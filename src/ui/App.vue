@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
 import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
 import { t, term } from './i18n';
@@ -75,7 +76,7 @@ function startNewRun() {
         <b>{{ run.hp }}<span class="max">/{{ run.maxHp }}</span></b>
       </span>
       <span class="stat coins" v-tip="t('app.coins')">
-        <i class="coin" aria-hidden="true"></i>
+        <GameIcon icon="🪙" />
         <b>{{ run.coins }}</b>
       </span>
       <span class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })">🂠 <b>{{ run.deck.length }}</b></span>
@@ -154,7 +155,7 @@ function startNewRun() {
     />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <section v-else-if="screen === 'leave'" class="complete">
-      <div class="leave-icon">🏠</div>
+      <div class="leave-icon"><GameIcon icon="🏠" /></div>
       <h2>{{ t('leave.title') }}</h2>
       <p>{{ t('leave.text', { n: run.bucket.length }) }}</p>
       <div class="complete-actions">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
 import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
@@ -136,7 +137,7 @@ const plants = [
 <template>
   <section class="aquarium" :aria-label="title ?? t('aquarium.default')">
     <header class="label">
-      <span>{{ icon }} {{ title ?? t('aquarium.default') }}</span>
+      <span><GameIcon :icon="icon" /> {{ title ?? t('aquarium.default') }}</span>
       <span class="count">{{ t('aquarium.count', { n: creatures.length }) }}</span>
     </header>
 
@@ -193,7 +194,7 @@ const plants = [
           <span v-else-if="companions !== undefined && selected.bonus" class="mood">
             {{ selected.bonus.icon }} {{ t('aquarium.companionMood', { bonus: selected.bonus.name }) }}
           </span>
-          <span class="sell-value">🪙 {{ selected.sellValue }}</span>
+          <span class="sell-value"><GameIcon icon="🪙" /> {{ selected.sellValue }}</span>
           <div class="actions">
             <button @click="act">{{ t('aquarium.sell') }}</button>
             <button class="ghost" @click="selectedKey = null">{{ t('aquarium.keep') }}</button>

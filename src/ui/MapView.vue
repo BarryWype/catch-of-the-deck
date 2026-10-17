@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
+import { iconUrl } from './icons';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   activeBonuses,
@@ -75,7 +77,7 @@ function nodeState(node: MapNode) {
   return node.column < currentColumn.value ? 'skipped' : 'locked';
 }
 
-const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: '?', shop: '$', treasure: 'T', leave: '⌂' };
+const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: 'question-mark', shop: 'coin-stack', treasure: 'chest', leave: 'house' };
 
 const strongAgainst = computed(() => new Set(props.data.builds[props.run.build]?.strongAgainst ?? []));
 
@@ -188,7 +190,7 @@ function choose(node: MapNode) {
         tabindex="0"
         :aria-label="item.name"
       >
-        <span class="icon">{{ item.icon ?? '🎒' }}</span>
+        <span class="icon"><GameIcon :icon="item.icon ?? '🎒'" /></span>
       </li>
       <li
         v-for="b in bonuses"
@@ -285,7 +287,7 @@ function choose(node: MapNode) {
             </template>
             <template v-else>
               <circle class="body" :r="RADIUS - 1" />
-              <text class="symbol" dominant-baseline="central" text-anchor="middle">{{ SYMBOLS[node.kind] }}</text>
+              <image class="symbol" :href="iconUrl(SYMBOLS[node.kind] ?? '')" x="-9" y="-9" width="18" height="18" />
             </template>
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
@@ -392,8 +394,7 @@ function choose(node: MapNode) {
 .node.shop .body,
 .node.treasure .body { fill: #fff; stroke: #2e2d27; stroke-width: 1.8; }
 .node.leave .body { fill: #fff; stroke: #2d8a73; stroke-width: 2.5; }
-.node .symbol { font: 700 12px ui-monospace, Menlo, monospace; fill: #2e2d27; pointer-events: none; }
-.node.leave .symbol { fill: #2d8a73; font-size: 14px; }
+.node .symbol { image-rendering: pixelated; pointer-events: none; }
 .node.miniBoss .body { fill: #c4531c; }
 .node.boss .body { fill: #c4531c; stroke-width: 3; }
 .node.boss .core { fill: #fff; }

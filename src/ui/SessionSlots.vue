@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { activeBonuses, bondLevel, describeCompanionEffect, FULL_SCHOOL, SESSION_SLOTS, type GameData, type HomeCreature } from '../engine';
 import SpriteView from './SpriteView.vue';
@@ -29,7 +30,7 @@ const bonuses = computed(() =>
 
 <template>
   <section class="session-slots" :aria-label="t('slots.label')">
-    <header>🪣 {{ t('slots.title') }}</header>
+    <header><GameIcon icon="🪣" /> {{ t('slots.title') }}</header>
     <div v-for="(slot, i) in slots" :key="i" class="slot" :class="{ empty: !slot }">
       <template v-if="slot">
         <SpriteView v-if="slot.creature.sprite" :sprite="slot.creature.sprite" :size="48" />

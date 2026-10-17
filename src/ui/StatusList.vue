@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { isDebuff, statusDescription, statusName, type StatusId, type Statuses } from '../engine';
 
 const props = defineProps<{ statuses: Statuses }>();
 
-const ICONS: Record<StatusId, string> = { strength: '💪', vulnerable: '💔', weak: '🥀', snared: '🕸️', venom: '☠️', slow: '🐌', cowed: '😨', intimidated: '🦷', lured: '🎏', distracted: '✨', dazzled: '🌈', windUp: '⚠️',
-  burrowed: '🕳️', tangled: '🪢', numbFingers: '🥶', pinchedHand: '🤏', skittish: '😬', spines: '🦔', baitGrabbed: '🎣' };
+const ICONS: Record<StatusId, string> = { strength: 'muscle', vulnerable: '💔', weak: 'muscle-down', snared: 'net-blue', venom: 'venom4', slow: 'trap1', cowed: '😨', intimidated: '🦷', lured: 'lure1', distracted: '✨', dazzled: '🌈', windUp: '⚠️',
+  burrowed: '🕳️', tangled: '🪢', numbFingers: '🥶', pinchedHand: '🤏', skittish: '😬', spines: 'thorn', baitGrabbed: 'worm' };
 const entries = computed(() => Object.entries(props.statuses) as Array<[StatusId, number]>);
 </script>
 
@@ -18,7 +19,7 @@ const entries = computed(() => Object.entries(props.statuses) as Array<[StatusId
       :class="isDebuff(id, amount) ? 'debuff' : 'buff'"
       v-tip="{ title: `${statusName(id)} ${amount}`, body: statusDescription(id) }"
     >
-      {{ ICONS[id] }}<b>{{ amount }}</b>
+      <GameIcon :icon="ICONS[id]" /><b>{{ amount }}</b>
     </span>
   </div>
 </template>

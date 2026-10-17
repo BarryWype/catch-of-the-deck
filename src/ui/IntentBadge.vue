@@ -1,28 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import GameIcon from './GameIcon.vue';
 import type { IntentKind, IntentPreview, MoveIntensity } from '../engine';
 import { t, type TextKey } from './i18n';
 
 /**
  * What the creature will do next. Four chips, one per thing a move can do, each with a minimal
- * tooltip of its own; the move's name (hover) still tells the whole story. The shapes are simple
- * placeholder SVGs in one style (stroke-drawn, 24×24): replace the entries in `PATHS` here with
- * real art when there is some.
+ * tooltip of its own; the move's name (hover) still tells the whole story.
  */
 const props = defineProps<{ intent: IntentPreview; /** The player's Hold, so the values show what it soaks. */ hold?: number }>();
 
-/** One stroke-drawn shape per kind of move. */
-const PATHS: Record<string, string> = {
-  // Strike: a sword.
-  sword: 'M21 3 L9 15 M6.5 12.5 l5 5 M9 15 l-4.5 4.5',
-  // Pull: a hook, with the line pulled away (arrow up).
-  hook: 'M17 4 v8 a6 6 0 1 1 -12 0 M13.4 7.4 L17 3.4 L20.6 7.4',
-  // Buffs itself / debuffs you.
-  up: 'M12 20 V5 M5 12 l7 -7 7 7',
-  down: 'M12 4 v15 M5 12 l7 7 7 -7',
-};
-
-const KIND_SHAPES: Record<IntentKind, string> = { attack: 'sword', pull: 'hook', defend: 'up', buff: 'up', debuff: 'down' };
+const KIND_SHAPES: Record<IntentKind, string> = { attack: 'bite1', pull: 'excape1', defend: 'arrow-up-green', buff: 'arrow-up-green', debuff: 'arrow-down-red' };
 /** Each chip says what it does, in as few words as possible. */
 const KIND_TIPS: Record<IntentKind, TextKey> = {
   attack: 'intent.strikeTip',
@@ -78,7 +66,7 @@ const body = computed(() => {
   <div v-else v-tip="{ title: intent.moveName, detail: TAG_NAMES[intent.tag], body }" class="intent">
     <div class="icons">
       <span v-for="kind in shownKinds" :key="kind" v-tip="t(KIND_TIPS[kind])" class="icon" :class="kind">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="PATHS[KIND_SHAPES[kind]]" /></svg>
+        <GameIcon :icon="KIND_SHAPES[kind]" />
         <b v-if="kind === 'attack' && damage" :class="{ blocked: damage.blocked }">{{ damage.text }}</b>
         <b v-else-if="kind === 'pull' && pull" :class="{ blocked: pull.blocked }">{{ pull.text }}</b>
         <b v-else-if="kind === 'defend' && intent.block">{{ intent.block }}</b>
@@ -103,8 +91,7 @@ const body = computed(() => {
   background: #2a2d36;
   font-size: 1rem;
 }
-.icon svg { width: 35px; height: 35px; }
-.icon path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.icon .game-icon { width: 35px; height: 35px; }
 .icon b { font-size: 1.5rem; }
 .icon b.blocked { text-decoration: line-through; opacity: 0.65; }
 /* Red for the Strike, the Will bar's teal for the Pull, green up and red down for the rest —
@@ -124,7 +111,6 @@ const body = computed(() => {
 /* Small screens: tighter chips, and a move name that wraps rather than overflowing. */
 @media (max-width: 700px), (max-height: 500px) {
   .icon { padding: 2px 6px; }
-  .icon svg { width: 35px; height: 35px; }
   .icon b { font-size: 1.5rem; }
   .intent { gap: 3px; margin-bottom: 5px; }
   .move { font-size: 0.7rem; max-width: 190px; text-align: center; line-height: 1.25; }
