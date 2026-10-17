@@ -4,7 +4,7 @@ import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { pickWeighted } from './rng';
 import { nextMoveMods } from './statuses';
-import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveRole, MoveTag } from './types';
+import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveIntensity, MoveRole, MoveTag } from './types';
 import { text } from './text';
 import { addLog } from './util';
 
@@ -27,6 +27,8 @@ export interface IntentPreview {
   /** How hard it pulls on the line (before the player's Hold). */
   pull?: number;
   block?: number;
+  /** How hard the move is: one to three pips next to the badge's value. Display-only. */
+  intensity?: MoveIntensity;
 }
 
 /** A mini-boss's or boss's Second Wind: not in its move set, telegraphed once (`telegraphSecondWind`). */
@@ -160,6 +162,7 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
     tag: move.id === SECOND_WIND_ID ? 'secondWind' : move.tag,
     role: move.role,
     special: specialOf(move, data),
+    intensity: move.intensity,
     description: describeEffects(scaledEffects(move, enemy), { byCreature: true }),
     kinds: [],
   };

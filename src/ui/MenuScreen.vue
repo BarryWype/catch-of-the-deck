@@ -5,6 +5,8 @@ import type { Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CreatureBook from './CreatureBook.vue';
 import SideDrawer from './SideDrawer.vue';
+import { playTheme, stopTheme, musicVolume, setMusicVolume } from './music';
+import { sfxVolume, setSfxVolume } from './sfx';
 import { language, languages, setLanguage, t } from './i18n';
 
 defineProps<{
@@ -98,6 +100,13 @@ async function openOptions() {
 // Esc or F11 can leave browser fullscreen without going through the options.
 onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen));
 onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen));
+
+/**
+ * The menu theme (music.ts) plays in the desktop app only, from mount until a run leaves the
+ * menu; the web build doesn't ship the file (too big).
+ */
+onMounted(() => playTheme('menu'));
+onBeforeUnmount(stopTheme);
 </script>
 
 <template>
@@ -117,6 +126,9 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
         <button class="ghost" @click="openOptions">{{ t('menu.options') }}</button>
         <button v-if="desktop" class="ghost" @click="desktop.quit()">{{ t('menu.exit') }}</button>
       </nav>
+      <p class="credits">
+        {{ t('credits.music') }} · {{ t('credits.menu') }} · {{ t('credits.map') }}
+      </p>
     </div>
     <button v-else class="show-menu" @click="viewing = false">☰ {{ t('app.menu') }}</button>
     <!-- Left edge: the guide, with the debug drawer under it when enabled in the options. -->
@@ -153,6 +165,26 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
         <select :value="language" @change="setLanguage(($event.target as HTMLSelectElement).value as typeof language)">
           <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.name }}</option>
         </select>
+      </label>
+      <label class="option">
+        <span>{{ t('options.music') }}</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          :value="musicVolume()"
+          @input="setMusicVolume(Number(($event.target as HTMLInputElement).value))"
+        />
+      </label>
+      <label class="option">
+        <span>{{ t('options.sfx') }}</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          :value="sfxVolume()"
+          @input="setSfxVolume(Number(($event.target as HTMLInputElement).value))"
+        />
       </label>
       <label class="option">
         <span>
@@ -195,14 +227,27 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
   gap: 28px;
   padding: 36px 48px;
   border-radius: 20px;
-  background: rgb(15 18 25 / 0.72);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
-  backdrop-filter: blur(3px);
+  /* No backdrop-filter here: it would re-blur the animated aquarium behind the panel every
+     frame, which crawls on a big window (the blur's cost grows with the area). */
+  background: rgb(12 17 26 / 0.88);
+  border: 1px solid rgb(245 215 110 / 0.18);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
-.panel h2 { margin: 0; font-size: 3rem; letter-spacing: 0.02em; }
+.panel h2 {
+  margin: 0;
+  font-size: 3rem;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #fdf3d0, #f5d76e 55%, #d9a83c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 10px rgb(245 215 110 / 0.25));
+}
 .buttons { display: flex; flex-direction: column; gap: 12px; width: 240px; }
 .buttons button { padding: 14px; font-size: 1.1rem; }
 .buttons .ghost { background: rgb(15 18 25 / 0.6); color: var(--text); }
+/* Who wrote the music (both themes ship with the desktop app; the credits show either way). */
+.credits { margin: 0; max-width: 260px; font-size: 0.68rem; line-height: 1.4; color: var(--muted); text-align: center; }
 
 .reset {
   position: absolute;
@@ -220,7 +265,9 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 .options { border-color: #2c3a4a; }
 .option { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; cursor: pointer; }
 .option small { display: block; color: var(--muted); font-size: 0.75rem; }
-.option input { width: 20px; height: 20px; accent-color: var(--highlight); cursor: pointer; }
+.option input { accent-color: var(--highlight); cursor: pointer; }
+.option input[type='checkbox'] { width: 20px; height: 20px; }
+.option input[type='range'] { width: 140px; }
 .option select { padding: 4px 8px; border-radius: 6px; font: inherit; }
 
 .guide { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 18px 20px 18px 36px; line-height: 1.45; }

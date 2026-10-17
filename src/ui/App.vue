@@ -145,6 +145,7 @@ function startNewRun() {
       :data="data"
       :equipment="run.equipment"
       :new-eggs="newEggs"
+      :spot="findNode(run.map, run.position)?.spot ?? undefined"
       :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? t('combat.defaultRelease')) : null"
       @action="game.dispatch"
       @claim-victory="game.claimVictory"
@@ -231,14 +232,14 @@ function startNewRun() {
 .companions-head p { margin: 4px 0 0; color: var(--muted); }
 .slots-column { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 .slots-column .session-slots { flex: 1; min-height: 0; }
-.start-fishing { padding: 16px; border-radius: 12px; background: #2d8a4e; color: #fff; font-size: 1.15rem; font-weight: 800; }
+.start-fishing { padding: 16px; border-radius: 12px; background: linear-gradient(180deg, #3ba85f, #2d8a4e); color: #fff; font-size: 1.15rem; font-weight: 800; box-shadow: 0 4px 16px rgb(45 138 78 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.2); }
 .start-fishing:hover { background: #36a35d; }
 .build-layout .aquarium { flex: 1; min-width: 0; }
 
 .complete { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 15vh; }
 .complete h2 { margin: 0; font-size: 2rem; }
 .complete p { margin: 0; max-width: 520px; text-align: center; }
-.leave-icon { font-size: 4rem; line-height: 1; }
+.leave-icon { font-size: 4rem; line-height: 1; filter: drop-shadow(0 6px 18px rgb(245 215 110 / 0.3)); }
 .new-eggs { color: var(--highlight); font-weight: 600; }
 .complete-actions { display: flex; gap: 8px; margin-top: 12px; }
 

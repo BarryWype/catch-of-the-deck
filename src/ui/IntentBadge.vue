@@ -1,37 +1,67 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { IntentKind, IntentPreview, MoveRole } from '../engine';
+import type { IntentKind, IntentPreview, MoveIntensity } from '../engine';
 import { t, type TextKey } from './i18n';
 
-const props = defineProps<{ intent: IntentPreview }>();
+/**
+ * What the creature will do next. Four chips, one per thing a move can do, each with a minimal
+ * tooltip of its own; the move's name (hover) still tells the whole story. The shapes are simple
+ * placeholder SVGs in one style (stroke-drawn, 24×24): replace the entries in `PATHS` here with
+ * real art when there is some.
+ */
+const props = defineProps<{ intent: IntentPreview; /** The player's Hold, so the values show what it soaks. */ hold?: number }>();
 
-const ICONS: Record<IntentKind, string> = { attack: '🗡️', pull: '🎣', defend: '🛡️', buff: '💪', debuff: '🌀' };
-const ROLE_ICONS: Partial<Record<MoveRole, string>> = { pace: '💤', windUp: '⚠️', heavy: '💥' };
-/** Each special's icon (`IntentPreview.special.key`). */
-const SPECIAL_ICONS: Record<string, string> = {
-  ink: '🦑',
-  junk: '🗑️',
-  steal: '🫳',
-  shake: '🪝',
-  secondWind: '🌬️',
-  venom: '☠️',
-  tangled: '🪢',
-  numbFingers: '🥶',
-  pinchedHand: '🤏',
-  skittish: '😬',
-  spines: '🦔',
-  burrowed: '🕳️',
-  baitGrabbed: '🎣',
+/** One stroke-drawn shape per kind of move. */
+const PATHS: Record<string, string> = {
+  // Strike: a sword.
+  sword: 'M21 3 L9 15 M6.5 12.5 l5 5 M9 15 l-4.5 4.5',
+  // Pull: a hook, with the line pulled away (arrow up).
+  hook: 'M17 4 v8 a6 6 0 1 1 -12 0 M13.4 7.4 L17 3.4 L20.6 7.4',
+  // Buffs itself / debuffs you.
+  up: 'M12 20 V5 M5 12 l7 -7 7 7',
+  down: 'M12 4 v15 M5 12 l7 7 7 -7',
 };
-const TAG_NAMES = { strike: t('intent.strike'), pull: t('intent.pull'), secondWind: t('intent.secondWind') } as const;
-const damageText = computed(() => {
-  const { damage, hits } = props.intent;
-  if (damage === undefined) return '';
-  return hits && hits > 1 ? `${damage}×${hits}` : `${damage}`;
+
+const KIND_SHAPES: Record<IntentKind, string> = { attack: 'sword', pull: 'hook', defend: 'up', buff: 'up', debuff: 'down' };
+/** Each chip says what it does, in as few words as possible. */
+const KIND_TIPS: Record<IntentKind, TextKey> = {
+  attack: 'intent.strikeTip',
+  pull: 'intent.pullTip',
+  defend: 'intent.buffTip',
+  buff: 'intent.buffTip',
+  debuff: 'intent.debuffTip',
+};
+
+/** Defends and buffs share the one green arrow. */
+const shownKinds = computed(() => {
+  const seen = new Set<string>();
+  return props.intent.kinds.filter((k) => (seen.has(KIND_SHAPES[k]) ? false : seen.add(KIND_SHAPES[k])));
 });
-const roleIcon = computed(() => (props.intent.role ? ROLE_ICONS[props.intent.role] : undefined));
-const specialIcon = computed(() => (props.intent.special ? SPECIAL_ICONS[props.intent.special.key] : undefined));
-/** The tooltip: what its role and its special do, then its rules. */
+
+const PIPS: Record<MoveIntensity, number> = { light: 1, normal: 2, heavy: 3 };
+
+/** A value after Hold: `6 → 1` while there is Hold to soak it, `6 → 0` when Hold covers it all. */
+function afterHold(value: number) {
+  const hold = props.hold ?? 0;
+  const effective = Math.max(0, value - hold);
+  return {
+    effective,
+    blocked: hold > 0 && value > 0 && effective === 0,
+    text: hold > 0 && value > 0 ? `${value} → ${effective}` : `${value}`,
+  };
+}
+
+const damage = computed(() => {
+  const { damage: raw, hits } = props.intent;
+  if (raw === undefined) return undefined;
+  const value = afterHold(raw);
+  return { ...value, text: hits && hits > 1 ? `${value.text}×${hits}` : value.text };
+});
+const pull = computed(() => (props.intent.pull === undefined ? undefined : afterHold(props.intent.pull)));
+const pips = computed(() => (props.intent.hidden ? 0 : PIPS[props.intent.intensity ?? 'normal']));
+
+const TAG_NAMES = { strike: t('intent.strike'), pull: t('intent.pull'), secondWind: t('intent.secondWind') } as const;
+/** The move's own tooltip: what its role and its special do, then its rules. */
 const body = computed(() => {
   const { role, special, description } = props.intent;
   const roleText = role && role !== 'special' ? t(`intent.role.${role}` as TextKey) : '';
@@ -42,46 +72,61 @@ const body = computed(() => {
 
 <template>
   <div v-if="intent.hidden" v-tip="t('intent.hidden')" class="intent">
-    <div class="icons"><span class="icon hidden">❓</span></div>
+    <div class="icons"><span class="icon hidden"><b>?</b></span></div>
     <div class="move">?</div>
   </div>
   <div v-else v-tip="{ title: intent.moveName, detail: TAG_NAMES[intent.tag], body }" class="intent">
     <div class="icons">
-      <span v-if="roleIcon" class="icon role" :class="intent.role">{{ roleIcon }}</span>
-      <span v-if="specialIcon" class="icon special">{{ specialIcon }}</span>
-      <span v-for="kind in intent.kinds" :key="kind" class="icon" :class="kind">
-        {{ ICONS[kind] }}<b v-if="kind === 'attack'">{{ damageText }}</b><b v-else-if="kind === 'pull'">{{ intent.pull }}</b>
+      <span v-for="kind in shownKinds" :key="kind" v-tip="t(KIND_TIPS[kind])" class="icon" :class="kind">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="PATHS[KIND_SHAPES[kind]]" /></svg>
+        <b v-if="kind === 'attack' && damage" :class="{ blocked: damage.blocked }">{{ damage.text }}</b>
+        <b v-else-if="kind === 'pull' && pull" :class="{ blocked: pull.blocked }">{{ pull.text }}</b>
+        <b v-else-if="kind === 'defend' && intent.block">{{ intent.block }}</b>
       </span>
+      <!-- How hard the move is: one to three pips (light / normal / heavy). -->
+      <span v-if="pips" class="pips" aria-hidden="true"><i v-for="n in pips" :key="n" /></span>
     </div>
     <div class="move"><span class="tag" :class="intent.tag">{{ TAG_NAMES[intent.tag] }}</span> {{ intent.moveName }}</div>
   </div>
 </template>
 
 <style scoped>
-.intent { display: flex; flex-direction: column; align-items: center; cursor: help; }
-.icons { display: flex; gap: 4px; }
+/* The three lines of the intent get air between them; the badge also clears the Will bar below. */
+.intent { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: help; margin-bottom: 8px; }
+.icons { display: flex; align-items: center; gap: 4px; }
 .icon {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   padding: 2px 8px;
   border-radius: 12px;
   background: #2a2d36;
   font-size: 1rem;
 }
-.icon.attack { background: #5a2028; }
-.icon.defend { background: #1f3f5a; }
-.icon.buff { background: #234a2e; }
-.icon.debuff { background: #4a2347; }
-.move { font-size: 0.7rem; color: var(--muted); }
-.icon.pull { background: #1f4a4a; }
+.icon svg { width: 17px; height: 17px; }
+.icon path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.icon b { font-size: 0.85rem; }
+.icon b.blocked { text-decoration: line-through; opacity: 0.65; }
+/* Red for the Strike, the Will bar's teal for the Pull, green up and red down for the rest —
+   each shape also tells its kind apart on its own. */
+.icon.attack { background: #4d1d24; color: #ff8177; }
+.icon.pull { background: #12333e; color: #4fc3d9; }
+.icon.defend, .icon.buff { background: #234a2e; color: #7ee08a; }
+.icon.debuff { background: #4a2347; color: #e78b96; }
+.icon.hidden { background: #333; color: #aaa; }
+.pips { display: inline-flex; gap: 2px; }
+.pips i { width: 5px; height: 5px; border-radius: 50%; background: #b9a0dd; }
+.move { font-size: 0.78rem; font-weight: 600; color: var(--text); }
 .tag { padding: 0 5px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; }
 .tag.strike { background: #8a2f36; }
 .tag.pull { background: #2a6b6b; }
 .tag.secondWind { background: #6a3f8a; }
-.icon.special { background: #4a3a5a; }
-.icon.role.pace { background: #2e3a46; }
-.icon.role.windUp { background: #5a4a1a; }
-.icon.role.heavy { background: #7a2a1a; }
-.icon.hidden { background: #333; }
+/* Small screens: tighter chips, and a move name that wraps rather than overflowing. */
+@media (max-width: 700px), (max-height: 500px) {
+  .icon { padding: 2px 6px; }
+  .icon svg { width: 15px; height: 15px; }
+  .icon b { font-size: 0.78rem; }
+  .intent { gap: 3px; margin-bottom: 5px; }
+  .move { font-size: 0.7rem; max-width: 190px; text-align: center; line-height: 1.25; }
+}
 </style>

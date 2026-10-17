@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import { t } from './i18n';
-import ParticleCanvas from './ParticleCanvas.vue';
+import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
 import { animatedSheetFor, creatureClip } from './sprites';
 
@@ -61,7 +61,7 @@ function placement(habitat: Habitat, slot: number) {
     // A negative delay starts each creature mid-swim, at a different spot.
     '--delay': `-${(rand(slot, 3) * duration * 2).toFixed(1)}s`,
     '--bob': `${(3 + rand(slot, 4) * 3).toFixed(1)}s`,
-    '--rest': `${(rand(slot, 5) * 85).toFixed(1)}%`,
+    '--rest': (rand(slot, 5) * 0.85).toFixed(3),
     zIndex: habitat === 'bottom' ? 3 : 2,
   };
 }
@@ -122,12 +122,13 @@ function act() {
   selectedKey.value = null;
 }
 
-// Decoration: seaweed from objects.png (1 green algae, 2 red algae, 3 seaweed). Bubbles are drawn on a canvas.
+// Decoration: seaweed from objects.png (1 green algae, 2 red algae, 3 seaweed). `flip` mirrors the
+// sprite so they don't all lean the same way. Bubbles: PixelBubbles.
 const plants = [
   { index: 3, left: '4%', size: 96, delay: '0s' },
-  { index: 1, left: '15%', size: 72, delay: '-1.2s' },
+  { index: 1, left: '15%', size: 72, delay: '-1.2s', flip: true },
   { index: 2, left: '47%', size: 80, delay: '-2.1s' },
-  { index: 3, left: '78%', size: 88, delay: '-0.6s' },
+  { index: 3, left: '78%', size: 88, delay: '-0.6s', flip: true },
   { index: 1, left: '90%', size: 64, delay: '-1.7s' },
 ];
 </script>
@@ -142,20 +143,20 @@ const plants = [
     <div class="tank">
       <div class="surface" />
       <div class="rays" />
-      <ParticleCanvas effect="bubbles" />
+      <PixelBubbles />
 
       <div class="sand" />
       <div
         v-for="(p, i) in plants"
         :key="`p${i}`"
         class="plant"
+        :class="{ flip: p.flip }"
         :style="{ left: p.left, animationDelay: p.delay }"
       >
         <SpriteView :sprite="{ sheet: 'objects', index: p.index }" :size="p.size" />
       </div>
 
-      <!-- The lane spans the tank minus one creature and slides by its own width (transform only);
-           the creature sits at its left edge. -->
+      <!-- Each creature crosses the tank by transform only (see .resident). -->
       <div
         v-for="r in residents"
         :key="r.key"
@@ -227,6 +228,10 @@ const plants = [
   position: relative;
   flex: 1;
   overflow: hidden;
+  /* Its size is what the creatures' travel (100cqw) and the bubbles' rise (100cqh) are measured
+     against. `size` rather than `inline-size`, so the bubbles can rise a whole tank height. The
+     tank's height never depends on its contents (everything inside is absolutely positioned). */
+  container-type: size;
   border: 6px solid #5c6b78;
   border-top-width: 10px;
   border-radius: 10px 10px 14px 14px;
@@ -241,11 +246,12 @@ const plants = [
   height: 10px;
   background: linear-gradient(180deg, rgb(255 255 255 / 0.35), transparent);
 }
+/* Static on purpose: an animated full-tank layer would be blended over the whole tank every
+   frame (a full-screen menu did exactly that); flattened into the tank like this, it's free. */
 .rays {
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.06) 0 40px, transparent 40px 110px);
-  animation: rays 12s ease-in-out infinite alternate;
 }
 .glare {
   position: absolute;
@@ -273,13 +279,16 @@ const plants = [
   animation: sway 4s ease-in-out infinite alternate;
   z-index: 1;
 }
+/* The wrapper's transform belongs to the sway animation, so the mirror goes on the sprite. */
+.plant.flip > :deep(.sprite) { scale: -1 1; }
 
-/* Residents: the outer element travels left/right, and `.bob` both flips the sprite in sync
-   (sprites face left; `scale`) and adds a little vertical life (`translate`). */
+/* Residents: the outer element travels left/right across the tank, and `.bob` both flips the
+   sprite in sync (sprites face left; `scale`) and adds a little vertical life (`translate`). Each is
+   only as wide as its creature, so a full-window tank doesn't make every moving layer window-wide. */
 .resident {
   position: absolute;
   left: 0;
-  width: calc(100% - var(--size));
+  width: var(--size);
   pointer-events: none;
   animation: travel var(--duration) ease-in-out var(--delay) infinite alternate;
 }
@@ -352,7 +361,7 @@ const plants = [
 
 @keyframes travel {
   from { transform: translateX(0); }
-  to { transform: translateX(100%); }
+  to { transform: translateX(calc(100cqw - var(--size))); }
 }
 @keyframes face {
   0%, 49.99% { scale: -1 1; }
@@ -370,10 +379,6 @@ const plants = [
   from { transform: rotate(-4deg); }
   to { transform: rotate(4deg); }
 }
-@keyframes rays {
-  from { transform: translateX(-30px); }
-  to { transform: translateX(30px); }
-}
 
 /* Small screens: a shorter tank, smaller creatures. */
 @media (max-width: 700px), (max-height: 500px) {
@@ -382,7 +387,7 @@ const plants = [
   .sell-panel { max-width: 200px; font-size: 0.85rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .resident, .bob, .plant, .rays { animation: none; }
-  .resident { transform: translateX(var(--rest)); }
+  .resident, .bob, .plant { animation: none; }
+  .resident { transform: translateX(calc((100cqw - var(--size)) * var(--rest))); }
 }
 </style>

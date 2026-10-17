@@ -300,6 +300,7 @@ export const en = {
       chooseTarget: 'Choose a target…',
       playAgain: 'Tap it again, or the battlefield, to play it…',
       energy: 'Energy',
+      turn: 'Turn {n}',
       drawPile: 'Draw pile',
       draw: 'Draw {n}',
       endTurn: 'End Turn',
@@ -351,6 +352,11 @@ export const en = {
       options: 'Options',
       exit: 'Exit',
     },
+    credits: {
+      music: 'Music',
+      menu: '“Gem Waltz” composition and arrangement by Haley Halcyon',
+      map: 'Map theme by Alexandr Zhelanov (soundcloud.com/alexandr-zhelanov)',
+    },
     guide: {
       title: 'How to play',
       catch: {
@@ -371,7 +377,7 @@ export const en = {
       },
       moves: {
         title: 'Strike and Pull:',
-        text: "Strike moves wear down your {@grit}, Pull moves raise the creature's {@will} bar. {@hold} stops both. A pace 💤 is a breather (its {@will} rises half as much), a Wind-up ⚠️ warns of a heavy move 💥 next, and specials play tricks on you: hover the icon to see which.",
+        text: "Strike moves wear down your {@grit}, Pull moves raise the creature's {@will} bar. {@hold} stops both. A green arrow means it buffs itself, a red arrow that it debuffs you: hover an icon to see what it does.",
       },
       patience: {
         title: '{@patience}:',
@@ -414,6 +420,8 @@ export const en = {
       title: 'Options',
       language: 'Language',
       languageHint: 'The game restarts in the new language.',
+      music: 'Music',
+      sfx: 'Sound effects',
       fullscreen: 'Fullscreen',
       fullscreenDesktop: 'Remembered next time you open the game.',
       fullscreenBrowser: 'Press Esc to leave it.',
@@ -505,17 +513,26 @@ export const en = {
       },
     },
     bars: {
-      will: '{@will} {escape}/{escapeAt} (+{rate}/turn)',
-      willTip: 'It flees when the bar fills, and is caught if it drops to 0.',
+      willRate: '+{rate}/turn',
       captureTip: 'Bring its Will down to 0 and it’s caught.',
       fleeTip: 'Let its Will fill up and it gets away.',
       block: '{n} Block',
+      escapeIn: 'Escapes in {n} turn.|Escapes in {n} turns.',
+      escapeNext: 'Escapes next turn!',
+      health: 'Health {hp}/{maxHp}',
+      healthTip: 'Its health: damage brings it down, and it gives in at 0.',
+      gritTip: 'Your health: at 0, the fight is lost.',
     },
     intent: {
       strike: 'Strike',
       pull: 'Pull',
       secondWind: 'Second Wind',
       hidden: 'Hidden by ink: you can\'t see what it will do.',
+      intensity: { light: 'Light', normal: 'Normal', heavy: 'Heavy' },
+      strikeTip: 'Hits your {@grit}.',
+      pullTip: 'Raises its {@will}.',
+      buffTip: 'Buffs itself.',
+      debuffTip: 'Debuffs you.',
       role: {
         pace: 'Pacing: a light move, its {@will} rises half as much this turn.',
         windUp: 'Winding up: its next move is heavy, and 30% bigger.',

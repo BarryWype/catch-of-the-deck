@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { describeCard, type CardDef } from '../engine';
+import { creatureFamilies, describeCard, type CardDef } from '../engine';
+import { gameData } from '../content';
 import { t } from './i18n';
 import KeywordText from './KeywordText.vue';
+import SpriteView from './SpriteView.vue';
+import { COMPACT_QUERY, useMedia } from './useScreen';
 
 const props = withDefaults(
   defineProps<{
@@ -21,6 +24,46 @@ const props = withDefaults(
 const TYPE_ICON: Record<CardDef['type'], string> = { attack: '⚔️', defense: '🛡️', drain: '🧲', support: '🌀', power: '✨', junk: '🗑️' };
 const shownCost = computed(() => props.cost ?? props.card.cost);
 const text = computed(() => props.description ?? describeCard(props.card));
+
+/**
+ * A card of a family shows one of the family's creatures on its art, over the family's colour;
+ * family-less cards (starter, junk) keep their emoji. Each family's cards are paired with its
+ * creatures in content order, so no creature appears twice while there are enough of them.
+ */
+const FAMILY_COLOURS: Record<string, string> = {
+  venom: '#5d2f7a',
+  shell: '#2c5a86',
+  swift: '#1f7a74',
+  hunter: '#8a3030',
+  endurance: '#7a5a2f',
+  patient: '#2f6f52',
+  trickster: '#8a4f6f',
+  flashy: '#9a7020',
+  camo: '#4f6f3a',
+  slimy: '#2f6f5f',
+};
+/** Which creature's face each family card carries, by card id. */
+const FAMILY_CARD_CREATURE: Record<string, string> = {};
+{
+  const cards = Object.values(gameData.cards);
+  const facesOf: Record<string, string[]> = {};
+  for (const family of new Set(cards.flatMap((c) => (c.family ? [c.family] : [])))) {
+    facesOf[family] = Object.values(gameData.enemies)
+      .filter((e) => creatureFamilies(e.id, gameData).some((f) => f.id === family))
+      .map((e) => e.id);
+  }
+  for (const family of Object.keys(facesOf)) {
+    const faces = facesOf[family];
+    cards.filter((c) => c.family === family).forEach((card, i) => (FAMILY_CARD_CREATURE[card.id] = faces[i % faces.length]));
+  }
+}
+const compact = useMedia(COMPACT_QUERY);
+const familyCreature = computed(() => (props.card.id ? gameData.enemies[FAMILY_CARD_CREATURE[props.card.id]] ?? null : null));
+const artSize = computed(() => (compact.value ? 36 : 52));
+const artStyle = computed(() => {
+  const colour = FAMILY_COLOURS[props.card.family ?? ''];
+  return colour && { background: `radial-gradient(circle at 50% 35%, color-mix(in srgb, ${colour} 70%, #14161c), color-mix(in srgb, ${colour} 35%, #0e1016))` };
+});
 /** Rules text longer than this gets a smaller font so it stays inside the card. */
 const LONG_TEXT = 85;
 /** Splits out "5 (9)" pairs (printed amount, real amount) so the real one can be coloured. */
@@ -42,7 +85,10 @@ const parts = computed(() =>
     <span class="cost" :class="{ taxed: shownCost > card.cost }">{{ card.unplayable ? '–' : shownCost }}</span>
     <span v-if="card.patienceCost" v-tip="t('card.patienceCost', { n: card.patienceCost })" class="patience-cost">⏳{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
-    <span class="art">{{ card.art ?? TYPE_ICON[card.type] }}</span>
+    <span class="art" :style="artStyle">
+      <SpriteView v-if="familyCreature?.sprite" :sprite="familyCreature.sprite" :size="artSize" :aria-label="familyCreature.name" />
+      <template v-else>{{ card.art ?? TYPE_ICON[card.type] }}</template>
+    </span>
     <span class="type">{{ t(`card.type.${card.type}`) }}</span>
     <span class="desc" :class="{ long: text.length > LONG_TEXT }">
       <span>
@@ -68,7 +114,8 @@ const parts = computed(() =>
   padding: 8px;
   border: 3px solid var(--frame);
   border-radius: 12px;
-  background: linear-gradient(180deg, #2c303b, #1f222a);
+  /* The face carries a whisper of the card's type colour. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--frame) 9%, #2c303b), color-mix(in srgb, var(--frame) 5%, #1f222a));
   color: var(--text);
   font: inherit;
   text-align: center;
@@ -104,6 +151,8 @@ const parts = computed(() =>
 .card.support { --frame: var(--support); }
 .card.power { --frame: var(--power); }
 .card.junk { --frame: var(--junk); }
+/* A rare card carries a faint gold aura, on top of its frame colour. */
+.rarity-rare { box-shadow: 0 4px 10px rgb(0 0 0 / 0.4), 0 0 18px rgb(245 215 110 / 0.22); }
 .cost.taxed { color: #e06060; }
 .card.selected { z-index: 2; transform: translateY(-20px) scale(1.08); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
 .card.unplayable { opacity: 0.5; cursor: not-allowed; }

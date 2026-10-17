@@ -290,6 +290,7 @@ export const fr: Messages = {
       chooseTarget: 'Choisis une cible…',
       playAgain: 'Touche-la encore, ou le terrain, pour la jouer…',
       energy: 'Énergie',
+      turn: 'Tour {n}',
       drawPile: 'Pioche',
       draw: 'Pioche {n}',
       endTurn: 'Fin du tour',
@@ -341,6 +342,11 @@ export const fr: Messages = {
       options: 'Options',
       exit: 'Quitter',
     },
+    credits: {
+      music: 'Musique',
+      menu: '« Gem Waltz », composition et arrangement de Haley Halcyon',
+      map: 'Thème de la carte par Alexandr Zhelanov (soundcloud.com/alexandr-zhelanov)',
+    },
     guide: {
       title: 'Comment jouer',
       catch: {
@@ -361,7 +367,7 @@ export const fr: Messages = {
       },
       moves: {
         title: 'Frappe et Traction :',
-        text: 'les Frappes entament ta {@grit}, les Tractions font monter la barre de {@will} de la créature. La {@hold} retient les deux. Une pause 💤 te laisse souffler (sa {@will} monte moitié moins), un élan ⚠️ annonce un coup lourd 💥 juste après, et les actions spéciales te jouent des tours : survole l’icône pour savoir lesquels.',
+        text: 'les Frappes entament ta {@grit}, les Tractions font monter la barre de {@will} de la créature. La {@hold} retient les deux. Une flèche verte signifie qu’elle se renforce, une flèche rouge qu’elle t’affaiblit : survole une icône pour savoir ce qu’elle fait.',
       },
       patience: {
         title: '{@patience} :',
@@ -404,6 +410,8 @@ export const fr: Messages = {
       title: 'Options',
       language: 'Langue',
       languageHint: 'Le jeu redémarre dans la nouvelle langue.',
+      music: 'Musique',
+      sfx: 'Effets sonores',
       fullscreen: 'Plein écran',
       fullscreenDesktop: 'Conservé la prochaine fois que tu ouvres le jeu.',
       fullscreenBrowser: 'Appuie sur Échap pour en sortir.',
@@ -495,17 +503,26 @@ export const fr: Messages = {
       },
     },
     bars: {
-      will: '{@will} {escape}/{escapeAt} (+{rate}/tour)',
-      willTip: 'Elle s’échappe quand la barre est pleine, et elle est attrapée si elle tombe à 0.',
+      willRate: '+{rate}/tour',
       captureTip: 'Fais tomber sa Volonté à 0 et elle est attrapée.',
       fleeTip: 'Laisse sa Volonté se remplir et elle s’échappe.',
       block: '{n} de Blocage',
+      escapeIn: 'S’échappe dans {n} tour.|S’échappe dans {n} tours.',
+      escapeNext: 'S’échappe au prochain tour !',
+      health: 'Santé {hp}/{maxHp}',
+      healthTip: 'Sa santé : les dégâts la font baisser, et à 0, elle abandonne.',
+      gritTip: 'Ta santé : à 0, le combat est perdu.',
     },
     intent: {
       strike: 'Frappe',
       pull: 'Traction',
       secondWind: 'Second souffle',
       hidden: 'Caché par l’encre : tu ne vois pas ce qu’elle va faire.',
+      intensity: { light: 'Légère', normal: 'Normale', heavy: 'Lourde' },
+      strikeTip: 'Frappe ton {@grit}.',
+      pullTip: 'Monte sa {@will}.',
+      buffTip: 'Se renforce.',
+      debuffTip: 'T’affaiblit.',
       role: {
         pace: 'Elle souffle : action légère, sa {@will} monte moitié moins ce tour.',
         windUp: 'Elle prend son élan : sa prochaine action est lourde, et 30 % plus forte.',

@@ -9,6 +9,10 @@ const wslOnWindowsDrive = !!process.env.WSL_DISTRO_NAME && process.cwd().startsW
 export default defineConfig({
   // Relative asset paths, so the build also works when Electron opens it from disk.
   base: './',
+  // The menu music (src/audio/music) is desktop-only: Vite serves it in `electron:dev` (as
+  // /music/…, where the menu plays it from), but the build leaves it out and stays small.
+  // `npm run electron:build` copies it into dist/music itself (scripts/copy-music.mjs).
+  publicDir: process.env.NODE_ENV === 'development' ? 'src/audio' : false,
   plugins: [vue()],
   server: {
     // Fixed, and away from Vite's default 5173 (often taken by ddev), so `electron:dev` can find it.

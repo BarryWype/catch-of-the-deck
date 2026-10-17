@@ -19,7 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "electron:dev": "VITE_DEV_SERVER_URL=http://localhost:5190 electron .",
-    "electron:build": "npm run build && electron-builder",
+    "electron:build": "npm run build && node scripts/copy-music.mjs && electron-builder",
     "simulate": "node scripts/simulate.mjs",
     "reward-shares": "node scripts/reward-shares.mjs"
   },

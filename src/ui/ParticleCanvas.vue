@@ -2,15 +2,11 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 /**
- * Particle effects drawn on one <canvas> that fills its parent, instead of one DOM element per
- * particle:
- * - `bubbles`: bubbles rising through the water, forever.
- * - `streamers`: party streamers bursting out of the centre once (an egg hatching).
- * The canvas size is only read when it's resized (ResizeObserver), never while drawing. Drawing
- * pauses while the canvas is off screen or the tab is hidden, and doesn't run at all with
- * reduced motion.
+ * Party streamers bursting out of the centre once (an egg hatching), drawn on one <canvas> that
+ * fills its parent. The canvas size is only read when it's resized (ResizeObserver), never while
+ * drawing. Drawing pauses while the canvas is off screen or the tab is hidden, and doesn't run at
+ * all with reduced motion. (The aquarium's bubbles are PixelBubbles: CSS only, never redrawn.)
  */
-const props = withDefaults(defineProps<{ effect: 'bubbles' | 'streamers'; count?: number }>(), { count: 14 });
 
 const canvas = ref<HTMLCanvasElement>();
 let ctx: CanvasRenderingContext2D | null = null;
@@ -21,48 +17,6 @@ let frame = 0;
 let last = 0;
 let elapsed = 0;
 let visible = true;
-
-/** A bubble: position as a share of the canvas, radius and speed in CSS pixels. */
-interface Bubble {
-  x: number;
-  y: number;
-  r: number;
-  speed: number;
-  wobble: number;
-}
-const BUBBLE_SPEED = [40, 90];
-const bubbles: Bubble[] = Array.from({ length: props.count }, () => newBubble(Math.random()));
-
-function newBubble(y = 1): Bubble {
-  return {
-    x: 0.02 + Math.random() * 0.96,
-    y,
-    r: 2 + Math.random() * 4,
-    speed: BUBBLE_SPEED[0] + Math.random() * (BUBBLE_SPEED[1] - BUBBLE_SPEED[0]),
-    wobble: Math.random() * Math.PI * 2,
-  };
-}
-
-function drawBubbles(dt: number): boolean {
-  if (!ctx) return false;
-  ctx.lineWidth = 1;
-  for (const b of bubbles) {
-    b.y -= (b.speed * dt) / Math.max(1, height);
-    if (b.y < -0.05) Object.assign(b, newBubble(1.05));
-    const x = b.x * width + Math.sin(elapsed * 2 + b.wobble) * 3;
-    const y = b.y * height;
-    // Fades in at the bottom, and a little toward the surface.
-    const alpha = Math.min(1, (1 - b.y) * 8) * (0.6 + 0.4 * b.y);
-    ctx.globalAlpha = Math.max(0, alpha);
-    ctx.beginPath();
-    ctx.arc(x, y, b.r, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgb(255 255 255 / 0.15)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgb(255 255 255 / 0.6)';
-    ctx.stroke();
-  }
-  return true;
-}
 
 /** Streamers shoot out from the edge of the creature past the halo, stretching, then fade. */
 const STREAMER_COLOURS = ['#f5d76e', '#ef7f7f', '#6fd0dc', '#b48cff', '#7fd18f'];
@@ -101,8 +55,7 @@ function tick(now: number) {
   last = now;
   elapsed += dt;
   ctx.clearRect(0, 0, width, height);
-  const more = props.effect === 'bubbles' ? drawBubbles(dt) : drawStreamers();
-  if (more) frame = requestAnimationFrame(tick);
+  if (drawStreamers()) frame = requestAnimationFrame(tick);
 }
 
 function start() {

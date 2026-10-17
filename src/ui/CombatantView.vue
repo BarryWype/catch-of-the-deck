@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { isAlive, PLAYER_ID, type Combatant, type IntentPreview, type SpriteRef } from '../engine';
+import { isAlive, PLAYER_ID, type Combatant, type FamilyDef, type IntentPreview, type SpriteRef } from '../engine';
+import type { TipValue } from './tooltip';
 import AnimatedSprite from './AnimatedSprite.vue';
 import HealthBar from './HealthBar.vue';
 import IntentBadge from './IntentBadge.vue';
@@ -20,37 +21,46 @@ const props = withDefaults(
     animationKey?: number;
     sprite?: SpriteRef;
     intent?: IntentPreview | null;
+    /** The player's Hold, so the intent can show what it soaks (player's block). */
+    hold?: number;
     targetable?: boolean;
-    /** Small line under the name, e.g. the creature type. */
-    subtitle?: string;
-    /** Escape bar, for creatures. */
-    escapeBar?: { escape: number; escapeAt: number; escapeRate: number };
-    /** Artwork scale: creatures are 1.2, mini-bosses and bosses 1.3; the player stays at 1. */
-    scale?: number;
+    /** Hover text over the creature, e.g. its move set (see CombatView's `creatureTip`). */
+    tip?: TipValue;
+    /** The creature's families, shown as icons next to its name (engine: `creatureFamilies`). */
+    families?: FamilyDef[];
+    /** Escape bar, for creatures. `pull` is its upcoming move's Pull, before the player's Hold. */
+    escapeBar?: { escape: number; escapeAt: number; escapeRate: number; pull?: number };
+    /**
+     * Sprite frame multiplier: the player is 4, creatures 5, mini-bosses and bosses 6. Animated
+     * frames are 48px and static cells 32px, and sizes stay whole multiples of them, so the pixel
+     * art stays crisp. Compact screens use two frames less.
+     */
+    frame?: number;
+    /** The sprite only: the player's Grit and statuses are in the battlefield's corner panel instead. */
+    bare?: boolean;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, subtitle: undefined, escapeBar: undefined, scale: 1 },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, families: () => [], hold: undefined, tip: undefined, escapeBar: undefined, frame: 4, bare: false },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
+const frames = computed(() => (compact.value ? Math.max(2, props.frame - 2) : props.frame));
 /** The animated art is drawn into size x size frames; the static sprite, the portrait box and
  * the emoji fallback follow the same scale. */
-const animatedSize = computed(() => Math.round((compact.value ? 100 : 168) * props.scale));
-const stillSize = computed(() => Math.round((compact.value ? 84 : 128) * props.scale));
+const animatedSize = computed(() => frames.value * 48);
+const stillSize = computed(() => frames.value * 32);
 const portraitStyle = computed(() => ({
   minHeight: `${stillSize.value}px`,
-  fontSize: `${(compact.value ? 3 : 4.5) * props.scale}rem`,
+  fontSize: `${frames.value}rem`,
 }));
 </script>
 
 <template>
   <div class="combatant" :class="{ dead: !isAlive(combatant), animated: !!clip, targetable }" @click="$emit('select')">
-    <div class="intent-slot">
-      <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
+    <!-- A creature shows what it will do above its head; the player has no intent. -->
+    <div v-if="intent || escapeBar" class="intent-slot">
+      <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" :hold="hold" />
     </div>
-    <!-- A creature's health bar sits above its sprite, its Will bar under its name; the player's
-         Grit bar stays under the name. -->
-    <HealthBar v-if="combatant.id !== PLAYER_ID" :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" />
-    <div class="portrait" :style="portraitStyle">
+    <div v-tip="tip" class="portrait" :class="{ player: combatant.id === PLAYER_ID }" :style="portraitStyle">
       <AnimatedSprite
         v-if="clip"
         :clip="clip"
@@ -62,11 +72,17 @@ const portraitStyle = computed(() => ({
       <SpriteView v-else-if="sprite" :sprite="sprite" :size="stillSize" :aria-label="combatant.name" />
       <span v-else>{{ portrait }}</span>
     </div>
-    <div class="name">{{ combatant.name }}</div>
-    <div v-if="subtitle" class="subtitle">{{ subtitle }}</div>
-    <PanicBar v-if="escapeBar" v-bind="escapeBar" />
-    <HealthBar v-if="combatant.id === PLAYER_ID" :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" grit />
-    <StatusList :statuses="combatant.statuses" />
+    <!-- Everything about it in one block under the sprite, the bars the same width: its name and
+         families (hover: the family's name), its Will, its health, then its statuses. -->
+    <div v-if="!bare" class="hud">
+      <div v-if="combatant.id !== PLAYER_ID" class="name">
+        {{ combatant.name }}
+        <span v-for="f in families" :key="f.id" v-tip="f.name" class="family" aria-hidden="true">{{ f.icon }}</span>
+      </div>
+      <PanicBar v-if="escapeBar" v-bind="escapeBar" />
+      <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" :grit="combatant.id === PLAYER_ID" />
+      <StatusList :statuses="combatant.statuses" />
+    </div>
   </div>
 </template>
 
@@ -120,18 +136,14 @@ const portraitStyle = computed(() => ({
   border-radius: 50%;
   background: radial-gradient(ellipse, rgb(0 0 0 / 0.45), transparent 70%);
 }
-.name { font-weight: 700; }
-.subtitle {
-  margin-top: -4px;
-  padding: 0 8px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 0.3);
-  font-size: 0.72rem;
-  color: var(--muted);
-  letter-spacing: 0.03em;
-}
-/* Air between the creature's name block and its Will bar. */
-.panicbar { margin-top: 8px; }
+/* The fisherman's art stands slightly right of the centre of its frame (creatures sit centred),
+   so his shadow is centred under him rather than under the frame. */
+.portrait.player::after { left: 25%; }
+.hud { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 210px; }
+/* A dark backing, so the bars and text stay readable over the scene behind (seaweed, sand). */
+.combatant:not(:has(.portrait.player)) .hud { padding: 6px 8px; border-radius: 10px; background: rgb(8 14 22 / 0.6); }
+.name { display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; }
+.family { font-size: 0.9rem; cursor: help; }
 .dead { opacity: 0.35; filter: grayscale(1); }
 /* Animated combatants show their capture/defeat animation instead of fading out. */
 .dead.animated { opacity: 1; filter: none; }
@@ -141,6 +153,6 @@ const portraitStyle = computed(() => ({
 @media (max-width: 700px), (max-height: 500px) {
   .combatant { padding: 4px 6px; gap: 3px; }
   .intent-slot { min-height: 36px; }
-  .portrait { min-height: 84px; font-size: 3rem; }
+  .hud { width: 150px; gap: 3px; }
 }
 </style>

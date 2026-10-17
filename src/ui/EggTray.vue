@@ -56,7 +56,7 @@ function onHatched(index: number) {
   <div v-if="creature" class="reveal" role="dialog" :aria-label="t('eggs.hatched')" @click="hatched = null">
     <div class="burst">
       <div class="halo" />
-      <ParticleCanvas class="streamers" effect="streamers" />
+      <ParticleCanvas class="streamers" />
       <AnimatedSprite v-if="creatureSheet" class="creature" :clip="creatureClip(creatureSheet, 'idle')" :size="192" />
       <SpriteView v-else-if="creature.sprite" class="creature" :sprite="creature.sprite" :size="160" />
     </div>

@@ -17,6 +17,7 @@ function toEnemy(creature: CreatureDef): EnemyDef {
   return {
     id: creature.id,
     name: creature.name,
+    tier: creature.tier,
     hp: creature.hp,
     sellValue: creature.sellValue,
     breedChance: creature.breedChance,

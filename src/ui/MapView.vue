@@ -11,6 +11,7 @@ import {
   type RunState,
 } from '../engine';
 import { t } from './i18n';
+import { playTheme, stopTheme } from './music';
 import { TOUCH_QUERY, useMedia } from './useScreen';
 import basemapUrl from './assets/map/basemap.png';
 import seaUrl from './assets/map/sea.png';
@@ -132,13 +133,17 @@ const scroller = ref<HTMLElement>();
 const room = ref(window.innerHeight);
 let resizes: ResizeObserver | undefined;
 onMounted(() => {
+  playTheme('map'); // The desktop app's map theme (music.ts); the web build never loads it.
   const layout = root.value?.parentElement;
   if (!layout) return;
   resizes = new ResizeObserver(() => (room.value = layout.clientHeight));
   resizes.observe(layout);
   room.value = layout.clientHeight;
 });
-onBeforeUnmount(() => resizes?.disconnect());
+onBeforeUnmount(() => {
+  stopTheme();
+  resizes?.disconnect();
+});
 const size = computed(() => {
   const ratio = view.value.width / view.value.height;
   const height = Math.max(Math.min(MIN_HEIGHT, room.value * 0.75), room.value * MAP_SHARE);
@@ -266,20 +271,22 @@ function choose(node: MapNode) {
           <!-- Highlight ring: where you are, or where you can go. -->
           <circle v-if="nodeState(node) === 'current' || nodeState(node) === 'available'" class="ring" :r="node.kind === 'boss' ? 26 : 19" />
           <circle v-if="node.kind === 'start'" class="hit" r="26" />
-          <!-- A finger-sized target around small nodes. -->
-          <circle v-else-if="touch" class="hit" r="18" />
-          <template v-else-if="node.kind === 'fight'">
-            <circle class="body" :r="RADIUS" :style="{ fill: node.spot ? data.spots[node.spot]?.color : undefined }" />
-            <text class="code" dominant-baseline="central" text-anchor="middle">{{ node.spot ?? '!' }}</text>
-          </template>
-          <rect v-else-if="node.kind === 'miniBoss'" class="body" x="-12" y="-12" width="24" height="24" transform="rotate(45)" />
-          <template v-else-if="node.kind === 'boss'">
-            <circle class="body" r="18" />
-            <circle class="core" r="8" />
-          </template>
           <template v-else>
-            <circle class="body" :r="RADIUS - 1" />
-            <text class="symbol" dominant-baseline="central" text-anchor="middle">{{ SYMBOLS[node.kind] }}</text>
+            <!-- A finger-sized target around small nodes, in addition to their body. -->
+            <circle v-if="touch" class="hit" r="18" />
+            <template v-if="node.kind === 'fight'">
+              <circle class="body" :r="RADIUS" :style="{ fill: node.spot ? data.spots[node.spot]?.color : undefined }" />
+              <text class="code" dominant-baseline="central" text-anchor="middle">{{ node.spot ?? '!' }}</text>
+            </template>
+            <rect v-else-if="node.kind === 'miniBoss'" class="body" x="-12" y="-12" width="24" height="24" transform="rotate(45)" />
+            <template v-else-if="node.kind === 'boss'">
+              <circle class="body" r="18" />
+              <circle class="core" r="8" />
+            </template>
+            <template v-else>
+              <circle class="body" :r="RADIUS - 1" />
+              <text class="symbol" dominant-baseline="central" text-anchor="middle">{{ SYMBOLS[node.kind] }}</text>
+            </template>
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
           <text v-if="node.label && (node.kind === 'miniBoss' || node.kind === 'boss')" class="label" :text-anchor="labelAnchor(node)" :x="labelAnchor(node) === 'end' ? 18 : 0" :y="node.kind === 'boss' ? -28 : -22">
@@ -323,9 +330,13 @@ function choose(node: MapNode) {
   margin: 0;
   padding: 4px 14px;
   border-radius: 999px;
+  border: 1px solid rgb(245 215 110 / 0.16);
   transform: translateX(-50%);
-  background: rgb(20 24 32 / 0.8);
+  background: rgb(14 20 32 / 0.82);
+  color: var(--highlight);
+  font-size: 0.9rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
   pointer-events: none;
 }
 .legend-toggle { position: absolute; top: 10px; right: 10px; z-index: 2; padding: 6px 12px; font-size: 0.8rem; }

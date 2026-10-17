@@ -288,6 +288,8 @@ export type CompanionEffect =
 export interface FamilyDef {
   id: string;
   name: string;
+  /** Placeholder art (emoji), shown next to a creature's name. Display-only. */
+  icon?: string;
   /** Temperament ids (content/behaviors.ts) in this family. */
   temperaments: string[];
   /** What its cards are about, e.g. "Damage over time (Venom)". Design note; not shown yet. */
@@ -409,6 +411,8 @@ export type IntentPattern =
 export interface EnemyDef {
   id: string;
   name: string;
+  /** How deep it lives (1 = shallow, 3 = the deep end): sizes its sprite on screen. Display-only. */
+  tier?: number;
   /** Inclusive [min, max] HP range, rolled with the combat seed. */
   hp: [number, number];
   /** Coins it sells for once captured. Defaults to 0. */

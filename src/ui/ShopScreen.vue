@@ -65,7 +65,7 @@ function onPickCard(index: number) {
 <style scoped>
 .shop { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 8vh; text-align: center; }
 .shop h2 { margin: 0; }
-.icon { font-size: 4rem; line-height: 1; }
+.icon { font-size: 4rem; line-height: 1; filter: drop-shadow(0 6px 18px rgb(245 215 110 / 0.3)); }
 .wallet { margin: 0 0 12px; color: var(--muted); }
 .items { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
 .item {
@@ -76,7 +76,13 @@ function onPickCard(index: number) {
   width: 200px;
   padding: 16px;
   border-radius: 14px;
-  background: var(--panel);
+  background: linear-gradient(180deg, #26304a, #1b2233);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.3);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+@media (hover: hover) {
+  .item:hover { transform: translateY(-3px); border-color: rgb(245 215 110 / 0.45); }
 }
 .item-icon { font-size: 2.4rem; }
 .text { font-size: 0.85rem; color: var(--muted); min-height: 2.4em; }

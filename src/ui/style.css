@@ -1,8 +1,10 @@
 :root {
-  --bg: #12141a;
-  --panel: #23262f;
+  --bg: #0c1320;
+  --panel: #1d2536;
+  --panel-soft: rgb(29 37 54 / 0.85);
+  --line: #35425e;
   --text: #ecebe6;
-  --muted: #9aa0ab;
+  --muted: #9aa7b8;
   --attack: #c9473f;
   --skill: #3f7fc9;
   --power: #d1a13a;
@@ -22,7 +24,17 @@
 
 * { box-sizing: border-box; }
 
-body { margin: 0; min-height: 100vh; background: var(--bg); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+/* The sea the whole game floats in: light from the surface above, a warm floor below. */
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(120% 55% at 50% -12%, rgb(84 134 164 / 0.38), transparent 62%),
+    radial-gradient(90% 60% at 80% 115%, rgb(28 88 96 / 0.45), transparent 65%),
+    linear-gradient(180deg, #131f33 0%, #0d1524 55%, #0a101b 100%);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* The window's real height (100dvh: without the phone browser's bars): the top bar, then the
    screen below it, which scrolls on its own when it doesn't fit. Clear of a phone's notch. */
@@ -43,7 +55,8 @@ button {
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  background: var(--energy);
+  background: linear-gradient(180deg, #ffd76e, var(--energy) 55%, #d29a2e);
+  box-shadow: 0 3px 10px rgb(242 182 66 / 0.22), inset 0 1px 0 rgb(255 255 255 / 0.28);
   color: #1b1d24;
   font: inherit;
   font-weight: 700;
@@ -53,7 +66,16 @@ button {
   button:hover:not(:disabled) { filter: brightness(1.1); }
 }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
-button.ghost { background: transparent; color: var(--muted); border: 1px solid #3a3e4a; font-weight: 500; }
+button.ghost {
+  background: rgb(22 30 46 / 0.7);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font-weight: 500;
+  box-shadow: none;
+}
+@media (hover: hover) {
+  button.ghost:hover:not(:disabled) { background: rgb(34 46 68 / 0.85); border-color: #4d6392; color: var(--text); }
+}
 
 /* The bar above every screen of a run: the act being played on the left, its numbers on the right. */
 .topbar {
@@ -63,6 +85,7 @@ button.ghost { background: transparent; color: var(--muted); border: 1px solid #
   gap: 12px;
   flex-wrap: wrap;
   padding: 10px 0;
+  border-bottom: 1px solid rgb(93 126 168 / 0.22);
 }
 .act { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .act b { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.03em; }
@@ -75,9 +98,9 @@ button.ghost { background: transparent; color: var(--muted); border: 1px solid #
   align-items: center;
   gap: 7px;
   padding: 4px 12px;
-  border: 1px solid #3a3e4a;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--panel-soft);
   font-variant-numeric: tabular-nums;
 }
 .stat b { font-weight: 700; }
@@ -117,12 +140,13 @@ button.ghost { background: transparent; color: var(--muted); border: 1px solid #
 .confirm {
   width: min(420px, calc(100vw - 32px));
   padding: 20px 24px;
-  border: 2px solid #4a2a2a;
+  border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel);
   color: var(--text);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.5);
 }
-.confirm::backdrop { background: rgb(5 8 12 / 0.65); }
+.confirm::backdrop { background: rgb(4 7 12 / 0.55); backdrop-filter: blur(3px); }
 .confirm h3 { margin: 0 0 8px; }
 .confirm p { margin: 0; color: var(--muted); }
 .confirm footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }

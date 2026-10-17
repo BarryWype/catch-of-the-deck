@@ -21,7 +21,7 @@ Slay the Fish: a deck-building fishing roguelike. A pure TypeScript rules engine
 
 1. **Read before writing.** Read the code the change touches and the doc that describes it. For a spec, follow docs/agents/specs.md.
 2. **Change everything the feature touches.** docs/agents/changes.md lists, per kind of change, every file that must follow (engine, data checks, content, both languages, UI, saves, tests, docs, simulator).
-3. **Verify until green.** Done means:
+3. **Verify until green.** Run the checks once per task, after all its edits (not once per file), and re-run after each fix until they pass. Done means:
    - `npm run typecheck` shows no errors and `npm test` passes;
    - a balance change has a before/after `npm run simulate` (docs/agents/balance.md);
    - a UI change has been seen working in the browser at phone and desktop sizes (docs/agents/ui.md).

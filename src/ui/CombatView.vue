@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import {
   bonusTotal,
+  creatureFamilies,
   creatureTypeNames,
   describeCard,
   isCardEffectiveAgainst,
@@ -24,8 +25,13 @@ import {
 } from '../engine';
 import CardView from './CardView.vue';
 import KeywordText from './KeywordText.vue';
-import { t, term } from './i18n';
+import { t, term, type TextKey } from './i18n';
 import CombatantView from './CombatantView.vue';
+import PixelBubbles from './PixelBubbles.vue';
+import SpriteView from './SpriteView.vue';
+import HealthBar from './HealthBar.vue';
+import StatusList from './StatusList.vue';
+import { playTheme, stopTheme } from './music';
 import { COMPACT_QUERY, useMedia } from './useScreen';
 import {
   animatedSheetFor,
@@ -46,6 +52,8 @@ const props = defineProps<{
   equipment: string[];
   newEggs: number;
   releaseReason: string | null;
+  /** The fight's map node spot id: the scene's water colour (see `data.spots`). */
+  spot?: string;
 }>();
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; menu: [] }>();
 
@@ -53,6 +61,20 @@ const PATIENCE_TIP = t('combat.patienceTip', { hold: HOLD_PER_PATIENCE, percent:
 
 /** The creatures let go after a mini-boss or boss fight, named once each. */
 const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => e.name))].join(t('combat.and')));
+
+/** A move's intensity, as a word. */
+const INTENSITY: Record<string, TextKey> = { light: 'intent.intensity.light', normal: 'intent.intensity.normal', heavy: 'intent.intensity.heavy' };
+
+/** Hover text over a creature: its whole move set (name, type, intensity), so players can plan. */
+function creatureTip(enemy: EnemyState) {
+  const moves = props.data.enemies[enemy.defId].moves;
+  return {
+    title: enemy.name,
+    body: moves
+      .map((m) => `${m.name} (${t(m.tag === 'pull' ? 'intent.pull' : 'intent.strike')}, ${t(INTENSITY[m.intensity])})`)
+      .join(' · '),
+  };
+}
 
 /** A card waiting for the player to click an enemy (keyboard play). */
 const selectedUid = ref<string | null>(null);
@@ -100,11 +122,18 @@ watch(
   (phase) => {
     clearTimeout(overlayTimer);
     overlayVisible.value = false;
-    if (phase !== 'playerTurn') overlayTimer = setTimeout(() => (overlayVisible.value = true), OVERLAY_DELAY_MS);
+    if (phase !== 'playerTurn') {
+      overlayTimer = setTimeout(() => (overlayVisible.value = true), OVERLAY_DELAY_MS);
+      stopTheme(); // The fight is over: the map's theme takes over when the player leaves.
+    }
   },
   { immediate: true },
 );
 onBeforeUnmount(() => clearTimeout(overlayTimer));
+/** The fight theme (music.ts): the boss track for mini-bosses and bosses, the regular one for
+ * every other fight; desktop app only, like all the music. */
+onMounted(() => playTheme(props.releaseReason ? 'boss' : 'fight'));
+onBeforeUnmount(stopTheme);
 
 /**
  * Per-combatant animation (keyed by combatant id, the player included), derived
@@ -225,10 +254,6 @@ function cardText(card: CardInstance) {
 function isEffective(card: CardInstance) {
   const def = props.data.cards[card.defId];
   return livingEnemies.value.some((e) => isCardEffectiveAgainst(def, e.tags));
-}
-
-function typeLabel(enemy: EnemyState) {
-  return enemy.tags.map((t) => tagNames.value[t] ?? t).join(' · ');
 }
 
 /** Copies of played cards flying to their target (or flaring where they were dropped). */
@@ -364,6 +389,97 @@ const MAX_TILT_DEG = 14;
 const DIP_PER_CARD = 0.5;
 const compact = useMedia(COMPACT_QUERY);
 
+/**
+ * How far the combatants sit from the edges of the battlefield: about a quarter in, closer to the
+ * action than the edges. A wide group fight needs the width instead, and compact screens keep
+ * their own tight padding (their layout wraps).
+ */
+const sidePadding = computed(() => {
+  if (compact.value) return undefined;
+  const count = shownEnemies.value.length;
+  return count <= 1 ? '22%' : count === 2 ? '10%' : '4%';
+});
+
+/**
+ * The water's colour: the fishing spot's own map colour (a creek runs greener than the open sea),
+ * except where that colour is the land's (the jetty's wood, the beach's sand, the cliff's stone).
+ */
+const SEA = '#2b7fa8';
+const WATER_OVER = new Set(['JT', 'BE', 'CL']);
+const spotColour = computed(() => (props.spot && !WATER_OVER.has(props.spot) ? props.data.spots[props.spot]?.color : undefined) ?? SEA);
+/**
+ * Where the fisherman stands on the shore, as a share of the battlefield's width: further left as
+ * more creatures need the room.
+ */
+const playerX = computed(() => (compact.value ? 0.2 : ([0.28, 0.2, 0.14][Math.min(2, shownEnemies.value.length - 1)] ?? 0.28)));
+/** On the bank, except on a small screen with several creatures: those wrap, and he joins the flow. */
+const onBank = computed(() => !compact.value || shownEnemies.value.length <= 1);
+/** Three creatures at once: one sprite size smaller, and closer together, so they fit beside him. */
+const crowded = computed(() => shownEnemies.value.length >= 3);
+/** The battlefield's inline style: its water colour, the combatants' side padding, and his place. */
+const battlefieldStyle = computed(() => ({
+  '--spot': spotColour.value,
+  '--player-x': `${playerX.value * 100}%`,
+  ...(shore.value ? { '--shore-y0': `${shore.value.y0}px`, '--shore-y1': `${shore.value.y1}px` } : {}),
+  ...(sidePadding.value ? { paddingInline: sidePadding.value } : {}),
+}));
+
+/**
+ * The scene: the shore runs diagonally from the bottom left to the top right, the fisherman on land
+ * above it, the creatures in the water below, so they don't stand on the same plane. The line is
+ * measured from the laid-out sprites so it fits them at any size: it passes just under his feet,
+ * as steep as it must to stay above every creature's art, and at least `SHORE_SLOPE` steep.
+ * `shore` holds where it meets the left (`y0`) and right (`y1`) edges, in px from the top.
+ */
+const SHORE_SLOPE = 0.55; // of the battlefield's height per width
+const FEET = { x: 0.62, y: 1 }; // in the fisherman's frame: just ahead of his feet.
+const ART_TOP = { x: 0.15, y: 0.1 }; // in a creature's frame: its art starts a little inside the frame.
+const shore = ref<{ y0: number; y1: number } | null>(null);
+/** Seaweed on the bottom, on the water's side (objects.png: 1 green algae, 2 red algae, 3 seaweed). */
+const SEAWEED = [
+  { index: 3, left: '52%', size: 96, delay: '0s', flip: false },
+  { index: 1, left: '64%', size: 64, delay: '-1.3s', flip: true },
+  { index: 2, left: '86%', size: 80, delay: '-2.2s', flip: false },
+  { index: 3, left: '93%', size: 72, delay: '-0.7s', flip: true },
+];
+/** The shore's look, from the fight's fishing spot (spots.ts codes). */
+const LAND_BY_SPOT: Record<string, string> = {
+  RP: 'rocks', CL: 'rocks', JT: 'jetty', BE: 'beach', ST: 'grass', PO: 'grass', LK: 'grass', RV: 'grass',
+  ES: 'mud', BY: 'boat', OS: 'boat', DP: 'boat', RF: 'reef',
+};
+const land = computed(() => (props.spot && LAND_BY_SPOT[props.spot]) || 'grass');
+function measureScene() {
+  const field = battlefield.value;
+  if (!field) return;
+  const box = field.getBoundingClientRect();
+  const at = (el: Element, point: { x: number; y: number }) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - box.left + r.width * point.x, y: r.top - box.top + r.height * point.y };
+  };
+  const player = field.querySelector('.portrait.player');
+  if (!player) return;
+  const feet = at(player, FEET);
+  // Steep enough to pass above each creature's art (to the right of him), at least the default slope.
+  let slope = -SHORE_SLOPE * (box.height / box.width);
+  for (const enemy of shownEnemies.value) {
+    const el = field.querySelector(`[data-enemy-id="${enemy.id}"] .portrait`);
+    if (!el) continue;
+    const art = at(el, ART_TOP);
+    if (art.x > feet.x + 8) slope = Math.min(slope, (art.y - 6 - feet.y) / (art.x - feet.x));
+  }
+  shore.value = { y0: Math.round(feet.y - slope * feet.x), y1: Math.round(feet.y + slope * (box.width - feet.x)) };
+}
+watch([() => props.state, shownEnemies, compact], async () => {
+  await nextTick();
+  measureScene();
+}, { immediate: true });
+let fieldResizes: ResizeObserver | undefined;
+onMounted(() => {
+  fieldResizes = new ResizeObserver(() => measureScene());
+  if (battlefield.value) fieldResizes.observe(battlefield.value);
+});
+onBeforeUnmount(() => fieldResizes?.disconnect());
+
 function slotStyle(card: CardInstance, index: number, count: number) {
   if (compact.value) return undefined;
   if (drag.value?.moved && !drag.value.aimed && drag.value.uid === card.uid) return { transform: 'none' };
@@ -394,12 +510,28 @@ function onCardClick(card: CardInstance, event: MouseEvent) {
 }
 
 function onEnemyClick(enemy: EnemyState) {
-  if (selectedUid.value && isAlive(enemy)) play(selectedUid.value, enemy.id);
+  const card = selectedCard.value;
+  if (card && props.data.cards[card.defId].target === 'enemy' && isAlive(enemy)) play(card.uid, enemy.id);
+}
+
+/** The selected card, when it's still in the hand. */
+const selectedCard = computed(() => props.state.piles.hand.find((c) => c.uid === selectedUid.value));
+/** Whether the current selection (or an aimed drag) aims at a creature: only then are creatures targetable. */
+const aimingAtEnemy = computed(() => {
+  if (drag.value?.aimed && drag.value.moved) return true;
+  const def = selectedCard.value && props.data.cards[selectedCard.value.defId];
+  return !!def && def.target === 'enemy';
+});
+
+/** A selected card that plays on the player (or on no one) plays when the fisherman is tapped. */
+function onPlayerClick() {
+  const card = selectedCard.value;
+  if (card && props.data.cards[card.defId].target !== 'enemy') play(card.uid);
 }
 
 /** A selected card that isn't aimed at a creature plays when the battlefield is tapped. */
 function onBattlefieldClick() {
-  const card = selectedUid.value ? props.state.piles.hand.find((c) => c.uid === selectedUid.value) : undefined;
+  const card = selectedCard.value;
   if (card && props.data.cards[card.defId].target !== 'enemy') play(card.uid);
 }
 
@@ -421,31 +553,89 @@ function endTurn() {
     <section
       ref="battlefield"
       class="battlefield"
-      :class="{ 'drop-zone': drag?.moved && !drag.aimed, 'drop-ready': drag?.moved && !drag.aimed && drag.overBattlefield }"
+      :class="{ 'drop-zone': drag?.moved && !drag.aimed, 'drop-ready': drag?.moved && !drag.aimed && drag.overBattlefield, bank: onBank }"
+      :style="battlefieldStyle"
       @click="onBattlefieldClick"
     >
-      <CombatantView
-        :combatant="state.player"
-        :portrait="data.character.portrait ?? '🧑'"
-        :clip="playerClip()"
-        :animation-key="animations[PLAYER_ID]?.key"
-        @animation-done="onAnimationDone(PLAYER_ID)"
-      />
-      <TransitionGroup tag="div" name="leave" class="enemies">
+      <!-- The scene, behind the sprites: land above the diagonal shore (its look from the fishing
+           spot), water below it, then the foam along the shore. -->
+      <div class="land" :class="land" aria-hidden="true" />
+      <div class="water-tint" aria-hidden="true" />
+      <!-- The water's side, like the home aquarium: light from above, seaweed on a sandy bottom,
+           bubbles rising. Only the bubbles and a slow sway move (cheap even without a GPU). -->
+      <div class="underwater" aria-hidden="true">
+        <div class="rays" />
+        <div class="sand" />
+        <div v-for="(w, i) in SEAWEED" :key="i" class="seaweed" :class="{ flip: w.flip }" :style="{ left: w.left, animationDelay: w.delay }">
+          <SpriteView :sprite="{ sheet: 'objects', index: w.index }" :size="compact ? w.size / 2 : w.size" />
+        </div>
+        <PixelBubbles :count="10" />
+      </div>
+      <svg class="scene" aria-hidden="true">
+        <line class="surface-foam" x1="0" x2="100%" :y1="shore?.y0 ?? '85%'" :y2="shore?.y1 ?? '15%'" />
+        <line class="surface-line" x1="0" x2="100%" :y1="shore?.y0 ?? '85%'" :y2="shore?.y1 ?? '15%'" />
+      </svg>
+      <!-- The player's corner panel, under his character: his Grit, Hold and statuses (he stands on
+           the bank with nothing under his feet), then his Energy and Patience. -->
+      <div class="resources">
+        <div class="player-hud">
+          <HealthBar :hp="state.player.hp" :max-hp="state.player.maxHp" :block="state.player.block" grit />
+          <StatusList :statuses="state.player.statuses" />
+        </div>
+        <div class="orbs">
+          <div v-tip="t('combat.energy')" class="energy">
+            <span class="energy-icon" aria-hidden="true">⚡</span>
+            <span class="energy-count">{{ state.player.energy }}/{{ state.player.maxEnergy }}</span>
+          </div>
+          <div
+            v-tip="{ title: term('patience'), body: PATIENCE_TIP }"
+            class="patience"
+            :class="{ empty: !state.player.patience }"
+            tabindex="0"
+          >
+            <span class="patience-icon" aria-hidden="true">⏳</span>
+            <span class="patience-count">{{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- The turn counter, up in the safe area of the battlefield. -->
+      <p class="turn">{{ t('combat.turn', { n: state.turn }) }}</p>
+      <!-- The player stands on the bank, above the water line (compact screens stack the flow). -->
+      <div class="player-anchor" :class="{ raised: onBank }">
+        <CombatantView
+          :combatant="state.player"
+          :portrait="data.character.portrait ?? '🧑'"
+          :clip="playerClip()"
+          :frame="4"
+          bare
+          :animation-key="animations[PLAYER_ID]?.key"
+          :targetable="!aimingAtEnemy && !!selectedCard"
+          @select="onPlayerClick"
+          @animation-done="onAnimationDone(PLAYER_ID)"
+        />
+      </div>
+      <TransitionGroup tag="div" name="leave" class="enemies" :class="{ crowded }">
         <CombatantView
           v-for="enemy in shownEnemies"
           :key="enemy.id"
           :combatant="enemy"
           :portrait="data.enemies[enemy.defId].portrait ?? '👹'"
           :sprite="data.enemies[enemy.defId].sprite"
-          :scale="releaseReason ? 1.3 : 1.2"
-          :subtitle="typeLabel(enemy)"
+          :frame="(releaseReason ? 6 : 3 + (data.enemies[enemy.defId].tier ?? 2)) - (crowded ? 1 : 0)"
+          :families="creatureFamilies(enemy.defId, data)"
+          :tip="creatureTip(enemy)"
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(state, enemy, data)"
-          :escape-bar="{ escape: enemy.escape, escapeAt: enemy.escapeAt, escapeRate: escapeRise(enemy, state.player.patience, state.slowCap) }"
+          :hold="state.player.block"
+          :escape-bar="{
+            escape: enemy.escape,
+            escapeAt: enemy.escapeAt,
+            escapeRate: escapeRise(enemy, state.player.patience, state.slowCap),
+            pull: previewIntent(state, enemy, data)?.pull,
+          }"
           :data-enemy-id="enemy.id"
-          :targetable="(!!selectedUid || (!!drag?.aimed && drag.moved)) && isAlive(enemy)"
+          :targetable="aimingAtEnemy && isAlive(enemy)"
           :class="{ aimed: drag?.targetId === enemy.id }"
           @select="onEnemyClick(enemy)"
           @animation-done="onAnimationDone(enemy.id)"
@@ -461,10 +651,6 @@ function endTurn() {
 
     <section class="controls">
       <div class="side">
-        <div v-tip="t('combat.energy')" class="energy">{{ state.player.energy }}/{{ state.player.maxEnergy }}</div>
-        <div v-tip="{ title: term('patience'), body: PATIENCE_TIP }" class="patience" tabindex="0">
-          <span class="patience-count" :class="{ empty: !state.player.patience }">⏳ {{ term('patience') }} {{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
-        </div>
         <div v-tip="t('combat.drawPile')" class="pile">🂠 {{ t('combat.draw', { n: state.piles.draw.length }) }}</div>
       </div>
 
@@ -551,22 +737,119 @@ function endTurn() {
 
 .battlefield {
   position: relative;
+  /* Its own stacking context: the scene (z-index: -1) sits behind the sprites but above this background. */
+  isolation: isolate;
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 24px;
+  /* Bottom-aligned, so the creatures stand on the same ground line; the player is raised onto
+     the bank above the water (see .player-anchor). */
+  align-items: flex-end;
+  /* The player is out of the flow (on the bank), so the creatures pin to the right. */
+  justify-content: flex-end;
+  padding: 24px 22%;
   border-radius: 16px;
-  background: linear-gradient(180deg, #1d2c3f 0%, #17324a 55%, #12283b 100%);
+  /* The water, tinted by the fight's spot: a creek runs greener than the open sea. */
+  background:
+    radial-gradient(70% 50% at 50% -8%, rgb(126 175 200 / 0.28), transparent 68%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--spot, #2b7fa8) 30%, #20324a) 0%,
+      color-mix(in srgb, var(--spot, #2b7fa8) 35%, #17324a) 55%,
+      color-mix(in srgb, var(--spot, #2b7fa8) 40%, #12283b) 100%
+    );
+  border: 1px solid rgb(120 160 195 / 0.16);
+  box-shadow: inset 0 0 70px rgb(2 6 12 / 0.35);
 }
+/* Land above the diagonal shore, water below it (--shore-y0 / --shore-y1: where the shore meets the
+   left and right edges, measured in measureScene). All behind the sprites (z-index: -1). */
+.land, .water-tint, .underwater { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.land { clip-path: polygon(0 0, 100% 0, 100% var(--shore-y1, 15%), 0 var(--shore-y0, 85%)); }
+.water-tint, .underwater { clip-path: polygon(0 var(--shore-y0, 85%), 100% var(--shore-y1, 15%), 100% 100%, 0 100%); }
+.water-tint { background: color-mix(in srgb, var(--spot, #2b7fa8) 60%, #0d2030); opacity: 0.45; }
+/* The shore by fishing spot, in flat pixel-art colours. */
+.land.grass {
+  background:
+    radial-gradient(circle at 30% 40%, #6fae55 0 3px, transparent 4px) 0 0 / 46px 38px,
+    radial-gradient(circle at 70% 70%, #4f8a3d 0 3px, transparent 4px) 0 0 / 58px 44px,
+    linear-gradient(160deg, #5f9c4a, #3f7a35);
+}
+/* Stones of different sizes, each with a dark rim, on tiles of unrelated sizes so no grid shows. */
+.land.rocks {
+  background:
+    radial-gradient(ellipse 20% 15% at 38% 42%, #9da3a7 0 62%, #5a5f63 64% 80%, transparent 82%) 0 0 / 151px 113px,
+    radial-gradient(ellipse 16% 12% at 72% 68%, #858b8f 0 62%, #4f5458 64% 80%, transparent 82%) 0 0 / 211px 173px,
+    radial-gradient(ellipse 11% 9% at 18% 78%, #a7adb1 0 62%, #5e6367 64% 80%, transparent 82%) 0 0 / 127px 97px,
+    radial-gradient(ellipse 26% 18% at 80% 20%, #7c8286 0 62%, #4a4f53 64% 80%, transparent 82%) 0 0 / 263px 191px,
+    linear-gradient(160deg, #666c71, #484d52);
+}
+.land.jetty { background: repeating-linear-gradient(90deg, #9b7447 0 34px, #6e4f2e 34px 37px), #9b7447; }
+.land.boat {
+  background:
+    linear-gradient(90deg, transparent 0 calc(100% - 10px), #e9e4d6 calc(100% - 10px)),
+    repeating-linear-gradient(90deg, #c9a46c 0 28px, #8e6c3f 28px 30px);
+}
+.land.beach {
+  background:
+    repeating-linear-gradient(170deg, rgb(255 255 255 / 0.1) 0 5px, transparent 5px 24px),
+    linear-gradient(160deg, #e6d29b, #c9ad70);
+}
+.land.mud {
+  background:
+    radial-gradient(ellipse 30% 18% at 40% 50%, #4f412c 0 60%, transparent 62%) 0 0 / 180px 120px,
+    radial-gradient(circle at 75% 25%, #7c8a3e 0 3px, transparent 4px) 0 0 / 40px 36px,
+    linear-gradient(160deg, #75613f, #57472f);
+}
+.land.reef {
+  background:
+    radial-gradient(ellipse 18% 13% at 35% 40%, #e8d6be 0 62%, #b49a7c 64% 80%, transparent 82%) 0 0 / 149px 109px,
+    radial-gradient(ellipse 12% 10% at 70% 72%, #df9f8d 0 62%, #a86a5c 64% 80%, transparent 82%) 0 0 / 197px 151px,
+    radial-gradient(ellipse 9% 7% at 15% 80%, #e7b7a3 0 62%, #ad7c6a 64% 80%, transparent 82%) 0 0 / 113px 89px,
+    linear-gradient(160deg, #cfbaa0, #ae967a);
+}
+/* Light rays slanting down into the water; still, so nothing repaints the whole water. */
+.rays {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.05) 0 40px, transparent 40px 120px);
+}
+/* The water's side is a size container, so the bubbles rise its full height (cqh). */
+.underwater { overflow: hidden; container-type: size; }
+.sand {
+  position: absolute;
+  inset: auto 0 0;
+  height: 16%;
+  min-height: 24px;
+  background:
+    radial-gradient(ellipse 60% 60% at 30% 0%, #e2c98f 0 40%, transparent 41%),
+    radial-gradient(ellipse 50% 70% at 80% 10%, #d8bd80 0 40%, transparent 41%),
+    linear-gradient(180deg, #d4b679, #b8975a);
+}
+.seaweed { position: absolute; bottom: 6%; transform-origin: 50% 100%; animation: seaweed-sway 5s ease-in-out infinite alternate; }
+.seaweed.flip > :deep(.sprite) { scale: -1 1; }
+@keyframes seaweed-sway {
+  from { transform: rotate(-3deg); }
+  to { transform: rotate(3deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seaweed { animation: none; }
+}
+/* An <svg> doesn't stretch to `inset: 0` like a div: it needs its size, or it stays 300×150 and clips the lines. */
+.scene { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+/* Foam where the water meets the shore: a soft wide band under a bright edge. */
+.surface-foam { stroke: rgb(255 255 255 / 0.18); stroke-width: 12; }
+.surface-line { stroke: rgb(255 255 255 / 0.7); stroke-width: 2; }
+/* He stands on the shore, in the upper left; the shore line is drawn under his feet (measureScene). */
+.player-anchor.raised { position: absolute; left: var(--player-x, 28%); bottom: 46%; transform: translateX(-50%); }
 .enemies { display: flex; gap: 24px; }
+.enemies.crowded { gap: 10px; }
+.enemies.crowded :deep(.hud) { width: 170px; }
 /* A caught creature fades out of the battlefield; the others slide over. */
 .enemies > .leave-leave-active { transition: opacity 0.4s ease, transform 0.4s ease; }
 .enemies > .leave-leave-to { opacity: 0; transform: translateY(12px) scale(0.9); }
 .enemies > .leave-move { transition: transform 0.4s ease; }
 .caught-notes {
   position: absolute;
-  top: 12px;
+  top: 16px;
   left: 50%;
   z-index: 3;
   display: flex;
@@ -584,8 +867,8 @@ function endTurn() {
 
 .log {
   position: absolute;
-  top: 10px;
-  left: 12px;
+  top: 16px;
+  left: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -663,6 +946,26 @@ function endTurn() {
   .slot { transition: none; }
 }
 
+/* The player's two resource counters, at home on the battlefield: a glowing disc each, so they
+   read as a pair (the tooltip tells them apart). */
+/* Every HUD piece keeps at least 16px inside the battlefield's edges, so nothing is clipped. */
+.resources { position: absolute; bottom: 16px; left: 16px; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+.player-hud { display: flex; flex-direction: column; gap: 4px; width: 170px; }
+.orbs { display: flex; gap: 10px; }
+.turn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  margin: 0;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgb(20 24 32 / 0.9);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .energy {
   display: grid;
   place-items: center;
@@ -671,16 +974,28 @@ function endTurn() {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #ffe08a, var(--energy) 60%, #a5741b);
   color: #1b1d24;
-  font-size: 1.4rem;
   font-weight: 800;
   box-shadow: 0 0 16px rgb(242 182 66 / 0.45);
 }
+.energy-icon { font-size: 1rem; }
+.energy-count { font-size: 1.1rem; }
 .pile { font-size: 0.85rem; color: var(--muted); }
-.patience { position: relative; cursor: help; }
+.patience {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #cfeaff, #6fb7e3 60%, #2a5f8a);
+  color: #12283c;
+  cursor: help;
+  box-shadow: 0 0 16px rgb(111 183 227 / 0.45);
+}
+.patience-icon { font-size: 1rem; }
+.patience-count { font-size: 1.1rem; font-weight: 800; }
+.patience.empty { opacity: 0.55; }
 .patience:focus { outline: none; }
-.patience-count { display: block; padding: 2px 10px; border-radius: 999px; background: #2a3f5a; color: #bfe3ff; font-size: 0.85rem; font-weight: 700; }
-.patience-count.empty { opacity: 0.55; }
-.patience:focus-visible .patience-count { outline: 2px solid var(--highlight); }
+.patience:focus-visible { outline: 2px solid var(--highlight); }
 .end-turn { padding: 12px 18px; font-size: 1rem; }
 
 .overlay {
@@ -691,7 +1006,7 @@ function endTurn() {
   background: rgb(10 11 15 / 0.7);
   border-radius: 16px;
 }
-.panel { padding: 28px 40px; border-radius: 16px; background: var(--panel); text-align: center; }
+.panel { padding: 28px 40px; border-radius: 16px; background: var(--panel-soft); border: 1px solid var(--line); box-shadow: 0 18px 50px rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); text-align: center; }
 .panel h2 { margin: 0 0 8px; font-size: 2rem; }
 
 /* Small screens (COMPACT_QUERY): creatures wrap, the counters and End Turn go in a row above the
@@ -700,8 +1015,15 @@ function endTurn() {
 @media (max-width: 700px), (max-height: 500px) {
   .combat { gap: 8px; }
   .battlefield { flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 8px 4px; }
+  /* The fisherman on the bank (one creature): it keeps to the right, clear of him. */
+  .battlefield.bank { justify-content: flex-end; }
+  .player-anchor.raised { bottom: 48%; }
   .enemies { flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
   .log { display: none; }
+  /* Wrapped combatants take the bottom corners, so the panel goes top left (the log is gone);
+     with the fisherman up on the bank, the bottom left is free and it stays there. */
+  .battlefield:not(.bank) .resources { top: 16px; bottom: auto; }
+  .player-hud { width: 130px; }
   .controls { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6px; padding: 0 0 6px; }
   .controls .side { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 6px 10px; min-width: 0; }
   .controls .side:last-child { justify-content: flex-end; }
@@ -733,9 +1055,14 @@ function endTurn() {
     white-space: nowrap;
     font-size: 0.8rem;
   }
-  .energy { width: 48px; height: 48px; font-size: 1.1rem; }
+  .energy { width: 48px; height: 48px; }
+  .energy-icon { font-size: 0.8rem; }
+  .energy-count { font-size: 0.9rem; }
+  .patience { width: 48px; height: 48px; }
+  .patience-icon { font-size: 0.8rem; }
+  .patience-count { font-size: 0.9rem; }
   .end-turn { padding: 10px 14px; }
-  .pile, .patience-count { font-size: 0.75rem; }
+  .pile { font-size: 0.75rem; }
   .panel { padding: 20px 22px; margin: 0 12px; }
   .panel h2 { font-size: 1.5rem; }
 }

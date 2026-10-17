@@ -40,9 +40,23 @@ const choices = computed(() =>
 <style scoped>
 .event { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 560px; margin: 0 auto; padding-top: 10vh; text-align: center; }
 .event h2 { margin: 0; }
-.icon { font-size: 4rem; line-height: 1; }
+.icon { font-size: 4rem; line-height: 1; filter: drop-shadow(0 6px 18px rgb(245 215 110 / 0.3)); }
 .description { margin: 0 0 12px; color: var(--muted); }
 .choices { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-.choice { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; text-align: left; }
-.choice span { font-weight: 400; font-size: 0.9rem; opacity: 0.85; }
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  text-align: left;
+  color: var(--text);
+  background: linear-gradient(180deg, #26304a, #1c2334);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+@media (hover: hover) {
+  .choice:hover:not(:disabled) { transform: translateY(-2px); border-color: rgb(245 215 110 / 0.55); box-shadow: 0 8px 20px rgb(0 0 0 / 0.4); }
+}
+.choice span { font-weight: 400; font-size: 0.9rem; color: var(--muted); }
 </style>
