@@ -116,6 +116,11 @@ button.ghost {
 .stat.grit .max { color: var(--muted); font-weight: 500; }
 .stat.coins { border-color: #6b5426; background: linear-gradient(180deg, #3a3020, #2b2416); }
 .stat.deck { color: var(--text); }
+/* The deck pill opens the deck: a pill still, not a gold button. */
+button.stat { box-shadow: none; font-weight: 500; cursor: pointer; }
+@media (hover: hover) {
+  button.stat:hover { border-color: var(--highlight); filter: none; }
+}
 .seed { color: var(--muted); cursor: help; }
 
 /* Small screens (COMPACT_QUERY in useScreen.ts): a one-line top bar, the seed and New run left out. */

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { creatureTypeNames, type CatchSize, type Discovery, type GameData } from '../engine';
+import { bonusEffects, creatureTypeNames, describeCompanionEffect, FULL_SCHOOL, type CatchSize, type Discovery, type GameData } from '../engine';
 import { t } from './i18n';
 import SideDrawer from './SideDrawer.vue';
 import SpriteView from './SpriteView.vue';
 
 /**
- * A 📖 tab on the right edge that opens a drawer listing every creature in the game.
+ * A 📖 tab on the right edge that opens a drawer listing every creature in the game, grouped by
+ * temperament, each group headed by the bonus its creatures give as companions.
  * Creatures never encountered show as a question mark.
  */
 const props = defineProps<{
@@ -41,6 +42,18 @@ const creatures = computed(() => {
 });
 const discoveredCount = computed(() => creatures.value.filter((c) => c.status).length);
 
+/** The creatures by temperament, in the companion bonuses' order, each with its bonus at 1★ and its full school. */
+const groups = computed(() =>
+  Object.values(props.data.companionBonuses)
+    .map((def) => ({
+      def,
+      creatures: creatures.value.filter((c) => props.data.enemies[c.id]?.temperament === def.id),
+      oneStar: bonusEffects(def, 1, 1).map(describeCompanionEffect).join(' '),
+      fullSchool: def.fullSchool.map(describeCompanionEffect).join(' '),
+    }))
+    .filter((g) => g.creatures.length),
+);
+
 </script>
 
 <template>
@@ -48,46 +61,68 @@ const discoveredCount = computed(() => creatures.value.filter((c) => c.status).l
     <template #header>
       <span class="total">{{ t('book.discovered', { n: discoveredCount, total: creatures.length }) }}</span>
     </template>
-    <ul class="grid">
-      <li
-        v-for="c in creatures"
-        :key="c.id"
-        class="creature"
-        :class="c.status"
-        v-tip="c.status ? { title: c.name, detail: c.type } : undefined"
-      >
-        <template v-if="c.status">
-          <SpriteView :sprite="c.sprite" :size="64" />
-          <span class="status">{{ c.status === 'captured' ? t('book.captured') : t('book.seen') }}</span>
-          <span v-if="c.owned" v-tip="t('book.owned', { n: c.owned })" class="owned">×{{ c.owned }}</span>
-          <span
-            v-if="c.biggest"
-            v-tip="t('book.biggest', { size: t(`size.${c.biggest}`) })"
-            class="biggest"
-            :class="c.biggest"
-            :aria-label="t('book.biggest', { size: t(`size.${c.biggest}`) })"
-          >
-            {{ SIZE_MARK[c.biggest] }}
-          </span>
-        </template>
-        <template v-else>
-          <span class="unknown" :aria-label="t('book.notEncountered')">?</span>
-          <span class="status">{{ t('book.unknown') }}</span>
-        </template>
-      </li>
-    </ul>
+    <!-- Collapsed by default: the bonus stays in view, the creatures open with a click. -->
+    <details v-for="g in groups" :key="g.def.id" class="group">
+      <summary class="bonus">
+        <h3>
+          <span><span class="chevron" aria-hidden="true">▸</span> {{ g.def.icon }} {{ g.def.temperamentName }} · {{ g.def.name }}</span>
+          <span class="count">{{ g.creatures.filter((c) => c.status).length }}/{{ g.creatures.length }}</span>
+        </h3>
+        <p>{{ t('book.oneStar', { rule: g.oneStar }) }}</p>
+        <p v-if="g.fullSchool">{{ t('book.fullSchool', { n: FULL_SCHOOL, rule: g.fullSchool }) }}</p>
+      </summary>
+      <ul class="grid">
+        <li
+          v-for="c in g.creatures"
+          :key="c.id"
+          class="creature"
+          :class="c.status"
+          v-tip="c.status ? { title: c.name, detail: c.type } : undefined"
+        >
+          <template v-if="c.status">
+            <SpriteView :sprite="c.sprite" :size="64" />
+            <span class="status">{{ c.status === 'captured' ? t('book.captured') : t('book.seen') }}</span>
+            <span v-if="c.owned" v-tip="t('book.owned', { n: c.owned })" class="owned">×{{ c.owned }}</span>
+            <span
+              v-if="c.biggest"
+              v-tip="t('book.biggest', { size: t(`size.${c.biggest}`) })"
+              class="biggest"
+              :class="c.biggest"
+              :aria-label="t('book.biggest', { size: t(`size.${c.biggest}`) })"
+            >
+              {{ SIZE_MARK[c.biggest] }}
+            </span>
+          </template>
+          <template v-else>
+            <span class="unknown" :aria-label="t('book.notEncountered')">?</span>
+            <span class="status">{{ t('book.unknown') }}</span>
+          </template>
+        </li>
+      </ul>
+    </details>
   </SideDrawer>
 </template>
 
 <style scoped>
 .total { color: var(--muted); font-size: 0.85rem; }
 
+.group { padding: 8px 16px 0; }
+.bonus { padding: 8px 10px; border-radius: 10px; background: rgb(255 255 255 / 0.06); cursor: pointer; list-style: none; }
+.bonus::-webkit-details-marker { display: none; }
+.chevron { display: inline-block; color: var(--muted); transition: rotate 0.15s; }
+.group[open] .chevron { rotate: 90deg; }
+@media (hover: hover) {
+  .bonus:hover { background: rgb(255 255 255 / 0.1); }
+}
+.bonus h3 { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: 0.95rem; }
+.bonus .count { color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+.bonus p { margin: 3px 0 0; color: var(--muted); font-size: 0.75rem; line-height: 1.3; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 10px;
   margin: 0;
-  padding: 16px;
+  padding: 10px 0;
   list-style: none;
 }
 .creature {

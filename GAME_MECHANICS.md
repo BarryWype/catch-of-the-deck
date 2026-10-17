@@ -45,7 +45,7 @@ There are five kinds of card:
 | **Drain** (teal) | Drains a creature's **Will**. |
 | **Defense** (blue) | Gives you **Hold**. |
 | **Support** (purple) | Slows, weakens or tricks creatures, or helps you. |
-| **Power** (gold) | Lasts the rest of the fight once played. |
+| **Power** (gold) | Lasts the rest of the fight once played; an icon under your Grit bar shows it. |
 
 Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (⏳) on top of energy.
 
@@ -178,5 +178,5 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 - **Bringing companions:** before a run you can bring up to 3 creatures. Each kind of temperament gives a bonus for the run. They ride in your bucket, so they take up room in it.
 - **Stars:** each companion gives stars: 1 to 3 for how deep it lives (its tier), +1 at bond level 2 and +1 more at level 3, so 1★ to 5★. The stars of companions of the same kind add up, each species once (two Clownfish count once, the one with more stars), and more stars make the bonus stronger, up to its 8★ value. Bringing 3 different species of the same kind also adds its **full school** bonus. The companions screen shows each one's stars, each kind's total and bonus, and what the next stars would add.
 - **Bond:** companions grow closer with every fight they share with you: 1 point a fight as a Kid, 2 as an Adult, 3 as an Elder, and double against a mini-boss or boss. A creature is fully bonded at 40 points (shallow-water creatures), 60 or 90 (the deepest); levels come at 20%, 50% and 100%. They keep that bond only if the run succeeds. Creatures resting at home bond slowly too (+2 a run, up to level 1), and hatchlings start at level 1. A companion that reaches a new level mid-run gives its extra star from the next fight.
-- **Creature book** (📖): every creature you've met, seen or captured, with the biggest one of each species you've ever caught: S (small), M (normal), L (large) or 🏆 (trophy).
+- **Creature book** (📖): every creature, grouped by kind (reef fish, predators…), each kind headed by the bonus it gives as a companion at 1★ and with a full school; click a kind to open it and see its creatures. It shows every creature you've met, seen or captured, with the biggest one of each species you've ever caught: S (small), M (normal), L (large) or 🏆 (trophy).
 - **Eggs:** two of the same creature at home may lay an egg after a run. Click it to hatch.

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { BUCKET_SIZE, findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
+import { BUCKET_SIZE, creatureTypeNames, describeCard, findNode, isReleaseFight, SESSION_SLOTS, type CardDef } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
+import CardView from './CardView.vue';
 import CombatView from './CombatView.vue';
 import EggTray from './EggTray.vue';
 import EventScreen from './EventScreen.vue';
@@ -62,6 +63,17 @@ function startNewRun() {
   confirmNewRun.value?.close();
   pendingNewRun();
 }
+
+/** The deck dialog (the deck pill in the top bar): every card in it, by type, then by name. */
+const deckDialog = ref<HTMLDialogElement>();
+const TYPE_ORDER: CardDef['type'][] = ['attack', 'defense', 'drain', 'support', 'power', 'junk'];
+const tagNames = computed(() => creatureTypeNames(data));
+const deckCards = computed(() =>
+  (run.value?.deck ?? [])
+    .map((id) => data.cards[id])
+    .filter(Boolean)
+    .sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) || a.name.localeCompare(b.name)),
+);
 </script>
 
 <template>
@@ -80,7 +92,7 @@ function startNewRun() {
         <GameIcon icon="🪙" />
         <b>{{ run.coins }}</b>
       </span>
-      <span class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })">🂠 <b>{{ run.deck.length }}</b></span>
+      <button class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })" @click="deckDialog?.showModal()">🂠 <b>{{ run.deck.length }}</b></button>
       <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
       <button class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
       <button class="ghost new-run" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
@@ -203,6 +215,16 @@ function startNewRun() {
     </footer>
   </dialog>
 
+  <dialog ref="deckDialog" class="confirm deck-dialog" @click="$event.target === deckDialog && deckDialog?.close()">
+    <h3>{{ t('app.deckTitle', { n: deckCards.length }) }}</h3>
+    <div class="deck-cards">
+      <CardView v-for="(card, i) in deckCards" :key="i" :card="card" :description="describeCard(card, { tagNames })" />
+    </div>
+    <footer>
+      <button class="ghost" autofocus @click="deckDialog?.close()">{{ t('common.close') }}</button>
+    </footer>
+  </dialog>
+
   <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
   <EggTray v-if="['menu', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
 
@@ -211,6 +233,18 @@ function startNewRun() {
 </template>
 
 <style scoped>
+/* The deck: wider than a confirmation, its cards in a grid that scrolls inside. */
+.deck-dialog { width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.deck-dialog[open] { display: flex; flex-direction: column; }
+.deck-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 6px 2px;
+  overflow-y: auto;
+}
 
 /* Map on top, aquarium fills whatever height is left. */
 .map-layout {

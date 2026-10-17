@@ -247,11 +247,13 @@ export const fr: Messages = {
     common: {
       back: '← Retour',
       cancel: 'Annuler',
+      close: 'Fermer',
       newEggs: '🥚 Un œuf a été pondu dans ton aquarium !|🥚 {n} œufs ont été pondus dans ton aquarium !',
     },
     app: {
       coins: 'Pièces',
       deckTip: '{n} carte dans ton deck|{n} cartes dans ton deck',
+      deckTitle: 'Ton deck · {n} carte|Ton deck · {n} cartes',
       seed: 'Graine {n}',
       seedTitle: 'Graine de la partie',
       seedDetail: 'Ouvre le jeu avec ?seed=N dans l’adresse pour rejouer cette partie',
@@ -504,6 +506,8 @@ export const fr: Messages = {
       notEncountered: 'Pas encore rencontrée',
       unknown: 'Inconnue',
       biggest: 'Plus grosse prise : {size}',
+      oneStar: 'En compagnon (1★) : {rule}',
+      fullSchool: 'Banc complet ({n} espèces) : {rule}',
     },
     slots: {
       label: 'Emmenées pour la partie',

@@ -258,11 +258,13 @@ export const en = {
     common: {
       back: '← Back',
       cancel: 'Cancel',
+      close: 'Close',
       newEggs: '🥚 An egg was laid in your home aquarium!|🥚 {n} eggs were laid in your home aquarium!',
     },
     app: {
       coins: 'Coins',
       deckTip: '{n} card in your deck|{n} cards in your deck',
+      deckTitle: 'Your deck · {n} card|Your deck · {n} cards',
       seed: 'Seed {n}',
       seedTitle: 'Run seed',
       seedDetail: 'Open with ?seed=N in the URL to replay this run',
@@ -514,6 +516,8 @@ export const en = {
       notEncountered: 'Not encountered yet',
       unknown: 'Unknown',
       biggest: 'Biggest caught: {size}',
+      oneStar: 'As a companion (1★): {rule}',
+      fullSchool: 'Full school ({n} species): {rule}',
     },
     slots: {
       label: 'Brought for the session',

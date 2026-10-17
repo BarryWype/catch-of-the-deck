@@ -32,6 +32,7 @@ import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
 import HealthBar from './HealthBar.vue';
 import StatusList from './StatusList.vue';
+import PowerList from './PowerList.vue';
 import { playTheme, stopTheme } from './music';
 import { COMPACT_QUERY, useMedia } from './useScreen';
 import {
@@ -616,6 +617,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <div class="player-hud">
           <HealthBar :hp="state.player.hp" :max-hp="state.player.maxHp" :block="state.player.block" grit />
           <StatusList :statuses="state.player.statuses" />
+          <PowerList :state="state" :data="data" />
         </div>
         <div class="orbs">
           <div v-tip="t('combat.energy')" class="energy">
