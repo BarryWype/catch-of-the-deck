@@ -461,7 +461,10 @@ export const fr: Messages = {
     },
     reward: {
       title: 'Choisis une carte à ajouter à ton deck',
-      reroll: 'Relancer (encore {n} ce niveau)',
+      reroll: 'Relancer (encore {n})',
+      rerollTip: 'Propose trois autres cartes. Tu commences une partie avec 1 relance, et tu en gagnes 1 de plus pour chaque mini-boss et boss battu.',
+      families: 'Cartes de',
+      anyFamily: 'toutes les familles',
       skip: 'Passer (encore {n} ce niveau)',
     },
     event: {

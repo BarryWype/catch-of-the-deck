@@ -46,4 +46,10 @@ describe('saves from before stars, sizes and the bucket limit', () => {
     expect(save.run.companions).toEqual([{ id: 'clownfish', bond: 20, size: 'normal' }]);
     expect(save.run.waiting).toEqual([]);
   });
+
+  it('run save v14: the run gets the reroll every run starts with', () => {
+    const save = upgradeSave({ version: 14, run: { bucket: [] }, combat: null } as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run.rewardRerolls).toBe(1);
+  });
 });

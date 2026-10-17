@@ -10,6 +10,7 @@ export * from './effects';
 export * from './describe';
 export * from './intents';
 export * from './combat';
+export * from './preview';
 export * from './data';
 export * from './map';
 export * from './run';

@@ -12,7 +12,9 @@ import {
   cardCost,
   isCardPlayable,
   PLAYER_ID,
+  previewCard,
   previewIntent,
+  previewIntents,
   escapeRise,
   HOLD_PER_PATIENCE,
   MAX_PATIENCE,
@@ -548,6 +550,44 @@ function onBattlefieldClick() {
   if (card && props.data.cards[card.defId].target !== 'enemy') play(card.uid);
 }
 
+/**
+ * What the card being dragged (or selected) would do: `state`, the fight after it, for the
+ * player's bars and the creatures' intents; `enemies`, each creature after it. A card aimed at a
+ * creature with none picked yet shows, on each creature, what it would do to that one (the
+ * player's side from playing it on the first), and leaves the intents as they are.
+ */
+const cardPreview = computed<{ state: CombatState; enemies: Record<string, EnemyState> } | null>(() => {
+  const d = drag.value;
+  const uid = d?.moved ? d.uid : selectedUid.value;
+  const card = isPlayerTurn.value && props.state.piles.hand.find((c) => c.uid === uid);
+  if (!card) return null;
+  const aimed = props.data.cards[card.defId].target === 'enemy';
+  const targetId = d?.moved ? d.targetId : null;
+  const targets = !aimed ? [undefined] : targetId ? [targetId] : livingEnemies.value.map((e) => e.id);
+  const plays = targets.map((id) => ({ id, next: previewCard(props.state, card.uid, id, props.data) }));
+  const first = plays[0]?.next;
+  if (!first) return null;
+  const enemies = Object.fromEntries(first.enemies.map((e) => [e.id, e]));
+  if (targets.length > 1) for (const { id, next } of plays) if (id && next) enemies[id] = next.enemies.find((e) => e.id === id)!;
+  return { state: targets.length > 1 ? { ...first, enemies: props.state.enemies } : first, enemies };
+});
+/** The fight the intents and bars are shown for: after the card being played, if any. */
+const shownState = computed(() => cardPreview.value?.state ?? props.state);
+/** After the creatures' shown moves (engine: `previewIntents`). */
+const turnPreview = computed(() => previewIntents(shownState.value, props.data));
+
+/** A creature's bars after the card, then after the creatures' moves (what those moves change, on top). */
+function enemyPreview(enemy: EnemyState) {
+  const after = cardPreview.value?.enemies[enemy.id] ?? enemy;
+  const before = shownState.value.enemies.find((e) => e.id === enemy.id) ?? enemy;
+  const end = turnPreview.value.enemies.find((e) => e.id === enemy.id) ?? before;
+  return {
+    health: { after: after.hp, end: after.hp + end.hp - before.hp, blockAfter: after.block },
+    escape: after.escape,
+    escapeEnd: after.escape + end.escape - before.escape,
+  };
+}
+
 const hint = computed(() => {
   if (drag.value?.moved) return drag.value.aimed ? t('combat.dropOnCreature') : t('combat.dropOnBattlefield');
   const selected = selectedUid.value ? props.state.piles.hand.find((c) => c.uid === selectedUid.value) : undefined;
@@ -615,7 +655,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
            the bank with nothing under his feet), then his Energy and Patience. -->
       <div class="resources">
         <div class="player-hud">
-          <HealthBar :hp="state.player.hp" :max-hp="state.player.maxHp" :block="state.player.block" grit />
+          <HealthBar
+            :hp="state.player.hp"
+            :max-hp="state.player.maxHp"
+            :block="state.player.block"
+            :after="shownState.player.hp"
+            :end="turnPreview.player.hp"
+            grit
+          />
           <StatusList :statuses="state.player.statuses" />
           <PowerList :state="state" :data="data" />
         </div>
@@ -652,8 +699,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         />
         <!-- His Hold, right beside him, so it's seen where the strikes land. -->
         <Transition name="hold">
-          <span v-if="state.player.block > 0" :key="state.player.block" v-tip="`${state.player.block} ${term('hold')}`" class="player-hold">
-            <GameIcon icon="🛡️" />{{ state.player.block }}
+          <span
+            v-if="state.player.block > 0 || shownState.player.block > 0"
+            :key="state.player.block"
+            v-tip="`${state.player.block} ${term('hold')}`"
+            class="player-hold"
+          >
+            <GameIcon icon="🛡️" />{{ shownState.player.block === state.player.block ? state.player.block : `${state.player.block} → ${shownState.player.block}` }}
           </span>
         </Transition>
       </div>
@@ -669,14 +721,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :tip="drag?.moved ? undefined : creatureTip(enemy)"
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
-          :intent="previewIntent(state, enemy, data)"
-          :hold="state.player.block"
+          :intent="previewIntent(shownState, enemy, data)"
+          :hold="shownState.player.block"
           :escape-bar="{
             escape: enemy.escape,
             escapeAt: enemy.escapeAt,
             escapeRate: escapeRise(enemy, state.player.patience, state.slowCap),
-            pull: previewIntent(state, enemy, data)?.pull,
+            pull: previewIntent(shownState, enemy, data)?.pull,
+            after: enemyPreview(enemy).escape,
+            end: enemyPreview(enemy).escapeEnd,
           }"
+          :health-preview="enemyPreview(enemy).health"
           :data-enemy-id="enemy.id"
           :targetable="aimingAtEnemy && isAlive(enemy)"
           :class="{ aimed: drag?.targetId === enemy.id }"

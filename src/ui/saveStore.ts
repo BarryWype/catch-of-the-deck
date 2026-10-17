@@ -8,7 +8,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 export const PROFILE_VERSION = 5;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -112,6 +112,8 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
     const bucket = (save.run.bucket as unknown as string[]).map((id) => ({ id, size: 'normal' as const }));
     save = { ...save, version: 14, run: { ...save.run, bucket, waiting: [], companions: save.run.companions.map(rescaleOld) } };
   }
+  // v14 runs had no rerolls of their own: they get the one a run starts with.
+  if (save.version === 14) save = { ...save, version: 15, run: { ...save.run, rewardRerolls: 1 } };
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.

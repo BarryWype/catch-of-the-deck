@@ -23,6 +23,9 @@ import {
   finishCombat,
   isMapComplete,
   rollCardRewards,
+  REWARD_REROLLS_AT_START,
+  rerollReward,
+  rewardOptions,
   sellCreature,
   shopItemBlocked,
   travelTo,
@@ -511,5 +514,32 @@ describe('treasure', () => {
       const visit = visitEvent({ ...run, rng: seed }, '1b', data);
       if (!visit.combat) expect(visit.eventId).toBe('rest');
     }
+  });
+});
+
+describe('card reward rerolls', () => {
+  it('a run starts with one, and a reroll uses it up', () => {
+    const run = createRun(5, testData, 'basic');
+    expect(REWARD_REROLLS_AT_START).toBe(1);
+    expect(rewardOptions(run, testData).rerolls).toBe(1);
+    const offered = rollCardRewards(run, testData).choices;
+    const rerolled = rerollReward(run, testData, offered).run;
+    expect(rewardOptions(rerolled, testData).rerolls).toBe(0);
+    expect(() => rerollReward(rerolled, testData, offered)).toThrow();
+  });
+
+  it('each mini-boss and boss beaten gives one more, and unused ones carry to the next level', () => {
+    const atOne = travelTo(createRun(5, testData, 'basic'), '1a', testData);
+    const plain = finishCombat(atOne.run, { ...atOne.combat, phase: 'won' }, testData);
+    expect(plain.rewardRerolls).toBe(1);
+    const miniBoss = travelTo(plain, '2', testData);
+    expect(finishCombat(miniBoss.run, { ...miniBoss.combat, phase: 'lost' }, testData).rewardRerolls).toBe(1);
+    let run = finishCombat(miniBoss.run, { ...miniBoss.combat, phase: 'won' }, testData);
+    expect(run.rewardRerolls).toBe(2);
+    run = travelTo(run, '3a', testData).run;
+    const boss = travelTo(run, '4', testData);
+    run = finishCombat(boss.run, { ...boss.combat, phase: 'won' }, testData);
+    expect(run.rewardRerolls).toBe(3);
+    expect(enterNextLevel(run, testData).rewardRerolls).toBe(3);
   });
 });

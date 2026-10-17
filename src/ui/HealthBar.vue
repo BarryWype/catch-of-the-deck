@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import BarPreview from './BarPreview.vue';
 import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { t, term } from './i18n';
 
-/** `grit`: the player's bar, named and coloured as Grit (`terms.grit` in the language files). */
-const props = defineProps<{ hp: number; maxHp: number; block: number; grit?: boolean }>();
+/**
+ * `grit`: the player's bar, named and coloured as Grit (`terms.grit` in the language files).
+ * `after` / `end`: its health after the card being played and after the creatures' moves
+ * (BarPreview); `blockAfter`: its Block after the card.
+ */
+const props = defineProps<{ hp: number; maxHp: number; block: number; grit?: boolean; after?: number; end?: number; blockAfter?: number }>();
 const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp : 0));
 </script>
 
@@ -14,9 +19,12 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
     <span v-if="grit" class="label">{{ term('grit') }}&nbsp;{{ hp }} / {{ maxHp }}</span>
     <div class="row">
       <!-- The player's Hold shows beside the fisherman instead (CombatView); his bar keeps its tint. -->
-      <span v-if="block > 0 && !grit" v-tip="t('bars.block', { n: block })" class="block"><GameIcon icon="🛡️" />{{ block }}</span>
+      <span v-if="(block > 0 || (blockAfter ?? 0) > 0) && !grit" v-tip="t('bars.block', { n: block })" class="block">
+        <GameIcon icon="🛡️" />{{ blockAfter === undefined || blockAfter === block ? block : `${block} → ${blockAfter}` }}
+      </span>
       <div class="bar">
         <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />
+        <BarPreview :value="hp" :max="maxHp" :after="after" :end="end" />
         <span v-if="!grit" class="value">♥ {{ hp }}/{{ maxHp }}</span>
       </div>
     </div>

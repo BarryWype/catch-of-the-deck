@@ -28,8 +28,13 @@ const props = withDefaults(
     tip?: TipValue;
     /** The creature's families, shown as icons next to its name (engine: `creatureFamilies`). */
     families?: FamilyDef[];
-    /** Escape bar, for creatures. `pull` is its upcoming move's Pull, before the player's Hold. */
-    escapeBar?: { escape: number; escapeAt: number; escapeRate: number; pull?: number };
+    /**
+     * Escape bar, for creatures. `pull` is its upcoming move's Pull, before the player's Hold;
+     * `after` / `end` its preview (PanicBar).
+     */
+    escapeBar?: { escape: number; escapeAt: number; escapeRate: number; pull?: number; after?: number; end?: number };
+    /** Health after the card being played and after the creatures' moves, and Block after the card (HealthBar). */
+    healthPreview?: { after: number; end: number; blockAfter: number };
     /**
      * Sprite frame multiplier: the player is 4, creatures 5, mini-bosses and bosses 6. Animated
      * frames are 48px and static cells 32px, and sizes stay whole multiples of them, so the pixel
@@ -39,7 +44,7 @@ const props = withDefaults(
     /** The sprite only: the player's Grit and statuses are in the battlefield's corner panel instead. */
     bare?: boolean;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, families: () => [], hold: undefined, tip: undefined, escapeBar: undefined, frame: 4, bare: false },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, families: () => [], hold: undefined, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
@@ -68,7 +73,15 @@ const portraitStyle = computed(() => ({
         <span v-for="f in families" :key="f.id" v-tip="f.name" class="family" aria-hidden="true">{{ f.icon }}</span>
       </div>
       <PanicBar v-if="escapeBar" v-bind="escapeBar" />
-      <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" :grit="combatant.id === PLAYER_ID" />
+      <HealthBar
+        :hp="combatant.hp"
+        :max-hp="combatant.maxHp"
+        :block="combatant.block"
+        :grit="combatant.id === PLAYER_ID"
+        :after="healthPreview?.after"
+        :end="healthPreview?.end"
+        :block-after="healthPreview?.blockAfter"
+      />
       <StatusList :statuses="combatant.statuses" />
     </div>
     <div v-tip="tip" class="portrait" :class="{ player: combatant.id === PLAYER_ID }" :style="portraitStyle">

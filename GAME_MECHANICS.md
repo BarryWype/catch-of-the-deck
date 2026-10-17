@@ -97,6 +97,8 @@ How hard a creature hits depends on the fight, not just on the creature. Each of
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
+The bars show what's coming. The part of your Grit a Strike will take after your Hold is greyed red, and the Will a Pull will add is striped. While you drag or select a card, each bar it changes shows the result too: the Health or Will it takes (after Block, Vulnerable, Weak and every other modifier) is greyed red, and the creatures' moves update to match (drag a Hold card to see how much of the hit it will soak). Random effects only show once they're played.
+
 ### What a creature's turn can be
 
 The icon above a creature tells you what kind of move is coming:
@@ -161,7 +163,7 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 ## Between fights
 
-- **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). The mini-boss's own reward always has at least one rare card. You have to take one (Eel companions can let you skip or reroll a few times per age).
+- **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). The mini-boss's own reward always has at least one rare card. You have to take one, but you can **reroll** for three other cards: you start a run with 1 reroll and get 1 more for every mini-boss and boss you beat, and unused ones carry over. The screen shows which families the cards come from, and each card's family above it. Eel companions can let you skip a few times per age, and with 3 species add a few rerolls per age (used first, since they don't carry over).
 - **Events** (?): something happens: a choice, a find, sometimes a surprise fight.
 - **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them. A few of them stand where an event might have been on the map.
 - **Treasure** (T): a free find before the boss.

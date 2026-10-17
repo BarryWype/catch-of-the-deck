@@ -217,15 +217,16 @@ describe('Eel companions: skipping and rerolling card rewards', () => {
   // Ribbon eel is tier 1, the others tier 2: 1★, 3★ and 5★.
   const runWith = (species: number) => createRun(5, gameData, 'rod', pets(...eels.slice(0, species)));
 
+  // Every run also has a reroll of its own (REWARD_REROLLS_AT_START), counted with theirs.
   it('without them, a card reward must be taken', () => {
-    expect(rewardOptions(runWith(0), gameData)).toEqual({ skips: 0, rerolls: 0 });
+    expect(rewardOptions(runWith(0), gameData)).toEqual({ skips: 0, rerolls: 1 });
     expect(() => skipReward(runWith(0), gameData)).toThrow();
   });
 
   it('give 1 skip per level at 1★, 2 at 3★, and 3 skips plus 3 rerolls with 3 species (5★)', () => {
-    expect(rewardOptions(runWith(1), gameData)).toEqual({ skips: 1, rerolls: 0 });
-    expect(rewardOptions(runWith(2), gameData)).toEqual({ skips: 2, rerolls: 0 });
-    expect(rewardOptions(runWith(3), gameData)).toEqual({ skips: 3, rerolls: 3 });
+    expect(rewardOptions(runWith(1), gameData)).toEqual({ skips: 1, rerolls: 1 });
+    expect(rewardOptions(runWith(2), gameData)).toEqual({ skips: 2, rerolls: 1 });
+    expect(rewardOptions(runWith(3), gameData)).toEqual({ skips: 3, rerolls: 4 });
   });
 
   it('are used up on a level and come back on the next one', () => {
@@ -236,11 +237,12 @@ describe('Eel companions: skipping and rerolling card rewards', () => {
     expect(rewardOptions(run, gameData).skips).toBe(2); // bond gained on the way stays under level 2
   });
 
-  it('a reroll offers other cards and uses one up', () => {
+  it('a reroll offers other cards and uses one of theirs up first, as those end with the level', () => {
     const offered = ['doubleCast', 'playTheLine', 'tireItOut'];
     const { run, choices } = rerollReward(runWith(3), gameData, offered);
     expect(choices).toHaveLength(3);
     expect(choices.filter((id) => offered.includes(id))).toEqual([]);
-    expect(rewardOptions(run, gameData).rerolls).toBe(2);
+    expect(rewardOptions(run, gameData).rerolls).toBe(3);
+    expect(run.rewardRerolls).toBe(1);
   });
 });

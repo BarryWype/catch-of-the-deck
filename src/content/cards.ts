@@ -281,7 +281,7 @@ export const cards: CardDef[] = [
     effects: [{ type: 'ifNoAttack', then: [{ type: 'changeEscape', amount: -10 }], else: [{ type: 'changeEscape', amount: -5 }] }],
   },
   {
-    id: 'shadowTheFish', name: 'Shadow the Fish', art: '👤', type: 'defense', rarity: 'normal', cost: 1, target: 'random', family: 'camo', tags: ['hold', 'intent'],
+    id: 'shadowTheFish', name: 'Shadow the Fish', art: '👤', type: 'defense', rarity: 'normal', cost: 2, target: 'random', family: 'camo', tags: ['hold', 'intent'],
     effects: [{ type: 'holdFromIntent', max: 12 }],
   },
   {

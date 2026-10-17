@@ -185,6 +185,7 @@ const deckCards = computed(() =>
       :data="data"
       :skips="rewardLeft.skips"
       :rerolls="rewardLeft.rerolls"
+      :families="run?.rewardFamilies ?? []"
       @choose="game.chooseReward"
       @skip="game.skipCardReward"
       @reroll="game.rerollCardReward"

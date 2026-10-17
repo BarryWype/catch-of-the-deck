@@ -415,7 +415,7 @@ export function useGame(initialSeed: number) {
     screen.value = 'map';
   }
 
-  /** Skips and rerolls of the card reward left this level (Eel companions). */
+  /** Skips (this level, Eel companions) and rerolls (the run's and the companions') of the card reward left. */
   const rewardLeft = computed(() => (run.value ? rewardOptions(run.value, gameData) : { skips: 0, rerolls: 0 }));
 
   function skipCardReward() {

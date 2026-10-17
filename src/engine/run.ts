@@ -50,9 +50,11 @@ export interface RunState {
   coins: number;
   /** Equipment ids carried this run. */
   equipment: string[];
-  /** Card rewards skipped and rerolled on this level (see `rewardOptions`). */
+  /** Card rewards skipped and rerolled on this level with companion bonuses (see `rewardOptions`). */
   rewardSkipsUsed: number;
   rewardRerollsUsed: number;
+  /** Card reward rerolls left for the rest of the run, besides the companions' (`REWARD_REROLLS_AT_START`, `REWARD_REROLLS_PER_BOSS`). */
+  rewardRerolls: number;
   /** Chance, in percent, that the next card reward slot is rare (`RARE_CHANCE`, raised by `RARE_PITY_STEP` per slot that wasn't). */
   rarePity: number;
   /** The families the card reward on offer draws from (the creatures of the fight it follows); none = every family. */
@@ -64,6 +66,9 @@ export const CARD_REWARD_COUNT = 3;
 export const RARE_CHANCE = 10;
 /** How much that chance rises for every slot that wasn't rare. */
 export const RARE_PITY_STEP = 2;
+/** Card reward rerolls a run starts with, and how many each mini-boss and boss beaten adds. Unused ones carry over. */
+export const REWARD_REROLLS_AT_START = 1;
+export const REWARD_REROLLS_PER_BOSS = 1;
 /** Chance that an event turns out to be an ordinary fight. */
 export const EVENT_FIGHT_CHANCE = 0.1;
 /** How many home-aquarium creatures the player can bring along in the bucket. */
@@ -108,6 +113,7 @@ export function createRun(
     equipment: item === undefined ? [] : [item],
     rewardSkipsUsed: 0,
     rewardRerollsUsed: 0,
+    rewardRerolls: REWARD_REROLLS_AT_START,
     rarePity: RARE_CHANCE,
     rewardFamilies: [],
   };
@@ -282,15 +288,17 @@ export function catchesOf(run: RunState, combat: CombatState): Catch[] {
 }
 
 /**
- * Carry the fight's outcome into the run: HP, floor (on a win), and the creatures captured
- * (`catchesOf`): they go into the bucket unless equipment sells them on the spot. Those that
- * don't fit (`BUCKET_SIZE`) wait for the player's choice (`waiting`).
+ * Carry the fight's outcome into the run: HP, floor and, after a mini-boss or boss, a card reward
+ * reroll (on a win), and the creatures captured (`catchesOf`): they go into the bucket unless
+ * equipment sells them on the spot. Those that don't fit (`BUCKET_SIZE`) wait for the player's
+ * choice (`waiting`).
  */
 export function finishCombat(run: RunState, combat: CombatState, data: GameData): RunState {
   const next = { ...clone(run), hp: Math.max(0, combat.player.hp) };
   if (combat.phase === 'lost') return next;
   next.hp = Math.min(next.maxHp, next.hp + bonusTotal(combat.bonuses, 'healAfterFight'));
   if (combat.phase === 'won') next.floor++;
+  if (combat.phase === 'won' && isReleaseFight(run)) next.rewardRerolls += REWARD_REROLLS_PER_BOSS;
   const sellBonus = bonusTotal(combat.bonuses, 'sellBonus');
   for (const caught of catchesOf(run, combat)) {
     const sale = instantSaleValue(caught.id, run.equipment, data, sellBonus);
@@ -446,15 +454,20 @@ export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardO
 }
 
 /**
- * Card rewards must be taken, unless companion bonuses allow skipping (`rewardSkips`) or
- * rerolling (`rewardRerolls`) them: this many times per level. These are the ones left.
+ * Card rewards must be taken, unless companion bonuses allow skipping (`rewardSkips`) them, this
+ * many times per level. Rerolls are the run's own (`rewardRerolls`) plus the companions'
+ * (`rewardRerolls` bonus, per level). These are the ones left.
  */
 export function rewardOptions(run: RunState, data: GameData): { skips: number; rerolls: number } {
   const effects = companionEffects(run.companions, data);
   return {
     skips: Math.max(0, bonusTotal(effects, 'rewardSkips') - run.rewardSkipsUsed),
-    rerolls: Math.max(0, bonusTotal(effects, 'rewardRerolls') - run.rewardRerollsUsed),
+    rerolls: companionRerolls(run, data) + run.rewardRerolls,
   };
+}
+
+function companionRerolls(run: RunState, data: GameData) {
+  return Math.max(0, bonusTotal(companionEffects(run.companions, data), 'rewardRerolls') - run.rewardRerollsUsed);
 }
 
 /** Leave a card reward without taking a card. Throws when no skip is left this level. */
@@ -463,10 +476,16 @@ export function skipReward(run: RunState, data: GameData): RunState {
   return { ...clone(run), rewardSkipsUsed: run.rewardSkipsUsed + 1 };
 }
 
-/** Other cards to choose from instead of `offered`. Throws when no reroll is left this level. */
+/**
+ * Other cards to choose from instead of `offered`. Uses a companion reroll first, as those don't
+ * outlast the level, then one of the run's. Throws when none is left.
+ */
 export function rerollReward(run: RunState, data: GameData, offered: readonly string[]): { run: RunState; choices: string[] } {
-  if (!rewardOptions(run, data).rerolls) throw new Error('No reward reroll left this level.');
-  return rollCardRewards({ ...run, rewardRerollsUsed: run.rewardRerollsUsed + 1 }, data, { exclude: offered });
+  if (!rewardOptions(run, data).rerolls) throw new Error('No reward reroll left.');
+  const used = companionRerolls(run, data)
+    ? { ...run, rewardRerollsUsed: run.rewardRerollsUsed + 1 }
+    : { ...run, rewardRerolls: run.rewardRerolls - 1 };
+  return rollCardRewards(used, data, { exclude: offered });
 }
 
 export function addCardToDeck(run: RunState, cardId: string, data: GameData): RunState {

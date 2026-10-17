@@ -471,7 +471,10 @@ export const en = {
     },
     reward: {
       title: 'Choose a card to add to your deck',
-      reroll: 'Reroll ({n} left this level)',
+      reroll: 'Reroll ({n} left)',
+      rerollTip: 'Offer three other cards. You start a run with 1 reroll, and get 1 more for each mini-boss and boss you beat.',
+      families: 'Cards from',
+      anyFamily: 'every family',
       skip: 'Skip ({n} left this level)',
     },
     event: {
