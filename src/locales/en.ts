@@ -254,6 +254,7 @@ export const en = {
       pull: { forms: 'Pull, Pulls', text: "A creature move that drags on the line, raising its own {@will}. Your {@hold} soaks it first." },
       exhaust: { forms: 'Exhaust', text: 'Once played, the card is gone for the rest of the fight.' },
       block: { forms: 'Block', text: "A creature's Block soaks your attack damage until its next turn." },
+      attack: { forms: 'attack, attacks, Attack, Attacks', text: 'What deals damage: your Attack and Drain cards, and creatures’ Strikes. “First attack” bonuses count your Attack and Drain cards.' },
     },
     common: {
       back: '← Back',

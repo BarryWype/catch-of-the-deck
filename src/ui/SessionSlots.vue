@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import KeywordText from './KeywordText.vue';
 import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { activeBonuses, bondLevel, companionStars, describeCompanionEffect, FULL_SCHOOL, nextStars, SESSION_SLOTS, type GameData, type HomeCreature } from '../engine';
@@ -56,8 +57,8 @@ const bonuses = computed(() =>
       <li v-for="b in bonuses" :key="b.def.id">
         <strong>{{ b.def.icon }} {{ b.def.name }}</strong>
         <span class="species"><span class="stars">★{{ b.stars }}</span> · {{ b.species }}/{{ FULL_SCHOOL }} {{ b.def.temperamentName }}</span>
-        <p v-for="(line, j) in b.text" :key="j">{{ line }}</p>
-        <p v-if="b.next" class="next">{{ b.next }}</p>
+        <p v-for="(line, j) in b.text" :key="j"><KeywordText :text="line" /></p>
+        <p v-if="b.next" class="next"><KeywordText :text="b.next" /></p>
       </li>
     </ul>
     <p class="help">{{ t('slots.help') }}</p>

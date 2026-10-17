@@ -23,7 +23,7 @@ A feature here is rarely one file. Find your kind of change below; a change is d
 
 - `StatusId` in types.ts, and `STATUS_META` in `src/engine/statuses.ts`: buff or debuff, whether it wears off each turn. A status used up by the next move goes in `nextMoveMods`.
 - Name and description in both locales (`status.<id>`), and `describe.statusText.<id>` where a card's text should say what it does.
-- Its icon in `src/ui/StatusList.vue`. Keyword tooltips pick up its name by themselves.
+- Its icon in `src/ui/StatusList.vue`, and in `ICONS` (`src/ui/keywords.ts`) to show it before the word in game text. Keyword tooltips pick up its name by themselves.
 - GAME_MECHANICS.md.
 
 ## A creature or a move set

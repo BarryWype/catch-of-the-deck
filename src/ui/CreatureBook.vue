@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import KeywordText from './KeywordText.vue';
 import { computed } from 'vue';
 import { bonusEffects, creatureTypeNames, describeCompanionEffect, FULL_SCHOOL, type CatchSize, type Discovery, type GameData } from '../engine';
 import { t } from './i18n';
@@ -61,16 +62,20 @@ const groups = computed(() =>
     <template #header>
       <span class="total">{{ t('book.discovered', { n: discoveredCount, total: creatures.length }) }}</span>
     </template>
-    <!-- Collapsed by default: the bonus stays in view, the creatures open with a click. -->
+    <!-- Collapsed by default: only the temperament shows; its bonus and creatures open with a click. -->
     <details v-for="g in groups" :key="g.def.id" class="group">
       <summary class="bonus">
         <h3>
-          <span><span class="chevron" aria-hidden="true">▸</span> {{ g.def.icon }} {{ g.def.temperamentName }} · {{ g.def.name }}</span>
+          <span class="chevron" aria-hidden="true">▸</span>
+          <span class="icon" aria-hidden="true">{{ g.def.icon }}</span>
+          <span class="name">{{ g.def.temperamentName }} · {{ g.def.name }}</span>
           <span class="count">{{ g.creatures.filter((c) => c.status).length }}/{{ g.creatures.length }}</span>
         </h3>
-        <p>{{ t('book.oneStar', { rule: g.oneStar }) }}</p>
-        <p v-if="g.fullSchool">{{ t('book.fullSchool', { n: FULL_SCHOOL, rule: g.fullSchool }) }}</p>
       </summary>
+      <div class="rules">
+        <p><KeywordText :text="t('book.oneStar', { rule: g.oneStar })" /></p>
+        <p v-if="g.fullSchool"><KeywordText :text="t('book.fullSchool', { n: FULL_SCHOOL, rule: g.fullSchool })" /></p>
+      </div>
       <ul class="grid">
         <li
           v-for="c in g.creatures"
@@ -114,9 +119,12 @@ const groups = computed(() =>
 @media (hover: hover) {
   .bonus:hover { background: rgb(255 255 255 / 0.1); }
 }
-.bonus h3 { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: 0.95rem; }
+.bonus h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.95rem; }
+.bonus .icon { font-size: 1.8rem; line-height: 1; }
+.bonus .name { flex: 1; }
 .bonus .count { color: var(--muted); font-size: 0.75rem; font-weight: 600; }
-.bonus p { margin: 3px 0 0; color: var(--muted); font-size: 0.75rem; line-height: 1.3; }
+.rules { margin-top: 8px; padding: 6px 10px; border-left: 3px solid #f2c94c; border-radius: 6px; background: rgb(242 201 76 / 0.08); }
+.rules p { margin: 2px 0; color: #f3e3b0; font-size: 0.8rem; line-height: 1.35; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));

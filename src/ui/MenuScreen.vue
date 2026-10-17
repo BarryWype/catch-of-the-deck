@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import KeywordText from './KeywordText.vue';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
 import type { CatchSize, Discovery, GameData, HomeCreature } from '../engine';
@@ -137,7 +138,7 @@ onBeforeUnmount(stopTheme);
     <SideDrawer side="left" icon="📘" :title="t('guide.title')" :tab-offset="debug ? -34 : 0" :width="460">
       <ul class="guide">
         <li v-for="key in GUIDE" :key="key">
-          <b>{{ t(`guide.${key}.title`) }}</b> {{ t(`guide.${key}.text`, GUIDE_NUMBERS) }}
+          <b><KeywordText :text="t(`guide.${key}.title`)" /></b> <KeywordText :text="t(`guide.${key}.text`, GUIDE_NUMBERS)" />
         </li>
       </ul>
     </SideDrawer>

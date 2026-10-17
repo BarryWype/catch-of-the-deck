@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import KeywordText from './KeywordText.vue';
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
 import { creatureTypeNames, describeCard, shopItemBlocked, type GameData, type RunState, type ShopItemDef, type ShopVisit } from '../engine';
@@ -53,7 +54,7 @@ function onPickCard(index: number) {
         <div v-for="item in data.shop" :key="item.id" class="item">
           <span class="item-icon"><GameIcon :icon="item.icon ?? '🎁'" /></span>
           <strong>{{ item.name }}</strong>
-          <span class="text">{{ effectText(item) }}{{ item.limit ? ` ${t('shop.oncePerVisit')}` : '' }}</span>
+          <span class="text"><KeywordText :text="effectText(item)" />{{ item.limit ? ` ${t('shop.oncePerVisit')}` : '' }}</span>
           <button :disabled="!!shopItemBlocked(item, run, visit)" @click="onBuy(item)"><GameIcon icon="🪙" /> {{ item.price }}</button>
           <span class="blocked">{{ shopItemBlocked(item, run, visit) ?? '' }}</span>
         </div>

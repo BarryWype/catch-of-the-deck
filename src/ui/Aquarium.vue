@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import KeywordText from './KeywordText.vue';
 import GameIcon from './GameIcon.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { bondLevel, bondToFull, companionStars, describeCompanionEffect, MAX_BOND_LEVEL, type Catch, type GameData, type Habitat } from '../engine';
@@ -324,7 +325,7 @@ const plants = [
         <template v-else>
           <div v-if="selected.bonus" class="bonus">
             <b>{{ selected.bonus.icon }} {{ selected.bonus.name }}</b> · {{ selected.bonus.temperamentName }}
-            <p v-for="(effect, i) in selected.bonus.effects" :key="i">{{ describeCompanionEffect(effect) }}</p>
+            <p v-for="(effect, i) in selected.bonus.effects" :key="i"><KeywordText :text="describeCompanionEffect(effect)" /></p>
           </div>
           <div class="actions">
             <button v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act">{{ t('aquarium.bring') }}</button>

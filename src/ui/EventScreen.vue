@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import KeywordText from './KeywordText.vue';
 import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
 import { t } from './i18n';
@@ -32,7 +33,7 @@ const choices = computed(() =>
         @click="emit('choose', i)"
       >
         <strong>{{ choice.label }}</strong>
-        <span>{{ choice.blocked ?? choice.text }}</span>
+        <span><KeywordText :text="choice.blocked ?? choice.text" /></span>
       </button>
     </div>
   </section>
