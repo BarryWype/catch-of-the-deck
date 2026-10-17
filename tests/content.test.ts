@@ -144,7 +144,7 @@ describe('content validation', () => {
         ],
       },
     ],
-    coast: { features: [], reserved: [] },
+    coast: { places: [] },
   };
 
   it('accepts valid content', () => {

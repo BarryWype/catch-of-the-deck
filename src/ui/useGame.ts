@@ -242,7 +242,7 @@ export function useGame(initialSeed: number) {
     seed.value = newSeed;
     combat.value = null;
     const fresh = createRun(newSeed, gameData, startingBuilds(gameData)[0].id);
-    const map = buildLevelMap(gameData, levelIndex, fresh.coast, fresh);
+    const map = buildLevelMap(gameData, levelIndex, fresh);
     const nodes = map.columns.flat();
     const target = nodes.find((n) => n.kind === kind)!;
     const before = nodes.find((n) => n.next.includes(target.id))!;

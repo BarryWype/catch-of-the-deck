@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import { t } from './i18n';
@@ -50,22 +50,120 @@ function hash(text: string) {
 }
 
 function placement(habitat: Habitat, slot: number) {
-  const duration =
-    habitat === 'bottom' ? 30 + rand(slot, 1) * 25 : habitat === 'drift' ? 22 + rand(slot, 1) * 14 : 12 + rand(slot, 1) * 12;
-  const vertical =
-    habitat === 'bottom'
-      ? { bottom: `${2 + rand(slot, 2) * 4}%` }
-      : { top: `${(habitat === 'drift' ? 6 : 10) + rand(slot, 2) * (habitat === 'drift' ? 30 : 48)}%` };
-  return {
-    ...vertical,
-    '--duration': `${duration.toFixed(1)}s`,
-    // A negative delay starts each creature mid-swim, at a different spot.
-    '--delay': `-${(rand(slot, 3) * duration * 2).toFixed(1)}s`,
-    '--bob': `${(3 + rand(slot, 4) * 3).toFixed(1)}s`,
-    '--rest': (rand(slot, 5) * 0.85).toFixed(3),
-    zIndex: habitat === 'bottom' ? 3 : 2,
-  };
+  return { '--bob': `${(3 + rand(slot, 4) * 3).toFixed(1)}s`, zIndex: habitat === 'bottom' ? 3 : 2 };
 }
+
+/**
+ * How each habitat wanders: its speed (px/s), how often it rests between moves, how far one move
+ * goes (share of the tank's width, and of its height), and the band of height it keeps to (share
+ * of the room left under the creature: 0 is the top, 1 the sand).
+ */
+const PACE: Record<Habitat, { speed: [number, number]; rest: number; reach: number; rise: number; band: [number, number] }> = {
+  swim: { speed: [45, 85], rest: 0.25, reach: 0.6, rise: 0.3, band: [0.06, 0.62] },
+  drift: { speed: [14, 28], rest: 0.4, reach: 0.4, rise: 0.25, band: [0.04, 0.45] },
+  bottom: { speed: [10, 22], rest: 0.6, reach: 0.3, rise: 0, band: [0.94, 0.98] },
+};
+
+interface Swimmer { el: HTMLElement; habitat: Habitat; x: number; y: number; placed: boolean; move?: Animation; timer?: number }
+const swimmers = new Map<string, Swimmer>();
+const stillWater = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const between = (low: number, high: number) => low + Math.random() * (high - low);
+const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
+const at = (x: number, y: number) => `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+
+/** The room a creature has to move in: the tank less its own size. */
+function room(el: HTMLElement) {
+  const tank = el.parentElement;
+  return { w: (tank?.clientWidth ?? 0) - el.offsetWidth, h: (tank?.clientHeight ?? 0) - el.offsetHeight };
+}
+
+/**
+ * One move at a time, each to a random spot near the last (or a rest in place), on the compositor
+ * (a transform animation per move, committed to the style when it ends). The sprite faces the
+ * way it swims: sprites face left, so `.bob` mirrors them when heading right.
+ */
+function wander(s: Swimmer) {
+  if (!s.el.isConnected) return;
+  if (!s.placed) place(s);
+  const { w, h } = room(s.el);
+  const pace = PACE[s.habitat];
+  if (!s.placed || Math.random() < pace.rest) {
+    s.timer = window.setTimeout(() => wander(s), between(600, 3000));
+    return;
+  }
+  const x = clamp(s.x + between(-1, 1) * pace.reach * w, 0, w);
+  const y = clamp(s.y + between(-1, 1) * pace.rise * h, pace.band[0] * h, pace.band[1] * h);
+  const bob = s.el.querySelector<HTMLElement>('.bob');
+  if (bob && Math.abs(x - s.x) > 4) bob.style.scale = x > s.x ? '-1 1' : '1 1';
+  const duration = Math.max(800, (Math.hypot(x - s.x, y - s.y) / between(...pace.speed)) * 1000);
+  const move = s.el.animate([{ transform: at(s.x, s.y) }, { transform: at(x, y) }], { duration, easing: 'ease-in-out' });
+  s.move = move;
+  move.finished
+    .then(() => {
+      s.el.style.transform = at(x, y);
+      Object.assign(s, { x, y });
+      wander(s);
+    })
+    .catch(() => {}); // Cancelled: the creature left the tank.
+}
+
+/**
+ * A random start spot in the tank. On a fresh page the tank has no size yet when its creatures
+ * appear: they stay hidden until it has one (see refit and wander), rather than all starting in
+ * the top-left corner.
+ */
+function place(s: Swimmer) {
+  const { w, h } = room(s.el);
+  if (w <= 0 || h <= 0) return;
+  Object.assign(s, { x: Math.random() * w, y: between(...PACE[s.habitat].band) * h, placed: true });
+  s.el.style.transform = at(s.x, s.y);
+  s.el.style.visibility = '';
+}
+
+/** Starts a creature at a random spot when it enters the tank, and stops it when it leaves. */
+function track(key: string, habitat: Habitat, el: Element | null) {
+  const known = swimmers.get(key);
+  if (el && known?.el === el) return;
+  if (known) stop(key);
+  if (!(el instanceof HTMLElement)) return;
+  const s: Swimmer = { el, habitat, x: 0, y: 0, placed: false };
+  el.style.visibility = 'hidden';
+  place(s);
+  swimmers.set(key, s);
+  if (!stillWater) s.timer = window.setTimeout(() => wander(s), between(0, 1500));
+}
+function stop(key: string) {
+  const s = swimmers.get(key);
+  s?.move?.cancel();
+  clearTimeout(s?.timer);
+  swimmers.delete(key);
+}
+/** When the tank changes size (a window resize, a phone turning), creatures outside it come back in. */
+function refit() {
+  for (const s of swimmers.values()) {
+    if (!s.placed) {
+      place(s);
+      continue;
+    }
+    const { w, h } = room(s.el);
+    const band = PACE[s.habitat].band;
+    const x = clamp(s.x, 0, Math.max(0, w));
+    const y = clamp(s.y, band[0] * Math.max(0, h), band[1] * Math.max(0, h));
+    if (x === s.x && y === s.y) continue;
+    s.move?.cancel();
+    clearTimeout(s.timer);
+    Object.assign(s, { x, y });
+    s.el.style.transform = at(x, y);
+    if (!stillWater) s.timer = window.setTimeout(() => wander(s), between(0, 1500));
+  }
+}
+const tank = ref<HTMLElement>();
+const resizes = new ResizeObserver(refit);
+onMounted(() => tank.value && resizes.observe(tank.value));
+onBeforeUnmount(() => {
+  resizes.disconnect();
+  [...swimmers.keys()].forEach(stop);
+});
 
 const residents = computed(() => {
   const copies = new Map<string, number>();
@@ -141,7 +239,7 @@ const plants = [
       <span class="count">{{ t('aquarium.count', { n: creatures.length }) }}</span>
     </header>
 
-    <div class="tank">
+    <div ref="tank" class="tank">
       <div class="surface" />
       <div class="rays" />
       <PixelBubbles />
@@ -157,10 +255,11 @@ const plants = [
         <SpriteView :sprite="{ sheet: 'objects', index: p.index }" :size="p.size" />
       </div>
 
-      <!-- Each creature crosses the tank by transform only (see .resident). -->
+      <!-- Each creature wanders the tank by transform only (see wander). -->
       <div
         v-for="r in residents"
         :key="r.key"
+        :ref="(el) => track(r.key, r.habitat, el as Element | null)"
         class="resident"
         :class="[r.habitat, { selected: r.key === selectedKey, interactive }]"
         :style="r.style"
@@ -229,9 +328,9 @@ const plants = [
   position: relative;
   flex: 1;
   overflow: hidden;
-  /* Its size is what the creatures' travel (100cqw) and the bubbles' rise (100cqh) are measured
-     against. `size` rather than `inline-size`, so the bubbles can rise a whole tank height. The
-     tank's height never depends on its contents (everything inside is absolutely positioned). */
+  /* Its size is what the bubbles' rise (100cqh) is measured against: `size` rather than
+     `inline-size`, so they can rise a whole tank height. The tank's height never depends on its
+     contents (everything inside is absolutely positioned). */
   container-type: size;
   border: 6px solid #5c6b78;
   border-top-width: 10px;
@@ -283,28 +382,21 @@ const plants = [
 /* The wrapper's transform belongs to the sway animation, so the mirror goes on the sprite. */
 .plant.flip > :deep(.sprite) { scale: -1 1; }
 
-/* Residents: the outer element travels left/right across the tank, and `.bob` both flips the
-   sprite in sync (sprites face left; `scale`) and adds a little vertical life (`translate`). Each is
-   only as wide as its creature, so a full-window tank doesn't make every moving layer window-wide. */
+/* Residents: the outer element wanders the tank (moved from the script, see wander), and `.bob`
+   turns the sprite to face its way (sprites face left; `scale`) and adds a little vertical life
+   (`translate`). Each is only as big as its creature, so a full-window tank doesn't make every
+   moving layer window-wide. */
 .resident {
   position: absolute;
+  top: 0;
   left: 0;
   width: var(--size);
   pointer-events: none;
-  animation: travel var(--duration) ease-in-out var(--delay) infinite alternate;
 }
 .fish { position: relative; width: var(--size); pointer-events: auto; }
-.bob {
-  animation:
-    face calc(var(--duration) * 2) linear var(--delay) infinite,
-    bob var(--bob) ease-in-out infinite alternate;
-}
-.drift .bob {
-  animation:
-    face calc(var(--duration) * 2) linear var(--delay) infinite,
-    drift calc(var(--bob) * 2) ease-in-out infinite alternate;
-}
-.bottom .bob { animation: face calc(var(--duration) * 2) linear var(--delay) infinite; }
+.bob { transition: scale 0.3s ease; animation: bob var(--bob) ease-in-out infinite alternate; }
+.drift .bob { animation: drift calc(var(--bob) * 2) ease-in-out infinite alternate; }
+.bottom .bob { animation: none; }
 .emoji { font-size: 3rem; }
 
 .resident.interactive .fish { cursor: pointer; }
@@ -360,14 +452,6 @@ const plants = [
   z-index: 4;
 }
 
-@keyframes travel {
-  from { transform: translateX(0); }
-  to { transform: translateX(calc(100cqw - var(--size))); }
-}
-@keyframes face {
-  0%, 49.99% { scale: -1 1; }
-  50%, 100% { scale: 1 1; }
-}
 @keyframes bob {
   from { translate: 0 -4px; }
   to { translate: 0 4px; }
@@ -388,7 +472,6 @@ const plants = [
   .sell-panel { max-width: 200px; font-size: 0.85rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .resident, .bob, .plant { animation: none; }
-  .resident { transform: translateX(calc((100cqw - var(--size)) * var(--rest))); }
+  .bob, .plant { animation: none; }
 }
 </style>

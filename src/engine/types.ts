@@ -509,7 +509,7 @@ export interface FixedStopDef {
 /**
  * One act of a run. Its map is either hand-made (`nodes`) or generated each run on the coast
  * (`generateLevelMap`): from the start to the fixed mini-boss and on to the fixed boss, through
- * the coast features laid out for the run (`layoutCoast`).
+ * some of the coast's places.
  */
 export interface LevelDef {
   id: string;
@@ -532,37 +532,25 @@ export interface LevelDef {
   eventBand?: [number, number];
 }
 
-/** What a level does at a coast feature: its fishing spot, and the node's name. */
+/** What a level does at a place on the coast: its fishing spot, and the node's name. */
 export interface CoastVisitDef {
   spot: string;
   label: string;
-  /** Where the node sits, relative to the feature's top-left, when not at `CoastFeatureDef.node`. */
-  node?: { x: number; y: number };
+  /** Where the node sits for this age, when not at the place itself (a boat out from the harbour). */
+  at?: { x: number; y: number };
 }
 
-/**
- * A piece of coast (a beach, a pond, a harbour…) placed somewhere along the map each run. It
- * keeps its height on the art and slides sideways only.
- */
-export interface CoastFeatureDef {
+/** A place on the coast map (a pond, a beach, a wreck…) where a fight may be: where its node sits. */
+export interface CoastPlaceDef {
   id: string;
-  /** Its art: an image in ui/assets/map, and where in that image the feature is. Display-only. */
-  image: string;
-  crop: { x: number; y: number; width: number; height: number };
-  /** Its top edge on the map. */
+  x: number;
   y: number;
-  /** The range its left edge may take on the map. */
-  range: [number, number];
-  /** Where its node sits, relative to its top-left. */
-  node: { x: number; y: number };
   /** What each level (by index: kid, adult, elder) does there; null when that age doesn't stop there. */
   visits: (CoastVisitDef | null)[];
 }
 
 export interface CoastDef {
-  features: CoastFeatureDef[];
-  /** Areas of the map no feature may cover (the house, the river delta, the lighthouse…). */
-  reserved: { x: number; y: number; width: number; height: number }[];
+  places: CoastPlaceDef[];
 }
 
 /** `swim` back and forth, `drift` slowly up and down, or crawl along the `bottom`. */

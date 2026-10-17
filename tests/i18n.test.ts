@@ -96,7 +96,7 @@ describe.each(codes.filter((code) => code !== 'en'))('the %s content', (code) =>
   it('names every place on the map, and every reason a boss is let go', () => {
     const places = new Set<string>();
     const reasons = new Set<string>();
-    for (const f of contentSource.coast.features) for (const v of f.visits) if (v) places.add(v.label);
+    for (const p of contentSource.coast.places) for (const v of p.visits) if (v) places.add(v.label);
     for (const level of contentSource.levels) {
       for (const boss of [level.miniBoss, level.boss]) if (boss) (places.add(boss.label), reasons.add(boss.releaseReason));
       for (const stop of level.firstColumn ?? []) places.add(stop.label);

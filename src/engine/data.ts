@@ -284,14 +284,13 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
   const hasEvents = source.events.some((e) => !e.treasure);
   const hasTreasures = source.events.some((e) => e.treasure);
 
-  const featureIds = new Set<string>();
-  for (const feature of source.coast.features) {
-    const at = `Coast feature "${feature.id}"`;
-    if (featureIds.has(feature.id)) errors.push(`Duplicate coast feature id "${feature.id}".`);
-    featureIds.add(feature.id);
-    if (feature.range[0] > feature.range[1]) errors.push(`${at}: its range is empty.`);
-    if (feature.visits.length > source.levels.length) errors.push(`${at}: more visits than levels.`);
-    for (const visit of feature.visits) if (visit && !spotIds.has(visit.spot)) errors.push(`${at}: unknown fishing spot "${visit.spot}".`);
+  const placeIds = new Set<string>();
+  for (const place of source.coast.places) {
+    const at = `Coast place "${place.id}"`;
+    if (placeIds.has(place.id)) errors.push(`Duplicate coast place id "${place.id}".`);
+    placeIds.add(place.id);
+    if (place.visits.length > source.levels.length) errors.push(`${at}: more visits than levels.`);
+    for (const visit of place.visits) if (visit && !spotIds.has(visit.spot)) errors.push(`${at}: unknown fishing spot "${visit.spot}".`);
   }
 
   const nodeIds = new Set<string>();

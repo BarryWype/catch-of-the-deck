@@ -132,7 +132,7 @@ watch(
 );
 onBeforeUnmount(() => clearTimeout(overlayTimer));
 /** The fight theme (music.ts): the boss track for mini-bosses and bosses, the regular one for
- * every other fight; desktop app only, like all the music. */
+ * every other fight. */
 onMounted(() => playTheme(props.releaseReason ? 'boss' : 'fight'));
 onBeforeUnmount(stopTheme);
 
@@ -449,6 +449,17 @@ const LAND_BY_SPOT: Record<string, string> = {
   ES: 'mud', BY: 'boat', OS: 'boat', DP: 'boat', RF: 'reef',
 };
 const land = computed(() => (props.spot && LAND_BY_SPOT[props.spot]) || 'grass');
+/** The water's far shapes and bed, from the fight's fishing spot (spots.ts codes). */
+const WATER_BY_SPOT: Record<string, { back: string; bed: string }> = {
+  RP: { back: 'rocks', bed: 'rock' }, CL: { back: 'rocks', bed: 'rock' }, DP: { back: 'rocks', bed: 'deep' },
+  JT: { back: 'kelp', bed: 'sand' }, BE: { back: 'kelp', bed: 'sand' }, BY: { back: 'kelp', bed: 'sand' }, OS: { back: 'kelp', bed: 'sand' },
+  ST: { back: 'reeds', bed: 'rock' }, RV: { back: 'reeds', bed: 'rock' }, LK: { back: 'reeds', bed: 'sand' },
+  PO: { back: 'reeds', bed: 'mud' }, ES: { back: 'reeds', bed: 'mud' },
+  RF: { back: 'coral', bed: 'coral' },
+};
+const water = computed(() => (props.spot && WATER_BY_SPOT[props.spot]) || { back: 'reeds', bed: 'sand' });
+/** Drawn along the shore line, back to front: the bank's shadow on the water, its side, its lit rim, the foam. */
+const SHORE_PARTS = ['bank-shadow', 'bank-side', 'bank-rim', 'surface-foam', 'surface-line'];
 function measureScene() {
   const field = battlefield.value;
   if (!field) return;
@@ -547,6 +558,19 @@ function endTurn() {
   selectedUid.value = null;
   emit('action', { type: 'endTurn' });
 }
+/**
+ * Space ends the turn, wherever focus is (a clicked card keeps it), except while typing, dragging
+ * a card, or with a dialog open over the fight. Cancelling the keydown stops a focused button from being pressed as well;
+ * Enter still presses it.
+ */
+function onKey(event: KeyboardEvent) {
+  if (event.code !== 'Space' || event.repeat || !isPlayerTurn.value || drag.value) return;
+  if ((event.target as Element | null)?.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+  event.preventDefault();
+  endTurn();
+}
+onMounted(() => window.addEventListener('keydown', onKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
@@ -559,22 +583,32 @@ function endTurn() {
       @click="onBattlefieldClick"
     >
       <!-- The scene, behind the sprites: land above the diagonal shore (its look from the fishing
-           spot), water below it, then the foam along the shore. -->
+           spot), water below it, then the bank's edge dropping into the water. -->
       <div class="land" :class="land" aria-hidden="true" />
       <div class="water-tint" aria-hidden="true" />
-      <!-- The water's side, like the home aquarium: light from above, seaweed on a sandy bottom,
-           bubbles rising. Only the bubbles and a slow sway move (cheap even without a GPU). -->
+      <!-- The water's side, like the home aquarium: light from above, far shapes and a bed that
+           follow the fishing spot, seaweed, a passing school, bubbles rising. Only the bubbles,
+           the school and a slow sway move (cheap even without a GPU). -->
       <div class="underwater" aria-hidden="true">
         <div class="rays" />
-        <div class="sand" />
+        <div class="backdrop" :class="water.back" />
+        <div class="school" />
+        <div class="bed" :class="water.bed" />
         <div v-for="(w, i) in SEAWEED" :key="i" class="seaweed" :class="{ flip: w.flip }" :style="{ left: w.left, animationDelay: w.delay }">
           <SpriteView :sprite="{ sheet: 'objects', index: w.index }" :size="compact ? w.size / 2 : w.size" />
         </div>
         <PixelBubbles :count="10" />
       </div>
-      <svg class="scene" aria-hidden="true">
-        <line class="surface-foam" x1="0" x2="100%" :y1="shore?.y0 ?? '85%'" :y2="shore?.y1 ?? '15%'" />
-        <line class="surface-line" x1="0" x2="100%" :y1="shore?.y0 ?? '85%'" :y2="shore?.y1 ?? '15%'" />
+      <svg class="scene" :class="land" aria-hidden="true">
+        <line
+          v-for="part in SHORE_PARTS"
+          :key="part"
+          :class="part"
+          x1="0"
+          x2="100%"
+          :y1="shore?.y0 ?? '85%'"
+          :y2="shore?.y1 ?? '15%'"
+        />
       </svg>
       <!-- The player's corner panel, under his character: his Grit, Hold and statuses (he stands on
            the bank with nothing under his feet), then his Energy and Patience. -->
@@ -614,6 +648,12 @@ function endTurn() {
           @select="onPlayerClick"
           @animation-done="onAnimationDone(PLAYER_ID)"
         />
+        <!-- His Hold, right beside him, so it's seen where the strikes land. -->
+        <Transition name="hold">
+          <span v-if="state.player.block > 0" :key="state.player.block" v-tip="`${state.player.block} ${term('hold')}`" class="player-hold">
+            <GameIcon icon="🛡️" />{{ state.player.block }}
+          </span>
+        </Transition>
       </div>
       <TransitionGroup tag="div" name="leave" class="enemies" :class="{ crowded }">
         <CombatantView
@@ -765,80 +805,140 @@ function endTurn() {
 .land { clip-path: polygon(0 0, 100% 0, 100% var(--shore-y1, 15%), 0 var(--shore-y0, 85%)); }
 .water-tint, .underwater { clip-path: polygon(0 var(--shore-y0, 85%), 100% var(--shore-y1, 15%), 100% 100%, 0 100%); }
 .water-tint { background: color-mix(in srgb, var(--spot, #2b7fa8) 60%, #0d2030); opacity: 0.45; }
-/* The shore by fishing spot, in flat pixel-art colours. */
-.land.grass {
-  background:
-    radial-gradient(circle at 30% 40%, #6fae55 0 3px, transparent 4px) 0 0 / 46px 38px,
-    radial-gradient(circle at 70% 70%, #4f8a3d 0 3px, transparent 4px) 0 0 / 58px 44px,
-    linear-gradient(160deg, #5f9c4a, #3f7a35);
+/* The ground by fishing spot: a pixel-art tile (`npm run shore`) at the sprites' 3× scale (2× on
+   compact screens), lit from the top left and shaded towards the water. */
+.land { --tile: 192px; background: 0 0 / var(--tile) var(--tile); image-rendering: pixelated; }
+.land::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(165deg, rgb(255 240 200 / 0.12), transparent 45%, rgb(10 20 30 / 0.22));
 }
-/* Stones of different sizes, each with a dark rim, on tiles of unrelated sizes so no grid shows. */
-.land.rocks {
-  background:
-    radial-gradient(ellipse 20% 15% at 38% 42%, #9da3a7 0 62%, #5a5f63 64% 80%, transparent 82%) 0 0 / 151px 113px,
-    radial-gradient(ellipse 16% 12% at 72% 68%, #858b8f 0 62%, #4f5458 64% 80%, transparent 82%) 0 0 / 211px 173px,
-    radial-gradient(ellipse 11% 9% at 18% 78%, #a7adb1 0 62%, #5e6367 64% 80%, transparent 82%) 0 0 / 127px 97px,
-    radial-gradient(ellipse 26% 18% at 80% 20%, #7c8286 0 62%, #4a4f53 64% 80%, transparent 82%) 0 0 / 263px 191px,
-    linear-gradient(160deg, #666c71, #484d52);
+.land.grass { background-image: url('./assets/shore/grass.png'); }
+.land.rocks { background-image: url('./assets/shore/rocks.png'); }
+.land.jetty { background-image: url('./assets/shore/jetty.png'); }
+.land.boat { background-image: url('./assets/shore/boat.png'); }
+.land.beach { background-image: url('./assets/shore/beach.png'); }
+.land.mud { background-image: url('./assets/shore/mud.png'); }
+.land.reef { background-image: url('./assets/shore/reef.png'); }
+@media (max-width: 700px), (max-height: 500px) {
+  .land { --tile: 128px; }
 }
-.land.jetty { background: repeating-linear-gradient(90deg, #9b7447 0 34px, #6e4f2e 34px 37px), #9b7447; }
-.land.boat {
-  background:
-    linear-gradient(90deg, transparent 0 calc(100% - 10px), #e9e4d6 calc(100% - 10px)),
-    repeating-linear-gradient(90deg, #c9a46c 0 28px, #8e6c3f 28px 30px);
-}
-.land.beach {
-  background:
-    repeating-linear-gradient(170deg, rgb(255 255 255 / 0.1) 0 5px, transparent 5px 24px),
-    linear-gradient(160deg, #e6d29b, #c9ad70);
-}
-.land.mud {
-  background:
-    radial-gradient(ellipse 30% 18% at 40% 50%, #4f412c 0 60%, transparent 62%) 0 0 / 180px 120px,
-    radial-gradient(circle at 75% 25%, #7c8a3e 0 3px, transparent 4px) 0 0 / 40px 36px,
-    linear-gradient(160deg, #75613f, #57472f);
-}
-.land.reef {
-  background:
-    radial-gradient(ellipse 18% 13% at 35% 40%, #e8d6be 0 62%, #b49a7c 64% 80%, transparent 82%) 0 0 / 149px 109px,
-    radial-gradient(ellipse 12% 10% at 70% 72%, #df9f8d 0 62%, #a86a5c 64% 80%, transparent 82%) 0 0 / 197px 151px,
-    radial-gradient(ellipse 9% 7% at 15% 80%, #e7b7a3 0 62%, #ad7c6a 64% 80%, transparent 82%) 0 0 / 113px 89px,
-    linear-gradient(160deg, #cfbaa0, #ae967a);
-}
-/* Light rays slanting down into the water; still, so nothing repaints the whole water. */
+/* Light rays slanting down into the water, fading with depth; still, so nothing repaints the whole water. */
 .rays {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.05) 0 40px, transparent 40px 120px);
+  background: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.06) 0 40px, transparent 40px 120px);
+  mask-image: linear-gradient(180deg, #000 10%, transparent 85%);
 }
-/* The water's side is a size container, so the bubbles rise its full height (cqh). */
-.underwater { overflow: hidden; container-type: size; }
-.sand {
-  position: absolute;
+/* The water's side is a size container, so the bubbles rise its full height (cqh). Deeper water
+   darkens in flat steps, like the pixel art in front of it. */
+.underwater {
+  overflow: hidden;
+  container-type: size;
+  --px: 3px;
+  background: linear-gradient(
+    180deg,
+    transparent 0 34%,
+    rgb(3 12 22 / 0.08) 34% 52%,
+    rgb(3 12 22 / 0.16) 52% 70%,
+    rgb(3 12 22 / 0.24) 70%
+  );
+}
+@media (max-width: 700px), (max-height: 500px) {
+  .underwater { --px: 2px; }
+}
+/* Pixel strips from `npm run shore`, repeated sideways at the sprites' scale (--px per pixel). */
+.backdrop, .bed, .school { position: absolute; background-repeat: repeat-x; image-rendering: pixelated; }
+/* Far shapes standing on the bed, faded into the water so they stay behind the creatures. */
+.backdrop {
+  inset: auto 0 calc(14 * var(--px));
+  height: calc(48 * var(--px));
+  background-size: calc(128 * var(--px)) 100%;
+  opacity: 0.4;
+}
+.backdrop.kelp { background-image: url('./assets/shore/back-kelp.png'); }
+.backdrop.reeds { background-image: url('./assets/shore/back-reeds.png'); }
+.backdrop.rocks { background-image: url('./assets/shore/back-rocks.png'); }
+.backdrop.coral { background-image: url('./assets/shore/back-coral.png'); }
+.bed {
   inset: auto 0 0;
-  height: 16%;
-  min-height: 24px;
-  background:
-    radial-gradient(ellipse 60% 60% at 30% 0%, #e2c98f 0 40%, transparent 41%),
-    radial-gradient(ellipse 50% 70% at 80% 10%, #d8bd80 0 40%, transparent 41%),
-    linear-gradient(180deg, #d4b679, #b8975a);
+  height: calc(24 * var(--px));
+  background-size: calc(64 * var(--px)) 100%;
 }
-.seaweed { position: absolute; bottom: 6%; transform-origin: 50% 100%; animation: seaweed-sway 5s ease-in-out infinite alternate; }
+.bed.sand { background-image: url('./assets/shore/bed-sand.png'); }
+.bed.mud { background-image: url('./assets/shore/bed-mud.png'); }
+.bed.rock { background-image: url('./assets/shore/bed-rock.png'); }
+.bed.coral { background-image: url('./assets/shore/bed-coral.png'); }
+.bed.deep { background-image: url('./assets/shore/bed-deep.png'); }
+/* A small school far off, crossing slowly from left to right now and then. */
+.school {
+  top: 58%;
+  left: 0;
+  width: calc(26 * var(--px));
+  height: calc(12 * var(--px));
+  background: url('./assets/shore/school.png') 0 0 / 100% 100%;
+  opacity: 0.3;
+  animation: school-swim 38s linear -12s infinite;
+}
+@keyframes school-swim {
+  from { transform: translate(-100%, 0); }
+  50% { transform: translate(50cqw, -6cqh); }
+  to { transform: translate(100cqw, 2cqh); }
+}
+.seaweed { position: absolute; bottom: calc(8 * var(--px)); transform-origin: 50% 100%; animation: seaweed-sway 5s ease-in-out infinite alternate; }
 .seaweed.flip > :deep(.sprite) { scale: -1 1; }
 @keyframes seaweed-sway {
   from { transform: rotate(-3deg); }
   to { transform: rotate(3deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .seaweed { animation: none; }
+  .seaweed, .school { animation: none; }
+  .school { display: none; }
 }
 /* An <svg> doesn't stretch to `inset: 0` like a div: it needs its size, or it stays 300×150 and clips the lines. */
 .scene { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
-/* Foam where the water meets the shore: a soft wide band under a bright edge. */
-.surface-foam { stroke: rgb(255 255 255 / 0.18); stroke-width: 12; }
-.surface-line { stroke: rgb(255 255 255 / 0.7); stroke-width: 2; }
+/* The bank seen from above: the land ends on the shore line under his feet, its side drops into
+   the water below it, foam where it meets the water, and a shadow on the water past that. */
+.bank-shadow { stroke: rgb(4 14 24 / 0.28); stroke-width: 12; transform: translateY(22px); }
+.bank-side { stroke: var(--bank-side); stroke-width: 14; transform: translateY(7px); }
+.bank-rim { stroke: var(--bank-rim); stroke-width: 2; transform: translateY(1px); }
+.surface-foam { stroke: rgb(255 255 255 / 0.22); stroke-width: 8; transform: translateY(16px); }
+.surface-line { stroke: rgb(255 255 255 / 0.75); stroke-width: 2; transform: translateY(14px); }
+.scene.grass { --bank-side: #6b4a2b; --bank-rim: #8cc463; }
+.scene.rocks { --bank-side: #4a5054; --bank-rim: #b1b6b9; }
+.scene.jetty { --bank-side: #4a321d; --bank-rim: #c09a66; }
+.scene.boat { --bank-side: #ece6d6; --bank-rim: #7a5a37; }
+.scene.beach { --bank-side: #b8995e; --bank-rim: #f3e6be; }
+.scene.mud { --bank-side: #3f3424; --bank-rim: #8a9a45; }
+.scene.reef { --bank-side: #b49a7c; --bank-rim: #f6e7d6; }
 /* He stands on the shore, in the upper left; the shore line is drawn under his feet (measureScene). */
 .player-anchor.raised { position: absolute; left: var(--player-x, 28%); bottom: 46%; transform: translateX(-50%); }
+.player-anchor { position: relative; }
+/* Behind him (he faces the water), at his feet: clear of the log above. */
+.player-hold {
+  position: absolute;
+  right: 66%;
+  bottom: 2%;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 10px 2px 4px;
+  border: 2px solid #0d1a26;
+  border-radius: 12px;
+  background: var(--block);
+  color: #0d1a26;
+  font-size: 1.25rem;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.4);
+  cursor: help;
+}
+.player-hold .game-icon { width: 28px; height: 28px; }
+/* A short pop each time it changes. */
+.hold-enter-active { transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), opacity 0.2s ease; }
+.hold-leave-active { position: absolute; transition: opacity 0.2s ease; }
+.hold-enter-from { transform: scale(0.4); opacity: 0; }
+.hold-leave-to { opacity: 0; }
 .enemies { display: flex; gap: 24px; }
 .enemies.crowded { gap: 10px; }
 .enemies.crowded :deep(.hud) { width: 170px; }
@@ -869,12 +969,16 @@ function endTurn() {
   top: 16px;
   left: 16px;
   margin: 0;
-  padding: 0;
+  padding: 6px 10px;
   list-style: none;
   font-size: 0.72rem;
   color: var(--muted);
   max-width: 260px;
+  /* Readable on any ground, light sand or dark rock. */
+  border-radius: 8px;
+  background: rgb(10 14 20 / 0.6);
 }
+.log:empty { display: none; }
 .log li:first-child { color: var(--text); }
 
 .controls { display: flex; align-items: flex-end; gap: 16px; padding: 0 8px 12px; }
@@ -1052,6 +1156,9 @@ function endTurn() {
   /* The fisherman on the bank (one creature): it keeps to the right, clear of him. */
   .battlefield.bank { justify-content: flex-end; }
   .player-anchor.raised { bottom: 48%; }
+  /* He stands near the left edge here, and the log is hidden: the Hold goes over his head. */
+  .player-hold { right: auto; left: 20%; bottom: 84%; padding: 1px 8px 1px 3px; font-size: 1rem; }
+  .player-hold .game-icon { width: 22px; height: 22px; }
   .enemies { flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
   .log { display: none; }
   /* Wrapped combatants take the bottom corners, so the panel goes top left (the log is gone);

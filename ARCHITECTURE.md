@@ -11,7 +11,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 | `src/ui/` | Vue components plus `useGame.ts`, which holds the current states and calls the engine. | No game rules here. Components read state and emit actions. Display-only fields (sprites, icons, terrain) live in content but are only read by the UI. |
 | `src/locales/` | The languages: every word the player reads, one file per language. | Plain data. See Languages. |
 | `electron/` | The desktop shell: a window, plus a small file bridge for saving. | The page never touches the file system directly; it goes through `window.desktop` (see Persistence). |
-| `scripts/` | One-off asset generators (`npm run sprites`, `npm run terrain`, `npm run eggs`, `npm run sea`). | Seeded: re-running gives the same images. |
+| `scripts/` | One-off asset generators (`npm run sprites`, `npm run terrain`, `npm run eggs`, `npm run sea`, `npm run shore`). | Seeded: re-running gives the same images. |
 
 ## State model
 
@@ -43,16 +43,16 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
 ## A run
 
 - **Levels** (`content/levels.ts`): a run is three acts played in order, **Kid**, **Adult** and **Elder** (`RunState.level`), on the same family coast. Each age fishes further out to sea (`height`: how much of the art it shows).
-  - **The coast** (`content/coast.ts`, `layoutCoast`): at the start of a run, the coast features (beaches, ponds, rocks, harbours, streams, the lake; kelp, reefs, cliffs, trench and wreck at sea) are slid to random places along their `range`, without covering each other or the reserved areas (house, river delta, lighthouse), then copied where there's room (up to `FEATURE_COPIES`, 4, of each). The layout is kept in `RunState.coast` and shared by the three levels.
+  - **The coast** (`content/coast.ts`): one static map, the same every run, with about 85 places on it where a fight may be: ponds, lakes, streams and a river inland; beaches, jetties, harbours, rocks and lagoons on the shoreline; tide pools, sand flats and rocks in the shallows; kelp, reefs, buoys, cliffs, wrecks and trenches at sea. Each place says what each age does there (`visits`: spot and name, or null).
   - **What each age does there:** a feature's `visits` give, for kid, adult and elder, its fishing spot and the node's name (the harbour: fishing from the wharf, kayaking in the harbour, a boat out to sea). Sea features have no kid visit. The level's tier sets the creatures' tier.
-  - **Shape** (`generateLevelMap`): 7 columns from the house to the mini-boss (column 8), 7 more to the boss (column 16), both at fixed places. Each column takes 2–4 lanes from the features within its stretch of the map, as many as there are; only a column with fewer than 2 gets events to fill it. Links go to the next column without crossing, sometimes branching.
-  - **Shops and treasure:** one shop in columns 3–7, one right after the mini-boss, and a treasure in columns 12–15. A few fights become surprise events, never right before or after another event; each event has a 10% chance (`EVENT_SHOP_CHANCE`) to come out a shop instead.
+  - **Shape** (`generateLevelMap`): 7 columns from the house to the mini-boss (column 8), 7 more to the boss (column 16), both at fixed places. Each column takes 2–4 of the places within its stretch of the map that this age visits, at least `NODE_GAP` (30) art pixels apart, above each other or side by side; only a column with fewer than 2 gets events to fill it. So the coast stays the same, and which places light up changes from run to run. Links go to the next column without crossing, sometimes branching.
+  - **Shops and treasure:** one shop in columns 3–7, one right after the mini-boss, and a treasure in columns 12–15. Every other column (`EVENT_COLUMNS`: 2, 4, 6, 10, 12, 14) turns one of its fights into an event, and each other fight has a 25% chance (`SURPRISE_EVENT_CHANCE`) to become a surprise event, never right before or after another event; each event has a 10% chance (`EVENT_SHOP_CHANCE`) to come out a shop instead.
   - **Hand-made levels:** a level can instead list its `nodes` (column, position, kind, links). The test levels do.
   - **Node kinds:** `fight`, `event`, `shop`, `treasure`, `leave` (head home), `miniBoss` and `boss`.
   - **Head home:** the mini-boss leads to the next column and to a `leave` node (`escape`). That's a dead end that ends the run as a success.
   - **Next level:** beating a level's boss (`claimVictory`) moves the run to the next level's start (`enterNextLevel`), keeping everything else (HP, deck, bucket, coins). Beating the last boss wins the run.
   - **Checked on startup:** `validateLevels` (`engine/data.ts`) refuses broken content with a readable message:
-    - **Generated levels:** a mini-boss, a boss and an escape, with known creatures; coast features with known spots.
+    - **Generated levels:** a mini-boss, a boss and an escape, with known creatures; coast places with known spots.
     - **Hand-made levels:** no column missing, the boss alone in the last one, links only going forward, one mini-boss leading to a leave node, every node reachable, every fight with its creatures.
   - **The map** (`engine/map.ts`): `buildLevelMap` turns a level into the `GameMap` the run plays, with the start node added.
 - **Fishing spots** (`content/spots.ts`, the legend: rock pools, jetty, reef…): a fight node's `spot` decides who it meets. `encountersFor` draws among encounters whose creatures live in the spot's `waters` (each creature's `water`) and, if the spot lists `types`, are of one of them, at the level's `tier`. When nothing fits, it widens: first any creature type from those waters, then any tier, then anything at the tier.
@@ -238,8 +238,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 
 - **Sprite sheets** are registered in `ui/sprites.ts` (`SHEETS`) and referenced from content as `{ sheet, index }` (1-based).
 - **Animated creature sheets** (`assets/creatures/NNN.png`, 6 frames × 4 rows: idle, attack, capture, flee) come from `scripts/generate-creature-sprites.mjs`.
-- **The coast map** (`assets/map/basemap.png`, 1000×150) is the background of every level's map, with the open sea below it (`assets/map/sea.png`) for the older ages. `MapView.vue` draws on top of it:
-  - **Features:** each placed feature, cropped out of its layer (`assets/map/elements/*.png` are full-size layers cut from the coast art; `assets/map/sea/features.png` comes from `scripts/draw-sea.mjs`). Only those the current age visits are drawn.
+- **The coast map** (`assets/coast/map.png`, 1300×450: land, beach, shoreline at y 196, the shallows, then the open sea from about y 300) is the background of every level's map, each age showing it down to its `height`. `scripts/draw-coast.mjs` (`npm run coast`) draws it with every place on it, and prints the places for `content/coast.ts`. The older hand-drawn art in `assets/map` (and `scripts/draw-sea.mjs`) is no longer used. `MapView.vue` draws on top of it:
   - **Links:** the links between nodes.
   - **Nodes:** fights in their spot's colour with its code, ? / $ / T for events, shops and treasure, ⌂ for heading home, a diamond for the mini-boss and a ring for the boss.
   - **Legend:** a **Legend** button shows it, built from the spots.
@@ -252,7 +251,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 - **Running them:** `npm test` (Vitest) and `npm run typecheck`.
 - **Engine tests** use `tests/fixtures.ts`, small content with fixed numbers, so rebalancing real content doesn't break them.
 - **Content tests** run against the real data.
-- **Levels:** `tests/map.test.ts` checks the coast layout (no overlaps, seeded) and the real levels over many seeds (shape, lanes, shop and head-home after the mini-boss, links, every fight finding creatures), plus the validation messages.
+- **Levels:** `tests/map.test.ts` checks the coast's places (on the art, known spots) and the real levels over many seeds (shape, lanes, shop and head-home after the mini-boss, links, every fight finding creatures), plus the validation messages.
 - **Not covered:** the UI layer and `saveStore.ts` have no automated tests. They were checked by hand in the browser and with an Electron smoke test.
 
 ## Tuning knobs
@@ -260,8 +259,9 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 | Setting | Where | What it controls |
 |---|---|---|
 | Bosses, escape, height, tier | `content/levels.ts` | Each level's fixed points and who you meet |
-| Features, their ranges and visits | `content/coast.ts` | What can appear along the coast, and what each age does there |
-| `COLUMNS_PER_HALF`, lanes, `FEATURE_COPIES` | `engine/map.ts` | The shape of the generated maps |
+| Places and their visits | `content/coast.ts` | Where fights can be on the map, and what each age does there |
+| `COLUMNS_PER_HALF`, lanes, `NODE_GAP` | `engine/map.ts` | The shape of the generated maps |
+| `EVENT_COLUMNS`, `SURPRISE_EVENT_CHANCE` | `engine/map.ts` | How many events break up the fights |
 | Waters and creature types per spot | `content/spots.ts` | Which creatures each fishing spot can bring |
 | `EVENT_FIGHT_CHANCE`, `CARD_REWARD_COUNT` | `engine/run.ts` | Surprise fights in events, card choices after a win |
 | `STARTING_HAND_SIZE`, `BASE_ENERGY`, `VULNERABLE_MULTIPLIER`, `WEAK_MULTIPLIER`, `STRONG_BONUS_PERCENT` | `engine/constants.ts` | Combat basics, and the extra damage of cards against their build's creature types |

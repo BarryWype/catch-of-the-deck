@@ -106,7 +106,7 @@ export const testData = buildGameData({
       ],
     },
   ],
-  coast: { features: [], reserved: [] },
+  coast: { places: [] },
 });
 
 /** The run with node `id` of its map turned into `kind` (for event, shop and treasure tests). */

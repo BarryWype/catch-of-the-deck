@@ -3,7 +3,7 @@ import {
   buildLevelMap,
   COLUMNS_PER_HALF,
   encountersFor,
-  layoutCoast,
+  EVENT_COLUMNS,
   START_NODE_ID,
   validateContent,
   type GameMap,
@@ -12,7 +12,7 @@ import {
 import { contentSource, gameData } from '../src/content';
 import { testData } from './fixtures';
 
-const handMade = (levelIndex = 0) => buildLevelMap(testData, levelIndex, [], { rng: 1 });
+const handMade = (levelIndex = 0) => buildLevelMap(testData, levelIndex, { rng: 1 });
 
 describe('hand-made level maps', () => {
   it('start at the house, which leads to every node of the first column', () => {
@@ -24,37 +24,26 @@ describe('hand-made level maps', () => {
 });
 
 describe('the coast', () => {
-  const rect = (placement: { feature: string; x: number }) => {
-    const f = gameData.coast.features.find((feature) => feature.id === placement.feature)!;
-    return { x: placement.x, y: f.y, width: f.crop.width, height: f.crop.height };
-  };
-  const overlap = (a: ReturnType<typeof rect>, b: typeof a) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-
-  it('lays the features out along their range, without covering each other or a reserved area', () => {
-    for (let seed = 1; seed <= 30; seed++) {
-      const coast = layoutCoast({ rng: seed }, gameData.coast);
-      expect(coast.length, `seed ${seed}`).toBeGreaterThan(gameData.coast.features.length / 2);
-      const rects = coast.map(rect);
-      coast.forEach((placement, i) => {
-        const f = gameData.coast.features.find((feature) => feature.id === placement.feature)!;
-        expect(placement.x).toBeGreaterThanOrEqual(f.range[0]);
-        expect(placement.x).toBeLessThanOrEqual(f.range[1]);
-        for (const other of [...rects.slice(i + 1), ...gameData.coast.reserved]) expect(overlap(rects[i], other), `${placement.feature} (seed ${seed})`).toBe(false);
+  it('has its places on the art, each with a fishing spot for every age it is visited by', () => {
+    const ids = new Set(gameData.coast.places.map((p) => p.id));
+    expect(ids.size).toBe(gameData.coast.places.length);
+    for (const place of gameData.coast.places) {
+      expect(place.x, place.id).toBeGreaterThanOrEqual(0);
+      expect(place.x, place.id).toBeLessThan(1300);
+      gameData.levels.forEach((level, i) => {
+        const visit = place.visits[i];
+        if (!visit) return;
+        expect(gameData.spots[visit.spot], place.id).toBeDefined();
+        expect(visit.at?.y ?? place.y, `${place.id} (${level.id})`).toBeLessThan(level.height);
       });
     }
-  });
-
-  it('is the same for a seed, and changes from run to run', () => {
-    expect(layoutCoast({ rng: 4 }, gameData.coast)).toEqual(layoutCoast({ rng: 4 }, gameData.coast));
-    expect(layoutCoast({ rng: 4 }, gameData.coast)).not.toEqual(layoutCoast({ rng: 5 }, gameData.coast));
   });
 });
 
 describe.each(gameData.levels.map((level, i) => [level.id, i] as const))('the generated %s level', (_, levelIndex) => {
   const level = gameData.levels[levelIndex];
   const maps: GameMap[] = Array.from({ length: 25 }, (_, seed) => {
-    const holder = { rng: seed + 1 };
-    return buildLevelMap(gameData, levelIndex, layoutCoast(holder, gameData.coast), holder);
+    return buildLevelMap(gameData, levelIndex, { rng: seed + 1 });
   });
   const miniBossColumn = COLUMNS_PER_HALF + 1;
   const bossColumn = 2 * miniBossColumn;
@@ -87,6 +76,15 @@ describe.each(gameData.levels.map((level, i) => [level.id, i] as const))('the ge
       expect(after.map((n) => n.kind)).toEqual(expect.arrayContaining(['shop', 'leave']));
       expect(after.find((n) => n.kind === 'leave')!.next).toEqual([]);
       expect(columns.flat().filter((n) => n.kind === 'treasure')).toHaveLength(1);
+    }
+  });
+
+  it('has an event (or a shop) in every other column, so a run is not all fights', () => {
+    for (const { columns } of maps) {
+      for (const column of EVENT_COLUMNS) {
+        const lanes = columns[column].filter((n) => n.kind !== 'leave');
+        expect(lanes.length === 1 || lanes.some((n) => n.kind !== 'fight'), `column ${column}`).toBe(true);
+      }
     }
   });
 
@@ -179,12 +177,12 @@ describe('level validation', () => {
     expect(errorsWith(edit('h-4', { kind: 'fight' }))).toEqual(expect.arrayContaining([expect.stringContaining('exactly one boss')]));
   });
 
-  it('explains broken generated levels and coast features', () => {
+  it('explains broken generated levels and coast places', () => {
     expect(errorsWith({ ...kid, boss: undefined })).toEqual([expect.stringContaining('a miniBoss, a boss and an escape')]);
     expect(errorsWith({ ...kid, miniBoss: { ...kid.miniBoss!, enemies: ['ghost'] } })).toEqual([expect.stringContaining('unknown enemy "ghost"')]);
-    const [first, ...rest] = contentSource.coast.features;
-    const badFeature = { ...first, visits: [{ spot: 'XX', label: 'X' }] };
-    expect(validateContent({ ...contentSource, coast: { ...contentSource.coast, features: [badFeature, ...rest] } })).toEqual([
+    const [first, ...rest] = contentSource.coast.places;
+    const badPlace = { ...first, visits: [{ spot: 'XX', label: 'X' }] };
+    expect(validateContent({ ...contentSource, coast: { places: [badPlace, ...rest] } })).toEqual([
       expect.stringContaining('unknown fishing spot "XX"'),
     ]);
   });

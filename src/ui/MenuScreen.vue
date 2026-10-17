@@ -3,9 +3,10 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
 import type { Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
+import GameIcon from './GameIcon.vue';
 import CreatureBook from './CreatureBook.vue';
 import SideDrawer from './SideDrawer.vue';
-import { playTheme, stopTheme, musicVolume, setMusicVolume } from './music';
+import { playTheme, stopTheme, musicVolume, setMusicVolume, musicOn, setMusicOn } from './music';
 import { sfxVolume, setSfxVolume } from './sfx';
 import { language, languages, setLanguage, t } from './i18n';
 
@@ -102,8 +103,7 @@ onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen));
 onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen));
 
 /**
- * The menu theme (music.ts) plays in the desktop app only, from mount until a run leaves the
- * menu; the web build doesn't ship the file (too big).
+ * The menu theme (music.ts) plays from mount until a run leaves the menu.
  */
 onMounted(() => playTheme('menu'));
 onBeforeUnmount(stopTheme);
@@ -145,6 +145,15 @@ onBeforeUnmount(stopTheme);
         <button v-for="d in DEBUG_STARTS" :key="d.label" class="ghost" @click="emit('debugStart', d.level, d.kind)">{{ d.label }}</button>
       </nav>
     </SideDrawer>
+    <button
+      v-if="!viewing"
+      v-tip="musicOn ? t('menu.musicOff') : t('menu.musicOn')"
+      class="ghost sound"
+      :class="{ off: !musicOn }"
+      :aria-label="musicOn ? t('menu.musicOff') : t('menu.musicOn')"
+      :aria-pressed="musicOn"
+      @click="setMusicOn(!musicOn)"
+    ><GameIcon icon="music-note" /></button>
     <button v-if="!viewing" class="ghost reset" @click="confirmReset?.showModal()">{{ t('reset.button') }}</button>
 
     <dialog ref="confirmReset" class="confirm" @click="$event.target === confirmReset && confirmReset?.close()">
@@ -246,7 +255,7 @@ onBeforeUnmount(stopTheme);
 .buttons { display: flex; flex-direction: column; gap: 12px; width: 240px; }
 .buttons button { padding: 14px; font-size: 1.1rem; }
 .buttons .ghost { background: rgb(15 18 25 / 0.6); color: var(--text); }
-/* Who wrote the music (both themes ship with the desktop app; the credits show either way). */
+/* Who wrote the music. */
 .credits { margin: 0; max-width: 260px; font-size: 0.68rem; line-height: 1.4; color: var(--muted); text-align: center; }
 
 .reset {
@@ -260,6 +269,30 @@ onBeforeUnmount(stopTheme);
   color: var(--muted);
 }
 .reset:hover { color: var(--text); }
+/* Music on/off: the note, struck through and dimmed while the music is off. */
+.sound {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 1.3rem;
+  background: rgb(15 18 25 / 0.6);
+}
+.sound.off .game-icon { opacity: 0.45; }
+.sound.off::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--muted);
+  transform: rotate(-45deg);
+}
 
 
 .options { border-color: #2c3a4a; }

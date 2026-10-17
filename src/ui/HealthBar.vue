@@ -13,7 +13,8 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
     <!-- The Grit bar keeps its label above; the creature's values sit inside its bar instead. -->
     <span v-if="grit" class="label">{{ term('grit') }}&nbsp;{{ hp }} / {{ maxHp }}</span>
     <div class="row">
-      <span v-if="block > 0" v-tip="grit ? `${block} ${term('hold')}` : t('bars.block', { n: block })" class="block"><GameIcon icon="🛡️" />{{ block }}</span>
+      <!-- The player's Hold shows beside the fisherman instead (CombatView); his bar keeps its tint. -->
+      <span v-if="block > 0 && !grit" v-tip="t('bars.block', { n: block })" class="block"><GameIcon icon="🛡️" />{{ block }}</span>
       <div class="bar">
         <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />
         <span v-if="!grit" class="value">♥ {{ hp }}/{{ maxHp }}</span>

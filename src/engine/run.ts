@@ -3,7 +3,7 @@ import { createCombat } from './combat';
 import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
-import { buildLevelMap, encountersFor, encounterTier, findNode, layoutCoast, START_NODE_ID, type CoastPlacement, type GameMap, type MapNode } from './map';
+import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
 import { nextFloat, nextInt } from './rng';
 import { isAlive } from './effects';
 import { creatureFamilies } from './families';
@@ -24,8 +24,6 @@ export interface RunState {
   fights: number;
   /** Index in `GameData.levels` of the level being played (an act of the run). */
   level: number;
-  /** The coast features laid out for this run, shared by every level. */
-  coast: CoastPlacement[];
   /** That level's map. */
   map: GameMap;
   /** Id of the map node the player is standing on. */
@@ -92,7 +90,6 @@ export function createRun(
     floor: 1,
     fights: 0,
     level: 0,
-    coast: [],
     map: { columns: [] },
     position: START_NODE_ID,
     visited: [START_NODE_ID],
@@ -105,8 +102,7 @@ export function createRun(
     rarePity: RARE_CHANCE,
     rewardFamilies: [],
   };
-  run.coast = layoutCoast(run, data.coast);
-  run.map = buildLevelMap(data, 0, run.coast, run);
+  run.map = buildLevelMap(data, 0, run);
   return run;
 }
 
@@ -134,7 +130,7 @@ export function isLastLevel(run: RunState, data: GameData): boolean {
 export function enterNextLevel(run: RunState, data: GameData): RunState {
   if (isLastLevel(run, data)) throw new Error('There is no level after this one.');
   const next = { ...clone(run), level: run.level + 1, position: START_NODE_ID, visited: [START_NODE_ID], rewardSkipsUsed: 0, rewardRerollsUsed: 0 };
-  next.map = buildLevelMap(data, next.level, next.coast, next);
+  next.map = buildLevelMap(data, next.level, next);
   return next;
 }
 

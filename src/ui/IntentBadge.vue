@@ -60,8 +60,7 @@ const body = computed(() => {
 
 <template>
   <div v-if="intent.hidden" v-tip="t('intent.hidden')" class="intent">
-    <div class="icons"><span class="icon hidden"><b>?</b></span></div>
-    <div class="move">?</div>
+    <div class="icons"><span class="icon hidden"><GameIcon icon="question-mark" /></span></div>
   </div>
   <div v-else v-tip="{ title: intent.moveName, detail: TAG_NAMES[intent.tag], body }" class="intent">
     <div class="icons">
@@ -103,7 +102,8 @@ const body = computed(() => {
 .icon.hidden { background: #333; color: #aaa; }
 .pips { display: inline-flex; gap: 2px; }
 .pips i { width: 5px; height: 5px; border-radius: 50%; background: #b9a0dd; }
-.move { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+/* On a dark pill, so it reads over any ground or water behind the creature. */
+.move { padding: 2px 8px 2px 3px; border-radius: 8px; background: rgb(10 14 20 / 0.72); font-size: 0.78rem; font-weight: 600; color: var(--text); }
 .tag { padding: 0 5px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; }
 .tag.strike { background: #8a2f36; }
 .tag.pull { background: #2a6b6b; }

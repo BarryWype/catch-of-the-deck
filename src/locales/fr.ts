@@ -337,6 +337,8 @@ export const fr: Messages = {
       seeAquarium: 'Voir l’aquarium',
       options: 'Options',
       exit: 'Quitter',
+      musicOn: 'Activer la musique',
+      musicOff: 'Couper la musique',
     },
     credits: {
       music: 'Musique',

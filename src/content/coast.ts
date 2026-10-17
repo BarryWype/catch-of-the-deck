@@ -1,110 +1,158 @@
-import type { CoastDef, CoastFeatureDef, CoastVisitDef } from '../engine';
+import type { CoastDef, CoastPlaceDef, CoastVisitDef } from '../engine';
 
 /**
- * The pieces of coast laid out at random along the map each run (see `layoutCoast`), and what
- * each age does there. Each one keeps its height on the art and slides sideways within `range`.
+ * The places on the coast map (ui/assets/coast/map.png, drawn by scripts/draw-coast.mjs, which
+ * prints them) where a fight may be, and what each age does there. Each run, every column of a
+ * level's map draws 2–4 of the places within its stretch (see `generateLevelMap`).
  *
- * - `image`, `crop`: its art, in ui/assets/map (the elements are full-size layers cut from the
- *   coast art; sea/features.png is drawn by scripts/draw-sea.mjs).
- * - `y`: its top edge on the map. Shore features sit on the shoreline (y ≈ 108), sea ones below 150.
- * - `node`: where its map node sits, relative to its top-left.
+ * - `x`, `y`: where its node sits on the art. The coast is 1300×450: land down to the shoreline
+ *   (first water row y 196), the shallows, then the open sea from about y 300.
  * - `visits`: kid, adult, elder: the fishing spot (spots.ts) and the node's name; null when that
- *   age doesn't stop there. A visit's own `node` moves it, e.g. out to sea by boat.
+ *   age doesn't stop there. A visit's own `at` moves its node, e.g. out to sea by boat.
  * The level's tier sets the creatures' tier, so the same rocks hold bigger catches as you grow.
  */
-
-/** Left edges keeping shore features on the straight shoreline, between the old harbour and the lagoon. */
-const SHORE = (width: number): [number, number] => [212, 905 - width];
-const INLAND = (width: number): [number, number] => [100, 945 - width];
-const SEA = (width: number): [number, number] => [20, 940 - width];
 
 const same = (spot: string, kid: string, adult: string, elder: string): CoastVisitDef[] => [
   { spot, label: kid },
   { spot, label: adult },
   { spot, label: elder },
 ];
-const beach = same('BE', 'Beach', 'Surf beach', 'Surfcasting');
+
+// Inland.
 const pond = same('PO', 'Pond', 'Pond', 'Old pond');
+const lake = same('LK', 'Lake', 'Lake by canoe', 'Deep lake');
 const stream = same('ST', 'Creek', 'Creek', 'Creek mouth');
+const river: CoastVisitDef[] = [
+  { spot: 'ST', label: 'River bank' },
+  { spot: 'RV', label: 'Big river' },
+  { spot: 'RV', label: 'River mouth' },
+];
+const lagoon = same('ES', 'Lagoon', 'Lagoon flats', 'Lagoon channel');
+const channel = same('ES', 'Delta channel', 'Delta channel', 'Delta channel');
+// On the shoreline.
+const beach = same('BE', 'Beach', 'Surf beach', 'Surfcasting');
+const jetty = same('JT', 'Jetty', 'End of the jetty', 'Night fishing off the jetty');
+const harbour = (x: number): CoastVisitDef[] => [
+  { spot: 'JT', label: 'Fishing from the wharf' },
+  { spot: 'BY', label: 'Kayaking in the harbour', at: { x: x + 11, y: 238 } },
+  { spot: 'OS', label: 'Boat out to sea', at: { x: x + 11, y: 318 } },
+];
 const rocks: CoastVisitDef[] = [
   { spot: 'RP', label: 'Rock pools' },
   { spot: 'CL', label: 'Rocky point' },
   { spot: 'CL', label: 'Rock ledge' },
 ];
-const harbour: CoastVisitDef[] = [
-  { spot: 'JT', label: 'Fishing from the wharf' },
-  { spot: 'BY', label: 'Kayaking in the harbour', node: { x: 15, y: 52 } },
-  { spot: 'OS', label: 'Boat out to sea', node: { x: 15, y: 150 } },
+// In the shallows, where a kid can wade out.
+const tidePools: CoastVisitDef[] = [
+  { spot: 'RP', label: 'Tide pools' },
+  { spot: 'CL', label: 'Rock shelf' },
+  { spot: 'CL', label: 'Rock shelf' },
+];
+const sandflat: CoastVisitDef[] = [
+  { spot: 'BE', label: 'Sand flats' },
+  { spot: 'BE', label: 'Sandbar' },
+  { spot: 'BE', label: 'Sandbar' },
+];
+const outerRocks: CoastVisitDef[] = [
+  { spot: 'CL', label: 'Wading out to the rocks' },
+  { spot: 'CL', label: 'Offshore rocks' },
+  { spot: 'CL', label: 'Offshore rocks' },
+];
+// Out at sea: near the shore for adults, further out for elders.
+const kelp: (CoastVisitDef | null)[] = [null, { spot: 'BY', label: 'Kelp forest' }, { spot: 'BY', label: 'Kelp forest' }];
+const reef: (CoastVisitDef | null)[] = [null, { spot: 'RF', label: 'Coral reef' }, { spot: 'RF', label: 'Coral reef' }];
+const buoy: (CoastVisitDef | null)[] = [null, { spot: 'BY', label: 'Mooring buoy' }, { spot: 'OS', label: 'Mooring buoy' }];
+const cliff: (CoastVisitDef | null)[] = [null, null, { spot: 'DP', label: 'Underwater cliffs' }];
+const wreck: (CoastVisitDef | null)[] = [null, null, { spot: 'OS', label: 'Shipwreck' }];
+const trench: (CoastVisitDef | null)[] = [null, null, { spot: 'DP', label: 'The deep' }];
+
+/** From the house to the lighthouse, as the script draws them. */
+const places: CoastPlaceDef[] = [
+  { id: 'channel1', x: 640, y: 182, visits: channel },
+  { id: 'channel2', x: 737, y: 178, visits: channel },
+  { id: 'pond1', x: 150, y: 58, visits: pond },
+  { id: 'rocks1', x: 150, y: 192, visits: rocks },
+  { id: 'tidePools1', x: 140, y: 252, visits: tidePools },
+  { id: 'reef1', x: 118, y: 324, visits: reef },
+  { id: 'wreck1', x: 120, y: 414, visits: wreck },
+  { id: 'lake1', x: 201, y: 58, visits: lake },
+  { id: 'stream1', x: 191, y: 148, visits: stream },
+  { id: 'beach1', x: 224, y: 189, visits: beach },
+  { id: 'sandflat1', x: 206, y: 262, visits: sandflat },
+  { id: 'kelp1', x: 236, y: 230, visits: kelp },
+  { id: 'buoy1', x: 198, y: 342, visits: buoy },
+  { id: 'trench1', x: 205, y: 420, visits: trench },
+  { id: 'pond2', x: 302, y: 42, visits: pond },
+  { id: 'stream2', x: 321, y: 133, visits: stream },
+  { id: 'jetty1', x: 266, y: 210, visits: jetty },
+  { id: 'outerRocks1', x: 286, y: 254, visits: outerRocks },
+  { id: 'reef2', x: 298, y: 322, visits: reef },
+  { id: 'cliff1', x: 280, y: 398, visits: cliff },
+  { id: 'river1', x: 380, y: 104, visits: river },
+  { id: 'harbour1', x: 392, y: 198, visits: harbour(392) },
+  { id: 'tidePools2', x: 350, y: 264, visits: tidePools },
+  { id: 'sandflat2', x: 400, y: 244, visits: sandflat },
+  { id: 'buoy2', x: 370, y: 342, visits: buoy },
+  { id: 'wreck2', x: 385, y: 422, visits: wreck },
+  { id: 'pond3', x: 432, y: 64, visits: pond },
+  { id: 'pond4', x: 462, y: 130, visits: pond },
+  { id: 'beach2', x: 452, y: 189, visits: beach },
+  { id: 'outerRocks2', x: 438, y: 272, visits: outerRocks },
+  { id: 'kelp2', x: 474, y: 236, visits: kelp },
+  { id: 'reef3', x: 452, y: 330, visits: reef },
+  { id: 'trench2', x: 444, y: 402, visits: trench },
+  { id: 'pond5', x: 510, y: 70, visits: pond },
+  { id: 'lagoon1', x: 506, y: 168, visits: lagoon },
+  { id: 'stream3', x: 562, y: 115, visits: stream },
+  { id: 'tidePools3', x: 520, y: 240, visits: tidePools },
+  { id: 'sandflat3', x: 546, y: 276, visits: sandflat },
+  { id: 'buoy3', x: 522, y: 338, visits: buoy },
+  { id: 'cliff2', x: 532, y: 412, visits: cliff },
+  { id: 'pond6', x: 590, y: 54, visits: pond },
+  { id: 'rocks2', x: 588, y: 192, visits: rocks },
+  { id: 'outerRocks3', x: 626, y: 252, visits: outerRocks },
+  { id: 'reef4', x: 616, y: 338, visits: reef },
+  { id: 'wreck3', x: 600, y: 422, visits: wreck },
+  { id: 'pond7', x: 764, y: 62, visits: pond },
+  { id: 'tidePools4', x: 762, y: 248, visits: tidePools },
+  { id: 'buoy4', x: 756, y: 342, visits: buoy },
+  { id: 'trench3', x: 766, y: 420, visits: trench },
+  { id: 'lake2', x: 824, y: 72, visits: lake },
+  { id: 'stream4', x: 862, y: 149, visits: stream },
+  { id: 'jetty2', x: 820, y: 210, visits: jetty },
+  { id: 'sandflat4', x: 836, y: 258, visits: sandflat },
+  { id: 'reef5', x: 842, y: 322, visits: reef },
+  { id: 'cliff3', x: 830, y: 400, visits: cliff },
+  { id: 'pond8', x: 904, y: 48, visits: pond },
+  { id: 'pond9', x: 924, y: 148, visits: pond },
+  { id: 'harbour2', x: 900, y: 198, visits: harbour(900) },
+  { id: 'outerRocks4', x: 912, y: 264, visits: outerRocks },
+  { id: 'buoy5', x: 904, y: 346, visits: buoy },
+  { id: 'wreck4', x: 916, y: 422, visits: wreck },
+  { id: 'stream5', x: 1000, y: 114, visits: stream },
+  { id: 'pond10', x: 954, y: 150, visits: pond },
+  { id: 'rocks3', x: 960, y: 192, visits: rocks },
+  { id: 'tidePools5', x: 984, y: 242, visits: tidePools },
+  { id: 'reef6', x: 976, y: 330, visits: reef },
+  { id: 'trench4', x: 980, y: 418, visits: trench },
+  { id: 'pond11', x: 1040, y: 60, visits: pond },
+  { id: 'lagoon2', x: 1062, y: 168, visits: lagoon },
+  { id: 'sandflat5', x: 1044, y: 268, visits: sandflat },
+  { id: 'outerRocks5', x: 1076, y: 236, visits: outerRocks },
+  { id: 'buoy6', x: 1050, y: 346, visits: buoy },
+  { id: 'cliff4', x: 1052, y: 404, visits: cliff },
+  { id: 'pond12', x: 1126, y: 44, visits: pond },
+  { id: 'stream6', x: 1117, y: 143, visits: stream },
+  { id: 'jetty3', x: 1142, y: 210, visits: jetty },
+  { id: 'tidePools6', x: 1124, y: 256, visits: tidePools },
+  { id: 'reef7', x: 1126, y: 328, visits: reef },
+  { id: 'wreck5', x: 1112, y: 424, visits: wreck },
+  { id: 'pond13', x: 1180, y: 96, visits: pond },
+  { id: 'rocks4', x: 1172, y: 192, visits: rocks },
+  { id: 'outerRocks6', x: 1194, y: 240, visits: outerRocks },
+  { id: 'kelp3', x: 1166, y: 272, visits: kelp },
+  { id: 'buoy7', x: 1182, y: 338, visits: buoy },
+  { id: 'trench5', x: 1170, y: 412, visits: trench },
 ];
 
-const features: CoastFeatureDef[] = [
-  { id: 'beach1', image: 'elements/beach1.png', crop: { x: 214, y: 98, width: 48, height: 16 }, y: 98, range: SHORE(48), node: { x: 24, y: 5 }, visits: beach },
-  { id: 'beach2', image: 'elements/beach2.png', crop: { x: 632, y: 95, width: 44, height: 14 }, y: 95, range: SHORE(44), node: { x: 22, y: 6 }, visits: beach },
-  { id: 'harbour1', image: 'elements/harbour1.png', crop: { x: 329, y: 90, width: 31, height: 27 }, y: 90, range: SHORE(31), node: { x: 15, y: 10 }, visits: harbour },
-  { id: 'harbour2', image: 'elements/harbour2.png', crop: { x: 743, y: 95, width: 31, height: 27 }, y: 95, range: SHORE(31), node: { x: 15, y: 8 }, visits: harbour },
-  {
-    id: 'jetty', image: 'elements/jetty1.png', crop: { x: 613, y: 107, width: 8, height: 13 }, y: 107, range: SHORE(8), node: { x: 4, y: 10 },
-    visits: same('JT', 'Jetty', 'End of the jetty', 'Night fishing off the jetty'),
-  },
-  {
-    id: 'lagoon', image: 'elements/lagoon.png', crop: { x: 905, y: 50, width: 56, height: 63 }, y: 50, range: SHORE(0), node: { x: 30, y: 30 },
-    visits: same('ES', 'Lagoon', 'Lagoon flats', 'Lagoon channel'),
-  },
-  {
-    id: 'lake', image: 'elements/lake1.png', crop: { x: 254, y: 0, width: 151, height: 69 }, y: 0, range: INLAND(151), node: { x: 60, y: 30 },
-    visits: same('LK', 'Lake', 'Lake by canoe', 'Deep lake'),
-  },
-  {
-    id: 'river', image: 'elements/lake1.png', crop: { x: 754, y: 0, width: 104, height: 117 }, y: 0, range: SHORE(104), node: { x: 50, y: 60 },
-    visits: [
-      { spot: 'ST', label: 'River bank' },
-      { spot: 'RV', label: 'Big river' },
-      { spot: 'RV', label: 'River mouth' },
-    ],
-  },
-  { id: 'pond1', image: 'elements/pond1.png', crop: { x: 99, y: 20, width: 41, height: 49 }, y: 20, range: INLAND(41), node: { x: 20, y: 24 }, visits: pond },
-  { id: 'pond2', image: 'elements/pond2.png', crop: { x: 232, y: 33, width: 24, height: 24 }, y: 33, range: INLAND(24), node: { x: 12, y: 12 }, visits: pond },
-  { id: 'rocks1', image: 'elements/rocks1.png', crop: { x: 706, y: 96, width: 23, height: 15 }, y: 96, range: SHORE(23), node: { x: 11, y: 6 }, visits: rocks },
-  { id: 'rocks2', image: 'elements/rocks2.png', crop: { x: 835, y: 92, width: 28, height: 19 }, y: 92, range: SHORE(28), node: { x: 14, y: 8 }, visits: rocks },
-  { id: 'stream1', image: 'elements/steam1.png', crop: { x: 168, y: 36, width: 20, height: 80 }, y: 36, range: SHORE(20), node: { x: 10, y: 40 }, visits: stream },
-  { id: 'stream2', image: 'elements/stream2.png', crop: { x: 384, y: 40, width: 73, height: 73 }, y: 40, range: SHORE(73), node: { x: 36, y: 36 }, visits: stream },
-  { id: 'stream3', image: 'elements/stream3.png', crop: { x: 563, y: 0, width: 129, height: 139 }, y: 0, range: SHORE(129), node: { x: 50, y: 50 }, visits: stream },
-
-  // Out at sea: near the shore for adults, further out for elders.
-  {
-    id: 'sandbar', image: 'sea/features.png', crop: { x: 321, y: 20, width: 56, height: 13 }, y: 118, range: SEA(56), node: { x: 28, y: 6 },
-    visits: [null, { spot: 'BE', label: 'Sandbar' }, { spot: 'BE', label: 'Sandbar' }],
-  },
-  {
-    id: 'kelp', image: 'sea/features.png', crop: { x: 4, y: 10, width: 40, height: 32 }, y: 128, range: SEA(40), node: { x: 20, y: 16 },
-    visits: [null, { spot: 'BY', label: 'Kelp forest' }, { spot: 'BY', label: 'Kelp forest' }],
-  },
-  {
-    id: 'coralReef', image: 'sea/features.png', crop: { x: 170, y: 13, width: 44, height: 21 }, y: 168, range: SEA(44), node: { x: 22, y: 10 },
-    visits: [null, { spot: 'RF', label: 'Coral reef' }, { spot: 'RF', label: 'Coral reef' }],
-  },
-  {
-    id: 'seaCliff', image: 'sea/features.png', crop: { x: 482, y: 12, width: 60, height: 40 }, y: 232, range: SEA(60), node: { x: 30, y: 14 },
-    visits: [null, null, { spot: 'DP', label: 'Underwater cliffs' }],
-  },
-  {
-    id: 'shipwreck', image: 'sea/features.png', crop: { x: 804, y: 2, width: 35, height: 33 }, y: 236, range: SEA(35), node: { x: 18, y: 22 },
-    visits: [null, null, { spot: 'OS', label: 'Shipwreck' }],
-  },
-  {
-    id: 'trench', image: 'sea/features.png', crop: { x: 641, y: 14, width: 72, height: 26 }, y: 262, range: SEA(72), node: { x: 36, y: 13 },
-    visits: [null, null, { spot: 'DP', label: 'The deep' }],
-  },
-];
-
-export const coast: CoastDef = {
-  features,
-  reserved: [
-    // The house, its creek and the rocky shore below it.
-    { x: 0, y: 0, width: 98, height: 125 },
-    // The river delta, where the mini-bosses wait, down to the open sea.
-    { x: 462, y: 0, width: 130, height: 300 },
-    // The lighthouse and the waters off it, where the bosses wait.
-    { x: 945, y: 30, width: 55, height: 270 },
-  ],
-};
+export const coast: CoastDef = { places };

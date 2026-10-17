@@ -347,6 +347,8 @@ export const en = {
       seeAquarium: 'See aquarium',
       options: 'Options',
       exit: 'Exit',
+      musicOn: 'Turn the music on',
+      musicOff: 'Turn the music off',
     },
     credits: {
       music: 'Music',

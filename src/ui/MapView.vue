@@ -15,33 +15,21 @@ import {
 import { t } from './i18n';
 import { playTheme, stopTheme } from './music';
 import { TOUCH_QUERY, useMedia } from './useScreen';
-import basemapUrl from './assets/map/basemap.png';
-import seaUrl from './assets/map/sea.png';
+import mapUrl from './assets/coast/map.png';
 
 const props = defineProps<{ run: RunState; data: GameData }>();
 const emit = defineEmits<{ travel: [nodeId: string] }>();
 
-/** The coast art's coordinates, which content/levels.ts and coast.ts use. The open sea goes below it. */
-const ART_WIDTH = 1000;
-const COAST_HEIGHT = 150;
-/** Every map layer image (coast features, sea features) is this size. */
-const LAYER = { width: 1000, height: 150 };
+/** The coast art's coordinates, which content/levels.ts and coast.ts use: the land and shallows, then the open sea. */
+const ART_WIDTH = 1300;
+const ART_HEIGHT = 450;
 const RADIUS = 12;
 /** Node markers keep the same size on screen whatever the zoom: 1 = RADIUS pixels. Bigger for a finger. */
 const touch = useMedia(TOUCH_QUERY);
 const nodeSize = computed(() => (touch.value ? 1.3 : 0.9));
 
-const layerUrls = import.meta.glob<string>('./assets/map/**/*.png', { eager: true, query: '?url', import: 'default' });
 
 const level = computed(() => props.data.levels[props.run.level]);
-/** The coast features laid out for the run, as drawn: those this age stops at. */
-const features = computed(() =>
-  props.run.coast.flatMap((placement) => {
-    const def = props.data.coast.features.find((f) => f.id === placement.feature);
-    const url = def && layerUrls[`./assets/map/${def.image}`];
-    return def?.visits[props.run.level] && url ? [{ ...def, x: placement.x, url }] : [];
-  }),
-);
 const nodes = computed(() => props.run.map.columns.flat());
 const destinations = computed(() => new Set(availableDestinations(props.run).map((n) => n.id)));
 const visited = computed(() => new Set(props.run.visited));
@@ -123,7 +111,7 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
 const MIN_HEIGHT = 300;
 
 /** The part of the art shown: the whole width, and as far out to sea as the age goes, so the map zooms out as you grow. */
-const view = computed(() => ({ x: 0, y: 0, width: ART_WIDTH, height: level.value?.height ?? COAST_HEIGHT }));
+const view = computed(() => ({ x: 0, y: 0, width: ART_WIDTH, height: level.value?.height ?? ART_HEIGHT }));
 
 /** Share of the screen under the top bar the map takes, above the bucket. */
 const MAP_SHARE = 0.6;
@@ -135,7 +123,7 @@ const scroller = ref<HTMLElement>();
 const room = ref(window.innerHeight);
 let resizes: ResizeObserver | undefined;
 onMounted(() => {
-  playTheme('map'); // The desktop app's map theme (music.ts); the web build never loads it.
+  playTheme('map'); // The map theme (music.ts).
   const layout = root.value?.parentElement;
   if (!layout) return;
   resizes = new ResizeObserver(() => (room.value = layout.clientHeight));
@@ -230,20 +218,7 @@ function choose(node: MapNode) {
         :aria-label="t('map.label', { name: level?.name ?? '' })"
       >
         <g class="art" aria-hidden="true">
-          <image :href="basemapUrl" :width="ART_WIDTH" :height="COAST_HEIGHT" />
-          <image v-if="view.height > COAST_HEIGHT" :href="seaUrl" :y="COAST_HEIGHT" :width="ART_WIDTH" :height="COAST_HEIGHT" />
-          <!-- Each feature: its crop of its layer image, slid to where the run placed it. -->
-          <svg
-            v-for="(f, i) in features"
-            :key="i"
-            :x="f.x"
-            :y="f.y"
-            :width="f.crop.width"
-            :height="f.crop.height"
-            :viewBox="`${f.crop.x} ${f.crop.y} ${f.crop.width} ${f.crop.height}`"
-          >
-            <image :href="f.url" :width="LAYER.width" :height="LAYER.height" />
-          </svg>
+          <image :href="mapUrl" :width="ART_WIDTH" :height="ART_HEIGHT" />
         </g>
 
         <line

@@ -69,8 +69,7 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
     shop: source.shop.map((s) => ({ ...s, name: tr.shop?.[s.id] ?? s.name })),
     spots: source.spots.map((s) => ({ ...s, name: tr.spots?.[s.id] ?? s.name })),
     coast: {
-      ...source.coast,
-      features: source.coast.features.map((f) => ({ ...f, visits: f.visits.map((v) => v && { ...v, label: place(v.label) }) })),
+      places: source.coast.places.map((p) => ({ ...p, visits: p.visits.map((v) => v && { ...v, label: place(v.label) }) })),
     },
     levels: source.levels.map((l) => ({
       ...l,
