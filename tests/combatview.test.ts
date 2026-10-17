@@ -47,16 +47,16 @@ async function renderFight(hold = 0, spot?: string, compact = false): Promise<st
 }
 
 describe('CombatView', () => {
-  it('lays the creature column out: intent, sprite, then one block of name, Will, health and statuses', async () => {
+  it('lays the creature column out: intent, then one block of name, Will, health and statuses above the sprite', async () => {
     const html = await renderFight();
     const creature = html.slice(html.indexOf('data-enemy-id'));
     const at = (marker: string) => creature.indexOf(marker);
-    expect(at('class="intent-slot"')).toBeLessThan(at('class="portrait"'));
-    expect(at('class="portrait"')).toBeLessThan(at('class="hud"'));
+    expect(at('class="intent-slot"')).toBeLessThan(at('class="hud"'));
     expect(at('class="hud"')).toBeLessThan(at('class="name"'));
     expect(at('class="name"')).toBeLessThan(at('class="panicbar'));
     expect(at('class="panicbar')).toBeLessThan(at('class="healthbar"'));
     expect(at('class="healthbar"')).toBeLessThan(at('class="statuses"'));
+    expect(at('class="statuses"')).toBeLessThan(at('class="portrait"'));
   });
 
   it('shows the Grit bar in the corner panel, not under the player sprite, and the families as icons', async () => {
@@ -71,9 +71,9 @@ describe('CombatView', () => {
     expect(icons.join(' ')).toContain('🎭'); // Trickster
   });
 
-  it('labels the creature health, and says when it escapes', async () => {
+  it('shows the creature health inside its bar, and says when it escapes', async () => {
     const html = await renderFight();
-    expect(/Health \d+\/\d+/.test(html)).toBe(true);
+    expect(/♥ \d+\/\d+/.test(html)).toBe(true);
     expect(/Escapes in \d+ turns?|Escapes next turn!/.test(html)).toBe(true);
   });
 

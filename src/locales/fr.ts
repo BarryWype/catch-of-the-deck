@@ -509,7 +509,6 @@ export const fr: Messages = {
       block: '{n} de Blocage',
       escapeIn: 'S’échappe dans {n} tour.|S’échappe dans {n} tours.',
       escapeNext: 'S’échappe au prochain tour !',
-      health: 'Santé {hp}/{maxHp}',
       healthTip: 'Sa santé : les dégâts la font baisser, et à 0, elle abandonne.',
       gritTip: 'Ta santé : à 0, le combat est perdu.',
     },

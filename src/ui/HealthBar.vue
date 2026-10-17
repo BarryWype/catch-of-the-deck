@@ -9,14 +9,13 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
 
 <template>
   <div v-tip="t(grit ? 'bars.gritTip' : 'bars.healthTip')" class="healthbar" :class="{ blocking: block > 0, grit }">
-    <!-- The label sits above the bar: the bright fill behind in-bar text wouldn't pass contrast. -->
-    <span class="label">
-      <template v-if="grit">{{ term('grit') }}&nbsp;</template>{{ grit ? `${hp} / ${maxHp}` : t('bars.health', { hp, maxHp }) }}
-    </span>
+    <!-- The Grit bar keeps its label above; the creature's values sit inside its bar instead. -->
+    <span v-if="grit" class="label">{{ term('grit') }}&nbsp;{{ hp }} / {{ maxHp }}</span>
     <div class="row">
       <span v-if="block > 0" v-tip="grit ? `${block} ${term('hold')}` : t('bars.block', { n: block })" class="block">🛡️{{ block }}</span>
       <div class="bar">
         <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />
+        <span v-if="!grit" class="value">♥ {{ hp }}/{{ maxHp }}</span>
       </div>
     </div>
   </div>
@@ -27,7 +26,6 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
 .healthbar { display: flex; flex-direction: column; gap: 2px; width: 100%; }
 .label { font-size: 0.72rem; font-weight: 700; color: var(--text); white-space: nowrap; }
 .row { display: flex; align-items: center; gap: 6px; }
-/* The creature's health is green, so red stays the colour of Strikes. */
 .bar {
   position: relative;
   flex: 1;
@@ -38,8 +36,23 @@ const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp
   border: 1px solid #0006;
 }
 .blocking .bar { outline: 2px solid var(--block); }
-.fill { height: 100%; background: #5cb85c; transform-origin: left; transition: transform 0.25s ease; }
-.blocking .fill { background: color-mix(in srgb, #5cb85c 55%, var(--block)); }
+.fill { height: 100%; transform-origin: left; transition: transform 0.25s ease; }
+/* The creature's health: a tall red bar with its values inside (like the Will bar), so red stays
+   the colour of health, not of Strikes. */
+.healthbar:not(.grit) .bar { height: 32px; border-radius: 12px; background: #3a1512; }
+.healthbar:not(.grit) .fill { background: #d8443c; }
+.healthbar:not(.grit).blocking .fill { background: color-mix(in srgb, #d8443c 55%, var(--block)); }
+.value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000, 0 0 4px rgb(0 0 0 / 0.8);
+}
 .grit .bar { background: #3a2716; }
 /* Hold: a light water-blue wash over the whole Grit bar, on top of its outline. */
 .grit.blocking .bar { background: color-mix(in srgb, #3a2716 70%, var(--block)); }

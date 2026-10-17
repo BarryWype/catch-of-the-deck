@@ -60,6 +60,17 @@ const portraitStyle = computed(() => ({
     <div v-if="intent || escapeBar" class="intent-slot">
       <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" :hold="hold" />
     </div>
+    <!-- Everything about it in one block above the sprite, the bars the same width: its name and
+         families (hover: the family's name), its Will, its health, then its statuses. -->
+    <div v-if="!bare" class="hud">
+      <div v-if="combatant.id !== PLAYER_ID" class="name">
+        {{ combatant.name }}
+        <span v-for="f in families" :key="f.id" v-tip="f.name" class="family" aria-hidden="true">{{ f.icon }}</span>
+      </div>
+      <PanicBar v-if="escapeBar" v-bind="escapeBar" />
+      <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" :grit="combatant.id === PLAYER_ID" />
+      <StatusList :statuses="combatant.statuses" />
+    </div>
     <div v-tip="tip" class="portrait" :class="{ player: combatant.id === PLAYER_ID }" :style="portraitStyle">
       <AnimatedSprite
         v-if="clip"
@@ -71,17 +82,6 @@ const portraitStyle = computed(() => ({
       />
       <SpriteView v-else-if="sprite" :sprite="sprite" :size="stillSize" :aria-label="combatant.name" />
       <span v-else>{{ portrait }}</span>
-    </div>
-    <!-- Everything about it in one block under the sprite, the bars the same width: its name and
-         families (hover: the family's name), its Will, its health, then its statuses. -->
-    <div v-if="!bare" class="hud">
-      <div v-if="combatant.id !== PLAYER_ID" class="name">
-        {{ combatant.name }}
-        <span v-for="f in families" :key="f.id" v-tip="f.name" class="family" aria-hidden="true">{{ f.icon }}</span>
-      </div>
-      <PanicBar v-if="escapeBar" v-bind="escapeBar" />
-      <HealthBar :hp="combatant.hp" :max-hp="combatant.maxHp" :block="combatant.block" :grit="combatant.id === PLAYER_ID" />
-      <StatusList :statuses="combatant.statuses" />
     </div>
   </div>
 </template>

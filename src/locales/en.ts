@@ -519,7 +519,6 @@ export const en = {
       block: '{n} Block',
       escapeIn: 'Escapes in {n} turn.|Escapes in {n} turns.',
       escapeNext: 'Escapes next turn!',
-      health: 'Health {hp}/{maxHp}',
       healthTip: 'Its health: damage brings it down, and it gives in at 0.',
       gritTip: 'Your health: at 0, the fight is lost.',
     },

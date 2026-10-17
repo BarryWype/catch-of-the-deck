@@ -390,14 +390,14 @@ const DIP_PER_CARD = 0.5;
 const compact = useMedia(COMPACT_QUERY);
 
 /**
- * How far the combatants sit from the edges of the battlefield: about a quarter in, closer to the
- * action than the edges. A wide group fight needs the width instead, and compact screens keep
+ * How far the combatants sit from the edges of the battlefield: close to the bottom right corner,
+ * out of the fisherman's way. A wide group fight needs the width instead, and compact screens keep
  * their own tight padding (their layout wraps).
  */
 const sidePadding = computed(() => {
   if (compact.value) return undefined;
   const count = shownEnemies.value.length;
-  return count <= 1 ? '22%' : count === 2 ? '10%' : '4%';
+  return count <= 1 ? '10%' : count === 2 ? '6%' : '4%';
 });
 
 /**
@@ -744,9 +744,9 @@ function endTurn() {
   /* Bottom-aligned, so the creatures stand on the same ground line; the player is raised onto
      the bank above the water (see .player-anchor). */
   align-items: flex-end;
-  /* The player is out of the flow (on the bank), so the creatures pin to the right. */
+  /* The player is out of the flow (on the bank), so the creatures pin to the bottom right. */
   justify-content: flex-end;
-  padding: 24px 22%;
+  padding: 8px 22%;
   border-radius: 16px;
   /* The water, tinted by the fight's spot: a creek runs greener than the open sea. */
   background:
@@ -883,6 +883,9 @@ function endTurn() {
 .hand {
   position: relative;
   flex: 1;
+  /* It may not push the side panels off screen: a crowded hand overlaps fan-style on wide
+     windows, and mid-width windows scroll it instead (see the mid-width rules). */
+  min-width: 0;
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -912,6 +915,23 @@ function endTurn() {
 
 .hand :deep(.card) { touch-action: none; user-select: none; }
 .hand :deep(.card.held) { position: relative; z-index: 5; transition: none; pointer-events: none; box-shadow: 0 18px 30px rgb(0 0 0 / 0.6); }
+
+/* Mid-width windows: the hand doesn't fit beside both side panels. It keeps its cards whole and
+   scrolls sideways instead (like compact screens' hand), so no card is squeezed into a sliver.
+   A scroll container would clip the cards that hang below the screen edge, so here they sit
+   flush with the compact lift, and a sideways swipe still scrolls (touch-action: pan-x). */
+@media (min-width: 701px) and (max-width: 1050px) {
+  .hand {
+    justify-content: safe center;
+    overflow-x: auto;
+    min-height: 0;
+    padding: 20px 6px 8px;
+    --card-hover-lift: -16px;
+    scrollbar-width: thin;
+  }
+  .hand .slot { flex-shrink: 0; margin-bottom: 0; }
+  .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
+}
 .combat.dragging, .combat.dragging :deep(*) { cursor: grabbing !important; }
 .combat.on-target, .combat.on-target :deep(*) {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' fill='none' stroke='%23f5d76e' stroke-width='2.5'%3E%3Ccircle cx='16' cy='16' r='10'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23f5d76e'/%3E%3Cpath d='M16 1v8M16 23v8M1 16h8M23 16h8'/%3E%3C/svg%3E") 16 16, crosshair !important;
