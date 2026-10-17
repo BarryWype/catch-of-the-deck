@@ -623,7 +623,7 @@ function endTurn() {
           :sprite="data.enemies[enemy.defId].sprite"
           :frame="(releaseReason ? 6 : 3 + (data.enemies[enemy.defId].tier ?? 2)) - (crowded ? 1 : 0)"
           :families="creatureFamilies(enemy.defId, data)"
-          :tip="creatureTip(enemy)"
+          :tip="drag?.moved ? undefined : creatureTip(enemy)"
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(state, enemy, data)"
