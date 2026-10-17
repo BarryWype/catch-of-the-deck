@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { bondLevel, bondToFull, describeCompanionEffect, MAX_BOND_LEVEL, type GameData, type Habitat } from '../engine';
+import { bondLevel, bondToFull, companionStars, describeCompanionEffect, MAX_BOND_LEVEL, type Catch, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import { t } from './i18n';
 import PixelBubbles from './PixelBubbles.vue';
@@ -10,8 +10,10 @@ import { animatedSheetFor, creatureClip } from './sprites';
 
 const props = withDefaults(
   defineProps<{
-    /** Creature ids to show (a run's bucket, or the home aquarium). */
-    creatures: string[];
+    /** Creatures to show (a run's bucket, or the home aquarium). */
+    creatures: Catch[];
+    /** How many it holds, when it's limited (the bucket): the count reads "n/capacity". */
+    capacity?: number;
     data: GameData;
     /** Header, e.g. "Bucket" or "Home aquarium". */
     title?: string;
@@ -29,8 +31,20 @@ const props = withDefaults(
     companions?: number;
     /** Bond points of each creature, in the same order (home aquarium, or a bucket's companions). */
     bonds?: number[];
+    /** The sell button's text, when it isn't a plain "Sell". */
+    sellLabel?: string;
   }>(),
-  { interactive: true, title: undefined, icon: '🐠', action: 'sell', bringBlocked: undefined, companions: undefined, bonds: undefined },
+  {
+    interactive: true,
+    capacity: undefined,
+    title: undefined,
+    icon: '🐠',
+    action: 'sell',
+    bringBlocked: undefined,
+    companions: undefined,
+    bonds: undefined,
+    sellLabel: undefined,
+  },
 );
 const emit = defineEmits<{ sell: [slot: number]; bring: [slot: number] }>();
 
@@ -167,8 +181,9 @@ onBeforeUnmount(() => {
 
 const residents = computed(() => {
   const copies = new Map<string, number>();
-  return props.creatures.map((id, slot) => {
+  return props.creatures.map(({ id, size }, slot) => {
     const def = props.data.enemies[id];
+    const points = props.bonds?.[slot];
     const habitat = def?.habitat ?? 'swim';
     const copy = copies.get(id) ?? 0;
     copies.set(id, copy + 1);
@@ -185,7 +200,9 @@ const residents = computed(() => {
       style: placement(habitat, hash(key)),
       bonus: def?.temperament ? props.data.companionBonuses[def.temperament] : undefined,
       angry: props.companions !== undefined && slot >= props.companions,
-      bond: bondOf(id, props.bonds?.[slot]),
+      bond: bondOf(id, points),
+      size,
+      stars: points === undefined ? undefined : companionStars({ id, bond: points, size }, props.data),
     };
   });
 });
@@ -193,16 +210,18 @@ const residents = computed(() => {
 /** Bond level and progress, or undefined when this aquarium doesn't track bonds. */
 function bondOf(id: string, points: number | undefined) {
   if (points === undefined) return undefined;
-  const level = bondLevel({ id, bond: points }, props.data);
+  const level = bondLevel({ id, bond: points, size: 'normal' }, props.data);
   const text = t(level === MAX_BOND_LEVEL ? 'aquarium.bondFull' : 'aquarium.bond', { level, points, full: bondToFull(id, props.data) });
   return { level, text };
 }
 
 type Resident = (typeof residents.value)[number];
 
-/** Hover text for a creature: its name, then its sell value, mood and bond. */
+/** Hover text for a creature: its name, then its size, stars, sell value and mood, and its bond. */
 function residentTip(r: Resident) {
   const detail = [
+    t(`size.${r.size}`),
+    r.stars ? t('aquarium.stars', { n: r.stars }) : '',
     props.interactive && props.action === 'sell' ? t('aquarium.sellsFor', { coins: r.sellValue }) : '',
     r.angry ? t('aquarium.angry') : '',
   ]
@@ -236,7 +255,9 @@ const plants = [
   <section class="aquarium" :aria-label="title ?? t('aquarium.default')">
     <header class="label">
       <span><GameIcon :icon="icon" /> {{ title ?? t('aquarium.default') }}</span>
-      <span class="count">{{ t('aquarium.count', { n: creatures.length }) }}</span>
+      <span class="count" :class="{ full: capacity !== undefined && creatures.length >= capacity }">
+        {{ capacity === undefined ? t('aquarium.count', { n: creatures.length }) : t('aquarium.countOf', { n: creatures.length, max: capacity }) }}
+      </span>
     </header>
 
     <div ref="tank" class="tank">
@@ -287,6 +308,7 @@ const plants = [
 
       <div v-if="selected" class="sell-panel" @keydown.esc="selectedKey = null">
         <strong>{{ selected.name }}</strong>
+        <span class="size">{{ t(`size.${selected.size}`) }}<template v-if="selected.stars"> · <span class="stars">{{ t('aquarium.stars', { n: selected.stars }) }}</span></template></span>
         <span v-if="selected.bond" class="bond-text">♥ {{ selected.bond.text }}</span>
         <template v-if="action === 'sell'">
           <span v-if="selected.angry" class="mood">{{ t('aquarium.angryMood') }}</span>
@@ -295,7 +317,7 @@ const plants = [
           </span>
           <span class="sell-value"><GameIcon icon="🪙" /> {{ selected.sellValue }}</span>
           <div class="actions">
-            <button @click="act">{{ t('aquarium.sell') }}</button>
+            <button @click="act">{{ sellLabel ?? t('aquarium.sell') }}</button>
             <button class="ghost" @click="selectedKey = null">{{ t('aquarium.keep') }}</button>
           </div>
         </template>
@@ -322,6 +344,7 @@ const plants = [
 .aquarium { display: flex; flex-direction: column; gap: 6px; min-height: 220px; }
 .label { display: flex; justify-content: space-between; font-weight: 700; padding: 0 4px; }
 .count { color: var(--muted); font-weight: 500; }
+.count.full { color: #f0a050; font-weight: 700; }
 
 .tank {
   --size: 96px;
@@ -437,6 +460,8 @@ const plants = [
 }
 .bond.full { background: #d9a520; }
 .sell-panel .bond-text { color: #f08bb0; font-size: 0.75rem; }
+.sell-panel .size { color: var(--muted); font-size: 0.75rem; }
+.sell-panel .stars { color: #f2c94c; }
 .angry { position: absolute; top: -4px; right: 18px; font-size: 1rem; pointer-events: none; }
 .sell-panel .blocked { color: var(--muted); font-size: 0.75rem; }
 .sell-panel .actions { display: flex; gap: 6px; margin-top: 4px; }

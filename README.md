@@ -32,12 +32,16 @@ npm run dev        # start the dev server, then open the printed URL
 npm test           # run the engine test suite
 npm run build      # type-check (incl. the DOM-free engine check) + production build
 npm run simulate -- --runs 300   # a bot plays 300 runs and prints balance stats
+npm run simulate -- --lineups    # the same seeds with each temperament's standard companion lineups
+npm run simulate -- --campaign 20   # 20 runs in a row sharing one home aquarium: bond pacing
 npm run reward-shares            # share of each card type in tier-1 rewards, by fishing spot
 ```
 
 Add `?seed=12345` to the URL to replay a specific run. The current seed is shown in the top bar.
 
-**Balance simulation** (`scripts/simulate.ts`): a bot plays whole runs with the real engine and content, then prints run outcomes, survival fight by fight, win/escape/death rates and Grit lost by level and fight kind, and the creatures that escape most or cost the most Grit. Runs are seeded 1, 2, 3…, so the same command gives the same numbers until the game changes: run it before and after a change to compare. `--seed 500` starts elsewhere, every simulation is saved in `simulation/` (git-ignored) as `<date-time>-runs.csv` and `<date-time>-fights.csv`, one row per run and per fight, for a spreadsheet (`--out sim` names them `sim-runs.csv` and `sim-fights.csv`), and `--log 3` prints run 3's fight logs to see how the bot plays. The bot plays greedily, card by card, and picks paths, rewards and events at random: it's a stand-in for a player, so read its numbers as trends rather than as what a person would get.
+**Balance simulation** (`scripts/simulate.ts`): a bot plays whole runs with the real engine and content, then prints run outcomes, survival fight by fight, win/escape/death rates and Grit lost by level and fight kind, and the creatures that escape most or cost the most Grit. Runs are seeded 1, 2, 3…, so the same command gives the same numbers until the game changes: run it before and after a change to compare. `--seed 500` starts elsewhere, every simulation is saved in `simulation/` (git-ignored) as `<date-time>-runs.csv` and `<date-time>-fights.csv`, one row per run and per fight, for a spreadsheet (`--out sim` names them `sim-runs.csv` and `sim-fights.csv`), and `--log 3` prints run 3's fight logs to see how the bot plays. The runs CSV also lists the companions brought and their stars; the fights CSV the size of each catch. When the bucket is full, the bot sells its lowest-value creature that isn't a companion.
+
+Companions in the simulator: `--companions clownfish,blueTang --bond 2` starts every run with those creatures at that bond level (0–3). `--lineups` plays the seeds with no companions, then with four standard lineups per temperament (one tier 1 at bond 1, two tier 1s at bond 1, a full school of the lowest tiers at bond 1, one of the highest tier at bond 3), and prints a ranking by median fights with the difference from no companions (`<name>-lineups.csv`). `--campaign 20` plays 20 runs sharing one home aquarium, starting empty: the bot brings the 3 creatures giving the most stars to one temperament (a full school first), heads home at a leave node under half Grit and hatches eggs at once. It reports when a creature first reached each bond level, successful and lost runs, companions lost, the bucket brought home, the bond a companion gains per run (and the runs that would take to reach levels 2 and 3, by tier), and the sizes caught (`<name>-campaign.csv`). The bot plays greedily, card by card, and picks paths, rewards and events at random: it's a stand-in for a player, so read its numbers as trends rather than as what a person would get.
 
 ## How to play
 
@@ -55,7 +59,7 @@ Every creature has a type (shown under its name, and as the icon of map events).
 - You start each turn with 5 cards and 3 energy. Click a card to play it. With several enemies, click the card and then the enemy you want to hit.
 - Each enemy shows its **intent** above its head: 🗡️ attack (with the real damage it will deal), 🛡️ block, 💢 buff, 🌀 debuff. Hover over an intent for details.
 - Click **End Turn** and the enemies carry out the intents they showed.
-- Every creature you beat or wear out goes into your **bucket**, shown below the map (`run.bucket`). You can sell creatures from it at any time. If you win the run, everything still in the bucket joins your **home aquarium**, which lasts between runs and is shown on the menu and build screens. See ARCHITECTURE.md.
+- Every creature you beat or wear out goes into your **bucket**, shown below the map (`run.bucket`), with a size (small, normal, large or trophy). It holds 7, companions included: when a catch doesn't fit, you sell something to keep it, or sell the catch. You can sell creatures from it at any time. If you win the run, everything still in the bucket joins your **home aquarium**, which lasts between runs and is shown on the menu and build screens. See ARCHITECTURE.md.
 - After a win you pick 1 of 3 cards to add to your deck, then you return to the map. Your HP carries over between fights. Winning the fight in the last column completes the run.
 
 ## Architecture
@@ -230,4 +234,3 @@ The fisherman uses three strips of 48×48 frames in `src/ui/assets/`. They are r
 - rework difficulty: life, stamina bar, damage
 - re-use the blood mechanic with other builds
 - add "fish tag" to protect a companion (purchased)
-- increase the companion bonus depending on the bond level

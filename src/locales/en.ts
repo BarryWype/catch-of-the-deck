@@ -202,6 +202,7 @@ export const en = {
       trigger: '{when}: {rule}',
       when: {
         combatStart: 'At the start of each fight',
+        secondTurnStart: 'At the start of your second turn',
         firstAttackEachTurn: 'Your first attack each turn',
         firstAttackEachFight: 'Your first attack each fight',
         fullBlock: 'When you fully block an attack',
@@ -279,6 +280,8 @@ export const en = {
       bucket: 'Bucket',
       default: 'Aquarium',
       count: '{n} caught',
+      countOf: '{n}/{max}',
+      stars: '{n}★',
       bond: 'Bond level {level} · {points}/{full}',
       bondFull: 'Bond level {level} (fully bonded) · {points}/{full}',
       sellsFor: 'Sells for 🪙 {coins}',
@@ -397,9 +400,17 @@ export const en = {
         title: 'Head home',
         text: '(⌂, after each mini-boss) to end the run safely: your bucket joins your home aquarium.',
       },
+      bucket: {
+        title: 'Your bucket',
+        text: 'holds {bucket} creatures, companions included. When a catch doesn’t fit, sell something to keep it, or sell the catch. Every catch has a size; bigger ones come later in a run, and draining {@will} lands bigger ones than wearing Health down.',
+      },
       companions: {
         title: 'Companions:',
         text: "bring up to {slots} creatures from home for a bonus. Lose the run and they're lost too.",
+      },
+      stars: {
+        title: 'Stars:',
+        text: 'a companion gives as many stars as its tier, +1 at bond level 2 and +1 more at level 3. Stars of the same kind add up (each species once) and strengthen its bonus; 3 different species add a full-school bonus. Bond grows with every fight it shares with you, faster further out and against bosses.',
       },
     },
     debug: {
@@ -441,7 +452,7 @@ export const en = {
       miniBossLabel: 'mini-boss',
       fight: 'Fight',
       equipment: 'Equipment and companion bonuses',
-      speciesBrought: '{n} {temperament} species brought',
+      starsBrought: '★{stars} · {n} {temperament} species brought',
       legend: 'Legend',
       hideLegend: 'Hide legend',
       label: 'Map: {name}',
@@ -480,6 +491,20 @@ export const en = {
       itsA: "It's a {name}!",
       joins: 'It joins your home aquarium. Click anywhere to continue.',
     },
+    size: {
+      small: 'Small',
+      normal: 'Normal',
+      large: 'Large',
+      trophy: 'Trophy',
+    },
+    bucketFull: {
+      title: 'Bucket full ({n}/{max})',
+      text: 'No room for {name}. Sell a creature from your bucket to keep it, or sell the new catch.',
+      newCatch: 'New catch',
+      sellCatch: 'Sell it',
+      swap: 'Sell, keep {name}',
+      more: '{n} more catch waiting after this one.|{n} more catches waiting after this one.',
+    },
     book: {
       title: 'Creature book',
       discovered: '{n} / {total} discovered',
@@ -488,6 +513,7 @@ export const en = {
       owned: '{n} in your home aquarium',
       notEncountered: 'Not encountered yet',
       unknown: 'Unknown',
+      biggest: 'Biggest caught: {size}',
     },
     slots: {
       label: 'Brought for the session',
@@ -496,7 +522,9 @@ export const en = {
       removeLabel: 'Put {name} back in the aquarium',
       empty: 'Empty slot',
       bonuses: 'Bonuses for this run',
-      help: 'Brought creatures give their bonus for the run; different species of the same kind add up. They come back only if the run succeeds, with a stronger bond. Creatures caught during the run are angry and give nothing.',
+      help: 'Brought creatures give their bonus for the run. Each gives stars: its tier, +1 at bond level 2, +1 more at level 3; stars of the same kind add up, each species once. They come back only if the run succeeds, with a stronger bond. Creatures caught during the run are angry and give nothing.',
+      starsTip: 'Stars: its tier, +1 at bond level 2, +1 more at level 3',
+      nextStars: '{n}★ more: {rule}',
     },
     card: {
       patienceCost: 'Also costs {n} {@patience}',

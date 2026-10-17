@@ -341,7 +341,7 @@ export const frContent: ContentTranslations = {
     rubberDuck: { name: 'Canard en caoutchouc', description: 'Les passants enthousiastes donnent 50 % de pièces en plus par poisson.' },
     strongRod: { name: 'Canne solide', description: 'Ton Drainage draine 25 % de plus (arrondi au supérieur).' },
     handline: { name: 'Ligne à main', description: '20 % de chances de générer un appât (pas encore disponible).' },
-    softNet: { name: 'Épuisette douce', description: 'Les créatures que tu attrapes rentrent avec 30 points de lien.' },
+    softNet: { name: 'Épuisette douce', description: 'Les créatures que tu attrapes rentrent avec 30 % de leur lien complet (lien niveau 1).' },
     crabHook: {
       name: 'Crochet à crabes',
       description:
@@ -466,6 +466,7 @@ export const frContent: ContentTranslations = {
     'Offshore rocks': 'Rochers au large',
     'Delta channel': 'Chenal du delta',
     'Mooring buoy': 'Bouée de mouillage',
+    'Tidal island': 'Île de marée',
     'Kelp forest': 'Forêt de varech',
     'Coral reef': 'Récif de corail',
     'Underwater cliffs': 'Falaises sous-marines',

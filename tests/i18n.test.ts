@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { contentSource, gameData } from '../src/content';
 import { localizeContent, type ContentTranslations } from '../src/content/localize';
+import { caught } from './fixtures';
 import {
   buildGameData,
   describeCard,
@@ -40,7 +41,7 @@ describe.each(codes)('the %s language', (code) => {
 
   it('writes every rule of the game without leaving a key or a blank', () => {
     setText(messages.engine, messages.terms, code);
-    const run = { ...createRun(1, gameData, 'rod'), bucket: ['clownfish'] };
+    const run = { ...createRun(1, gameData, 'rod'), bucket: caught('clownfish') };
     const texts = [
       ...Object.values(gameData.cards).map((c) => describeCard(c)),
       ...Object.values(gameData.enemies).flatMap((e) => e.moves.map((m) => describeEffects(m.effects, { byCreature: true }))),

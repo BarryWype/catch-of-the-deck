@@ -2,11 +2,12 @@
 //
 //   node scripts/draw-coast.mjs   (or: npm run coast)
 //
-// Writes src/ui/assets/coast/map.png (1300x450): the land, the beach (first water row SHORE_Y),
-// the shallows, then the open sea further down for the older ages. The grandparents' house and
-// its creek are on the left, the river delta (the mini-bosses) in the middle, the lighthouse
-// headland (the bosses) on the right, and between them, column by column, the ponds, lakes,
-// streams, beaches, jetties, harbours, rocks, tide pools, reefs and wrecks the fights happen at.
+// Writes src/ui/assets/coast/map.png (1300x450): the land, the beach (around SHORE_Y, bent into
+// bays and headlands by BUMPS, with a tidal island and a lagoon), the shallows, then the open sea
+// further down for the older ages. The grandparents' house and its creek are on the left, the
+// river delta (the mini-bosses) in the middle, the lighthouse headland (the bosses) on the right,
+// and between them, column by column, the ponds, lakes, streams, beaches, jetties, harbours,
+// rocks, tide pools, reefs and wrecks the fights happen at.
 //
 // It prints every place as [kind, x, y]: content/coast.ts lists them, with what each age does
 // there. Move or add a place here, then update it there.
@@ -16,7 +17,7 @@ import { PNG } from 'pngjs';
 
 const WIDTH = 1300;
 const HEIGHT = 450;
-/** First row of water along the straight part of the shore. */
+/** The shoreline's resting height: the first water row where no bay or headland bends it. */
 const SHORE_Y = 196;
 
 const C = {
@@ -263,34 +264,104 @@ function seaColour(x, d) {
 const DELTA = { left: 610, right: 776 };
 const HEADLAND = 1196;
 
-/** The first water row at each column: wavy by the house, straight along the coast, out round the headland. */
+/**
+ * Bays (negative depth: the sea reaches inland) and peninsulas (positive): [centre x, depth,
+ * half-width, roundness]. Roundness 2 is a smooth bay; higher gives a blunter, rounder headland.
+ */
+const BUMPS = [
+  [250, -26, 45, 2],
+  [470, 34, 34, 3],
+  [880, -34, 55, 2],
+  [1060, 28, 32, 3],
+  [1140, -14, 25, 2],
+];
+/**
+ * The first water row at each column: a cove by the house, then bays, peninsulas and a gentle
+ * wobble, kept straight round the delta (the mini-bosses) and out round the lighthouse headland.
+ */
 function shoreAt(x) {
   if (x < 128) return SHORE_Y + Math.round((6 * Math.sin(x / 16) + 4) * smooth(128, 96, x));
-  return SHORE_Y + Math.round(40 * smooth(HEADLAND, HEADLAND + 40, x) - 3 * Math.sin((x - HEADLAND) / 9) * smooth(HEADLAND + 30, HEADLAND + 60, x));
+  const awayFromDelta = smooth(0.85, 1, Math.min(1, Math.abs(x - 695) / 115));
+  const wobble = (3 * Math.sin(x / 23) + 2 * Math.sin(x / 9.3 + 1.7)) * smooth(128, 170, x) * awayFromDelta * smooth(HEADLAND, HEADLAND - 30, x);
+  const bumps = BUMPS.reduce((sum, [cx, depth, w, round]) => sum + depth * Math.exp(-(Math.abs((x - cx) / w) ** round)), 0);
+  const headland = 40 * smooth(HEADLAND, HEADLAND + 40, x) - 3 * Math.sin((x - HEADLAND) / 9) * smooth(HEADLAND + 30, HEADLAND + 60, x);
+  return SHORE_Y + Math.round(bumps + wobble + headland);
 }
+
+/** A tidal island off the long peninsula, joined to it by a sand spit. */
+const ISLAND = { x: 470, y: 268, rx: 19, ry: 11 };
+/** The sand spit closing off the big bay into a lagoon, open to the sea at its west end. */
+const SPIT = { from: 842, to: 962 };
+const spitY = (x) => Math.round(200 + 2 * Math.sin(x / 14) - 9 * smooth(925, 962, x));
+/** Inside the lagoon; near its mouth (west end) the brackish water dithers into the sea. */
+const inLagoon = (x, y) => x <= SPIT.to && y < spitY(x) - 2 && (x >= SPIT.from + 14 || (x >= SPIT.from - 10 && bayer(x, y) < (x - SPIT.from + 10) / 24));
+
+/** Land: above the shoreline, the island, and the two sand spits. */
+function isLand(x, y) {
+  if (y < shoreAt(x)) return true;
+  if (((x - ISLAND.x) / ISLAND.rx) ** 2 + ((y - ISLAND.y) / ISLAND.ry) ** 2 <= 1 + (noise(x, y, 4, 21) - 0.5) * 0.4) return true;
+  if (Math.abs(x - ISLAND.x - Math.round(2 * Math.sin(y / 6))) <= 2 && y < ISLAND.y) return true;
+  return x >= SPIT.from && x <= SPIT.to && Math.abs(y - spitY(x)) <= 2;
+}
+
+/** How far each pixel is from the other side (water for land, land for water): a chamfer distance. */
+function distances() {
+  const land = new Float32Array(WIDTH * HEIGHT);
+  const water = new Float32Array(WIDTH * HEIGHT);
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let x = 0; x < WIDTH; x++) {
+      const onLand = isLand(x, y);
+      land[y * WIDTH + x] = onLand ? 1e9 : 0;
+      water[y * WIDTH + x] = onLand ? 0 : 1e9;
+    }
+  }
+  for (const d of [land, water]) {
+    const step = (x, y, dx, dy, cost) => {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WIDTH || ny >= HEIGHT) return;
+      const v = d[ny * WIDTH + nx] + cost;
+      if (v < d[y * WIDTH + x]) d[y * WIDTH + x] = v;
+    };
+    for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) {
+      step(x, y, -1, 0, 1); step(x, y, 0, -1, 1); step(x, y, -1, -1, 1.4); step(x, y, 1, -1, 1.4);
+    }
+    for (let y = HEIGHT - 1; y >= 0; y--) for (let x = WIDTH - 1; x >= 0; x--) {
+      step(x, y, 1, 0, 1); step(x, y, 0, 1, 1); step(x, y, 1, 1, 1.4); step(x, y, -1, 1, 1.4);
+    }
+  }
+  return { land, water };
+}
+const { land: toWater, water: toLand } = distances();
+/** How far inland (on land) a pixel is. */
+const inland = (x, y) => toWater[y * WIDTH + x];
 
 const ground = image(WIDTH, HEIGHT);
 for (let x = 0; x < WIDTH; x++) {
-  const shore = shoreAt(x);
   for (let y = 0; y < HEIGHT; y++) {
-    const d = y - shore;
     let colour;
-    if (d < -8) {
-      const n = noise(x, y, 22) + (noise(x, y, 7, 3) - 0.5) * 0.25 + (bayer(x, y) - 0.5) * 0.12;
-      colour = n > 0.66 ? C.grassLight : n < 0.34 ? C.grassDark : C.grass;
-    } else if (d === -8) colour = bayer(x, y) < 0.5 ? C.sand : C.grass;
-    else if (d < -2) colour = hash(x, y, 5) < 0.06 ? C.sandDark : C.sand;
-    else if (d < 0) colour = C.wetSand;
-    else if (d === 0) colour = hash(Math.floor(x / 3), 0, 7) < 0.7 ? C.foam : C.shallow;
-    else if (d === 1 && hash(Math.floor(x / 2), 1, 8) < 0.3) colour = C.foam;
-    else colour = seaColour(x, d + Math.round((noise(x, y, 18, 12) - 0.5) * 10));
+    if (isLand(x, y)) {
+      const d = Math.round(toWater[y * WIDTH + x]);
+      if (d > 8) {
+        const n = noise(x, y, 22) + (noise(x, y, 7, 3) - 0.5) * 0.25 + (bayer(x, y) - 0.5) * 0.12;
+        colour = n > 0.66 ? C.grassLight : n < 0.34 ? C.grassDark : C.grass;
+      } else if (d === 8) colour = bayer(x, y) < 0.5 ? C.sand : C.grass;
+      else if (d > 2) colour = hash(x, y, 5) < 0.06 ? C.sandDark : C.sand;
+      else colour = C.wetSand;
+    } else {
+      const d = Math.round(toLand[y * WIDTH + x]);
+      if (inLagoon(x, y)) colour = d <= 1 ? C.wetSand : hash(x, y, 3) < 0.04 ? C.freshLight : C.brackish;
+      else if (d <= 1) colour = hash(Math.floor(x / 3), Math.floor(y / 2), 7) < 0.7 ? C.foam : C.shallow;
+      else if (d === 2 && hash(Math.floor(x / 2), y, 8) < 0.3) colour = C.foam;
+      else colour = seaColour(x, d + Math.round((noise(x, y, 18, 12) - 0.5) * 10));
+    }
     set(ground, x, y, colour);
   }
 }
 for (let n = 0; n < 2600; n++) {
   const x = Math.floor(random() * WIDTH);
-  const y = Math.floor(random() * SHORE_Y);
-  if (y > shoreAt(x) - 11) continue;
+  const y = Math.floor(random() * HEIGHT);
+  if (!isLand(x, y) || inland(x, y) < 11) continue;
   if (random() < 0.08) set(ground, x, y, random() < 0.5 ? C.flower : C.flowerWhite);
   else {
     set(ground, x, y, C.tuft);
@@ -300,8 +371,9 @@ for (let n = 0; n < 2600; n++) {
 }
 for (let n = 0; n < 420; n++) {
   const x = Math.floor(random() * (WIDTH - 6));
-  const y = shoreAt(x) + 6 + Math.floor(random() * (HEIGHT - shoreAt(x) - 6));
-  const deep = y - shoreAt(x) > 110;
+  const y = Math.floor(random() * HEIGHT);
+  if (isLand(x, y) || inLagoon(x, y) || toLand[y * WIDTH + x] < 6) continue;
+  const deep = toLand[y * WIDTH + x] > 110;
   rect(ground, x, y, 2 + Math.floor(random() * 4), 1, deep ? C.sea : C.ripple);
 }
 
@@ -410,7 +482,18 @@ for (let i = 1; i < 30; i++) {
 
 const lakeColours = { fill: C.fresh, edge: C.bank, light: C.freshLight, dark: C.freshDark };
 
+/** Stops the script when a place is drawn on the wrong side of the shore (a pond in the sea, a reef on land). */
+function check(kind, x0, y0, x1, y1, onLand) {
+  for (let y = y0; y <= y1; y += 2) {
+    for (let x = x0; x <= x1; x += 2) {
+      const ok = onLand ? isLand(x, y) && inland(x, y) > 6 : !isLand(x, y);
+      if (!ok) throw new Error(`${kind} at ${Math.round((x0 + x1) / 2)},${Math.round((y0 + y1) / 2)} reaches ${onLand ? 'the beach or the sea' : 'land'} at ${x},${y}`);
+    }
+  }
+}
+
 function pond(cx, cy, rx, ry) {
+  check('pond', cx - rx - 2, cy - ry - 2, cx + rx + 2, cy + ry + 2, true);
   const salt = Math.floor(random() * 1000);
   const ox = cx - rx - 3;
   const oy = cy - ry - 3;
@@ -423,6 +506,7 @@ function pond(cx, cy, rx, ry) {
 }
 
 function lake(cx, cy, rx, ry) {
+  check('lake', cx - rx - 2, cy - ry - 2, cx + rx + 2, cy + ry + 2, true);
   const ox = cx - rx - 4;
   const oy = cy - ry - 4;
   const w = 2 * rx + 9;
@@ -442,9 +526,10 @@ function lake(cx, cy, rx, ry) {
  * `fork` gives it two headwaters that join a third of the way down. Its node sits halfway along.
  */
 function stream(x, top, { swing = 5, period = 11, bend = 4, phase = 0, width = [3, 5], fork = 0, kind = 'stream' } = {}) {
-  const path = meander(x, top, SHORE_Y - 26, swing, period, phase, bend);
+  const shore = shoreAt(x);
+  const path = meander(x, top, shore - 26, swing, period, phase, bend);
   const [lastX] = path[path.length - 1];
-  const points = [...path, [(lastX + x) / 2, SHORE_Y - 13], [x, SHORE_Y - 3], [x, SHORE_Y + 4]];
+  const points = [...path, [(lastX + x) / 2, shore - 13], [x, shore - 3], [x, shore + 4]];
   const paths = [[points, widening(points, width[0], width[1])]];
   if (fork) {
     const join = Math.floor(points.length / 3);
@@ -455,8 +540,8 @@ function stream(x, top, { swing = 5, period = 11, bend = 4, phase = 0, width = [
     }
     paths[0] = [points.slice(join), widening(points.slice(join), width[0], width[1])];
   }
-  waterway(layer, paths, { shore: SHORE_Y });
-  const middle = points.reduce((best, p) => (Math.abs(p[1] - (top + SHORE_Y) / 2) < Math.abs(best[1] - (top + SHORE_Y) / 2) ? p : best));
+  waterway(layer, paths, { shore });
+  const middle = points.reduce((best, p) => (Math.abs(p[1] - (top + shore) / 2) < Math.abs(best[1] - (top + shore) / 2) ? p : best));
   if (kind === 'river') {
     reeds(layer, middle[0] - 14, middle[1] - 20, 3);
     reeds(layer, middle[0] + 10, middle[1] + 24, 3);
@@ -465,29 +550,29 @@ function stream(x, top, { swing = 5, period = 11, bend = 4, phase = 0, width = [
 }
 
 function lagoon(x) {
+  // Brackish water behind its own sand bar, which follows the shoreline and opens at one end.
   const ox = x - 30;
-  const oy = 142;
+  const oy = shoreAt(x) - 54;
   shape(layer, ox, oy, 66, 50, blob([[30, 26, 26, 18], [46, 30, 16, 14]], 0.1, Math.floor(x)), { fill: C.brackish, edge: C.mudDark, light: C.freshLight, dark: C.fresh });
   for (let i = 0; i < 66; i++) {
-    if (i > 44 && i < 54) {
-      for (let y = 46; y < 54; y++) set(layer, ox + i, oy + y, C.brackish);
-      continue;
-    }
-    for (let y = 46; y < 54; y++) set(layer, ox + i, oy + y, y > 51 ? C.wetSand : C.sand);
+    const shore = shoreAt(ox + i);
+    for (let y = shore - 8; y < shore; y++) set(layer, ox + i, y, i > 44 && i < 54 ? C.brackish : y >= shore - 2 ? C.wetSand : C.sand);
   }
   reeds(layer, ox + 8, oy + 22, 3);
   reeds(layer, ox + 20, oy + 40, 2);
-  place('lagoon', x, 168);
+  place('lagoon', x, oy + 26);
 }
 
 function beach(x, w = 52) {
+  // A crescent of sand along the local shoreline.
   const ox = x - Math.round(w / 2);
-  const oy = 180;
+  const oy = shoreAt(x) - 16;
   for (let i = 0; i < w; i++) {
-    const top = Math.round(10 - 8 * Math.sin((Math.PI * i) / (w - 1)));
-    const bottom = 16 + Math.round(2 * Math.sin((Math.PI * i) / (w - 1)));
-    for (let y = top; y < bottom; y++) set(layer, ox + i, oy + y, y >= bottom - 2 ? C.wetSand : hash(i, y, 9) < 0.06 ? C.sandDark : C.sand);
-    if (i % 3) set(layer, ox + i, oy + bottom, C.foam);
+    const shore = shoreAt(ox + i);
+    const top = shore - 6 - Math.round(8 * Math.sin((Math.PI * i) / (w - 1)));
+    const bottom = shore + Math.round(2 * Math.sin((Math.PI * i) / (w - 1)));
+    for (let y = top; y < bottom; y++) set(layer, ox + i, y, y >= bottom - 2 ? C.wetSand : hash(i, y, 9) < 0.06 ? C.sandDark : C.sand);
+    if (i % 3) set(layer, ox + i, bottom, C.foam);
   }
   if (random() < 0.6) {
     // A beach umbrella and a towel.
@@ -502,23 +587,24 @@ function beach(x, w = 52) {
     rect(layer, ox + 12, oy + 9, 10, 1, C.woodDark);
     set(layer, ox + w - 14, oy + 10, C.flowerWhite);
   }
-  place('beach', x, 189);
+  place('beach', x, oy + 9);
 }
 
 function jetty(x) {
   const ox = x - 5;
-  for (let y = 0; y < 34; y++) rect(layer, ox + 2, 186 + y, 6, 1, y % 3 === 2 ? C.woodDark : C.wood);
+  const oy = shoreAt(x) - 10;
+  for (let y = 0; y < 34; y++) rect(layer, ox + 2, oy + y, 6, 1, y % 3 === 2 ? C.woodDark : C.wood);
   for (const y of [12, 22, 32]) {
-    rect(layer, ox + 1, 186 + y, 1, 3, C.woodDark);
-    rect(layer, ox + 8, 186 + y, 1, 3, C.woodDark);
+    rect(layer, ox + 1, oy + y, 1, 3, C.woodDark);
+    rect(layer, ox + 8, oy + y, 1, 3, C.woodDark);
   }
-  set(layer, ox + 5, 219, C.foam);
-  place('jetty', x, 210);
+  set(layer, ox + 5, oy + 33, C.foam);
+  place('jetty', x, oy + 24);
 }
 
 function harbour(x) {
   const ox = x - 9;
-  const oy = 184;
+  const oy = shoreAt(x) - 12;
   const stone = (sx, sy, w, h) => {
     rect(layer, ox + sx - 1, oy + sy - 1, w + 2, h + 2, C.outline);
     for (let j = 0; j < h; j++) {
@@ -541,25 +627,28 @@ function harbour(x) {
   rect(layer, ox + 22, oy + 19, 2, 2, C.window);
   rect(layer, ox + 24, oy + 12, 1, 6, C.woodDark);
   rect(layer, ox + 25, oy + 12, 3, 2, C.red);
-  place('harbour', x, 198);
+  place('harbour', x, oy + 14);
 }
 
 function rocks(x, big = false) {
+  // On the shoreline: half on the beach, half in the water.
+  const y = shoreAt(x);
   if (big) {
-    rock(layer, x - 4, 192, 8, 6);
-    rock(layer, x + 8, 195, 6, 5);
-    rock(layer, x - 9, 198, 3, 2);
-    for (let i = -14; i < 16; i += 2) set(layer, x + i, 202, C.foam);
+    rock(layer, x - 4, y - 4, 8, 6);
+    rock(layer, x + 8, y - 1, 6, 5);
+    rock(layer, x - 9, y + 2, 3, 2);
+    for (let i = -14; i < 16; i += 2) set(layer, x + i, shoreAt(x + i) + 6, C.foam);
   } else {
-    rock(layer, x - 3, 193, 7, 5);
-    rock(layer, x + 7, 195, 5, 4);
-    rock(layer, x + 2, 189, 4, 3);
-    for (let i = -10; i < 14; i += 2) set(layer, x + i, 200, C.foam);
+    rock(layer, x - 3, y - 3, 7, 5);
+    rock(layer, x + 7, y - 1, 5, 4);
+    rock(layer, x + 2, y - 7, 4, 3);
+    for (let i = -10; i < 14; i += 2) set(layer, x + i, shoreAt(x + i) + 4, C.foam);
   }
-  place('rocks', x, 192);
+  place('rocks', x, y - 4);
 }
 
 function tidePools(x, y) {
+  check('tidePools', x - 21, y - 12, x + 21, y + 12, false);
   shape(layer, x - 21, y - 12, 42, 24, blob([[14, 12, 13, 9], [30, 13, 11, 8]], 0.15, Math.floor(x)), { fill: C.rock, edge: C.outline, light: C.rockLight, dark: C.rockDark });
   ellipse(layer, x - 8, y, 4, 2, C.shallow2);
   ellipse(layer, x + 7, y - 1, 3, 2, C.shallow2);
@@ -569,6 +658,7 @@ function tidePools(x, y) {
 }
 
 function sandflat(x, y) {
+  check('sandflat', x - 30, y - 7, x + 30, y + 7, false);
   const rx = 22 + Math.floor(random() * 8);
   ellipse(layer, x, y, rx + 4, 7, C.shallow);
   ellipse(layer, x, y, rx, 4, C.wetSand);
@@ -578,6 +668,7 @@ function sandflat(x, y) {
 }
 
 function outerRocks(x, y) {
+  check('outerRocks', x - 15, y - 9, x + 15, y + 9, false);
   ellipse(layer, x, y, 15, 9, C.foam);
   ellipse(layer, x, y, 13, 7, C.shallow);
   rock(layer, x - 4, y - 1, 6, 5);
@@ -587,6 +678,7 @@ function outerRocks(x, y) {
 }
 
 function kelp(x, y) {
+  check('kelp', x - 18, y - 13, x + 18, y + 16, false);
   for (let s = 0; s < 7; s++) {
     const base = x - 17 + s * 5;
     const height = 16 + Math.floor(random() * 12);
@@ -602,6 +694,7 @@ function kelp(x, y) {
 }
 
 function reef(x, y) {
+  check('reef', x - 22, y - 11, x + 22, y + 11, false);
   const CORAL = [[255, 127, 80], [232, 84, 118], [250, 200, 80], [190, 90, 200]];
   for (let n = 0; n < 10; n++) ellipse(layer, x - 19 + n * 4 + Math.floor(random() * 3), y + 3 + Math.floor(random() * 5), 3 + Math.floor(random() * 3), 2 + Math.floor(random() * 2), CORAL[n % 4]);
   for (let n = 0; n < 7; n++) {
@@ -615,6 +708,7 @@ function reef(x, y) {
 }
 
 function buoy(x, y) {
+  check('buoy', x - 7, y - 9, x + 7, y + 6, false);
   ellipse(layer, x, y + 4, 7, 2, C.ripple);
   ellipse(layer, x, y + 4, 5, 1, C.sea);
   rect(layer, x - 3, y - 3, 7, 7, C.outline);
@@ -626,6 +720,7 @@ function buoy(x, y) {
 }
 
 function cliff(x, y) {
+  check('cliff', x - 30, y - 14, x + 30, y + 26, false);
   for (let i = 0; i < 60; i++) {
     const top = y - 14 + Math.floor(i / 12) * 6 + Math.floor(random() * 2);
     for (let j = top; j < y + 20; j++) set(layer, x - 30 + i, j, i % 12 < 2 ? C.rockDark : j === top ? C.rockLight : C.rock);
@@ -635,6 +730,7 @@ function cliff(x, y) {
 }
 
 function wreck(x, y) {
+  check('wreck', x - 18, y - 24, x + 18, y + 8, false);
   for (let i = 0; i < 34; i++) {
     const lift = Math.floor(i / 6);
     for (let j = 22 - lift; j < 30 - lift; j++) set(layer, x - 18 + i, y - 22 + j, i % 5 === 0 ? C.woodDark : j === 22 - lift ? C.wood : C.trunk);
@@ -645,15 +741,31 @@ function wreck(x, y) {
 }
 
 function trench(x, y) {
+  check('trench', x - 36, y - 13, x + 36, y + 13, false);
   ellipse(layer, x, y, 36, 13, C.seaDeep);
   ellipse(layer, x, y + 1, 27, 8, C.abyss);
   ellipse(layer, x + 2, y + 2, 15, 3, [6, 40, 96]);
   place('trench', x, y);
 }
 
+/** The tidal island off the long peninsula (its ground is drawn with the land): a tree and a few rocks. */
+function island() {
+  tree(layer, ISLAND.x - 6, ISLAND.y - 6, 4);
+  rock(layer, ISLAND.x + 9, ISLAND.y + 3, 3, 2);
+  rock(layer, ISLAND.x - 13, ISLAND.y + 4, 2, 2);
+  place('island', ISLAND.x + 2, ISLAND.y);
+}
+
+/** A fishing spot in the lagoon behind the sand spit, with reeds along its back shore. */
+function lagoonSpot(x, y) {
+  reeds(layer, x - 12, shoreAt(x - 12) + 1, 3);
+  reeds(layer, x + 14, shoreAt(x + 14) + 1, 2);
+  place('lagoon', x, y);
+}
+
 // The layout, column by column of the map (columns are ~80 px wide: house → delta → lighthouse).
-// Rows: inland high (y 40-70), inland low (110-160), the shoreline, the shallows (220-280),
-// then out at sea for the adult (320-350) and the elder (390-430).
+// Rows: inland high (y 40-70), inland low (110-160), the shoreline (which bends: see BUMPS),
+// the shallows (220-280), then out at sea for the adult (320-350) and the elder (390-430).
 
 // x 78-160
 pond(150, 58, 9, 7);
@@ -672,13 +784,13 @@ trench(205, 420);
 // x 242-324
 pond(302, 42, 10, 7);
 stream(318, 70, { swing: 5, bend: -4, phase: 20 });
-jetty(266);
+harbour(270);
 outerRocks(286, 254);
 reef(298, 322);
 cliff(280, 398);
 // x 324-406
 stream(366, 14, { swing: 9, period: 15, bend: 8, width: [7, 12], kind: 'river', phase: 8 });
-harbour(392);
+jetty(392);
 tidePools(350, 264);
 sandflat(400, 244);
 buoy(370, 342);
@@ -686,22 +798,21 @@ wreck(385, 422);
 // x 406-487
 pond(432, 64, 11, 8);
 pond(462, 130, 8, 6);
-beach(452);
-outerRocks(438, 272);
-kelp(474, 236);
+island();
+outerRocks(424, 252);
 reef(452, 330);
 trench(444, 402);
 // x 487-569
 pond(510, 70, 10, 7);
-lagoon(506);
-stream(558, 34, { swing: 5, bend: 3, phase: 44 });
+lagoon(530);
 tidePools(520, 240);
 sandflat(546, 276);
 buoy(522, 338);
 cliff(532, 412);
 // x 569-651, up to the delta
-pond(590, 54, 9, 6);
-rocks(588, true);
+pond(594, 54, 9, 6);
+stream(572, 34, { swing: 4, bend: 2, phase: 44 });
+rocks(600, true);
 outerRocks(626, 252);
 reef(616, 338);
 wreck(600, 422);
@@ -712,15 +823,14 @@ buoy(756, 342);
 trench(766, 420);
 // x 799-870
 lake(842, 70, 40, 18);
-stream(862, 104, { swing: 4, bend: 3, phase: 60 });
-jetty(820);
+stream(806, 104, { swing: 4, bend: 3, phase: 60 });
 sandflat(836, 258);
 reef(842, 322);
 cliff(830, 400);
 // x 870-941
 pond(904, 48, 9, 7);
-pond(924, 148, 8, 6);
-harbour(900);
+pond(926, 138, 8, 6);
+lagoonSpot(896, 182);
 outerRocks(912, 264);
 buoy(904, 346);
 wreck(916, 422);
@@ -733,9 +843,9 @@ reef(976, 330);
 trench(980, 418);
 // x 1013-1084
 pond(1040, 60, 11, 8);
-lagoon(1062);
-sandflat(1044, 268);
-outerRocks(1076, 236);
+pond(1066, 150, 8, 6);
+rocks(1060, true);
+sandflat(1044, 270);
 buoy(1050, 346);
 cliff(1052, 404);
 // x 1084-1155
@@ -743,6 +853,7 @@ pond(1126, 44, 9, 6);
 stream(1116, 92, { swing: 4, bend: 3, phase: 71 });
 jetty(1142);
 tidePools(1124, 256);
+outerRocks(1092, 242);
 reef(1126, 328);
 wreck(1112, 424);
 // x 1155-1227, before the lighthouse
@@ -784,7 +895,7 @@ for (let n = 0; n < 70; n++) {
     const x = cx + Math.floor((random() - 0.5) * 22);
     const y = cy + Math.floor((random() - 0.5) * 16);
     const r = 4 + Math.floor(random() * 3);
-    if (y + r + 4 < shoreAt(x) - 10 && emptyAround(x, y, r + 2)) tree(ground, x, y, r);
+    if (isLand(x, y + r + 4) && inland(x, y + r + 4) > 10 && emptyAround(x, y, r + 2)) tree(ground, x, y, r);
   }
 }
 

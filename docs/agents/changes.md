@@ -36,6 +36,14 @@ A feature here is rarely one file. Find your kind of change below; a change is d
 - Move ids are per set: reuse an id to keep its French name, pick a new one when the meaning changes. French move names are `moves['<temperament>.<id>']` (or `<creature>.<id>`) in fr-content.ts.
 - CREATURE_BEHAVIOUR.md (the compact reference other models read).
 
+## A companion bonus (what a temperament gives when brought)
+
+- `src/content/companions.ts`: `effects` scale with the temperament's stars through `byStars` (amount at 1★, 2★…, the last entry covering more); `fullSchool` is added as written at 3 species. Keep `description` in sync with the numbers.
+- A new passive effect: `CompanionEffect` in `src/engine/types.ts`, where it's read (`bonusTotal`), and `companion.<type>` in both locales. A new trigger: `CompanionTrigger`, where it fires (`fireTriggers`), and `companion.when.<trigger>` in both locales.
+- Content checks in `src/engine/data.ts` (`byStars` values, no `byStars` in `fullSchool`).
+- A test in `tests/companions.test.ts`; GAME_MECHANICS.md (Home) and ARCHITECTURE.md (Companions) when the rules change.
+- Then `npm run simulate -- --lineups` before and after (docs/agents/balance.md).
+
 ## Text
 
 - English in `src/locales/en.ts` is the reference. `fr.ts` must have the same keys (TypeScript and `tests/i18n.test.ts` check). Templates use `{param}`, `{@grit}`-style terms, and `singular|plural`.
@@ -48,7 +56,7 @@ Changing the shape of `RunState`, `CombatState` or the profile: bump `SAVE_VERSI
 
 ## A number (constant or content value)
 
-- Constants live in `src/engine/constants.ts`. Search the docs for the old value (GAME_MECHANICS.md, ARCHITECTURE.md, CREATURE_BEHAVIOUR.md) and update every mention.
+- Constants live in `src/engine/constants.ts`, or next to their system (`engine/bond.ts`, `engine/sizes.ts`, `BUCKET_SIZE` and `SESSION_SLOTS` in `engine/run.ts`, `BOND_BY_TIER` in `content/creatures.ts`). Search the docs for the old value (GAME_MECHANICS.md, ARCHITECTURE.md, CREATURE_BEHAVIOUR.md) and update every mention.
 - Then follow docs/agents/balance.md.
 
 ## Docs, by reader

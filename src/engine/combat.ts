@@ -260,6 +260,7 @@ function startPlayerTurn(state: CombatState, data: GameData): void {
     state.piles.discard.push(card);
     addLog(state, text('log.baitGrabbed', { who: state.player.name, card: data.cards[card.defId]?.name ?? card.defId }));
   }
+  if (state.turn === 2) fireTriggers(state, 'secondTurnStart');
 }
 
 /** Effects waiting for this turn (`delayed`, `echoDamage`), after the Hold reset. True if they ended the fight. */

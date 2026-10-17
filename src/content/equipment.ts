@@ -45,8 +45,8 @@ export const equipment: EquipmentDef[] = [
     id: 'softNet',
     name: 'Soft Net',
     icon: '🥅',
-    description: 'Creatures you catch come home with 30 bond points.',
-    effects: [{ type: 'bondOnCapture', amount: 30 }],
+    description: 'Creatures you catch come home with 30% of their full bond (bond level 1).',
+    effects: [{ type: 'bondOnCapture', percent: 30 }],
   },
   {
     id: 'crabHook',

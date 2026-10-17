@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { BASE_ENERGY, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
-import type { Discovery, GameData, HomeCreature } from '../engine';
+import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
+import type { CatchSize, Discovery, GameData, HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
 import CreatureBook from './CreatureBook.vue';
@@ -14,6 +14,7 @@ defineProps<{
   canResume: boolean;
   homeAquarium: HomeCreature[];
   creatureBook: Readonly<Record<string, Discovery>>;
+  biggestCatch: Readonly<Record<string, CatchSize>>;
   data: GameData;
 }>();
 const emit = defineEmits<{ resume: []; newRun: []; reset: []; debugStart: [levelIndex: number, kind: 'miniBoss' | 'boss'] }>();
@@ -45,7 +46,7 @@ const DEBUG_STARTS = [0, 1, 2].flatMap((level) => [
 ]);
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
-const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'style', 'aging', 'home', 'companions'] as const;
+const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'style', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
 const GUIDE_NUMBERS = {
   energy: BASE_ENERGY,
   cards: STARTING_HAND_SIZE,
@@ -56,6 +57,7 @@ const GUIDE_NUMBERS = {
   slowPercent: SLOW_PERCENT,
   maxSlowPercent: MAX_SLOW_PERCENT,
   slots: SESSION_SLOTS,
+  bucket: BUCKET_SIZE,
 };
 
 /** Exit only exists in the desktop app; a browser tab can't quit itself. */
@@ -113,7 +115,7 @@ onBeforeUnmount(stopTheme);
   <section class="menu" :class="{ viewing }">
     <Aquarium
       class="backdrop"
-      :creatures="homeAquarium.map((c) => c.id)"
+      :creatures="homeAquarium"
       :bonds="homeAquarium.map((c) => c.bond)"
       :data="data" :interactive="false" :title="t('aquarium.home')" icon="🏠" />
 
@@ -213,7 +215,7 @@ onBeforeUnmount(stopTheme);
         <button autofocus @click="options?.close()">{{ t('options.done') }}</button>
       </footer>
     </dialog>
-    <CreatureBook :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" />
+    <CreatureBook :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" :biggest="biggestCatch" />
   </section>
 </template>
 

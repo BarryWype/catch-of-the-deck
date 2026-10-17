@@ -1,4 +1,5 @@
-import type { CombatState, Discovery, HomeCreature, RunState, ShopVisit } from '../engine';
+import { rescaleBond, type CatchSize, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
+import { gameData } from './i18n';
 import type { Screen } from './useGame';
 
 /**
@@ -7,8 +8,8 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 13;
-export const PROFILE_VERSION = 4;
+export const SAVE_VERSION = 14;
+export const PROFILE_VERSION = 5;
 
 /** Everything needed to pick a run up exactly where it was left. */
 export interface SavedGame {
@@ -29,6 +30,8 @@ export interface Profile {
   homeAquarium: HomeCreature[];
   /** Every creature ever met, by id; missing means never encountered. */
   creatureBook: Record<string, Discovery>;
+  /** The biggest of each species ever caught, by id. */
+  biggestCatch: Record<string, CatchSize>;
   /** Eggs waiting to be hatched: the creature id inside each. */
   eggs: string[];
 }
@@ -41,6 +44,11 @@ const storage = window.desktop ?? {
   writeData: async (name: DataFile, json: string) => localStorage.setItem(`slay-the-fish:${name}`, json),
   deleteData: async (name: DataFile) => localStorage.removeItem(`slay-the-fish:${name}`),
 };
+
+/** Full bond by tier before profile v5 and save v14: bond points are moved to today's (`rescaleBond`). */
+const OLD_BOND_BY_TIER: Record<number, number> = { 1: 100, 2: 200, 3: 400 };
+const rescaleOld = (c: Omit<HomeCreature, 'size'>): HomeCreature =>
+  rescaleBond({ ...c, size: 'normal' }, OLD_BOND_BY_TIER[gameData.enemies[c.id]?.tier ?? 1] ?? 100, gameData);
 
 async function read<T>(name: DataFile): Promise<T | null> {
   try {
@@ -58,11 +66,11 @@ function enqueue(task: () => Promise<unknown>) {
 }
 
 /** Older saves are turned into the current shape here; null means it can't be resumed. */
-function upgradeSave(save: SavedGame): SavedGame | null {
+export function upgradeSave(save: SavedGame): SavedGame | null {
   // v1 called the bucket `captured`.
   if (save.version === 1) {
     const { captured, ...run } = save.run as RunState & { captured: string[] };
-    save = { ...save, version: 2, run: { ...run, bucket: captured } };
+    save = { ...save, version: 2, run: { ...run, bucket: captured as unknown as RunState['bucket'] } };
   }
   // v2 had no companions: nothing was brought from the home aquarium.
   if (save.version === 2) {
@@ -75,7 +83,7 @@ function upgradeSave(save: SavedGame): SavedGame | null {
   }
   // v3 companions were plain creature ids, before bonds.
   if (save.version === 3) {
-    const companions = (save.run.companions as unknown as string[]).map((id) => ({ id, bond: 0 }));
+    const companions = (save.run.companions as unknown as string[]).map((id) => ({ id, bond: 0, size: 'normal' as const }));
     save = { ...save, version: 4, run: { ...save.run, companions } };
   }
   // v6 fights had no Patience.
@@ -98,6 +106,12 @@ function upgradeSave(save: SavedGame): SavedGame | null {
   if (save.version === 9) save = { ...save, version: 10, run: { ...save.run, rarePity: 10, rewardFamilies: [] } };
   // v10 runs didn't count their fights: every won fight raised the floor.
   if (save.version === 10) save = { ...save, version: 11, run: { ...save.run, fights: save.run.floor - 1 } };
+  // v13 buckets held creature ids, before sizes and the bucket limit, with the old bond pace.
+  // A bucket already over the limit stays as it is.
+  if (save.version === 13) {
+    const bucket = (save.run.bucket as unknown as string[]).map((id) => ({ id, size: 'normal' as const }));
+    save = { ...save, version: 14, run: { ...save.run, bucket, waiting: [], companions: save.run.companions.map(rescaleOld) } };
+  }
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.
@@ -118,7 +132,7 @@ export function clearSavedGame() {
   enqueue(() => storage.deleteData('save'));
 }
 
-function upgradeProfile(profile: Profile): Profile | null {
+export function upgradeProfile(profile: Profile): Profile | null {
   // v1 had no creature book: whatever is in the home aquarium was captured.
   if (profile.version === 1) {
     const ids = profile.homeAquarium as unknown as string[];
@@ -129,8 +143,14 @@ function upgradeProfile(profile: Profile): Profile | null {
   if (profile.version === 2) profile = { ...profile, version: 3, eggs: [] };
   // v3 home aquariums were plain creature ids, before bonds.
   if (profile.version === 3) {
-    const homeAquarium = (profile.homeAquarium as unknown as string[]).map((id) => ({ id, bond: 0 }));
+    const homeAquarium = (profile.homeAquarium as unknown as string[]).map((id) => ({ id, bond: 0, size: 'normal' as const }));
     profile = { ...profile, version: 4, homeAquarium };
+  }
+  // v4 had the old bond pace, and no sizes: what was caught is normal-sized.
+  if (profile.version === 4) {
+    const captured = Object.keys(profile.creatureBook).filter((id) => profile.creatureBook[id] === 'captured');
+    const biggestCatch = Object.fromEntries(captured.map((id) => [id, 'normal' as const]));
+    profile = { ...profile, version: 5, homeAquarium: profile.homeAquarium.map(rescaleOld), biggestCatch };
   }
   return profile.version === PROFILE_VERSION ? profile : null;
 }
@@ -138,7 +158,7 @@ function upgradeProfile(profile: Profile): Profile | null {
 /** The profile, or a fresh one (nothing owned or met) if there's none or it can't be read. */
 export async function loadProfile(): Promise<Profile> {
   const profile = await read<Profile>('profile');
-  return (profile && upgradeProfile(profile)) ?? { version: PROFILE_VERSION, homeAquarium: [], creatureBook: {}, eggs: [] };
+  return (profile && upgradeProfile(profile)) ?? { version: PROFILE_VERSION, homeAquarium: [], creatureBook: {}, biggestCatch: {}, eggs: [] };
 }
 
 export function writeProfile(profile: Profile) {

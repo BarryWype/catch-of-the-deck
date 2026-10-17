@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
-import { activeBonuses, bondLevel, describeCompanionEffect, FULL_SCHOOL, SESSION_SLOTS, type GameData, type HomeCreature } from '../engine';
+import { activeBonuses, bondLevel, companionStars, describeCompanionEffect, FULL_SCHOOL, nextStars, SESSION_SLOTS, type GameData, type HomeCreature } from '../engine';
 import SpriteView from './SpriteView.vue';
 import { t } from './i18n';
 
@@ -17,14 +17,22 @@ const slots = computed(() =>
     return {
       creature,
       bond: bondLevel(picked, props.data),
+      stars: companionStars(picked, props.data),
       bonus: creature.temperament ? props.data.companionBonuses[creature.temperament] : undefined,
     };
   }),
 );
 
-/** What the picked creatures give together, with their scaled numbers. */
+/** What the picked creatures give together, with their scaled numbers, and what more stars would change. */
 const bonuses = computed(() =>
-  activeBonuses(props.brought, props.data).map((b) => ({ ...b, text: b.effects.map(describeCompanionEffect) })),
+  activeBonuses(props.brought, props.data).map((b) => {
+    const next = nextStars(b);
+    return {
+      ...b,
+      text: b.effects.map(describeCompanionEffect),
+      next: next && t('slots.nextStars', { n: next.more, rule: next.effects.map(describeCompanionEffect).join(' ') }),
+    };
+  }),
 );
 </script>
 
@@ -35,7 +43,7 @@ const bonuses = computed(() =>
       <template v-if="slot">
         <SpriteView v-if="slot.creature.sprite" :sprite="slot.creature.sprite" :size="48" />
         <span class="name">
-          {{ slot.creature.name }}
+          <span>{{ slot.creature.name }} <span class="stars" v-tip="t('slots.starsTip')">★{{ slot.stars }}</span></span>
           <small v-if="slot.bonus">{{ slot.bonus.icon }} {{ slot.bonus.temperamentName }}<template v-if="slot.bond"> · ♥{{ slot.bond }}</template></small>
         </span>
         <button class="ghost remove" v-tip="t('slots.remove')" :aria-label="t('slots.removeLabel', { name: slot.creature.name })" @click="emit('remove', i)">
@@ -47,8 +55,9 @@ const bonuses = computed(() =>
     <ul v-if="bonuses.length" class="bonuses" :aria-label="t('slots.bonuses')">
       <li v-for="b in bonuses" :key="b.def.id">
         <strong>{{ b.def.icon }} {{ b.def.name }}</strong>
-        <span class="species">{{ b.species }}/{{ FULL_SCHOOL }} {{ b.def.temperamentName }}</span>
+        <span class="species"><span class="stars">★{{ b.stars }}</span> · {{ b.species }}/{{ FULL_SCHOOL }} {{ b.def.temperamentName }}</span>
         <p v-for="(line, j) in b.text" :key="j">{{ line }}</p>
+        <p v-if="b.next" class="next">{{ b.next }}</p>
       </li>
     </ul>
     <p class="help">{{ t('slots.help') }}</p>
@@ -80,6 +89,8 @@ header { font-weight: 700; padding: 0 4px; }
 .bonuses li { padding: 6px 8px; border-radius: 8px; background: rgb(255 255 255 / 0.05); }
 .bonuses p { margin: 2px 0 0; color: var(--muted); line-height: 1.3; }
 .species { float: right; color: var(--muted); font-size: 0.68rem; }
+.stars { color: #f2c94c; font-weight: 700; }
+.bonuses .next { color: #c9b26a; font-style: italic; }
 .remove { padding: 2px 8px; }
 .hint { color: var(--muted); font-size: 0.8rem; }
 .help { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }

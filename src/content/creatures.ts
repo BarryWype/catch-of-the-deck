@@ -26,7 +26,7 @@ import type { CreatureType } from './creatureTypes';
  * - `habitat` (optional): 'swim' | 'drift' | 'bottom', how it moves in the aquarium.
  */
 /** Bond points to be fully bonded, by tier, for creatures without their own `bondToFull`. */
-export const BOND_BY_TIER: Record<CreatureDef['tier'], number> = { 1: 100, 2: 200, 3: 400 };
+export const BOND_BY_TIER: Record<CreatureDef['tier'], number> = { 1: 40, 2: 60, 3: 90 };
 
 /** Fresh water, salt water, or in between. */
 export type Water = 'fresh' | 'salt' | 'brackish';

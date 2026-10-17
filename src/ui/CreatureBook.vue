@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { creatureTypeNames, type Discovery, type GameData } from '../engine';
+import { creatureTypeNames, type CatchSize, type Discovery, type GameData } from '../engine';
 import { t } from './i18n';
 import SideDrawer from './SideDrawer.vue';
 import SpriteView from './SpriteView.vue';
@@ -13,7 +13,12 @@ const props = defineProps<{
   data: GameData;
   homeAquarium: string[];
   discovered: Readonly<Record<string, Discovery>>;
+  /** The biggest of each species ever caught. */
+  biggest: Readonly<Record<string, CatchSize>>;
 }>();
+
+/** A mark per size on the book's entries. */
+const SIZE_MARK: Record<CatchSize, string> = { small: 'S', normal: 'M', large: 'L', trophy: '🏆' };
 
 const tagNames = computed(() => creatureTypeNames(props.data));
 
@@ -31,6 +36,7 @@ const creatures = computed(() => {
       type: e.tags?.map((t) => tagNames.value[t] ?? t).join(', ') ?? '',
       owned: owned.get(e.id) ?? 0,
       status: props.discovered[e.id],
+      biggest: props.biggest[e.id],
     }));
 });
 const discoveredCount = computed(() => creatures.value.filter((c) => c.status).length);
@@ -54,6 +60,15 @@ const discoveredCount = computed(() => creatures.value.filter((c) => c.status).l
           <SpriteView :sprite="c.sprite" :size="64" />
           <span class="status">{{ c.status === 'captured' ? t('book.captured') : t('book.seen') }}</span>
           <span v-if="c.owned" v-tip="t('book.owned', { n: c.owned })" class="owned">×{{ c.owned }}</span>
+          <span
+            v-if="c.biggest"
+            v-tip="t('book.biggest', { size: t(`size.${c.biggest}`) })"
+            class="biggest"
+            :class="c.biggest"
+            :aria-label="t('book.biggest', { size: t(`size.${c.biggest}`) })"
+          >
+            {{ SIZE_MARK[c.biggest] }}
+          </span>
         </template>
         <template v-else>
           <span class="unknown" :aria-label="t('book.notEncountered')">?</span>
@@ -98,6 +113,19 @@ const discoveredCount = computed(() => creatures.value.filter((c) => c.status).l
 }
 .status { font-size: 0.7rem; font-weight: 600; color: var(--muted); }
 .captured .status { color: #7fd18f; }
+.biggest {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #2c3a4a;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.biggest.large { background: #3b5f8a; }
+.biggest.trophy { background: #8a6a1f; }
 .owned {
   position: absolute;
   top: 4px;

@@ -5,6 +5,8 @@ Difficulty is the user's call, so the deliverable is measurement: what a change 
 ## The tools
 
 - `npm run simulate -- --runs 300 --out <name>`: a bot plays 300 seeded runs (seeds 1–300, so the same code gives the same numbers). Each run saves `simulation/<name>-runs.csv` and `<name>-fights.csv`. The printed report has an "All ages together" table: turns, Grit lost, escape rate and Patience for normal fights, mini-bosses and bosses, plus the share of each move role.
+- `npm run simulate -- --runs 300 --lineups --out <name>`: for companion changes. The same seeds with no companions, then each temperament's standard lineups, ranked by median fights (`<name>-lineups.csv`; about 9 minutes at 300 runs, so run it in the background). `--companions <id,id> --bond <0-3>` runs the normal report with chosen companions.
+- `npm run simulate -- --campaign 20 --out <name>`: for bond and home-aquarium changes. 20 runs sharing one home aquarium; reports bond pacing, companions lost and catch sizes (`<name>-campaign.csv`).
 - `npm run reward-shares -- --out <name>`: the share of each card type in tier-1 rewards, by fishing spot.
 - `simulation/` is git-ignored: keep before/after files there, named for the change.
 

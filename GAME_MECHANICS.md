@@ -166,9 +166,17 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 - **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them. A few of them stand where an event might have been on the map.
 - **Treasure** (T): a free find before the boss.
 
+## Your bucket
+
+- **It holds 7 creatures,** the companions you brought included (bring 3 and there's room for 4 catches). The count shows on it.
+- **When a fight's catches don't fit,** you choose for each one before the card reward: sell a creature from your bucket to keep the new catch, or sell the new catch. Selling a companion ends its bonus. Sales get your companions' sell bonuses, as usual. A big group can overflow by more than one: you choose for each in turn.
+- **Sizes:** every catch is small, normal, large or a trophy. On your first fight it's 30% small, 50% normal, 17% large and 3% trophy; every fight played this run makes small rarer and large and trophy more likely, until small is only 5%. Draining a creature's Will lands a bigger one than wearing its Health down (it rolls twice and keeps the bigger). Size shows in your bucket and aquarium and goes in the creature book; it does nothing else yet.
+
 ## Home
 
 - **Home aquarium:** creatures you bring home live here between runs.
-- **Bringing companions:** before a run you can bring up to 3 creatures. Each kind of temperament gives a bonus for the run, and more species of the same kind give a bigger bonus.
-- **Bond:** companions grow closer the more fights they share with you; creatures resting at home bond slowly too.
+- **Bringing companions:** before a run you can bring up to 3 creatures. Each kind of temperament gives a bonus for the run. They ride in your bucket, so they take up room in it.
+- **Stars:** each companion gives stars: 1 to 3 for how deep it lives (its tier), +1 at bond level 2 and +1 more at level 3, so 1★ to 5★. The stars of companions of the same kind add up, each species once (two Clownfish count once, the one with more stars), and more stars make the bonus stronger, up to its 8★ value. Bringing 3 different species of the same kind also adds its **full school** bonus. The companions screen shows each one's stars, each kind's total and bonus, and what the next stars would add.
+- **Bond:** companions grow closer with every fight they share with you: 1 point a fight as a Kid, 2 as an Adult, 3 as an Elder, and double against a mini-boss or boss. A creature is fully bonded at 40 points (shallow-water creatures), 60 or 90 (the deepest); levels come at 20%, 50% and 100%. They keep that bond only if the run succeeds. Creatures resting at home bond slowly too (+2 a run, up to level 1), and hatchlings start at level 1. A companion that reaches a new level mid-run gives its extra star from the next fight.
+- **Creature book** (📖): every creature you've met, seen or captured, with the biggest one of each species you've ever caught: S (small), M (normal), L (large) or 🏆 (trophy).
 - **Eggs:** two of the same creature at home may lay an egg after a run. Click it to hatch.

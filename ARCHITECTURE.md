@@ -26,7 +26,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 ## Screen flow
 
 ```
-menu ──New run──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ card reward ──▶ map …
+menu ──New run──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ (bucket full) ──▶ card reward ──▶ map …
   ▲                                  │  ├─▶ event (10%: a fight instead) ─▶ map
   │                                  │  ├─▶ treasure ─▶ map
   │                                  │  └─▶ shop ─▶ map
@@ -36,9 +36,9 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
   └──── Menu button (any screen) ◀── complete (Elder boss beaten, headed home, or a boss fled) / defeat
 ```
 
-- **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). **Temporary, when ticked in Options** ("Show debug panel", remembered per device in localStorage): a 🛠 Debug drawer on the left edge starts a fresh run straight into each act's mini-boss or boss fight (`debugStartAt`). Above it, a 📘 tab opens **How to play**, a short bullet-point guide to the rules (the full one is GAME_MECHANICS.md). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature. All three drawers use `SideDrawer.vue` (an edge tab, a sliding panel, Esc or the backdrop to close). Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), and how many are in the home aquarium.
+- **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). **Temporary, when ticked in Options** ("Show debug panel", remembered per device in localStorage): a 🛠 Debug drawer on the left edge starts a fresh run straight into each act's mini-boss or boss fight (`debugStartAt`). Above it, a 📘 tab opens **How to play**, a short bullet-point guide to the rules (the full one is GAME_MECHANICS.md). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature. All three drawers use `SideDrawer.vue` (an edge tab, a sliding panel, Esc or the backdrop to close). Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), how many are in the home aquarium, and the biggest size caught (S, M, L or 🏆, from `Profile.biggestCatch`).
 - **No build choice for now** (`BuildSelect.vue` is unused): every run starts with the first build that can start a run (`startingBuilds`: Rod fishing), without a starting item. **New run** goes straight to the companions screen.
-- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature offers **Bring for the session**, and ✕ puts it back. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the menu. With an empty home aquarium this step is skipped.
+- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature shows its size, stars, bond and bonus, and offers **Bring for the session**; ✕ puts it back. The slots show each companion's stars, and below them each temperament's stars, bonus and what more stars would change. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the menu. With an empty home aquarium this step is skipped.
 
 ## A run
 
@@ -59,7 +59,7 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
   - **Narrowing a fight:** a node can add `creatureType` to meet only that type at its spot, or `enemies` to meet exactly those creatures. Mini-bosses and bosses use `enemies`.
 - **Fights:**
   - **On the map:** a fight node shows its fishing spot, not a specific creature (bosses show their name).
-  - **On arrival:** `travelTo` draws an encounter from its spot at the level's tier (`encountersFor`). A companion gains a bond point at every fight.
+  - **On arrival:** `travelTo` draws an encounter from its spot at the level's tier (`encountersFor`). A companion gains bond at every fight (`bondPerFight`).
   - **Card reward:** after a win, one of 3 cards must be taken. They come from the families of the creatures of that fight (`fightFamilies`, `rollCardRewards`), topped up from every family; an event's card reward draws from every family. Each slot is rare with `RunState.rarePity` percent (`RARE_CHANCE` 10, +`RARE_PITY_STEP` 2 per slot that wasn't, back to 10 on a rare), but only from the run's first mini-boss on, its own reward included (`raresUnlocked`): before it, rewards are normal cards and the pity doesn't grow. The mini-boss's own reward always has a rare: its last slot is rare when the others weren't. The card set and its rules are in CARD_REWORK.md. Eel companions (`rewardSkips`, `rewardRerolls`) allow skipping, or rerolling for 3 other cards, a few times per level (`rewardOptions`; the counts reset on each level).
 - **Events:**
   - **On arrival:** `visitEvent` either starts a surprise fight against any creature of the level's tier (`EVENT_FIGHT_CHANCE`, 10%) or draws one of the events allowed at that column (`minColumn`).
@@ -72,7 +72,8 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
 - **Head home** (the `leave` node after each mini-boss):
   - **Confirming:** clicking the ⌂ node opens a confirmation without moving (`leaveNodeId` in `useGame.ts`). **Go back** returns to the map; that prompt is never saved, so a resume lands on the map.
   - **Finish:** `visitLeave` moves onto the node and the run ends as a success, so the bucket comes home.
-- **End of a fight** (`finishCombat`): carries HP over. A win also adds one to the floor counter. Every creature caught goes into the bucket, unless equipment sells it on the spot. That includes creatures caught before another one got away.
+- **End of a fight** (`finishCombat`): carries HP over. A win also adds one to the floor counter. Every creature caught (`catchesOf`, with its size) goes into the bucket, unless equipment sells it on the spot. That includes creatures caught before another one got away.
+- **Bucket full** (screen `bucketFull`, `BucketFull.vue`): catches that don't fit in the bucket (`BUCKET_SIZE`) wait in `RunState.waiting`, and the run stops on this screen before the card reward (or before the map, after a fight a creature fled). For the first waiting catch the player sells a bucket creature to keep it (`keepCatch`) or sells the catch (`sellCatch`), until none waits. The waiting catches are saved with the run, so a reload comes back to the same choice.
 - **Caught mid-fight:** in a fight with several creatures, one caught before the others leaves the battlefield once its capture animation has played (`CombatView.vue`), with a "🪣 … caught!" note. The engine keeps it in the fight state until the end, and `finishCombat` puts it in the bucket.
 - **Mini-bosses and bosses are let go** (`isReleaseFight`: the run stands on one):
   - **No catch:** a win never adds them to the bucket or sells them, and the creature book only marks them seen (`recordEncounter`'s `released`).
@@ -120,15 +121,16 @@ There are two separate collections of creatures. They never share creatures, exc
 | | **Bucket** | **Home aquarium** |
 |---|---|---|
 | What | The creatures caught during the current run | The creatures brought back from won runs |
-| Where in code | `RunState.bucket` (creature ids) | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, bond }` per creature |
+| Where in code | `RunState.bucket`: one `Catch` `{ id, size }` per creature, at most `BUCKET_SIZE` (7), companions included | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, size, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
-| Shown | Below the map and the shop (🪣 Bucket) | Menu background, companions screen (🏠 Home aquarium) |
-| Interactive | Yes: click a creature to sell it for coins | On the companions screen only: click a creature to bring it for the session |
+| Shown | Below the map and the shop, and on the bucket-full screen (🪣 Bucket, with an "n/7" count) | Menu background, companions screen (🏠 Home aquarium) |
+| Interactive | Yes: click a creature to see its size and sell it for coins (on the bucket-full screen: sell it to keep the waiting catch) | On the companions screen only: click a creature to bring it for the session |
 
 **Lifecycle:**
 1. **New run:** on the companions screen the player can pick up to `SESSION_SLOTS` (3) home-aquarium creatures (`useGame` `brought`). When the run starts, `takeFromHome` removes them from the home aquarium (and the profile is written), and `createRun` starts the bucket with them. They follow the bucket's rules from then on, so they're lost if the run is.
 2. **During the run:**
-   - **Captures:** captured creatures go into the bucket. With **Sharp Spear** they're sold on the spot instead and never reach it.
+   - **Captures:** captured creatures go into the bucket. With **Sharp Spear** they're sold on the spot instead and never reach it. When the bucket is full they wait for the bucket-full choice (see the run flow). A save from before the limit may hold more: it keeps them, but every new catch waits.
+   - **Sizes** (`engine/sizes.ts`): every catch rolls `small`, `normal`, `large` or `trophy` (`rollSize`) at `SIZE_ODDS` (30/50/17/3%). Each fight played before it this run moves `SIZE_SHIFT_LARGE` (1) point of the small chance to large and `SIZE_SHIFT_TROPHY` (0.5) to trophy, until small is down to `SMALL_FLOOR` (5%); a creature caught by draining its Will rolls twice and keeps the bigger. The rolls use a copy of the fight's RNG (`catchesOf`), so the UI can read the same sizes before `finishCombat` and the run's own rolls don't move. The size stays with the creature at home; hatchlings are small. Nothing reads it yet.
    - **Selling:** the player can sell creatures from the bucket at any time.
    - **Events:** events can read the bucket. The Enthusiastic Passerby tips coins per creature in it.
 3. **Successful run**, either the boss beaten (`claimVictory`) or the session finished at the 🚪 node (`finishSession`): `bringCatchHome` adds everything still in the bucket to the home aquarium, and the profile is written.
@@ -139,18 +141,19 @@ There are two separate collections of creatures. They never share creatures, exc
    - **Hatching:** clicking an egg plays the hatching animation. Then `hatchEgg` moves its creature into the home aquarium, and the creature is shown in the centre with a halo and streamers until the next click.
    - **Colours:** all eggs are beige for now. Planned rarity order: beige → white → purple → gold.
 
-**Bond** (`engine/bond.ts`): each creature in the home aquarium has its own bond points, from 0 to its `bondToFull`. That value comes from its tier (100, 200 or 400, `BOND_BY_TIER` in `content/creatures.ts`) unless the creature sets its own.
+**Bond** (`engine/bond.ts`): each creature in the home aquarium has its own bond points, from 0 to its `bondToFull`. That value comes from its tier (40, 60 or 90, `BOND_BY_TIER` in `content/creatures.ts`) unless the creature sets its own.
 - **Levels:** level 1 at 20%, level 2 at 50%, level 3 (fully bonded) at 100% (`BOND_LEVELS`). The aquarium shows a ♥ badge with the level (gold when fully bonded), and the full progress on hover or click.
-- **Brought along:** a companion gains `BOND_PER_ENCOUNTER` (1) point every time a fight starts during the run, event fights included (`startFight`). It keeps them only if the run succeeds, since a lost run loses the bucket. This is the only way past level 1. The run keeps each companion's bond (`RunState.companions` are `HomeCreature`s), so the right individual comes back.
+- **Brought along:** a companion gains `bondPerFight` every time a fight starts during the run, event fights included (`startFight`): the level's tier (Kid 1, Adult 2, Elder 3), doubled at a mini-boss or boss. It keeps them only if the run succeeds, since a lost run loses the bucket. This is the only way past level 1. The run keeps each companion's bond (`RunState.companions` are `HomeCreature`s), so the right individual comes back.
 - **Left at home:** `restAtHome` adds `BOND_AT_HOME` (2) after every run that ends, but never past level 1, and never takes any away.
-- **New arrivals:** creatures caught during a run start at 0; hatchlings start at level 1 (`hatchling`).
+- **New arrivals:** creatures caught during a run start at 0, or at the Soft Net's share of full bond (`bondOnCapture`, a percentage); hatchlings start at level 1 (`hatchling`).
 - **Order at a run's end** (`endRun` in `useGame.ts`): the creatures at home rest, then a successful run brings its bucket home, then eggs are laid.
 - **Picking companions:** the companions screen picks individuals by their index in the home aquarium (`takeFromHome`), not by species, so you choose which Clownfish to bring.
-- **Effects:** none yet. Bond is only tracked and shown for now.
+- **Effects:** bond levels 2 and 3 each add a star to a companion (see Companions).
 
 **Creature book** (`Profile.creatureBook`, id → `'seen' | 'captured'`): `recordEncounter` (engine, `run.ts`) updates it from the combat state. A watcher on `combat` in `useGame.ts` writes the profile whenever something new is learnt:
 - **Seen:** as soon as a fight starts, whatever the outcome. Mini-bosses and bosses stay seen, since they're let go.
 - **Captured:** once the fight is won, even if the run is lost later or the creature is sold. A captured creature never goes back to seen.
+- **Biggest catch** (`Profile.biggestCatch`, id → size): `recordSizes` keeps the biggest size caught of each species, sold on the spot or not. `finishFight` in `useGame.ts` updates it from `catchesOf` before `finishCombat`.
 
 Anything meant to last between runs (score, unlocks, statistics) belongs in the **profile**, never in `RunState`.
 
@@ -167,19 +170,20 @@ Families (`content/families.ts`, `FamilyDef`) group temperaments by a shared ide
 
 Creatures brought from the home aquarium on the companions screen (`RunState.companions`, always the first entries of the bucket) give a bonus from their **temperament** for the whole run. Creatures captured during the run are **angry** (💢 in the bucket) and give nothing. Selling a companion ends its bonus; the max HP it gave stays.
 
-- **Content:** `content/companions.ts`, one `CompanionBonusDef` per temperament. `effects` hold the amounts for one species; `fullSchool` is the extra at 3 species.
-- **Scaling** (`engine/companions.ts`, `activeBonuses`): only **different species** count, so two Clownfish are one reef fish.
-  - 1 species: the amounts as written.
-  - 2 species: doubled (`COMPANION_SCALE_CAP`).
-  - 3 species (`FULL_SCHOOL`): still doubled, plus the `fullSchool` effects.
+- **Content:** `content/companions.ts`, one `CompanionBonusDef` per temperament. An effect's `byStars` lists its amount at 1★, 2★… (a trigger's: its effect's `amount`); the last entry covers more stars, and an effect without it keeps its `amount`. `fullSchool` is the extra at 3 species, never scaled.
+- **Stars** (`engine/companions.ts`):
+  - **A companion's** (`companionStars`): its tier, +1 at bond level 2, +1 more at level 3, so 1★ to 5★.
+  - **A temperament's** (`activeBonuses`): the sum over its companions, each species once (the one with more stars), so two Clownfish count as one reef fish.
+  - **Amounts:** each effect reads its `byStars` at the temperament's stars (`bonusEffects`), and 3 species (`FULL_SCHOOL`) add `fullSchool`. `nextStars` finds the fewest extra stars that change an amount, for the companions screen's preview.
+  - **During a run:** stars follow the companions' bond, which grows each fight, so each fight's bonuses are worked out when it starts. The max HP bonus is the one given when the run started.
 - **Effects** (`CompanionEffect` in `engine/types.ts`):
   - **Passive modifiers,** read with `bonusTotal`: bonus Block, kept Block, bonus damage, first-attack damage, dodged attacks, extra Drain, a slower Will, max HP, healing after fights, sell bonus.
-  - **Triggered effects,** `{ type: 'trigger', on, effect }`: any card effect, resolved as the player by `fireTriggers` with its numbers as written (no Strength or other bonuses). The triggers are `combatStart`, `firstAttackEachTurn`, `firstAttackEachFight`, `fullBlock`, `hitByEnemy` and `firstBelowHalfHp`. For the attack and hit triggers, `target` means the enemy attacked or attacking. Block from triggers that fire during the enemies' turn lasts into the player's next turn.
+  - **Triggered effects,** `{ type: 'trigger', on, effect }`: any card effect, resolved as the player by `fireTriggers` with its numbers as written (no Strength or other bonuses). The triggers are `combatStart`, `secondTurnStart` (after the second turn's draw), `firstAttackEachTurn`, `firstAttackEachFight`, `fullBlock`, `hitByEnemy` and `firstBelowHalfHp`. For the attack and hit triggers, `target` means the enemy attacked or attacking. Block from triggers that fire during the enemies' turn lasts into the player's next turn.
 - **Where they apply:**
   - `createRun` adds the max HP.
   - `startFight` passes the scaled effects to the fight, which keeps them in `CombatState.bonuses`; the once-per-turn and once-per-fight state lives in `bonusTracker`.
   - `finishCombat` heals and applies the sell bonus to on-the-spot sales; `sellCreature` applies it to bucket sales.
-- **UI:** the home aquarium shows a creature's bonus before you bring it. The session slots list the combined bonuses. The map shows them next to the equipment, with a tooltip.
+- **UI:** the home aquarium shows a creature's bonus and stars before you bring it. The session slots show each companion's stars, and each temperament's stars, bonus, and what the next stars would change. The map shows the bonuses next to the equipment, with their stars and a tooltip.
 
 ## Persistence
 
@@ -188,17 +192,17 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 | File | Contents | Written | Deleted |
 |---|---|---|---|
 | `save.json` | `SavedGame`: version, seed, screen, run, combat, pending card rewards, open event, shop visit | After every state change (a watcher in `useGame.ts`) | When the run is lost or completed, or by **Reset progression** |
-| `profile.json` | `Profile`: version, home aquarium, eggs, creature book | When a successful run brings its bucket home, when an egg is laid or hatched, and when a creature is first seen or captured | Only by **Reset progression** |
+| `profile.json` | `Profile`: version, home aquarium, eggs, creature book, biggest catches | When a successful run brings its bucket home, when an egg is laid or hatched, and when a creature is first seen or captured | Only by **Reset progression** |
 
 - **Where:** in the desktop app, in the app's data folder (`app.getPath('userData')`, e.g. `~/Library/Application Support/Slay the Fish`). In a browser, localStorage under `slay-the-fish:save` and `slay-the-fish:profile`.
 - **Desktop bridge:** `electron/preload.cjs` exposes `window.desktop.readData / writeData / deleteData(name)` and `quit()`. `electron/main.js` only accepts the names in `DATA_FILES`, so the page can't touch any other file.
 - **Safe writes:** a file is written to `name.json.tmp`, then renamed over the real one, so a crash mid-write can't corrupt it. Writes are queued one after another, so an older write can never land after a newer one.
-- **Versions** (`SAVE_VERSION`, currently 5, and `PROFILE_VERSION`, currently 4). When a saved shape changes:
+- **Versions** (`SAVE_VERSION`, currently 14, and `PROFILE_VERSION`, currently 5). When a saved shape changes:
   1. Bump the version.
   2. Convert older files in `upgradeSave` (or the profile's equivalent).
   3. A file that can't be upgraded is ignored rather than crashing: no Resume, or a fresh profile.
 
-  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond. Version 4 saves were on a generated map: they can't be resumed.
+  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond. Version 4 saves were on a generated map: they can't be resumed. Version 13 saves and version 4 profiles had bond points on the old scale (full at 100/200/400) and no sizes: `rescaleBond` keeps each creature's share of full bond (never a lower level), every creature is normal-sized, and every species already captured gets a normal biggest catch.
 - **Resume** restores every saved field, so the player returns to the same screen. Mid-fight saves include the hand, energy and Will.
 
 ## Desktop app and releases
@@ -238,7 +242,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 
 - **Sprite sheets** are registered in `ui/sprites.ts` (`SHEETS`) and referenced from content as `{ sheet, index }` (1-based).
 - **Animated creature sheets** (`assets/creatures/NNN.png`, 6 frames × 4 rows: idle, attack, capture, flee) come from `scripts/generate-creature-sprites.mjs`.
-- **The coast map** (`assets/coast/map.png`, 1300×450: land, beach, shoreline at y 196, the shallows, then the open sea from about y 300) is the background of every level's map, each age showing it down to its `height`. `scripts/draw-coast.mjs` (`npm run coast`) draws it with every place on it, and prints the places for `content/coast.ts`. The older hand-drawn art in `assets/map` (and `scripts/draw-sea.mjs`) is no longer used. `MapView.vue` draws on top of it:
+- **The coast map** (`assets/coast/map.png`, 1300×450: land, then a shoreline around y 196 with bays, two headlands, a tidal island and a lagoon behind a sand spit, the shallows, then the open sea from about y 300) is the background of every level's map, each age showing it down to its `height`. `scripts/draw-coast.mjs` (`npm run coast`) draws it with every place on it, and prints the places for `content/coast.ts`. The older hand-drawn art in `assets/map` (and `scripts/draw-sea.mjs`) is no longer used. `MapView.vue` draws on top of it:
   - **Links:** the links between nodes.
   - **Nodes:** fights in their spot's colour with its code, ? / $ / T for events, shops and treasure, ⌂ for heading home, a diamond for the mini-boss and a ring for the boss.
   - **Legend:** a **Legend** button shows it, built from the spots.
@@ -268,8 +272,10 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 | `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier`, `water` | `content/creatures.ts` | Per-creature balance, and where it lives |
 | Item prices and limits | `content/shop.ts` | Shop |
 | `startingItems`, `level` per build; item effects | `content/builds.ts`, `content/equipment.ts` | Which builds start a run, and the items to pick from (none for now) |
-| Temperament bonuses, `COMPANION_SCALE_CAP`, `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales |
-| `BOND_BY_TIER`, `bondToFull`, `BOND_PER_ENCOUNTER`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |
+| Temperament bonuses (`byStars`), `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales with stars |
+| `BOND_BY_TIER`, `bondToFull`, `bondPerFight`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |
+| `BUCKET_SIZE` | `engine/run.ts` | How many creatures the bucket holds, companions included |
+| `SIZE_ODDS`, `SIZE_SHIFT_LARGE`, `SIZE_SHIFT_TROPHY`, `SMALL_FLOOR` | `engine/sizes.ts` | How big catches are |
 
 Percentages in equipment and event effects are whole numbers (20 = 20%), and results are **rounded up**: the Reliable Reel's rate cut, the Strong Rod's extra pull, the Sharp Spear's sale bonus, passerby bonuses.
 
@@ -278,6 +284,6 @@ Percentages in equipment and event effects are whole numbers (20 = 20%), and res
 - **`strongerPull`:** the Strong Rod. The player's Drain drains a share more (`CombatState.pullPercent`).
 - **`sellOnCapture`:** the Sharp Spear.
 - **`passerbyBonus`:** the Rubber Duck.
-- **`bondOnCapture`:** the Soft Net. Catches come home with that bond (`bringCatchHome`).
+- **`bondOnCapture`:** the Soft Net. Catches come home with that share of their full bond, in percent (`bringCatchHome`).
 - **`extraCatch`:** the Crab Hook. An ordinary fight at one of its `spots` (rock pools, estuary, stream, beach, cliff rocks) sometimes drags in one more creature of the listed types at the same tier, from the spot's waters when possible (`startFight`). Never on a mini-boss or a boss.
 - **The Handline** has no effect yet.

@@ -10,7 +10,12 @@ import {
   findNode,
   applyAction,
   bringCatchHome,
+  catchesOf,
+  finishCombat,
   hatchling,
+  keepCatch,
+  recordSizes,
+  sellCatch,
   restAtHome,
   layEggs,
   SESSION_SLOTS,
@@ -24,7 +29,6 @@ import {
   isReleaseFight,
   visitTreasure,
   recordEncounter,
-  finishCombat,
   isMapComplete,
   visitLeave,
   fightFamilies,
@@ -33,6 +37,7 @@ import {
   travelTo,
   visitEvent,
   visitShop,
+  type CatchSize,
   type CombatAction,
   type CombatState,
   type Discovery,
@@ -52,7 +57,7 @@ import {
   type SavedGame,
 } from './saveStore';
 
-export type Screen = 'menu' | 'companions' | 'map' | 'combat' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
+export type Screen = 'menu' | 'companions' | 'map' | 'combat' | 'bucketFull' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
 
 /**
  * Thin glue between Vue and the engine: holds the current immutable states in
@@ -76,11 +81,14 @@ export function useGame(initialSeed: number) {
   const homeAquarium = ref<HomeCreature[]>([]);
   /** Every creature met so far, seen or captured; shown in the creature book. */
   const creatureBook = shallowRef<Readonly<Record<string, Discovery>>>({});
+  /** The biggest of each species ever caught, in the creature book. */
+  const biggestCatch = shallowRef<Readonly<Record<string, CatchSize>>>({});
   /** Eggs laid in the home aquarium, waiting to be clicked: the creature id inside each. */
   const eggs = ref<string[]>([]);
   loadProfile().then((profile) => {
     homeAquarium.value = profile.homeAquarium;
     creatureBook.value = profile.creatureBook;
+    biggestCatch.value = profile.biggestCatch;
     eggs.value = profile.eggs;
   });
   /** The finish node the player clicked, waiting for them to confirm on the leave screen. */
@@ -93,6 +101,7 @@ export function useGame(initialSeed: number) {
       version: PROFILE_VERSION,
       homeAquarium: homeAquarium.value,
       creatureBook: { ...creatureBook.value },
+      biggestCatch: { ...biggestCatch.value },
       eggs: eggs.value,
     });
   }
@@ -105,6 +114,16 @@ export function useGame(initialSeed: number) {
     creatureBook.value = book;
     saveProfile();
   });
+
+  /** The fight is over: its catches' sizes go in the creature book, then the run carries its outcome. */
+  function finishFight(current: RunState, ended: CombatState): RunState {
+    const biggest = recordSizes(biggestCatch.value, catchesOf(current, ended));
+    if (biggest !== biggestCatch.value) {
+      biggestCatch.value = biggest;
+      saveProfile();
+    }
+    return finishCombat(current, ended, gameData);
+  }
 
   /** On the companions screen: indices in `homeAquarium` of the creatures picked to start the run in the bucket. */
   const broughtSlots = ref<number[]>([]);
@@ -201,6 +220,7 @@ export function useGame(initialSeed: number) {
     homeAquarium.value = [];
     broughtSlots.value = [];
     creatureBook.value = {};
+    biggestCatch.value = {};
     eggs.value = [];
     clearSavedGame();
     clearProfile();
@@ -297,7 +317,7 @@ export function useGame(initialSeed: number) {
 
   function claimVictory() {
     if (!run.value || !combat.value || combat.value.phase !== 'won') return;
-    let finished = finishCombat(run.value, combat.value, gameData);
+    let finished = finishFight(run.value, combat.value);
     const families = fightFamilies(combat.value, gameData);
     combat.value = null;
     if (isMapComplete(finished)) {
@@ -311,25 +331,42 @@ export function useGame(initialSeed: number) {
     const rewards = rollCardRewards(finished, gameData, { families });
     run.value = rewards.run;
     rewardChoices.value = rewards.choices;
-    screen.value = 'reward';
+    screen.value = finished.waiting.length ? 'bucketFull' : 'reward';
   }
 
   function sell(slot: number) {
     if (run.value) run.value = sellCreature(run.value, slot, gameData);
   }
 
+  /** Bucket full: the first waiting catch takes the place of the creature at `slot`, which is sold. */
+  function keepWaiting(slot: number) {
+    if (run.value) afterBucketFull(keepCatch(run.value, slot, gameData));
+  }
+
+  /** Bucket full: the first waiting catch is sold. */
+  function sellWaiting() {
+    if (run.value) afterBucketFull(sellCatch(run.value, gameData));
+  }
+
+  /** Once no catch is waiting, on to the fight's card reward, or the map after a fight a creature fled. */
+  function afterBucketFull(next: RunState) {
+    run.value = next;
+    if (!next.waiting.length) screen.value = rewardChoices.value.length ? 'reward' : 'map';
+  }
+
   /** After a creature got away: carry HP over, no reward. */
   function leaveFight() {
     if (!run.value || !combat.value || combat.value.phase !== 'fled') return;
-    run.value = finishCombat(run.value, combat.value, gameData);
+    run.value = finishFight(run.value, combat.value);
     combat.value = null;
+    rewardChoices.value = [];
     // A boss getting away ends the run without a win: the bucket stays behind.
     runEnd.value = 'fled';
     if (isMapComplete(run.value)) {
       endRun(run.value, false);
       screen.value = 'complete';
     } else {
-      screen.value = 'map';
+      screen.value = run.value.waiting.length ? 'bucketFull' : 'map';
     }
   }
 
@@ -418,11 +455,14 @@ export function useGame(initialSeed: number) {
     finishSession,
     cancelLeave,
     sell,
+    keepWaiting,
+    sellWaiting,
     newRun,
     debugStartAt,
     savedGame,
     homeAquarium,
     creatureBook,
+    biggestCatch,
     eggs,
     newEggs,
     brought,

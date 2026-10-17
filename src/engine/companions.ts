@@ -1,3 +1,4 @@
+import { bondLevel, type HomeCreature } from './bond';
 import { describeEffect } from './describe';
 import { text } from './text';
 import type { CompanionBonusDef, CompanionEffect, GameData } from './types';
@@ -6,51 +7,73 @@ import type { CompanionBonusDef, CompanionEffect, GameData } from './types';
  * Creatures brought from the home aquarium (`RunState.companions`) give their temperament's
  * bonus for the run. Creatures captured along the way are angry and give nothing.
  *
- * Only different species count: two Clownfish are one reef fish. With n species of a
- * temperament, each `amount` is multiplied by min(n, COMPANION_SCALE_CAP) (or read from the
- * effect's `bySpecies`), and at FULL_SCHOOL species its `fullSchool` effects are added too.
+ * Each companion has stars: its tier, plus one at bond level 2 and one more at level 3. A
+ * temperament's stars add up its companions', counting each species once (the one with more
+ * stars): two Clownfish are one reef fish. Its effects' amounts are read from their `byStars`
+ * at that many stars, and at FULL_SCHOOL species its `fullSchool` effects are added too.
  */
-export const COMPANION_SCALE_CAP = 2;
 export const FULL_SCHOOL = 3;
 
 export interface ActiveBonus {
   def: CompanionBonusDef;
   /** Distinct species of this temperament brought. */
   species: number;
+  /** The temperament's stars. */
+  stars: number;
   /** Scaled, plus `fullSchool` when reached. */
   effects: CompanionEffect[];
 }
 
-function scale(effect: CompanionEffect, species: number): CompanionEffect {
-  if ('bySpecies' in effect && effect.bySpecies?.length) {
-    return { ...effect, amount: effect.bySpecies[Math.min(species, effect.bySpecies.length) - 1] };
+/** Stars of one companion: its tier, +1 at bond level 2, +1 more at level 3. */
+export function companionStars(creature: HomeCreature, data: GameData): number {
+  const level = bondLevel(creature, data);
+  return (data.enemies[creature.id]?.tier ?? 1) + (level >= 2 ? 1 : 0) + (level >= 3 ? 1 : 0);
+}
+
+function scale(effect: CompanionEffect, stars: number): CompanionEffect {
+  if (!effect.byStars?.length) return effect;
+  const amount = effect.byStars[Math.min(stars, effect.byStars.length) - 1];
+  if (effect.type === 'trigger') return { ...effect, effect: { ...effect.effect, amount } as typeof effect.effect };
+  return { ...effect, amount };
+}
+
+/** A temperament's effects at this many stars and species. */
+export function bonusEffects(def: CompanionBonusDef, stars: number, species: number): CompanionEffect[] {
+  const effects = def.effects.map((e) => scale(e, stars));
+  return species >= FULL_SCHOOL ? [...effects, ...def.fullSchool] : effects;
+}
+
+/**
+ * What more stars would change: the fewest stars to add (`more`) for an amount to change, and the
+ * effects that change, at their new amounts. Null when no more stars change anything.
+ */
+export function nextStars(bonus: ActiveBonus): { more: number; effects: CompanionEffect[] } | null {
+  const most = Math.max(0, ...bonus.def.effects.map((e) => e.byStars?.length ?? 0));
+  for (let more = 1; bonus.stars + more <= most; more++) {
+    const effects = bonus.def.effects.map((e) => scale(e, bonus.stars + more)).filter((e, i) => JSON.stringify(e) !== JSON.stringify(bonus.effects[i]));
+    if (effects.length) return { more, effects };
   }
-  const factor = Math.min(species, COMPANION_SCALE_CAP);
-  if (effect.type === 'trigger') {
-    const inner = effect.effect;
-    return { ...effect, effect: 'amount' in inner && typeof inner.amount === 'number' ? { ...inner, amount: inner.amount * factor } : inner };
-  }
-  return { ...effect, amount: effect.amount * factor };
+  return null;
 }
 
 /** The bonuses these companions give, in order of first appearance. */
-export function activeBonuses(companions: readonly { id: string }[], data: GameData): ActiveBonus[] {
-  const species = new Map<string, Set<string>>();
-  for (const { id } of companions) {
-    const temperament = data.enemies[id]?.temperament;
+export function activeBonuses(companions: readonly HomeCreature[], data: GameData): ActiveBonus[] {
+  const byTemperament = new Map<string, Map<string, number>>();
+  for (const creature of companions) {
+    const temperament = data.enemies[creature.id]?.temperament;
     if (!temperament || !data.companionBonuses[temperament]) continue;
-    if (!species.has(temperament)) species.set(temperament, new Set());
-    species.get(temperament)!.add(id);
+    if (!byTemperament.has(temperament)) byTemperament.set(temperament, new Map());
+    const species = byTemperament.get(temperament)!;
+    species.set(creature.id, Math.max(species.get(creature.id) ?? 0, companionStars(creature, data)));
   }
-  return [...species].map(([temperament, ids]) => {
+  return [...byTemperament].map(([temperament, species]) => {
     const def = data.companionBonuses[temperament];
-    const effects = def.effects.map((e) => scale(e, ids.size));
-    if (ids.size >= FULL_SCHOOL) effects.push(...def.fullSchool);
-    return { def, species: ids.size, effects };
+    const stars = [...species.values()].reduce((a, b) => a + b, 0);
+    return { def, species: species.size, stars, effects: bonusEffects(def, stars, species.size) };
   });
 }
 
-export function companionEffects(companions: readonly { id: string }[], data: GameData): CompanionEffect[] {
+export function companionEffects(companions: readonly HomeCreature[], data: GameData): CompanionEffect[] {
   return activeBonuses(companions, data).flatMap((b) => b.effects);
 }
 

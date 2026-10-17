@@ -1,10 +1,11 @@
-import { addBond, BOND_PER_ENCOUNTER, bondToFull, type HomeCreature } from './bond';
+import { addBond, bondPerFight, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
 import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
 import { nextFloat, nextInt } from './rng';
+import { rollSize, type Catch } from './sizes';
 import { isAlive } from './effects';
 import { creatureFamilies } from './families';
 import type { BuildDef, CardDef, CombatState, EnemyState, GameData } from './types';
@@ -31,14 +32,19 @@ export interface RunState {
   /** Node ids travelled through, starting point included. */
   visited: string[];
   /**
-   * The bucket: enemy definition ids of the creatures caught this run and not sold, in order
-   * (duplicates allowed). It only reaches the home aquarium if the run is won (`bringCatchHome`).
+   * The bucket: the creatures caught this run and not sold, in order, at most `BUCKET_SIZE`
+   * (companions included). It only reaches the home aquarium if the run is won (`bringCatchHome`).
    */
-  bucket: string[];
+  bucket: Catch[];
+  /**
+   * Catches that didn't fit in the bucket, waiting for the player to make room (`keepCatch`) or
+   * sell them (`sellCatch`), first one first. The run can't go on until it's empty.
+   */
+  waiting: Catch[];
   /**
    * The creatures brought from the home aquarium, which give their companion bonus. Always the
    * first entries of `bucket`, in the same order (captures are added after them, and selling one
-   * removes it from both). Their bond grows with every fight (`BOND_PER_ENCOUNTER`).
+   * removes it from both). Their bond grows with every fight (`bondPerFight`).
    */
   companions: HomeCreature[];
   coins: number;
@@ -62,6 +68,8 @@ export const RARE_PITY_STEP = 2;
 export const EVENT_FIGHT_CHANCE = 0.1;
 /** How many home-aquarium creatures the player can bring along in the bucket. */
 export const SESSION_SLOTS = 3;
+/** How many creatures the bucket holds, the brought ones included. */
+export const BUCKET_SIZE = 7;
 
 /**
  * Start a run on the first level, with the chosen build's starter deck, its chosen starting
@@ -93,7 +101,8 @@ export function createRun(
     map: { columns: [] },
     position: START_NODE_ID,
     visited: [START_NODE_ID],
-    bucket: brought.map((c) => c.id),
+    bucket: brought.map(({ id, size }) => ({ id, size })),
+    waiting: [],
     companions: brought.map((c) => ({ ...c })),
     coins: 0,
     equipment: item === undefined ? [] : [item],
@@ -171,7 +180,8 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   const pool = encountersFor(node, data);
   const encounter = pool[nextInt(next, 0, pool.length - 1)];
   const combatSeed = nextInt(next, 0, 0x7fffffff);
-  next.companions = next.companions.map((c) => addBond(c, BOND_PER_ENCOUNTER, data));
+  const bond = bondPerFight(data.levels[next.level].tier, node.kind !== 'fight');
+  next.companions = next.companions.map((c) => addBond(c, bond, data));
   const enemies = [...encounter.enemies, ...extraCatch(next, node, data)];
   const growth = 100 + ENCOUNTER_GROWTH_PERCENT * next.fights;
   next.fights++;
@@ -258,29 +268,58 @@ export function visitShop(run: RunState, nodeId: string): RunState {
 }
 
 /**
- * Carry the fight's outcome into the run: HP, floor (on a win), and the creatures captured,
- * even in a fight another creature then fled: they go into the bucket unless equipment sells
- * them on the spot. Mini-bosses and bosses are let go instead (`isReleaseFight`).
+ * The creatures `combat` caught, even in a fight another creature then fled, with their sizes
+ * (`rollSize`, after the run's earlier fights; drained of Will rolls twice). None in a lost fight
+ * or a release fight (`isReleaseFight`). Rolled from a copy of the fight's RNG, so calling this
+ * again gives the same sizes.
+ */
+export function catchesOf(run: RunState, combat: CombatState): Catch[] {
+  if (combat.phase === 'lost' || isReleaseFight(run)) return [];
+  const rng = { rng: combat.rng };
+  return combat.enemies
+    .filter((e) => combat.phase === 'won' || !isAlive(e))
+    .map((e) => ({ id: e.defId, size: rollSize(rng, run.fights - 1, e.hp > 0) }));
+}
+
+/**
+ * Carry the fight's outcome into the run: HP, floor (on a win), and the creatures captured
+ * (`catchesOf`): they go into the bucket unless equipment sells them on the spot. Those that
+ * don't fit (`BUCKET_SIZE`) wait for the player's choice (`waiting`).
  */
 export function finishCombat(run: RunState, combat: CombatState, data: GameData): RunState {
   const next = { ...clone(run), hp: Math.max(0, combat.player.hp) };
   if (combat.phase === 'lost') return next;
   next.hp = Math.min(next.maxHp, next.hp + bonusTotal(combat.bonuses, 'healAfterFight'));
   if (combat.phase === 'won') next.floor++;
-  if (isReleaseFight(run)) return next;
   const sellBonus = bonusTotal(combat.bonuses, 'sellBonus');
-  // Everything caught counts, even when another creature then got away.
-  for (const enemy of combat.enemies.filter((e) => combat.phase === 'won' || !isAlive(e))) {
-    const sale = instantSaleValue(enemy.defId, run.equipment, data, sellBonus);
-    if (sale === null) next.bucket.push(enemy.defId);
-    else next.coins += sale;
+  for (const caught of catchesOf(run, combat)) {
+    const sale = instantSaleValue(caught.id, run.equipment, data, sellBonus);
+    if (sale !== null) next.coins += sale;
+    else if (next.bucket.length < BUCKET_SIZE) next.bucket.push(caught);
+    else next.waiting.push(caught);
   }
   return next;
 }
 
+/** The first waiting catch goes into the bucket, in place of the creature at `slot`, which is sold (`sellCreature`). */
+export function keepCatch(run: RunState, slot: number, data: GameData): RunState {
+  const [caught, ...rest] = run.waiting;
+  if (!caught) throw new Error('No catch is waiting.');
+  const sold = sellCreature(run, slot, data);
+  return { ...sold, bucket: [...sold.bucket, caught], waiting: rest };
+}
+
+/** Sell the first waiting catch, as `sellCreature` would. */
+export function sellCatch(run: RunState, data: GameData): RunState {
+  const [caught, ...rest] = run.waiting;
+  if (!caught) throw new Error('No catch is waiting.');
+  const sellBonus = bonusTotal(companionEffects(run.companions, data), 'sellBonus');
+  return { ...clone(run), waiting: rest, coins: run.coins + saleValue(caught.id, sellBonus, data) };
+}
+
 /** Sell the bucket's creature at index `slot` for its sell value (plus companion sell bonuses). */
 export function sellCreature(run: RunState, slot: number, data: GameData): RunState {
-  const id = run.bucket[slot];
+  const id = run.bucket[slot]?.id;
   if (id === undefined) throw new Error(`Nothing captured at slot ${slot}`);
   const sellBonus = bonusTotal(companionEffects(run.companions, data), 'sellBonus');
   return {
@@ -303,12 +342,14 @@ export function takeFromHome(
 /**
  * The home aquarium after a successful run (boss beaten, or the session finished at a leave node):
  * everything still in the bucket joins it. Companions come back with the bond they gained on the
- * way; creatures caught on the way start with no bond, or with `bondOnCapture` equipment's. A lost or abandoned run never calls this, so its bucket,
- * companions included, is lost.
+ * way; creatures caught on the way start with no bond, or with `bondOnCapture` equipment's share
+ * of full bond. A lost or abandoned run never calls this, so its bucket, companions included, is lost.
  */
 export function bringCatchHome(home: readonly HomeCreature[], run: RunState, data: GameData): HomeCreature[] {
-  const bond = equipmentEffects(run.equipment, data).reduce((sum, e) => (e.type === 'bondOnCapture' ? sum + e.amount : sum), 0);
-  const caught = run.bucket.slice(run.companions.length).map((id) => ({ id, bond: Math.min(bond, bondToFull(id, data)) }));
+  const percent = equipmentEffects(run.equipment, data).reduce((sum, e) => (e.type === 'bondOnCapture' ? sum + e.percent : sum), 0);
+  const caught = run.bucket
+    .slice(run.companions.length)
+    .map(({ id, size }) => ({ id, size, bond: Math.min(bondToFull(id, data), Math.round((bondToFull(id, data) * percent) / 100)) }));
   return [...home, ...run.companions.map((c) => ({ ...c })), ...caught];
 }
 

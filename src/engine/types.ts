@@ -211,8 +211,8 @@ export type EquipmentEffect =
   | { type: 'passerbyBonus'; bonusPercent: number }
   /** The player's Drain drains this much more, in percent (rounded up). */
   | { type: 'strongerPull'; percent: number }
-  /** Creatures caught during the run come home with this many bond points. */
-  | { type: 'bondOnCapture'; amount: number }
+  /** Creatures caught during the run come home with this share of their full bond, in percent (rounded). */
+  | { type: 'bondOnCapture'; percent: number }
   /**
    * Each ordinary fight (at one of `spots`, if given) has this chance to bring one more creature of
    * one of `types`, from the same tier.
@@ -234,6 +234,8 @@ export interface EquipmentDef {
 export type CompanionTrigger =
   /** Once the first turn has started (after the opening draw). */
   | 'combatStart'
+  /** Once the second turn has started (after its draw). */
+  | 'secondTurnStart'
   /** After the first attack card of each turn / each fight resolves; `target` is the enemy it was played on. */
   | 'firstAttackEachTurn'
   | 'firstAttackEachFight'
@@ -246,10 +248,11 @@ export type CompanionTrigger =
 
 /**
  * What a creature brought from the home aquarium does for the run (see companions.ts).
- * Every `amount` is for one species; more species of the same temperament scale it.
+ * `byStars` gives the amount (a trigger's effect's `amount`) at 1, 2, 3… stars of the
+ * temperament, its last entry covering more stars; without it the amount is fixed.
  * Percentages are whole numbers (10 = 10%).
  */
-export type CompanionEffect =
+export type CompanionEffect = (
   /** Whenever the player gains Block, they gain this much more. */
   | { type: 'bonusBlock'; amount: number }
   /** Up to this much Block carries over to the next turn. */
@@ -270,15 +273,12 @@ export type CompanionEffect =
   | { type: 'healAfterFight'; amount: number }
   /** Creatures sell for this percentage more during the run (bucket and on-the-spot sales). */
   | { type: 'sellBonus'; amount: number }
-  /**
-   * Card rewards the player may skip, and reroll (new cards offered), on each level.
-   * `bySpecies` gives the amount for 1, 2, 3… species instead of scaling `amount` (its last
-   * entry covers more species).
-   */
-  | { type: 'rewardSkips'; amount: number; bySpecies?: number[] }
-  | { type: 'rewardRerolls'; amount: number; bySpecies?: number[] }
+  /** Card rewards the player may skip, and reroll (new cards offered), on each level. */
+  | { type: 'rewardSkips'; amount: number }
+  | { type: 'rewardRerolls'; amount: number }
   /** Resolve `effect` as the player whenever `on` happens. Its numbers ignore Strength and other modifiers. */
-  | { type: 'trigger'; on: CompanionTrigger; effect: Effect };
+  | { type: 'trigger'; on: CompanionTrigger; effect: Effect }
+) & { byStars?: number[] };
 
 /**
  * A creature family: temperaments grouped by a shared identity (Venom, Shell, Hunter…). A temperament
@@ -307,11 +307,11 @@ export interface CompanionBonusDef {
   temperamentName: string;
   /** Placeholder art (emoji). Display-only. */
   icon?: string;
-  /** What the one-species bonus does, for developers. Not shown: the game generates its text from `effects`. */
+  /** What the bonus does, for developers. Not shown: the game generates its text from `effects`. */
   description?: string;
   /** Which playstyle it suits (a build id, or e.g. 'any', 'defensive', 'economy'), for future help guides. Unused for now. */
   bestBuild?: string;
-  /** For one species; scaled by the number of species (see `COMPANION_SCALE_CAP`). */
+  /** Scaled by the temperament's stars (`byStars`, see companions.ts). */
   effects: CompanionEffect[];
   /** Added, as written, once `FULL_SCHOOL` species of this temperament are brought. */
   fullSchool: CompanionEffect[];

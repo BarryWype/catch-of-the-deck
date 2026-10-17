@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
+import { BUCKET_SIZE, findNode, isReleaseFight, SESSION_SLOTS } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
+import BucketFull from './BucketFull.vue';
 import CombatView from './CombatView.vue';
 import EggTray from './EggTray.vue';
 import EventScreen from './EventScreen.vue';
@@ -27,7 +28,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft } = game;
+const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft } = game;
 
 /**
  * The top bar's title: the act being played, from its level's "age · place" name. It replaces
@@ -99,7 +100,7 @@ function startNewRun() {
       <div class="home-row">
         <Aquarium
           class="aquarium"
-          :creatures="homeLeft.map((c) => c.id)"
+          :creatures="homeLeft"
           :bonds="homeLeft.map((c) => c.bond)"
           :data="data"
           action="bring"
@@ -119,6 +120,7 @@ function startNewRun() {
       :can-resume="!!savedGame"
       :home-aquarium="homeAquarium"
       :creature-book="creatureBook"
+      :biggest-catch="biggestCatch"
       :data="data"
       @resume="game.resume"
       @new-run="askNewRun(newRunFromMenu)"
@@ -132,6 +134,7 @@ function startNewRun() {
       <Aquarium
         class="aquarium"
         :creatures="run.bucket"
+        :capacity="BUCKET_SIZE"
         :companions="run.companions.length"
         :bonds="run.companions.map((c) => c.bond)"
         :data="data"
@@ -153,6 +156,7 @@ function startNewRun() {
       @leave="game.leaveFight"
       @menu="game.toMenu"
     />
+    <BucketFull v-else-if="screen === 'bucketFull'" :run="run" :data="data" @keep="game.keepWaiting" @sell="game.sellWaiting" />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <section v-else-if="screen === 'leave'" class="complete">
       <div class="leave-icon"><GameIcon icon="🏠" /></div>

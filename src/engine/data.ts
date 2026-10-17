@@ -80,7 +80,7 @@ export function validateContent(source: ContentSource): string[] {
   for (const item of source.equipment) {
     checkDuplicate(equipmentIds, item.id, 'equipment');
     for (const effect of item.effects) {
-      const value = 'percent' in effect ? effect.percent : 'bonusPercent' in effect ? effect.bonusPercent : effect.amount;
+      const value = 'percent' in effect ? effect.percent : effect.bonusPercent;
       if (!(value >= 0)) errors.push(`Equipment "${item.id}": effect "${effect.type}" needs a value ≥ 0.`);
       if (effect.type === 'extraCatch') {
         checkTags(`Equipment "${item.id}"`, effect.types);
@@ -215,10 +215,14 @@ export function validateContent(source: ContentSource): string[] {
     for (const effect of [...bonus.effects, ...bonus.fullSchool]) {
       if (effect.type === 'trigger') checkEffects(where, [effect.effect]);
       else if (!(effect.amount >= 0)) errors.push(`${where}: effect "${effect.type}" needs an amount ≥ 0.`);
-      if ('bySpecies' in effect && effect.bySpecies?.some((n) => !(Number.isInteger(n) && n >= 0))) {
-        errors.push(`${where}: effect "${effect.type}" needs whole numbers ≥ 0 in bySpecies.`);
+      if (effect.byStars?.some((n) => !(Number.isInteger(n) && n >= 0))) {
+        errors.push(`${where}: effect "${effect.type}" needs whole numbers ≥ 0 in byStars.`);
+      }
+      if (effect.byStars && effect.type === 'trigger' && !('amount' in effect.effect)) {
+        errors.push(`${where}: a trigger with byStars needs an effect with an amount.`);
       }
     }
+    if (bonus.fullSchool.some((e) => e.byStars)) errors.push(`${where}: fullSchool effects aren't scaled, so they take no byStars.`);
   }
   for (const enemy of source.enemies) {
     if (enemy.temperament !== undefined && !bonusIds.has(enemy.temperament)) {

@@ -31,7 +31,7 @@ import {
   visitShop,
   type RunState,
 } from '../src/engine';
-import { play, repeat, setup, testData, withNodeKind } from './fixtures';
+import { play, repeat, setup, testData, withNodeKind, homeCreature, caught, ids } from './fixtures';
 
 /** Past the fixtures' mini-boss: rare cards can be offered. */
 const pastMiniBoss = (run: RunState): RunState => ({ ...run, position: '3a', visited: [...run.visited, '1a', '2', '3a'] });
@@ -141,7 +141,7 @@ describe('run', () => {
     const { run, combat } = travelTo(start, availableDestinations(start)[0].id, testData);
     const hurt = { ...combat, phase: 'won' as const, player: { ...combat.player, hp: 50 } };
     const after = finishCombat(run, hurt, testData);
-    expect(after).toMatchObject({ hp: 50, floor: 2, bucket: ['dummy'] });
+    expect(after).toMatchObject({ hp: 50, floor: 2, bucket: [{ id: 'dummy' }] });
     expect(run.bucket).toEqual([]); // input untouched
     expect(addCardToDeck(after, 'twin', testData).deck).toEqual(['strike', 'defend', 'twin']);
   });
@@ -170,18 +170,18 @@ describe('capture record', () => {
     expect(run.bucket).toEqual([]);
     run = finishCombat(run, { ...fight.combat, phase: 'won' }, testData);
     run = finishCombat(run, { ...fight.combat, phase: 'won' }, testData);
-    expect(run.bucket).toEqual(['dummy', 'dummy']);
+    expect(ids(run.bucket)).toEqual(['dummy', 'dummy']);
   });
 
   it('a won run brings its bucket home, on top of what is already there', () => {
-    const run = { ...createRun(5, testData, 'basic'), bucket: ['dummy', 'cycler'] };
-    const home = [{ id: 'gambler', bond: 7 }];
+    const run = { ...createRun(5, testData, 'basic'), bucket: caught('dummy', 'cycler') };
+    const home = [homeCreature('gambler', 7)];
     expect(bringCatchHome(home, run, testData)).toEqual([
-      { id: 'gambler', bond: 7 },
-      { id: 'dummy', bond: 0 },
-      { id: 'cycler', bond: 0 },
+      homeCreature('gambler', 7),
+      homeCreature('dummy', 0),
+      homeCreature('cycler', 0),
     ]);
-    expect(run.bucket).toEqual(['dummy', 'cycler']); // input untouched
+    expect(ids(run.bucket)).toEqual(['dummy', 'cycler']); // input untouched
   });
 
   it('the creature book marks the creatures of a fight seen, then captured once it is won', () => {
@@ -199,7 +199,7 @@ describe('capture record', () => {
 
   it('only species with at least two in the home aquarium lay eggs, at their breed chance', () => {
     const data = { ...testData, enemies: { ...testData.enemies, dummy: { ...testData.enemies.dummy, breedChance: 0.1 } } };
-    const home = ['dummy', 'dummy', 'dummy', 'cycler', 'cycler'].map((id) => ({ id, bond: 0 }));
+    const home = ['dummy', 'dummy', 'dummy', 'cycler', 'cycler'].map((id) => homeCreature(id));
     let eggs = 0;
     for (let seed = 0; seed < 2000; seed++) {
       const laid = layEggs(home, createRun(seed, data, 'basic'), data);
@@ -212,16 +212,16 @@ describe('capture record', () => {
 
   it('creatures brought from the home aquarium start the run in the bucket', () => {
     const home = [
-      { id: 'dummy', bond: 1 },
-      { id: 'cycler', bond: 2 },
-      { id: 'dummy', bond: 3 },
+      homeCreature('dummy', 1),
+      homeCreature('cycler', 2),
+      homeCreature('dummy', 3),
     ];
     // Picks a specific creature, not just a species: the second dummy, with its bond.
-    expect(takeFromHome(home, [2, 1])).toEqual({ home: [{ id: 'dummy', bond: 1 }], brought: [home[2], home[1]] });
+    expect(takeFromHome(home, [2, 1])).toEqual({ home: [homeCreature('dummy', 1)], brought: [home[2], home[1]] });
     expect(home).toHaveLength(3); // input untouched
     expect(() => takeFromHome(home, [5])).toThrow();
     const run = createRun(5, testData, 'basic', [home[2], home[1]]);
-    expect(run.bucket).toEqual(['dummy', 'cycler']);
+    expect(ids(run.bucket)).toEqual(['dummy', 'cycler']);
     expect(run.companions).toEqual([home[2], home[1]]);
     expect(() => createRun(5, testData, 'basic', Array(SESSION_SLOTS + 1).fill(home[0]))).toThrow();
   });
@@ -232,7 +232,7 @@ describe('capture record', () => {
     const caught = { ...fight.combat.enemies[0], hp: 0 };
     const escaped = { ...fight.combat.enemies[0], id: 'e1', defId: 'cycler', escape: 1000 };
     const fled = { ...fight.combat, phase: 'fled' as const, enemies: [caught, escaped] };
-    expect(finishCombat(fight.run, fled, testData).bucket).toEqual(['dummy']);
+    expect(ids(finishCombat(fight.run, fled, testData).bucket)).toEqual(['dummy']);
     expect(recordEncounter({}, fled)).toEqual({ dummy: 'captured', cycler: 'seen' });
   });
 
@@ -249,7 +249,7 @@ describe('capture record', () => {
     run = finishCombat(fight.run, { ...fight.combat, phase: 'won' }, testData);
     const sold = sellCreature(run, 0, testData);
     expect(sold).toMatchObject({ bucket: [], coins: 5 });
-    expect(run.bucket).toEqual(['dummy']); // input untouched
+    expect(ids(run.bucket)).toEqual(['dummy']); // input untouched
     expect(() => sellCreature(sold, 0, testData)).toThrow();
   });
 });
@@ -308,10 +308,10 @@ describe('travelling the map', () => {
 
 describe('levels', () => {
   it('after a boss, the next level starts at its house; the last one wins the run', () => {
-    const run = { ...createRun(5, testData, 'basic'), position: '4', visited: ['start', '1a', '2', '3a', '4'], coins: 9, bucket: ['dummy'] };
+    const run = { ...createRun(5, testData, 'basic'), position: '4', visited: ['start', '1a', '2', '3a', '4'], coins: 9, bucket: caught('dummy') };
     expect(isLastLevel(run, testData)).toBe(false);
     const next = enterNextLevel(run, testData);
-    expect(next).toMatchObject({ level: 1, position: START_NODE_ID, visited: [START_NODE_ID], coins: 9, bucket: ['dummy'] });
+    expect(next).toMatchObject({ level: 1, position: START_NODE_ID, visited: [START_NODE_ID], coins: 9, bucket: [{ id: 'dummy' }] });
     expect(availableDestinations(next).map((n) => n.id)).toEqual(['two-1']);
     expect(next.map.columns[1][0].tier).toBe(2);
     expect(isLastLevel(next, testData)).toBe(true);
@@ -350,7 +350,7 @@ describe('equipment', () => {
     equipment: {
       ...testData.equipment,
       rod: { id: 'rod', name: 'Rod', description: '', effects: [{ type: 'strongerPull' as const, percent: 25 }] },
-      net: { id: 'net', name: 'Net', description: '', effects: [{ type: 'bondOnCapture' as const, amount: 30 }] },
+      net: { id: 'net', name: 'Net', description: '', effects: [{ type: 'bondOnCapture' as const, percent: 30 }] },
       hook: { id: 'hook', name: 'Hook', description: '', effects: [{ type: 'extraCatch' as const, percent: 100, types: ['shell'], spots: ['sea'] }] },
     },
     encounters: [...testData.encounters, { id: 'cycler', name: 'Cycler', enemies: ['cycler'] }],
@@ -361,11 +361,11 @@ describe('equipment', () => {
     expect(play(combat, 'calm', 'e0', withItems).enemies[0].escape).toBe(50 - 10 - 3);
   });
 
-  it('bondOnCapture: catches come home with that bond, companions keep theirs', () => {
-    const run = { ...createRun(5, withItems, 'basic', [{ id: 'dummy', bond: 7 }]), equipment: ['net'], bucket: ['dummy', 'cycler'] };
+  it('bondOnCapture: catches come home with that share of full bond, companions keep theirs', () => {
+    const run = { ...createRun(5, withItems, 'basic', [homeCreature('dummy', 7)]), equipment: ['net'], bucket: caught('dummy', 'cycler') };
     expect(bringCatchHome([], run, withItems)).toEqual([
-      { id: 'dummy', bond: 7 },
-      { id: 'cycler', bond: 30 },
+      homeCreature('dummy', 7),
+      homeCreature('cycler', 30),
     ]);
   });
 
@@ -421,9 +421,9 @@ describe('events', () => {
   });
 
   it('applies the choice: heal (capped), coins per creature (+ passerby bonus), lose HP + coins + card', () => {
-    const run = { ...createRun(5, data, 'basic'), hp: 70, bucket: ['dummy', 'dummy'] };
+    const run = { ...createRun(5, data, 'basic'), hp: 70, bucket: caught('dummy', 'dummy') };
     expect(applyEventChoice(run, 'spot', 0, data).run.hp).toBe(80);
-    expect(applyEventChoice(run, 'spot', 1, data)).toMatchObject({ run: { coins: 4, bucket: ['dummy', 'dummy'] }, cardReward: false });
+    expect(applyEventChoice(run, 'spot', 1, data)).toMatchObject({ run: { coins: 4, bucket: [{ id: 'dummy' }, { id: 'dummy' }] }, cardReward: false });
     expect(applyEventChoice({ ...run, equipment: ['duck'] }, 'spot', 1, data).run.coins).toBe(6);
     expect(applyEventChoice({ ...run, bucket: [] }, 'spot', 1, data).run.coins).toBe(0);
     expect(applyEventChoice(run, 'spot', 2, data)).toMatchObject({ run: { hp: 65, coins: 7 }, cardReward: true });

@@ -183,12 +183,13 @@ function choose(node: MapNode) {
       <li
         v-for="b in bonuses"
         :key="b.def.id"
-        v-tip="{ title: b.def.name, detail: t('map.speciesBrought', { n: b.species, temperament: b.def.temperamentName }), body: b.text.join(' ') }"
+        v-tip="{ title: b.def.name, detail: t('map.starsBrought', { stars: b.stars, n: b.species, temperament: b.def.temperamentName }), body: b.text.join(' ') }"
         class="item companion"
         tabindex="0"
         :aria-label="b.def.name"
       >
         <span class="icon">{{ b.def.icon ?? '🐟' }}</span>
+        <b class="stars" aria-hidden="true">★{{ b.stars }}</b>
       </li>
     </ul>
 
@@ -283,6 +284,18 @@ function choose(node: MapNode) {
 .equipment { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .item { position: relative; }
 .companion .icon { border-color: #2f5a3a; }
+.companion { position: relative; }
+.companion .stars {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #3a3220;
+  color: #f2c94c;
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
 .item .icon {
   display: grid;
   place-items: center;

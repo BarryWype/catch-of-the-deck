@@ -19,3 +19,4 @@ export * from './shop';
 export * from './companions';
 export * from './families';
 export * from './bond';
+export * from './sizes';

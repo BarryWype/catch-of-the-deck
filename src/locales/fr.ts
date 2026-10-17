@@ -197,6 +197,7 @@ export const fr: Messages = {
       trigger: '{when} : {rule}',
       when: {
         combatStart: 'Au début de chaque combat',
+        secondTurnStart: 'Au début de ton deuxième tour',
         firstAttackEachTurn: 'Ta première attaque de chaque tour',
         firstAttackEachFight: 'Ta première attaque de chaque combat',
         fullBlock: 'Quand tu bloques entièrement une attaque',
@@ -268,6 +269,8 @@ export const fr: Messages = {
       bucket: 'Seau',
       default: 'Aquarium',
       count: '{n} pêchée|{n} pêchées',
+      countOf: '{n}/{max}',
+      stars: '{n}★',
       bond: 'Lien niveau {level} · {points}/{full}',
       bondFull: 'Lien niveau {level} (lien complet) · {points}/{full}',
       sellsFor: 'Se vend 🪙 {coins}',
@@ -387,9 +390,17 @@ export const fr: Messages = {
         title: 'Rentre à la maison',
         text: '(⌂, après chaque mini-boss) pour finir la partie sans risque : ton seau rejoint ton aquarium.',
       },
+      bucket: {
+        title: 'Ton seau',
+        text: 'contient {bucket} créatures, compagnons compris. Quand une prise n’y tient pas, vends quelque chose pour la garder, ou vends la prise. Chaque prise a une taille : les grosses viennent plus tard dans la partie, et vider la {@will} en ramène de plus grosses qu’user la santé.',
+      },
       companions: {
         title: 'Compagnons :',
         text: 'emmène jusqu’à {slots} créatures de la maison pour un bonus. Si tu perds la partie, tu les perds aussi.',
+      },
+      stars: {
+        title: 'Étoiles :',
+        text: 'un compagnon donne autant d’étoiles que son rang, +1 au lien niveau 2 et +1 de plus au niveau 3. Les étoiles d’un même genre s’additionnent (chaque espèce une fois) et renforcent son bonus ; 3 espèces différentes ajoutent un bonus de banc complet. Le lien grandit à chaque combat partagé, plus vite au large et contre les boss.',
       },
     },
     debug: {
@@ -431,7 +442,7 @@ export const fr: Messages = {
       miniBossLabel: 'mini-boss',
       fight: 'Combat',
       equipment: 'Équipement et bonus des compagnons',
-      speciesBrought: '{n} espèce {temperament} emmenée|{n} espèces {temperament} emmenées',
+      starsBrought: '★{stars} · {n} espèce {temperament} emmenée|★{stars} · {n} espèces {temperament} emmenées',
       legend: 'Légende',
       hideLegend: 'Masquer la légende',
       label: 'Carte : {name}',
@@ -470,6 +481,20 @@ export const fr: Messages = {
       itsA: 'C’est : {name} !',
       joins: 'Il rejoint ton aquarium. Clique n’importe où pour continuer.',
     },
+    size: {
+      small: 'Petite',
+      normal: 'Normale',
+      large: 'Grande',
+      trophy: 'Trophée',
+    },
+    bucketFull: {
+      title: 'Seau plein ({n}/{max})',
+      text: 'Pas de place pour {name}. Vends une créature de ton seau pour la garder, ou vends la nouvelle prise.',
+      newCatch: 'Nouvelle prise',
+      sellCatch: 'La vendre',
+      swap: 'Vendre, garder {name}',
+      more: 'Encore {n} prise en attente après celle-ci.|Encore {n} prises en attente après celle-ci.',
+    },
     book: {
       title: 'Carnet des créatures',
       discovered: '{n} / {total} découvertes',
@@ -478,6 +503,7 @@ export const fr: Messages = {
       owned: '{n} dans ton aquarium',
       notEncountered: 'Pas encore rencontrée',
       unknown: 'Inconnue',
+      biggest: 'Plus grosse prise : {size}',
     },
     slots: {
       label: 'Emmenées pour la partie',
@@ -486,7 +512,9 @@ export const fr: Messages = {
       removeLabel: 'Remettre {name} dans l’aquarium',
       empty: 'Place libre',
       bonuses: 'Bonus pour cette partie',
-      help: 'Les créatures emmenées donnent leur bonus pour la partie ; des espèces différentes du même genre s’additionnent. Elles ne reviennent que si la partie réussit, avec un lien plus fort. Les créatures pêchées pendant la partie sont fâchées et ne donnent rien.',
+      help: 'Les créatures emmenées donnent leur bonus pour la partie. Chacune donne des étoiles : son rang, +1 au lien niveau 2, +1 de plus au niveau 3 ; les étoiles d’un même genre s’additionnent, chaque espèce une fois. Elles ne reviennent que si la partie réussit, avec un lien plus fort. Les créatures pêchées pendant la partie sont fâchées et ne donnent rien.',
+      starsTip: 'Étoiles : son rang, +1 au lien niveau 2, +1 de plus au niveau 3',
+      nextStars: '{n}★ de plus : {rule}',
     },
     card: {
       patienceCost: 'Coûte aussi {n} de {@patience}',

@@ -1,4 +1,4 @@
-import { applyAction, buildGameData, createCombat, type CombatState, type CompanionEffect, type GameData, type GameMap, type MapNodeKind } from '../src/engine';
+import { applyAction, buildGameData, createCombat, type Catch, type CombatState, type CompanionEffect, type GameData, type GameMap, type HomeCreature, type MapNodeKind } from '../src/engine';
 
 /**
  * Test-only content with fixed numbers, so engine tests don't break when a
@@ -62,7 +62,7 @@ export const testData = buildGameData({
   companionBonuses: [
     {
       id: 'shelled', name: 'Shelled', temperamentName: 'Shelled',
-      effects: [{ type: 'bonusBlock', amount: 1 }, { type: 'bonusMaxHp', amount: 5 }, { type: 'sellBonus', amount: 10 }],
+      effects: [{ type: 'bonusBlock', amount: 1, byStars: [1, 2] }, { type: 'bonusMaxHp', amount: 5 }, { type: 'sellBonus', amount: 10 }],
       fullSchool: [{ type: 'keepBlock', amount: 2 }],
     },
   ],
@@ -146,4 +146,19 @@ export function endTurn(state: CombatState): CombatState {
 
 export function repeat(id: string, n: number): string[] {
   return Array.from({ length: n }, () => id);
+}
+
+/** A normal-sized creature in the home aquarium. */
+export function homeCreature(id: string, bond = 0): HomeCreature {
+  return { id, bond, size: 'normal' };
+}
+
+/** Normal-sized catches, for a bucket. */
+export function caught(...ids: string[]): Catch[] {
+  return ids.map((id) => ({ id, size: 'normal' }));
+}
+
+/** The creature ids of a bucket or aquarium. */
+export function ids(creatures: readonly { id: string }[]): string[] {
+  return creatures.map((c) => c.id);
 }

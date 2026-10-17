@@ -3,6 +3,8 @@ import {
   activeBonuses,
   availableDestinations,
   companionEffects,
+  companionStars,
+  nextStars,
   createRun,
   describeCompanionEffect,
   enterNextLevel,
@@ -15,23 +17,53 @@ import {
   type CompanionEffect,
 } from '../src/engine';
 import { gameData } from '../src/content';
-import { endTurn, play, repeat, setup, testData } from './fixtures';
+import { endTurn, play, repeat, setup, testData, homeCreature, caught, ids } from './fixtures';
 
 /** Brought creatures with no bond yet. */
-const pets = (...ids: string[]) => ids.map((id) => ({ id, bond: 0 }));
+const pets = (...ids: string[]) => ids.map((id) => homeCreature(id));
 
 const trigger = (on: Extract<CompanionEffect, { type: 'trigger' }>['on'], effect: Extract<CompanionEffect, { type: 'trigger' }>['effect']) =>
   ({ type: 'trigger', on, effect }) as const;
 
-describe('companion bonus scaling', () => {
-  it('counts different species only: 1 species ×1, 2 species ×2, 3 species ×2 plus the full-school extra', () => {
-    expect(companionEffects(pets('shellA'), testData)).toContainEqual({ type: 'bonusBlock', amount: 1 });
-    expect(companionEffects(pets('shellA', 'shellA'), testData)).toContainEqual({ type: 'bonusBlock', amount: 1 });
-    expect(companionEffects(pets('shellA', 'shellB'), testData)).toContainEqual({ type: 'bonusBlock', amount: 2 });
+describe('companion stars', () => {
+  // The shells are tier 1 (no tier given), full bond at 100: levels at 20, 50 and 100 points.
+  const shellA = testData.enemies.shellA;
+  const withTier = (tier: number) => ({ ...testData, enemies: { ...testData.enemies, shellA: { ...shellA, tier } } });
+  const block = (effects: CompanionEffect[]) => effects.find((e) => e.type === 'bonusBlock');
+
+  it('a companion has its tier in stars, +1 at bond level 2 and +1 more at level 3', () => {
+    expect([0, 49, 50, 99, 100].map((bond) => companionStars(homeCreature('shellA', bond), testData))).toEqual([1, 1, 2, 2, 3]);
+    expect(companionStars(homeCreature('shellA', 0), withTier(3))).toBe(3);
+    expect(companionStars(homeCreature('shellA', 100), withTier(3))).toBe(5);
+  });
+
+  it('a temperament adds up its companions’ stars, each species once (the one with more stars)', () => {
+    const [bonus] = activeBonuses([homeCreature('shellA', 0), homeCreature('shellA', 100), homeCreature('shellB', 50)], testData);
+    expect(bonus).toMatchObject({ species: 2, stars: 3 + 2 });
+    expect(activeBonuses(pets('shellA', 'shellA'), testData)[0]).toMatchObject({ species: 1, stars: 1 });
+  });
+
+  it('amounts come from byStars at the temperament’s stars, the last entry covering more; others stay fixed', () => {
+    expect(block(companionEffects(pets('shellA'), testData))).toEqual({ type: 'bonusBlock', amount: 1, byStars: [1, 2] });
+    expect(block(companionEffects(pets('shellA', 'shellB'), testData))?.amount).toBe(2);
+    expect(block(companionEffects([homeCreature('shellA', 100)], withTier(3)))?.amount).toBe(2); // 5★
+    expect(companionEffects([homeCreature('shellA', 100)], withTier(3))).toContainEqual({ type: 'bonusMaxHp', amount: 5 });
+    const pinch: CompanionEffect = { type: 'trigger', on: 'fullBlock', effect: { type: 'dealDamage', amount: 2 }, byStars: [2, 3, 4] };
+    const data = { ...testData, companionBonuses: { shelled: { ...testData.companionBonuses.shelled, effects: [pinch] } } };
+    expect(activeBonuses(pets('shellA', 'shellB'), data)[0].effects[0]).toMatchObject({ effect: { type: 'dealDamage', amount: 3 } });
+  });
+
+  it('3 species add the full-school effects, as written', () => {
     const school = companionEffects(pets('shellA', 'shellB', 'shellC'), testData);
-    expect(school).toContainEqual({ type: 'bonusBlock', amount: 2 });
+    expect(block(school)?.amount).toBe(2);
     expect(school).toContainEqual({ type: 'keepBlock', amount: 2 });
-    expect(activeBonuses(pets('shellA', 'shellB', 'shellC'), testData)[0].species).toBe(3);
+    expect(activeBonuses(pets('shellA', 'shellB', 'shellC'), testData)[0]).toMatchObject({ species: 3, stars: 3 });
+  });
+
+  it('the next stars that would change an amount, and what they change', () => {
+    const data = { ...testData, companionBonuses: { shelled: { ...testData.companionBonuses.shelled, effects: [{ type: 'bonusBlock' as const, amount: 1, byStars: [1, 1, 2] }] } } };
+    expect(nextStars(activeBonuses(pets('shellA'), data)[0])).toEqual({ more: 2, effects: [{ type: 'bonusBlock', amount: 2, byStars: [1, 1, 2] }] });
+    expect(nextStars(activeBonuses(pets('shellA', 'shellB', 'shellC'), data)[0])).toBeNull();
   });
 
   it('creatures without a temperament bonus give nothing', () => {
@@ -61,17 +93,17 @@ describe('companions in a run', () => {
   it('fights get the scaled bonuses', () => {
     const run = createRun(5, testData, 'basic', pets('shellA', 'shellB'));
     const { combat } = travelTo(run, availableDestinations(run)[0].id, testData);
-    expect(combat.bonuses).toContainEqual({ type: 'bonusBlock', amount: 2 });
+    expect(combat.bonuses).toContainEqual({ type: 'bonusBlock', amount: 2, byStars: [1, 2] });
   });
 
   it('selling a companion ends its bonus; sales get the sell bonus, rounded up', () => {
-    const run = { ...createRun(5, testData, 'basic', pets('shellA')), bucket: ['shellA', 'dummy'] };
+    const run = { ...createRun(5, testData, 'basic', pets('shellA')), bucket: caught('shellA', 'dummy') };
     const soldCapture = sellCreature(run, 1, testData);
     expect(soldCapture.coins).toBe(6); // 5 + 10%, rounded up
     expect(soldCapture.companions).toEqual(pets('shellA'));
     const soldCompanion = sellCreature(run, 0, testData);
     expect(soldCompanion.companions).toEqual([]);
-    expect(soldCompanion.bucket).toEqual(['dummy']);
+    expect(ids(soldCompanion.bucket)).toEqual(['dummy']);
   });
 
   it('heals after a fight that is not lost, never above max HP', () => {
@@ -155,6 +187,15 @@ describe('companion bonuses in combat', () => {
     expect(s.enemies[0].statuses.weak).toBe(1);
   });
 
+  it('secondTurnStart fires once, after the second turn’s draw', () => {
+    let s = setup(repeat('strike', 20), { bonuses: [trigger('secondTurnStart', { type: 'drawCards', amount: 2 })] });
+    expect(s.piles.hand).toHaveLength(5);
+    s = endTurn(s);
+    expect(s.piles.hand).toHaveLength(7);
+    s = endTurn(s);
+    expect(s.piles.hand).toHaveLength(5);
+  });
+
   it('firstAttackEachTurn applies Venom; it hits at the start of the creature\'s turn, then loses a charge', () => {
     let s = setup(repeat('strike', 10), { bonuses: [trigger('firstAttackEachTurn', { type: 'applyStatus', status: 'venom', amount: 2 })] });
     s = play(play(s, 'strike'), 'strike');
@@ -173,6 +214,7 @@ describe('companion bonuses in combat', () => {
 
 describe('Eel companions: skipping and rerolling card rewards', () => {
   const eels = ['ribbonEel', 'europeanConger', 'harlequinSnakeEel'];
+  // Ribbon eel is tier 1, the others tier 2: 1★, 3★ and 5★.
   const runWith = (species: number) => createRun(5, gameData, 'rod', pets(...eels.slice(0, species)));
 
   it('without them, a card reward must be taken', () => {
@@ -180,18 +222,18 @@ describe('Eel companions: skipping and rerolling card rewards', () => {
     expect(() => skipReward(runWith(0), gameData)).toThrow();
   });
 
-  it('give 2 skips per level with 1 species, 3 with 2, and 3 skips plus 3 rerolls with 3', () => {
-    expect(rewardOptions(runWith(1), gameData)).toEqual({ skips: 2, rerolls: 0 });
-    expect(rewardOptions(runWith(2), gameData)).toEqual({ skips: 3, rerolls: 0 });
+  it('give 1 skip per level at 1★, 2 at 3★, and 3 skips plus 3 rerolls with 3 species (5★)', () => {
+    expect(rewardOptions(runWith(1), gameData)).toEqual({ skips: 1, rerolls: 0 });
+    expect(rewardOptions(runWith(2), gameData)).toEqual({ skips: 2, rerolls: 0 });
     expect(rewardOptions(runWith(3), gameData)).toEqual({ skips: 3, rerolls: 3 });
   });
 
   it('are used up on a level and come back on the next one', () => {
-    let run = skipReward(skipReward(runWith(1), gameData), gameData);
+    let run = skipReward(skipReward(runWith(2), gameData), gameData);
     expect(rewardOptions(run, gameData).skips).toBe(0);
     expect(() => skipReward(run, gameData)).toThrow();
     run = enterNextLevel(run, gameData);
-    expect(rewardOptions(run, gameData).skips).toBe(2);
+    expect(rewardOptions(run, gameData).skips).toBe(2); // bond gained on the way stays under level 2
   });
 
   it('a reroll offers other cards and uses one up', () => {
