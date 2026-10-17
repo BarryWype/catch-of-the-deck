@@ -465,6 +465,11 @@ export const fr: Messages = {
       rerollTip: 'Propose trois autres cartes. Tu commences une partie avec 1 relance, et tu en gagnes 1 de plus pour chaque mini-boss et boss battu.',
       families: 'Cartes de',
       anyFamily: 'toutes les familles',
+      removeCard: 'Retirer une carte',
+      removeTip: 'Battre un boss te permet de retirer gratuitement une carte de ton deck, en plus de la récompense.',
+      removeTitle: 'Choisis une carte à retirer de ton deck',
+      endRun: 'Finir la partie',
+      endRunTip: 'Rentrer maintenant : ton seau rejoint ton aquarium.',
       skip: 'Passer (encore {n} ce niveau)',
     },
     event: {

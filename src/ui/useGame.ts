@@ -3,6 +3,7 @@ import { gameData } from './i18n';
 import {
   addCardToDeck,
   rerollReward,
+  removeCardAfterBoss,
   rewardOptions,
   skipReward,
   applyEventChoice,
@@ -431,6 +432,16 @@ export function useGame(initialSeed: number) {
     rewardChoices.value = rerolled.choices;
   }
 
+  /** After a boss, on its card reward: remove a card for free, then still choose the reward. */
+  function removeBossCard(cardIndex: number) {
+    if (run.value) run.value = removeCardAfterBoss(run.value, cardIndex);
+  }
+
+  /** After a boss, on its card reward: head home now, as from a leave node. */
+  function endRunAfterBoss() {
+    if (run.value) bringHome(run.value, 'left');
+  }
+
   return {
     data: gameData,
     seed,
@@ -448,6 +459,8 @@ export function useGame(initialSeed: number) {
     chooseReward,
     rewardLeft,
     skipCardReward,
+    removeBossCard,
+    endRunAfterBoss,
     rerollCardReward,
     chooseEvent,
     buy,

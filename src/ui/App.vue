@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { BUCKET_SIZE, creatureTypeNames, describeCard, findNode, isReleaseFight, SESSION_SLOTS, type CardDef } from '../engine';
+import { BUCKET_SIZE, creatureTypeNames, describeCard, findNode, isReleaseFight, justBeatBoss, SESSION_SLOTS, type CardDef } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
@@ -186,9 +186,12 @@ const deckCards = computed(() =>
       :skips="rewardLeft.skips"
       :rerolls="rewardLeft.rerolls"
       :families="run?.rewardFamilies ?? []"
+      :boss="run && justBeatBoss(run) ? { deck: run.deck, canRemove: run.bossRemoval, bucket: run.bucket.length } : null"
       @choose="game.chooseReward"
       @skip="game.skipCardReward"
       @reroll="game.rerollCardReward"
+      @remove="game.removeBossCard"
+      @end-run="game.endRunAfterBoss"
     />
     <section v-else-if="screen === 'complete'" class="complete">
       <template v-if="runEnd !== 'fled'">

@@ -475,6 +475,11 @@ export const en = {
       rerollTip: 'Offer three other cards. You start a run with 1 reroll, and get 1 more for each mini-boss and boss you beat.',
       families: 'Cards from',
       anyFamily: 'every family',
+      removeCard: 'Remove a card',
+      removeTip: 'Beating a boss lets you remove one card from your deck for free, on top of the card reward.',
+      removeTitle: 'Choose a card to remove from your deck',
+      endRun: 'End the run',
+      endRunTip: 'Head home now: your bucket joins your home aquarium.',
       skip: 'Skip ({n} left this level)',
     },
     event: {

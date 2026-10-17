@@ -26,6 +26,8 @@ import {
   REWARD_REROLLS_AT_START,
   rerollReward,
   rewardOptions,
+  justBeatBoss,
+  removeCardAfterBoss,
   sellCreature,
   shopItemBlocked,
   travelTo,
@@ -541,5 +543,40 @@ describe('card reward rerolls', () => {
     run = finishCombat(boss.run, { ...boss.combat, phase: 'won' }, testData);
     expect(run.rewardRerolls).toBe(3);
     expect(enterNextLevel(run, testData).rewardRerolls).toBe(3);
+  });
+});
+
+describe('after a boss', () => {
+  const beatBoss = () => {
+    let run: RunState = createRun(11, testData, 'basic');
+    for (const id of ['1a', '2', '3a', '4']) run = travelTo(run, id, testData).run;
+    return enterNextLevel(run, testData);
+  };
+
+  it('the reward offers a free card removal and ending the run, only right after it', () => {
+    const fresh = createRun(11, testData, 'basic');
+    expect(justBeatBoss(fresh)).toBe(false);
+    expect(fresh.bossRemoval).toBe(false);
+    const run = beatBoss();
+    expect(justBeatBoss(run)).toBe(true);
+    expect(run.bossRemoval).toBe(true);
+  });
+
+  it('removes the chosen card once, for free', () => {
+    const run = beatBoss();
+    const removed = removeCardAfterBoss(run, 0);
+    expect(removed.deck).toEqual(run.deck.slice(1));
+    expect(removed.coins).toBe(run.coins);
+    expect(removed.bossRemoval).toBe(false);
+    expect(justBeatBoss(removed)).toBe(true);
+    expect(() => removeCardAfterBoss(removed, 0)).toThrow();
+    expect(() => removeCardAfterBoss(createRun(11, testData, 'basic'), 0)).toThrow();
+  });
+
+  it('the removal is gone once the player moves on', () => {
+    const run = beatBoss();
+    const next = travelTo(run, availableDestinations(run)[0].id, testData).run;
+    expect(next.bossRemoval).toBe(false);
+    expect(justBeatBoss(next)).toBe(false);
   });
 });

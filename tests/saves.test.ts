@@ -52,4 +52,10 @@ describe('saves from before stars, sizes and the bucket limit', () => {
     expect(save.version).toBe(SAVE_VERSION);
     expect(save.run.rewardRerolls).toBe(1);
   });
+
+  it('run save v15: no card removal on offer', () => {
+    const save = upgradeSave({ version: 15, run: { bucket: [] }, combat: null } as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run.bossRemoval).toBe(false);
+  });
 });

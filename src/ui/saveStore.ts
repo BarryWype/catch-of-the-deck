@@ -8,7 +8,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 export const PROFILE_VERSION = 5;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -114,6 +114,8 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
   }
   // v14 runs had no rerolls of their own: they get the one a run starts with.
   if (save.version === 14) save = { ...save, version: 15, run: { ...save.run, rewardRerolls: 1 } };
+  // v15 runs had no card removal after a boss.
+  if (save.version === 15) save = { ...save, version: 16, run: { ...save.run, bossRemoval: false } };
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.

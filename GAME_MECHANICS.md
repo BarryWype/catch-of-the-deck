@@ -146,7 +146,7 @@ A run has three acts, and you grow older from one to the next:
 
 The same coast is used for all three ages of a run, but the creatures get bigger and tougher each age. The same rocks hold small fry as a kid and much bigger catches as an elder.
 
-Each age's map runs from the house to a **mini-boss** halfway, then on to the **boss**. Beat the boss and you move on to the next age, keeping your Grit, deck, bucket and coins. Bosses and mini-bosses are always let go after the fight (too big, too fierce or protected), so they never go in your bucket.
+Each age's map runs from the house to a **mini-boss** halfway, then on to the **boss**. Beat the boss and you move on to the next age, keeping your Grit, deck, bucket and coins. On top of its card reward, a boss lets you **remove a card** from your deck for free, or **end the run** there and head home. Bosses and mini-bosses are always let go after the fight (too big, too fierce or protected), so they never go in your bucket.
 
 The coast changes every run: beaches, ponds, harbours and rocks land in different places, and they decide which creatures you meet where.
 
@@ -156,6 +156,7 @@ The coast changes every run: beaches, ponds, harbours and rocks land in differen
 |---|---|
 | You beat the Elder's boss: a full fishing life | Everything comes home to your aquarium |
 | You **head home** (⌂): the dead-end node right after each mini-boss | Everything comes home: a safe, early retirement |
+| You **end the run** on the card reward after a Kid or Adult boss | Everything comes home, as when you head home |
 | A **boss** gets away | Your bucket stays behind |
 | Your **Grit** runs out | Your bucket is lost, including the creatures you brought |
 

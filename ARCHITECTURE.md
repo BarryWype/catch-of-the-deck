@@ -51,6 +51,7 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
   - **Node kinds:** `fight`, `event`, `shop`, `treasure`, `leave` (head home), `miniBoss` and `boss`.
   - **Head home:** the mini-boss leads to the next column and to a `leave` node (`escape`). That's a dead end that ends the run as a success.
   - **Next level:** beating a level's boss (`claimVictory`) moves the run to the next level's start (`enterNextLevel`), keeping everything else (HP, deck, bucket, coins). Beating the last boss wins the run.
+  - **After a boss** (`justBeatBoss`: past the first level, still at its start): its card reward also offers a free card removal (`RunState.bossRemoval`, `removeCardAfterBoss`; gone once used or once the player moves on) and ending the run (`endRunAfterBoss` in `useGame.ts`, a success like the leave node).
   - **Checked on startup:** `validateLevels` (`engine/data.ts`) refuses broken content with a readable message:
     - **Generated levels:** a mini-boss, a boss and an escape, with known creatures; coast places with known spots.
     - **Hand-made levels:** no column missing, the boss alone in the last one, links only going forward, one mini-boss leading to a leave node, every node reachable, every fight with its creatures.
@@ -134,7 +135,7 @@ There are two separate collections of creatures. They never share creatures, exc
    - **Sizes** (`engine/sizes.ts`): every catch rolls `small`, `normal`, `large` or `trophy` (`rollSize`) at `SIZE_ODDS` (30/50/17/3%). Each fight played before it this run moves `SIZE_SHIFT_LARGE` (1) point of the small chance to large and `SIZE_SHIFT_TROPHY` (0.5) to trophy, until small is down to `SMALL_FLOOR` (5%); a creature caught by draining its Will rolls twice and keeps the bigger. The rolls use a copy of the fight's RNG (`catchesOf`), so the UI can read the same sizes before `finishCombat` and the run's own rolls don't move. The size stays with the creature at home; hatchlings are small. Nothing reads it yet.
    - **Selling:** the player can sell creatures from the bucket at any time.
    - **Events:** events can read the bucket. The Enthusiastic Passerby tips coins per creature in it.
-3. **Successful run**, either the boss beaten (`claimVictory`) or the session finished at the 🚪 node (`finishSession`): `bringCatchHome` adds everything still in the bucket to the home aquarium, and the profile is written.
+3. **Successful run**, either the boss beaten (`claimVictory`), the session finished at the 🚪 node (`finishSession`) or ended on a boss's card reward (`endRunAfterBoss`): `bringCatchHome` adds everything still in the bucket to the home aquarium, and the profile is written.
 4. **Lost run, abandoned run (New run over a save), or the boss fleeing:** the bucket is lost. The home aquarium gets nothing from it.
 5. **Breeding, after every run that ends** (won, session finished, lost, or the boss fleeing, but not an abandoned run):
    - **Laying:** `layEggs` gives each species with at least two in the home aquarium one roll at its `breedChance` (per creature in `content/creatures.ts`, 10% for all for now). After a successful run it runs once the bucket has joined the home aquarium, so new catches can breed straight away.

@@ -55,6 +55,8 @@ export interface RunState {
   rewardRerollsUsed: number;
   /** Card reward rerolls left for the rest of the run, besides the companions' (`REWARD_REROLLS_AT_START`, `REWARD_REROLLS_PER_BOSS`). */
   rewardRerolls: number;
+  /** A free card removal is on offer: a boss was just beaten (`enterNextLevel`), until it's used or the player moves on. */
+  bossRemoval: boolean;
   /** Chance, in percent, that the next card reward slot is rare (`RARE_CHANCE`, raised by `RARE_PITY_STEP` per slot that wasn't). */
   rarePity: number;
   /** The families the card reward on offer draws from (the creatures of the fight it follows); none = every family. */
@@ -114,6 +116,7 @@ export function createRun(
     rewardSkipsUsed: 0,
     rewardRerollsUsed: 0,
     rewardRerolls: REWARD_REROLLS_AT_START,
+    bossRemoval: false,
     rarePity: RARE_CHANCE,
     rewardFamilies: [],
   };
@@ -141,12 +144,38 @@ export function isLastLevel(run: RunState, data: GameData): boolean {
   return run.level >= data.levels.length - 1;
 }
 
-/** After a level's boss: the next level, back at the start of its map. Everything else carries over. */
+/**
+ * After a level's boss: the next level, back at the start of its map, with a free card removal on
+ * offer (`removeCardAfterBoss`). Everything else carries over.
+ */
 export function enterNextLevel(run: RunState, data: GameData): RunState {
   if (isLastLevel(run, data)) throw new Error('There is no level after this one.');
-  const next = { ...clone(run), level: run.level + 1, position: START_NODE_ID, visited: [START_NODE_ID], rewardSkipsUsed: 0, rewardRerollsUsed: 0 };
+  const next = {
+    ...clone(run),
+    level: run.level + 1,
+    position: START_NODE_ID,
+    visited: [START_NODE_ID],
+    rewardSkipsUsed: 0,
+    rewardRerollsUsed: 0,
+    bossRemoval: true,
+  };
   next.map = buildLevelMap(data, next.level, next);
   return next;
+}
+
+/**
+ * Has the run just beaten a level's boss? It then stands at the start of the next level, before
+ * moving on: the card reward there can also remove a card (`bossRemoval`) or end the run.
+ */
+export function justBeatBoss(run: RunState): boolean {
+  return run.level > 0 && run.position === START_NODE_ID;
+}
+
+/** Remove the deck card at `cardIndex`, for free, after a boss (`bossRemoval`). Throws when none is on offer or the deck would be empty. */
+export function removeCardAfterBoss(run: RunState, cardIndex: number): RunState {
+  if (!run.bossRemoval) throw new Error('No card removal on offer.');
+  if (run.deck.length <= 1 || !run.deck[cardIndex]) throw new Error('Choose a card to remove.');
+  return { ...clone(run), deck: run.deck.filter((_, i) => i !== cardIndex), bossRemoval: false };
 }
 
 /** Nodes the player can travel to next (none at the boss or a leave node, which end the level or the run). */
@@ -166,6 +195,7 @@ function moveTo(run: RunState, nodeId: string, ...kinds: MapNode['kind'][]): { n
   const next = clone(run);
   next.position = node.id;
   next.visited.push(node.id);
+  next.bossRemoval = false;
   return { next, node };
 }
 
