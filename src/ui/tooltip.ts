@@ -59,8 +59,10 @@ function hide(anchor: Element) {
 const LONG_PRESS_MS = 450;
 /** A finger that moves this far is scrolling or dragging, not pressing. */
 const PRESS_MOVE_PX = 10;
-/** Taps on these do something: a quick tap does that, only holding shows the tip. */
-const ACTS = 'button, a, input, select, [role="button"], .card, .fish';
+/** Taps on these do something: a quick tap does that, only holding shows the tip. A creature a
+ * card is aimed at (`.targetable`, CombatView) joins them, so tapping it plays the card without
+ * opening its tip. */
+const ACTS = 'button, a, input, select, [role="button"], .card, .fish, .combatant.targetable';
 
 let lastTouch = 0;
 const recentTouch = () => Date.now() - lastTouch < 800;

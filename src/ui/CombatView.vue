@@ -704,7 +704,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :class="{ empty: !state.player.patience }"
             tabindex="0"
           >
-            <span class="patience-icon" aria-hidden="true">⏳</span>
+            <span class="patience-icon" aria-hidden="true"><GameIcon icon="coffee" /></span>
             <span class="patience-count">{{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
           </div>
         </div>

@@ -51,7 +51,7 @@ There are five kinds of card:
 
 Cards whose effect waits or wears off (Coiled, Toxic Coating, effects "at the start of your next turn"…) show a blue icon there too until it's used up, with its number or the turns left.
 
-Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (⏳) on top of energy.
+Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (☕) on top of energy.
 
 ### Patience
 
@@ -60,7 +60,7 @@ Patience is what you earn by waiting calmly instead of rushing. You get Patience
 - **1 point per energy you didn't spend**, and
 - **1 point for every 3 Hold left over** after the creatures have acted (the Hold you didn't need).
 
-You can have up to **5** points, and they last for the whole fight. Each point makes every creature's Will rise **10% slower**, so 5 points halve it (on top of any Slow). Some cards also cost Patience to play, on top of energy (shown as ⏳ on the card).
+You can have up to **5** points, and they last for the whole fight. Each point makes every creature's Will rise **10% slower**, so 5 points halve it (on top of any Slow). Some cards also cost Patience to play, on top of energy (shown as ☕ on the card).
 
 ## The creatures' side
 

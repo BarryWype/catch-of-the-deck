@@ -13,7 +13,7 @@ import { t } from './i18n';
 const props = defineProps<{ hp: number; maxHp: number; block: number; grit?: boolean; after?: number; end?: number; blockAfter?: number }>();
 const percent = computed(() => (props.maxHp > 0 ? (100 * props.hp) / props.maxHp : 0));
 /** Counts the changes that animate the icon (used as its `key`): the creature's heart on any
- * damage or heal, the Grit bar's coffee cup (it spills a drop) on damage only. */
+ * damage or heal, the Grit bar's muscle (it shakes and sheds a drop of sweat) on damage only. */
 const bumps = ref(0);
 watch(
   () => props.hp,
@@ -33,7 +33,7 @@ watch(
       <div class="bar">
         <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />
         <BarPreview :value="hp" :max="maxHp" :after="after" :end="end" />
-        <span v-if="grit" class="value"><span><span :key="bumps" class="cup" :class="{ spill: bumps > 0 }"><GameIcon icon="☕" /><i class="drop" /></span> {{ hp }}/{{ maxHp }}<BarDelta :value="hp" :after="after" :end="end" /></span></span>
+        <span v-if="grit" class="value"><span><span :key="bumps" class="cup" :class="{ spill: bumps > 0 }"><GameIcon icon="muscle" /><i class="drop" /></span> {{ hp }}/{{ maxHp }}<BarDelta :value="hp" :after="after" :end="end" /></span></span>
         <span v-else class="value"><span><span :key="bumps" :class="{ 'icon-bump': bumps > 0 }">♥</span> {{ hp }}/{{ maxHp }}<BarDelta :value="hp" :after="after" :end="end" /></span></span>
       </div>
     </div>
@@ -86,7 +86,7 @@ watch(
   width: 3px;
   height: 4px;
   border-radius: 50% 50% 50% 50% / 35% 35% 65% 65%;
-  background: #6b3e1f;
+  background: #9fd4f5;
   opacity: 0;
 }
 .cup.spill :deep(.game-icon) { animation: cup-shake 0.8s ease-in-out; }

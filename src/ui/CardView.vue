@@ -4,6 +4,7 @@ import { creatureFamilies, describeCard, type CardDef } from '../engine';
 import { gameData } from '../content';
 import { t } from './i18n';
 import { iconUrl, TYPE_ICONS } from './icons';
+import GameIcon from './GameIcon.vue';
 import KeywordText from './KeywordText.vue';
 import SpriteView from './SpriteView.vue';
 import { COMPACT_QUERY, useMedia } from './useScreen';
@@ -118,7 +119,7 @@ const parts = computed(() =>
       <template v-else>{{ card.art }}</template>
     </span>
     <span class="cost" :class="{ taxed: shownCost > card.cost }">{{ card.unplayable ? '–' : shownCost }}</span>
-    <span v-if="card.patienceCost" v-tip="t('card.patienceCost', { n: card.patienceCost })" class="patience-cost">⏳{{ card.patienceCost }}</span>
+    <span v-if="card.patienceCost" v-tip="t('card.patienceCost', { n: card.patienceCost })" class="patience-cost"><GameIcon icon="coffee" />{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
     <span v-tip="t(`card.type.${card.type}`)" class="type" role="img" :aria-label="t(`card.type.${card.type}`)">
       <img :src="iconUrl(TYPE_ICONS[card.type])" alt="" />

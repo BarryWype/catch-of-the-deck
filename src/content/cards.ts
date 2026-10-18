@@ -205,7 +205,7 @@ export const cards: CardDef[] = [
     effects: [{ type: 'dealDamage', amount: 10 }],
   },
   {
-    id: 'theLongWait', name: 'The Long Wait', art: '⏳', type: 'attack', rarity: 'normal', cost: 0, patienceCost: 3, target: 'enemy', family: 'patient', tags: ['damage', 'patience'],
+    id: 'theLongWait', name: 'The Long Wait', art: '☕', type: 'attack', rarity: 'normal', cost: 0, patienceCost: 3, target: 'enemy', family: 'patient', tags: ['damage', 'patience'],
     effects: [{ type: 'dealDamage', amount: 15 }],
   },
 
