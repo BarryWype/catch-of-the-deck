@@ -297,6 +297,8 @@ export const fr: Messages = {
       playAgain: 'Touche-la à nouveau, ou le terrain, pour la jouer…',
       energy: 'Énergie',
       turn: 'Tour {n}',
+      upcoming: 'À venir',
+      upcomingOn: 'À venir sur {name}',
       drawPile: 'Pioche',
       draw: 'Pioche {n}',
       endTurn: 'Fin du tour',

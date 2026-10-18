@@ -160,6 +160,38 @@ function labelAnchor(node: MapNode) {
   return node.x > view.value.x + view.value.width - 140 / scale.value ? 'end' : 'middle';
 }
 
+/** A mouse drags the map sideways, like a finger does. Past a few pixels it's a drag, and the click that ends it doesn't choose a node. */
+const DRAG_THRESHOLD = 5;
+let drag: { pointer: number; startX: number; startLeft: number; moved: boolean } | undefined;
+const dragging = ref(false);
+function onPointerDown(e: PointerEvent) {
+  if (e.pointerType !== 'mouse' || e.button !== 0 || !scroller.value) return;
+  dragged = false;
+  drag = { pointer: e.pointerId, startX: e.clientX, startLeft: scroller.value.scrollLeft, moved: false };
+}
+function onPointerMove(e: PointerEvent) {
+  if (!drag || e.pointerId !== drag.pointer || !scroller.value) return;
+  const dx = e.clientX - drag.startX;
+  if (!drag.moved && Math.abs(dx) < DRAG_THRESHOLD) return;
+  if (!drag.moved) {
+    drag.moved = true;
+    dragging.value = true;
+    scroller.value.setPointerCapture(e.pointerId);
+  }
+  scroller.value.scrollLeft = drag.startLeft - dx;
+}
+function onPointerUp(e: PointerEvent) {
+  if (!drag || e.pointerId !== drag.pointer) return;
+  dragged = drag.moved;
+  drag = undefined;
+  dragging.value = false;
+}
+let dragged = false;
+function onClickCapture(e: MouseEvent) {
+  if (dragged) e.stopPropagation();
+  dragged = false;
+}
+
 const showLegend = ref(false);
 
 function choose(node: MapNode) {
@@ -209,7 +241,17 @@ function choose(node: MapNode) {
       <li><span class="sym boss" /> {{ t('map.boss') }}</li>
     </ul>
 
-    <div ref="scroller" class="map-scroll">
+    <div
+      ref="scroller"
+      class="map-scroll"
+      :class="{ dragging }"
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
+      @click.capture="onClickCapture"
+      @dragstart.prevent
+    >
       <svg
         class="map"
         :width="size.width"
@@ -348,7 +390,7 @@ function choose(node: MapNode) {
   font-size: 0.75rem;
 }
 .legend li { display: flex; align-items: center; gap: 6px; }
-.legend b { font-family: ui-monospace, Menlo, monospace; font-size: 0.7rem; }
+.legend b { font-size: 0.7rem; }
 .swatch { flex: none; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; }
 .sym {
   display: grid;
@@ -360,7 +402,8 @@ function choose(node: MapNode) {
   border-radius: 50%;
   background: #fff;
   color: #2e2d27;
-  font: 700 10px ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
 }
 .sym.leave { border-color: #2d8a73; color: #2d8a73; }
 .sym.diamond { width: 11px; height: 11px; margin: 0 2px; border: 2px solid #fff; border-radius: 0; background: #c4531c; transform: rotate(45deg); }
@@ -368,6 +411,7 @@ function choose(node: MapNode) {
 
 /* Sized from the level's view (see `size`); scrolls sideways when the screen is narrow. */
 .map-scroll { max-width: 100%; overflow-x: auto; border-radius: 12px; }
+.map-scroll.dragging { cursor: grabbing; user-select: none; }
 .map { display: block; }
 .art image { image-rendering: pixelated; }
 
@@ -377,7 +421,7 @@ function choose(node: MapNode) {
 .edge.open { stroke: var(--highlight); stroke-width: 3; stroke-opacity: 1; stroke-dasharray: 6 5; }
 
 .node .body { stroke: #fff; stroke-width: 2; }
-.node .code { font: 600 9.5px ui-monospace, Menlo, monospace; fill: #fff; pointer-events: none; }
+.node .code { font-size: 9.5px; font-weight: 600; fill: #fff; pointer-events: none; }
 .node.event .body,
 .node.shop .body,
 .node.treasure .body { fill: #fff; stroke: #2e2d27; stroke-width: 1.8; }
@@ -387,7 +431,8 @@ function choose(node: MapNode) {
 .node.boss .body { fill: #c4531c; stroke-width: 3; }
 .node.boss .core { fill: #fff; }
 .node .label {
-  font: 600 12px system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
   fill: #14232a;
   paint-order: stroke;
   stroke: #fff;

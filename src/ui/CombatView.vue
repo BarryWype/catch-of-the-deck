@@ -705,7 +705,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             v-tip="`${state.player.block} ${term('hold')}`"
             class="player-hold"
           >
-            <GameIcon icon="🛡️" />{{ shownState.player.block === state.player.block ? state.player.block : `${state.player.block} → ${shownState.player.block}` }}
+            <GameIcon icon="shield3" />{{ shownState.player.block === state.player.block ? state.player.block : `${state.player.block} → ${shownState.player.block}` }}
           </span>
         </Transition>
       </div>
@@ -722,7 +722,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(shownState, enemy, data)"
-          :hold="shownState.player.block"
           :escape-bar="{
             escape: enemy.escape,
             escapeAt: enemy.escapeAt,

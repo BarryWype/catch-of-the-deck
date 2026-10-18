@@ -12,7 +12,7 @@ const WORDS = ['drain', 'strike', 'pull', 'exhaust', 'block', 'attack'] as const
 /** The icon (a file in assets/icons) shown before each keyword that has one. */
 const ICONS: Partial<Record<string, string>> = {
   grit: 'muscle',
-  hold: 'shield2',
+  hold: 'shield3',
   will: 'excape1',
   patience: 'coffee',
   drain: 'net-green',

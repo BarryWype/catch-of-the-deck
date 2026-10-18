@@ -73,20 +73,16 @@ describe('CombatView', () => {
 
   it('shows the creature health inside its bar, and says when it escapes', async () => {
     const html = await renderFight();
-    expect(/♥ \d+\/\d+/.test(html)).toBe(true);
+    expect(/♥<\/span> \d+\/\d+/.test(html)).toBe(true);
     expect(/Escapes in \d+ turns?|Escapes next turn!/.test(html)).toBe(true);
   });
 
-  it('shows the intent: a Strike icon, damage after Hold, and intensity pips', async () => {
+  it('shows the intent: a Strike icon and its damage before Hold (the Grit bar shows what gets through)', async () => {
     const html = await renderFight(5);
     expect(html).toContain('Nip at the Lure');
-    expect(html).toContain('6 → 1'); // 6 damage, 5 Hold soaks all but 1
-    expect(html).toContain('class="pips"');
-    const pipsSpan = html.slice(html.indexOf('class="pips"'), html.indexOf('class="pips"') + 160);
-    expect((pipsSpan.match(/<i /g) ?? []).length).toBe(3); // heavy: three pips
-    const blocked = await renderFight(10);
-    expect(blocked).toContain('6 → 0');
-    expect(blocked).toContain('class="blocked"'); // Hold covers it all
+    expect(html).toMatch(/<b[^>]*>6<\/b>/);
+    expect(html).not.toContain('6 → 1');
+    expect(html).not.toContain('class="pips"');
   });
 
   it('dresses the scene: water tint, surface line, the spot colour, and the player on the bank', async () => {
@@ -113,5 +109,24 @@ describe('CombatView', () => {
     expect(html).toContain('class="raised player-anchor"'); // one creature: room on the bank
     expect(html).toContain('width:144px'); // the tier-2 creature: 3 frames of 48px
     expect(html).toContain('width:96px'); // the player: 2 frames
+  });
+});
+
+describe('PowerList', () => {
+  it("shows this turn's buffs and waiting effects as chips, with their number or the turns left", async () => {
+    const { default: PowerList } = await import('../src/ui/PowerList.vue');
+    const { createCombat } = await import('../src/engine');
+    const { gameData } = await import('../src/content');
+    const state = createCombat({ seed: 1, deck: [...gameData.builds.rod.starterDeck], enemies: ['progenetica'], playerHp: 80, playerMaxHp: 80 }, gameData);
+    state.thisTurn = { coiled: true, venomCoating: 2 };
+    state.delayed = [{ turnsLeft: 3, effects: [{ type: 'changeEscape', amount: -6 }], targetId: state.enemies[0].id }];
+    const app = createSSRApp({ render: () => h(PowerList, { state, data: gameData }) });
+    app.directive('tip', { getSSRProps: () => ({}) });
+    const html = await renderToString(app);
+    expect(html.match(/class="power temporary"/g)).toHaveLength(3);
+    expect(html).toContain('🐍'); // Coiled's art
+    expect(html).toMatch(/>2<\/b>/); // Toxic Coating's Venom
+    expect(html).toContain('🦐'); // Mussel Bait's art
+    expect(html).toMatch(/>3<\/b>/); // turns left
   });
 });

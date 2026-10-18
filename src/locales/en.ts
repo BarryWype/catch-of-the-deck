@@ -307,6 +307,8 @@ export const en = {
       playAgain: 'Tap it again, or the battlefield, to play it…',
       energy: 'Energy',
       turn: 'Turn {n}',
+      upcoming: 'Coming up',
+      upcomingOn: 'Coming up on {name}',
       drawPile: 'Draw pile',
       draw: 'Draw {n}',
       endTurn: 'End Turn',

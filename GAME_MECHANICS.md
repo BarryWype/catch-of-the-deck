@@ -47,6 +47,8 @@ There are five kinds of card:
 | **Support** (purple) | Slows, weakens or tricks creatures, or helps you. |
 | **Power** (gold) | Lasts the rest of the fight once played; an icon under your Grit bar shows it. |
 
+Cards whose effect waits or wears off (Coiled, Toxic Coating, effects "at the start of your next turn"…) show a blue icon there too until it's used up, with its number or the turns left.
+
 Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (⏳) on top of energy.
 
 ### Patience

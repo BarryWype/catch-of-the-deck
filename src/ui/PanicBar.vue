@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import BarDelta from './BarDelta.vue';
 import BarPreview from './BarPreview.vue';
 import GameIcon from './GameIcon.vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { t } from './i18n';
 
 /**
@@ -12,6 +13,17 @@ import { t } from './i18n';
  */
 const props = defineProps<{ escape: number; escapeAt: number; escapeRate: number; pull?: number; after?: number; end?: number }>();
 const percent = (value: number) => (props.escapeAt > 0 ? Math.min(100, (100 * value) / props.escapeAt) : 0);
+/** Counts the bar's moves down (toward the hook) and up (toward escape); each is its icon's `key`,
+ * so the icon replays its bump. */
+const caught = ref(0);
+const fled = ref(0);
+watch(
+  () => props.escape,
+  (now, before) => {
+    if (now < before) caught.value++;
+    else fled.value++;
+  },
+);
 const fill = computed(() => percent(props.escape));
 const riseFrom = computed(() => props.end ?? props.after ?? props.escape);
 const next = computed(() => percent(riseFrom.value + props.escapeRate) - percent(riseFrom.value));
@@ -40,10 +52,14 @@ const escapesNext = computed(
         <div class="next" :style="{ transform: `translateX(${100 - next}%)` }" />
       </div>
       <!-- Just the values, inside the bar; the hover says how fast the bar rises. -->
-      <span class="value">{{ escape }}/{{ escapeAt }}</span>
+      <span class="value"><span>{{ escape }}/{{ escapeAt }}<BarDelta :value="escape" :after="after" :end="end" /></span></span>
       <!-- The ends of the tug of war: down to the hook (caught) or off to open water (fled). -->
-      <span v-tip="t('bars.captureTip')" class="end left"><GameIcon icon="🪝" /></span>
-      <span v-tip="t('bars.fleeTip')" class="end right"><GameIcon icon="💨" /></span>
+      <span v-tip="t('bars.captureTip')" class="end left">
+        <span :key="caught" :class="{ 'icon-bump': caught > 0 }"><GameIcon icon="🪝" /></span>
+      </span>
+      <span v-tip="t('bars.fleeTip')" class="end right">
+        <span :key="fled" :class="{ 'icon-bump': fled > 0 }"><GameIcon icon="💨" /></span>
+      </span>
     </div>
     <p v-if="escapesNext" class="escapes now">{{ t('bars.escapeNext') }}</p>
     <p v-else-if="escapesIn" class="escapes">{{ escapesIn }}</p>

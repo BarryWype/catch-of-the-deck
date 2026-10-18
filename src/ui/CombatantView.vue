@@ -21,8 +21,6 @@ const props = withDefaults(
     animationKey?: number;
     sprite?: SpriteRef;
     intent?: IntentPreview | null;
-    /** The player's Hold, so the intent can show what it soaks (player's block). */
-    hold?: number;
     targetable?: boolean;
     /** Hover text over the creature, e.g. its move set (see CombatView's `creatureTip`). */
     tip?: TipValue;
@@ -44,7 +42,7 @@ const props = withDefaults(
     /** The sprite only: the player's Grit and statuses are in the battlefield's corner panel instead. */
     bare?: boolean;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, families: () => [], hold: undefined, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, families: () => [], tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
@@ -63,7 +61,7 @@ const portraitStyle = computed(() => ({
   <div class="combatant" :class="{ dead: !isAlive(combatant), animated: !!clip, targetable }" @click="$emit('select')">
     <!-- A creature shows what it will do above its head; the player has no intent. -->
     <div v-if="intent || escapeBar" class="intent-slot">
-      <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" :hold="hold" />
+      <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
     </div>
     <!-- Everything about it in one block above the sprite, the bars the same width: its name and
          families (hover: the family's name), its Will, its health, then its statuses. -->

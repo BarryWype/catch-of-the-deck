@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import GameIcon from './GameIcon.vue';
-import type { IntentKind, IntentPreview, MoveIntensity } from '../engine';
+import type { IntentKind, IntentPreview } from '../engine';
 import { t, type TextKey } from './i18n';
 
 /**
  * What the creature will do next. Four chips, one per thing a move can do, each with a minimal
  * tooltip of its own; the move's name (hover) still tells the whole story.
  */
-const props = defineProps<{ intent: IntentPreview; /** The player's Hold, so the values show what it soaks. */ hold?: number }>();
+const props = defineProps<{ intent: IntentPreview }>();
 
 const KIND_SHAPES: Record<IntentKind, string> = { attack: 'bite1', pull: 'excape1', defend: 'arrow-up-green', buff: 'arrow-up-green', debuff: 'arrow-down-red' };
 /** Each chip says what it does, in as few words as possible. */
@@ -26,27 +26,12 @@ const shownKinds = computed(() => {
   return props.intent.kinds.filter((k) => (seen.has(KIND_SHAPES[k]) ? false : seen.add(KIND_SHAPES[k])));
 });
 
-const PIPS: Record<MoveIntensity, number> = { light: 1, normal: 2, heavy: 3 };
-
-/** A value after Hold: `6 → 1` while there is Hold to soak it, `6 → 0` when Hold covers it all. */
-function afterHold(value: number) {
-  const hold = props.hold ?? 0;
-  const effective = Math.max(0, value - hold);
-  return {
-    effective,
-    blocked: hold > 0 && value > 0 && effective === 0,
-    text: hold > 0 && value > 0 ? `${value} → ${effective}` : `${value}`,
-  };
-}
-
+/** The move's values as written; the bars show what gets past the player's Hold. */
 const damage = computed(() => {
-  const { damage: raw, hits } = props.intent;
-  if (raw === undefined) return undefined;
-  const value = afterHold(raw);
-  return { ...value, text: hits && hits > 1 ? `${value.text}×${hits}` : value.text };
+  const { damage: value, hits } = props.intent;
+  if (value === undefined) return undefined;
+  return hits && hits > 1 ? `${value}×${hits}` : `${value}`;
 });
-const pull = computed(() => (props.intent.pull === undefined ? undefined : afterHold(props.intent.pull)));
-const pips = computed(() => (props.intent.hidden ? 0 : PIPS[props.intent.intensity ?? 'normal']));
 
 const TAG_NAMES = { strike: t('intent.strike'), pull: t('intent.pull'), secondWind: t('intent.secondWind') } as const;
 /** The move's own tooltip: what its role and its special do, then its rules. */
@@ -66,12 +51,10 @@ const body = computed(() => {
     <div class="icons">
       <span v-for="kind in shownKinds" :key="kind" v-tip="t(KIND_TIPS[kind])" class="icon" :class="kind">
         <GameIcon :icon="KIND_SHAPES[kind]" />
-        <b v-if="kind === 'attack' && damage" :class="{ blocked: damage.blocked }">{{ damage.text }}</b>
-        <b v-else-if="kind === 'pull' && pull" :class="{ blocked: pull.blocked }">{{ pull.text }}</b>
+        <b v-if="kind === 'attack' && damage">{{ damage }}</b>
+        <b v-else-if="kind === 'pull' && intent.pull !== undefined">{{ intent.pull }}</b>
         <b v-else-if="kind === 'defend' && intent.block">{{ intent.block }}</b>
       </span>
-      <!-- How hard the move is: one to three pips (light / normal / heavy). -->
-      <span v-if="pips" class="pips" aria-hidden="true"><i v-for="n in pips" :key="n" /></span>
     </div>
     <div class="move"><span class="tag" :class="intent.tag">{{ TAG_NAMES[intent.tag] }}</span> {{ intent.moveName }}</div>
   </div>
@@ -92,7 +75,6 @@ const body = computed(() => {
 }
 .icon .game-icon { width: 35px; height: 35px; }
 .icon b { font-size: 1.5rem; }
-.icon b.blocked { text-decoration: line-through; opacity: 0.65; }
 /* Red for the Strike, the Will bar's teal for the Pull, green up and red down for the rest —
    each shape also tells its kind apart on its own. */
 .icon.attack { background: #4d1d24; color: #ff8177; }
@@ -100,8 +82,6 @@ const body = computed(() => {
 .icon.defend, .icon.buff { background: #234a2e; color: #7ee08a; }
 .icon.debuff { background: #4a2347; color: #e78b96; }
 .icon.hidden { background: #333; color: #aaa; }
-.pips { display: inline-flex; gap: 2px; }
-.pips i { width: 5px; height: 5px; border-radius: 50%; background: #b9a0dd; }
 /* On a dark pill, so it reads over any ground or water behind the creature. */
 .move { padding: 2px 8px 2px 3px; border-radius: 8px; background: rgb(10 14 20 / 0.72); font-size: 0.78rem; font-weight: 600; color: var(--text); }
 .tag { padding: 0 5px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; }
