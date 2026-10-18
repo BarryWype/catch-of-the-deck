@@ -30,11 +30,6 @@ function remove(cardIndex: number) {
 const confirmEnd = ref<HTMLDialogElement>();
 const tagNames = computed(() => creatureTypeNames(props.data));
 const shownFamilies = computed(() => props.families.map((id) => props.data.families[id]).filter(Boolean));
-/** Each card's family, shown above it: a reward short of its families' cards tops up from others. */
-const familyOf = (id: string) => {
-  const family = props.data.cards[id]?.family;
-  return family ? props.data.families[family] : undefined;
-};
 </script>
 
 <template>
@@ -62,7 +57,6 @@ const familyOf = (id: string) => {
     </p>
     <div class="choices">
       <div v-for="id in choices" :key="id" class="choice">
-        <span v-if="familyOf(id)?.icon" v-tip="familyOf(id)!.name" class="card-family"><GameIcon :icon="familyOf(id)!.icon!" /></span>
         <CardView :card="data.cards[id]" :description="describeCard(data.cards[id], { tagNames })" @click="emit('choose', id)" />
       </div>
     </div>
@@ -99,7 +93,6 @@ const familyOf = (id: string) => {
 .deck { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
 .choices { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
 .choice { display: flex; flex-direction: column; align-items: center; gap: 18px; }
-.card-family { font-size: 1.4rem; line-height: 1; cursor: help; }
 .choices :deep(.card) { transform: scale(1.15); transform-origin: center; }
 @media (hover: hover) {
   .choices :deep(.card:hover) { transform: scale(1.22) translateY(-10px); }
@@ -108,7 +101,6 @@ const familyOf = (id: string) => {
 @media (max-width: 700px), (max-height: 500px) {
   .choices { gap: 10px; }
   .choice { gap: 6px; }
-  .card-family { font-size: 1.1rem; }
   .choices :deep(.card) { transform: none; }
 }
 </style>

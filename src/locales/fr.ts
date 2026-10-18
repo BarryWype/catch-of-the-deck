@@ -536,6 +536,7 @@ export const fr: Messages = {
     card: {
       patienceCost: 'Coûte aussi {n} de {@patience}',
       effective: 'Efficace !',
+      family: 'Famille {family} : {temperaments}',
       type: {
         attack: 'attaque',
         defense: 'défense',

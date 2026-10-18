@@ -290,6 +290,8 @@ export interface FamilyDef {
   name: string;
   /** Placeholder art (emoji), shown next to a creature's name. Display-only. */
   icon?: string;
+  /** The creature (an enemy id of this family) shown on its cards' crest. Display-only. */
+  emblem: string;
   /** Temperament ids (content/behaviors.ts) in this family. */
   temperaments: string[];
   /** What its cards are about, e.g. "Damage over time (Venom)". Design note; not shown yet. */

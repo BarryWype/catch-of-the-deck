@@ -38,4 +38,12 @@ describe('creature families', () => {
     const [card, ...cards] = contentSource.cards;
     expect(errorsWith({ cards: [{ ...card, family: 'nope' }, ...cards] })).toEqual([expect.stringContaining('unknown family "nope"')]);
   });
+
+  it('catches an emblem that is not a creature of its family', () => {
+    const [venom, ...rest] = contentSource.families;
+    const errorsWith = (emblem: string) => validateContent({ ...contentSource, families: [{ ...venom, emblem }, ...rest] });
+    expect(errorsWith('lionfish')).toEqual([]);
+    expect(errorsWith('clownfish')).toEqual([expect.stringContaining('emblem "clownfish" is not a creature of the family')]);
+    expect(errorsWith('ghost')).toEqual([expect.stringContaining('emblem "ghost"')]);
+  });
 });

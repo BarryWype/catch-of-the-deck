@@ -1,5 +1,6 @@
 import { HOLD_PER_PATIENCE, MAX_PATIENCE, PATIENCE_ESCAPE_PERCENT, STATUS_META, statusDescription, statusName, type StatusId } from '../engine';
 import { t, term, type TextKey } from './i18n';
+import { HOLD_ICON } from './icons';
 import type { TipContent } from './tooltip';
 
 type Tip = Exclude<TipContent, string>;
@@ -12,14 +13,14 @@ const WORDS = ['damage', 'drain', 'strike', 'pull', 'exhaust', 'block', 'attack'
 /** The icon (a file in assets/icons) shown before each keyword that has one. */
 const ICONS: Partial<Record<string, string>> = {
   grit: 'muscle',
-  hold: 'life-buoy',
+  hold: HOLD_ICON,
   will: 'excape1',
   patience: 'coffee',
   damage: 'rod2',
   drain: 'net-green',
   strike: 'bite1',
   pull: 'excape1',
-  block: 'life-buoy',
+  block: HOLD_ICON,
   attack: 'hook-on-string',
   venom: 'venom1',
   strength: 'muscle-up',

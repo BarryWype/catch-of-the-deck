@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { creatureFamilies, describeCard, type CardDef } from '../engine';
 import { gameData } from '../content';
 import { t } from './i18n';
+import { iconUrl, TYPE_ICONS } from './icons';
 import KeywordText from './KeywordText.vue';
 import SpriteView from './SpriteView.vue';
 import { COMPACT_QUERY, useMedia } from './useScreen';
@@ -21,13 +22,12 @@ const props = withDefaults(
   { description: undefined, playable: true, selected: false, effective: false, cost: undefined },
 );
 
-const TYPE_ICON: Record<CardDef['type'], string> = { attack: '⚔️', defense: '🛡️', drain: '🧲', support: '🌀', power: '✨', junk: '🗑️' };
 const shownCost = computed(() => props.cost ?? props.card.cost);
 const text = computed(() => props.description ?? describeCard(props.card));
 
 /**
  * A card of a family shows one of the family's creatures on its art, over the family's colour;
- * family-less cards (starter, junk) keep their emoji. Each family's cards are paired with its
+ * family-less cards (starter, junk) show their `art` icon over a neutral colour. Each family's cards are paired with its
  * creatures in content order, so no creature appears twice while there are enough of them.
  */
 const FAMILY_COLOURS: Record<string, string> = {
@@ -59,13 +59,22 @@ const FAMILY_CARD_CREATURE: Record<string, string> = {};
 }
 const compact = useMedia(COMPACT_QUERY);
 const familyCreature = computed(() => (props.card.id ? gameData.enemies[FAMILY_CARD_CREATURE[props.card.id]] ?? null : null));
-const artSize = computed(() => (compact.value ? 36 : 52));
-const artStyle = computed(() => {
-  const colour = FAMILY_COLOURS[props.card.family ?? ''];
-  return colour && { background: `radial-gradient(circle at 50% 35%, color-mix(in srgb, ${colour} 70%, #14161c), color-mix(in srgb, ${colour} 35%, #0e1016))` };
-});
-/** Rules text steps down these font scales until it fits the space left under the art. */
-const TEXT_SCALES = [1, 0.9, 0.8, 0.72, 0.65];
+/** Whole-number scales of the 32 px sprite cells. */
+const artSize = computed(() => (compact.value ? 64 : 96));
+const artIcon = computed(() => (props.card.art ? iconUrl(props.card.art) : undefined));
+const familyColour = computed(() => FAMILY_COLOURS[props.card.family ?? ''] ?? (props.card.type === 'junk' ? '#4a4640' : '#39445e'));
+const family = computed(() => (props.card.family ? gameData.families[props.card.family] : undefined));
+const emblem = computed(() => (family.value ? gameData.enemies[family.value.emblem] : undefined));
+const familyTip = computed(
+  () =>
+    family.value &&
+    t('card.family', {
+      family: family.value.name,
+      temperaments: family.value.temperaments.map((id) => gameData.companionBonuses[id]?.temperamentName ?? id).join(', '),
+    }),
+);
+/** Rules text steps down these font scales until it fits its box. */
+const TEXT_SCALES = [1, 0.9, 0.8, 0.72, 0.65, 0.58];
 const desc = ref<HTMLElement>();
 const textScale = ref(1);
 async function fitText() {
@@ -99,22 +108,32 @@ const parts = computed(() =>
     type="button"
     class="card"
     :class="[card.type, `rarity-${card.rarity}`, { unplayable: !playable, selected, effective }]"
+    :style="{ '--family': familyColour }"
     :aria-disabled="!playable"
   >
+    <span class="waves" />
+    <span class="art">
+      <SpriteView v-if="familyCreature?.sprite" :sprite="familyCreature.sprite" :size="artSize" :aria-label="familyCreature.name" />
+      <img v-else-if="artIcon" :src="artIcon" alt="" class="art-icon" />
+      <template v-else>{{ card.art }}</template>
+    </span>
     <span class="cost" :class="{ taxed: shownCost > card.cost }">{{ card.unplayable ? '–' : shownCost }}</span>
     <span v-if="card.patienceCost" v-tip="t('card.patienceCost', { n: card.patienceCost })" class="patience-cost">⏳{{ card.patienceCost }}</span>
     <span class="name">{{ card.name }}</span>
-    <span class="art" :style="artStyle">
-      <SpriteView v-if="familyCreature?.sprite" :sprite="familyCreature.sprite" :size="artSize" :aria-label="familyCreature.name" />
-      <template v-else>{{ card.art ?? TYPE_ICON[card.type] }}</template>
+    <span v-tip="t(`card.type.${card.type}`)" class="type" role="img" :aria-label="t(`card.type.${card.type}`)">
+      <img :src="iconUrl(TYPE_ICONS[card.type])" alt="" />
     </span>
-    <span class="type">{{ t(`card.type.${card.type}`) }}</span>
-    <span ref="desc" class="desc">
-      <span :style="{ fontSize: `${textScale}em` }">
-        <template v-for="(part, i) in parts" :key="i">
-          <template v-if="'real' in part">{{ part.base }} <b class="real" :class="part.up ? 'up' : 'down'">({{ part.real }})</b></template>
-          <KeywordText v-else :text="part.text" />
-        </template>
+    <span class="box">
+      <span v-if="emblem?.sprite" v-tip="familyTip" class="crest" role="img" :aria-label="familyTip">
+        <SpriteView :sprite="emblem.sprite" :size="16" />
+      </span>
+      <span ref="desc" class="desc">
+        <span :style="{ fontSize: `${textScale}em` }">
+          <template v-for="(part, i) in parts" :key="i">
+            <template v-if="'real' in part">{{ part.base }} <b class="real" :class="part.up ? 'up' : 'down'">({{ part.real }})</b></template>
+            <KeywordText v-else :text="part.text" />
+          </template>
+        </span>
       </span>
     </span>
     <span v-if="effective" class="effective-badge">{{ t('card.effective') }}</span>
@@ -122,24 +141,25 @@ const parts = computed(() =>
 </template>
 
 <style scoped>
+/* Full art: the creature over a wash of its family's colour, swimming out over the top of the rules
+   box. The type colour (--frame) only rims the box and the type chip. Positions are from the inside
+   of the 2 px border. */
 .card {
   --frame: var(--attack);
+  --rim: #0a0e16;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  display: block;
   width: 140px;
   height: 196px;
-  padding: 8px;
-  border: 3px solid var(--frame);
-  border-radius: 12px;
-  /* The face carries a whisper of the card's type colour. */
-  background: linear-gradient(180deg, color-mix(in srgb, var(--frame) 9%, #2c303b), color-mix(in srgb, var(--frame) 5%, #1f222a));
+  padding: 0;
+  border: 2px solid #2a3348;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--family) 60%, #0b1220);
   color: var(--text);
   font: inherit;
   text-align: center;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgb(0 0 0 / 0.4);
+  box-shadow: 0 0 0 2px var(--rim), 0 5px 0 2px rgb(0 0 0 / 0.35);
   /* Grows from its bottom edge, so a hovered card rises out of the hand. The same easing both
      ways: moving from card to card, one settles back while the next lifts. */
   transform-origin: 50% 100%;
@@ -149,8 +169,7 @@ const parts = computed(() =>
 .card::after {
   content: '';
   position: absolute;
-  inset: -3px;
-  border-radius: inherit;
+  inset: -2px;
   box-shadow: 0 10px 18px rgb(0 0 0 / 0.5);
   opacity: 0;
   transition: opacity 0.22s ease;
@@ -170,63 +189,106 @@ const parts = computed(() =>
 .card.support { --frame: var(--support); }
 .card.power { --frame: var(--power); }
 .card.junk { --frame: var(--junk); }
-/* A rare card carries a faint gold aura, on top of its frame colour. */
-.rarity-rare { box-shadow: 0 4px 10px rgb(0 0 0 / 0.4), 0 0 18px rgb(245 215 110 / 0.22); }
-.cost.taxed { color: #e06060; }
+.card.rarity-rare { border-color: #d1a13a; }
 .card.selected { z-index: 2; transform: translateY(-20px) scale(1.08); box-shadow: 0 0 0 3px var(--highlight), 0 12px 20px rgb(0 0 0 / 0.5); }
 .card.unplayable { opacity: 0.5; cursor: not-allowed; }
 
+/* Water lines, and three bubbles at fixed spots. */
+.waves { position: absolute; inset: 0; background-image: repeating-linear-gradient(180deg, rgb(255 255 255 / 0.06) 0 2px, transparent 2px 14px); }
+.waves::before,
+.waves::after { content: ''; position: absolute; background: rgb(255 255 255 / 0.22); }
+.waves::before { left: 12%; top: 30%; width: 4px; height: 4px; }
+.waves::after { left: 84%; top: 18%; width: 2px; height: 2px; box-shadow: -8px 44px 0 rgb(255 255 255 / 0.22); }
+
+/* Its bottom overlaps the box's top edge by 12 px. */
+.art { position: absolute; z-index: 2; left: 20px; top: 21px; width: 96px; height: 96px; display: grid; place-items: center; font-size: 3rem; line-height: 1; pointer-events: none; }
+.art-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+
 .cost {
   position: absolute;
-  top: -10px;
-  left: -10px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 2px solid #fff6;
+  z-index: 3;
+  left: 4px;
+  top: 4px;
+  width: 20px;
+  height: 20px;
   background: var(--energy);
   color: #1b1d24;
   font-weight: 800;
-  line-height: 26px;
+  line-height: 20px;
+  box-shadow: 0 0 0 2px var(--rim), inset -2px -2px 0 #c98a22, inset 2px 2px 0 #ffe08a;
 }
+.cost.taxed { color: #c42c2c; }
 .patience-cost {
   position: absolute;
-  top: 22px;
-  left: -10px;
-  padding: 0 5px;
-  border-radius: 10px;
-  border: 2px solid #fff6;
-  background: #2a3f5a;
+  z-index: 3;
+  left: 4px;
+  top: 30px;
+  padding: 1px 3px;
+  background: #22344d;
   color: #bfe3ff;
   font-size: 0.7rem;
   font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--rim);
 }
-.name { font-weight: 500; font-size: 0.82rem; line-height: 1; margin: 0 0 4px 12px; color: color-mix(in srgb, var(--text) 80%, transparent); }
+.name {
+  position: absolute;
+  z-index: 3;
+  left: 26px;
+  right: 26px;
+  top: 8px;
+  font-size: 0.82rem;
+  line-height: 1;
+  text-shadow: 1px 0 0 var(--rim), -1px 0 0 var(--rim), 0 1px 0 var(--rim), 0 -1px 0 var(--rim), 1px 1px 0 var(--rim);
+}
 .rarity-rare .name { color: #ffd76a; }
-.art {
+.type {
+  position: absolute;
+  z-index: 3;
+  right: 4px;
+  top: 4px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
-  height: 56px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--frame) 25%, #14161c);
-  font-size: 1.8rem;
+  background: #141a26;
+  box-shadow: 0 0 0 2px var(--rim), inset 0 0 0 2px var(--frame);
 }
-.type {
-  align-self: center;
-  margin: -8px 0 6px;
-  padding: 0 8px;
-  border-radius: 8px;
-  background: #14161c;
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+.type img { width: 16px; height: 16px; image-rendering: pixelated; }
+
+.box {
+  position: absolute;
+  z-index: 1;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  height: 82px;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 5px 3px;
+  background: #141a26;
+  border: 2px solid var(--frame);
+  box-shadow: 0 0 0 2px var(--rim);
 }
-.desc { flex: 1; min-height: 0; display: grid; place-items: center; font-size: 0.78rem; line-height: 1; }
+/* Sits on the box's top-right corner, half above its edge. The emblem is the 32 px cell at half size. */
+.crest {
+  position: absolute;
+  z-index: 3;
+  right: 3px;
+  top: -12px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  background: #141a26;
+  box-shadow: 0 0 0 2px var(--frame);
+}
+.desc { flex: 1; min-height: 0; display: grid; place-items: center; color: #d8dde6; font-size: 0.78rem; line-height: 1.15; }
 
 .card.effective { box-shadow: 0 0 0 2px #7be38f, 0 0 16px rgb(123 227 143 / 0.55), 0 4px 10px rgb(0 0 0 / 0.4); }
 .effective-badge {
   position: absolute;
+  z-index: 4;
   bottom: -9px;
   left: 50%;
   transform: translateX(-50%);
@@ -244,14 +306,17 @@ const parts = computed(() =>
 .real.up { color: #7ee08a; }
 .real.down { color: #ff8a80; }
 
-/* Small screens: a smaller card, its text a little smaller. */
+/* Small screens: a smaller card, the creature at 2×, its text a little smaller. */
 @media (max-width: 700px), (max-height: 500px) {
-  .card { width: 118px; height: 166px; padding: 6px; border-radius: 10px; }
-  .name { font-size: 0.72rem; margin: 0 0 3px 12px; }
-  .art { height: 40px; font-size: 1.4rem; }
-  .type { margin: -6px 0 4px; font-size: 0.6rem; }
+  .card { width: 118px; height: 166px; }
+  .art { left: 25px; top: 30px; width: 64px; height: 64px; font-size: 2.2rem; }
+  .art-icon { width: 48px; height: 48px; }
+  .cost { left: 3px; top: 3px; width: 18px; height: 18px; line-height: 18px; }
+  .patience-cost { left: 3px; top: 26px; font-size: 0.62rem; }
+  .name { left: 22px; right: 22px; top: 6px; font-size: 0.72rem; }
+  .type { right: 3px; top: 3px; }
+  .box { left: 4px; right: 4px; bottom: 4px; height: 70px; padding: 10px 4px 3px; }
   .desc { font-size: 0.7rem; }
-  .cost { width: 26px; height: 26px; line-height: 22px; top: -8px; left: -8px; }
   .card.selected { transform: translateY(-14px) scale(1.05); }
 }
 

@@ -58,7 +58,7 @@ export const testData = buildGameData({
       moves: [{ id: 'm', name: 'M', tag: 'pull' as const, intensity: 'normal' as const, effects: [{ type: 'pull' as const, amount: 0 }] }], pattern: { type: 'sequence' as const, moves: ['m'] },
     })),
   ],
-  families: [{ id: 'shells', name: 'Shells', temperaments: ['shelled'], identity: '', focus: '' }],
+  families: [{ id: 'shells', name: 'Shells', emblem: 'shellA', temperaments: ['shelled'], identity: '', focus: '' }],
   companionBonuses: [
     {
       id: 'shelled', name: 'Shelled', temperamentName: 'Shelled',

@@ -9,6 +9,12 @@ const EMOJI: Record<string, string> = {
   '🥅': 'net-green', '☕': 'coffee',
 };
 
+/** Hold's icon, shared by the keyword and the defense card type. */
+export const HOLD_ICON = 'life-buoy';
+
+/** Each card type's icon file. */
+export const TYPE_ICONS = { attack: 'sword', drain: 'hook-on-string', defense: HOLD_ICON, support: 'net-green', power: 'muscle', junk: 'thorn' } as const;
+
 /** The image for an emoji or an icon file name (without `.png`), if there is one. */
 export function iconUrl(icon: string): string | undefined {
   return URLS[EMOJI[icon] ?? icon];

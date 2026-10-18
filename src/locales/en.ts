@@ -546,6 +546,7 @@ export const en = {
     card: {
       patienceCost: 'Also costs {n} {@patience}',
       effective: 'Effective!',
+      family: '{family} family: {temperaments}',
       type: {
         attack: 'attack',
         defense: 'defense',

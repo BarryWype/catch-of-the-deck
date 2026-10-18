@@ -236,6 +236,10 @@ export function validateContent(source: ContentSource): string[] {
     for (const t of family.temperaments) {
       if (!bonusIds.has(t)) errors.push(`Family "${family.id}": unknown temperament "${t}".`);
     }
+    const emblem = source.enemies.find((e) => e.id === family.emblem);
+    if (!emblem?.temperament || !family.temperaments.includes(emblem.temperament)) {
+      errors.push(`Family "${family.id}": emblem "${family.emblem}" is not a creature of the family.`);
+    }
   }
   if (source.families.length) {
     const inAFamily = new Set(source.families.flatMap((f) => f.temperaments));
