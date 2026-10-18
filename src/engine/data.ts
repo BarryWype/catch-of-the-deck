@@ -1,4 +1,4 @@
-import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, GameData, ShopItemDef } from './types';
+import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef } from './types';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
 export interface ContentSource {
@@ -7,6 +7,7 @@ export interface ContentSource {
   enemies: EnemyDef[];
   encounters: EncounterDef[];
   builds: BuildDef[];
+  fishermen: FishermanDef[];
   creatureTypes: CreatureTypeDef[];
   equipment: EquipmentDef[];
   events: EventDef[];
@@ -29,6 +30,7 @@ export function buildGameData(source: ContentSource): GameData {
     enemies: Object.fromEntries(source.enemies.map((e) => [e.id, e])),
     encounters: source.encounters,
     builds: Object.fromEntries(source.builds.map((b) => [b.id, b])),
+    fishermen: Object.fromEntries(source.fishermen.map((f) => [f.id, f])),
     creatureTypes: Object.fromEntries(source.creatureTypes.map((t) => [t.id, t])),
     equipment: Object.fromEntries(source.equipment.map((e) => [e.id, e])),
     events: Object.fromEntries(source.events.map((e) => [e.id, e])),
@@ -268,6 +270,18 @@ export function validateContent(source: ContentSource): string[] {
     if (build.level !== undefined && !source.levels.some((l) => l.id === build.level)) {
       errors.push(`${where}: unknown level "${build.level}".`);
     }
+    if (build.unlock) {
+      const { fisherman, quest } = build.unlock;
+      if (!source.fishermen.some((f) => f.id === fisherman)) errors.push(`${where}: unknown fisherman "${fisherman}".`);
+      if (!(Number.isInteger(quest.count) && quest.count > 0)) errors.push(`${where}: the quest's count must be a whole number > 0.`);
+      if (quest.creatureTypes.length === 0) errors.push(`${where}: the quest needs at least one creature type.`);
+      checkTags(`${where} quest`, quest.creatureTypes);
+    }
+  }
+  const fishermanIds = new Set<string>();
+  for (const fisherman of source.fishermen) {
+    checkDuplicate(fishermanIds, fisherman.id, 'fisherman');
+    if (!source.levels.some((l) => l.id === fisherman.level)) errors.push(`Fisherman "${fisherman.id}": unknown level "${fisherman.level}".`);
   }
   if (source.builds.length === 0) errors.push('There must be at least one build.');
 

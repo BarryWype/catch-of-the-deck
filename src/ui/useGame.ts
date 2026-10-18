@@ -26,7 +26,10 @@ import {
   isLastLevel,
   buildLevelMap,
   START_NODE_ID,
-  startingBuilds,
+  fishermenToMeet,
+  newUnlocks,
+  unlockedBuilds,
+  visitFisherman,
   isReleaseFight,
   visitTreasure,
   recordEncounter,
@@ -58,7 +61,7 @@ import {
   type SavedGame,
 } from './saveStore';
 
-export type Screen = 'menu' | 'companions' | 'map' | 'combat' | 'bucketFull' | 'event' | 'shop' | 'leave' | 'reward' | 'complete';
+export type Screen = 'menu' | 'build' | 'companions' | 'map' | 'combat' | 'bucketFull' | 'event' | 'fisherman' | 'shop' | 'leave' | 'reward' | 'complete';
 
 /**
  * Thin glue between Vue and the engine: holds the current immutable states in
@@ -86,12 +89,19 @@ export function useGame(initialSeed: number) {
   const biggestCatch = shallowRef<Readonly<Record<string, CatchSize>>>({});
   /** Eggs laid in the home aquarium, waiting to be clicked: the creature id inside each. */
   const eggs = ref<string[]>([]);
+  /** Builds unlocked through fishermen's quests, and the fishermen met (whose quests are open). */
+  const unlocked = ref<string[]>([]);
+  const fishermenMet = ref<string[]>([]);
   loadProfile().then((profile) => {
     homeAquarium.value = profile.homeAquarium;
     creatureBook.value = profile.creatureBook;
     biggestCatch.value = profile.biggestCatch;
     eggs.value = profile.eggs;
+    unlocked.value = profile.unlockedBuilds;
+    fishermenMet.value = profile.fishermenMet;
   });
+  /** The builds a run can start with. */
+  const builds = computed(() => unlockedBuilds(gameData, unlocked.value));
   /** The finish node the player clicked, waiting for them to confirm on the leave screen. */
   const leaveNodeId = ref<string | null>(null);
   /** On the end screen, how the run ended. Only `fled` leaves the bucket behind. */
@@ -104,6 +114,8 @@ export function useGame(initialSeed: number) {
       creatureBook: { ...creatureBook.value },
       biggestCatch: { ...biggestCatch.value },
       eggs: eggs.value,
+      unlockedBuilds: unlocked.value,
+      fishermenMet: fishermenMet.value,
     });
   }
 
@@ -147,13 +159,19 @@ export function useGame(initialSeed: number) {
   /** How many eggs were laid when the last run ended, for the end screens. */
   const newEggs = ref(0);
 
+  /** Builds the last run unlocked, for the end screen. */
+  const newlyUnlocked = ref<string[]>([]);
+
   /**
    * Every run end (not an abandoned one): creatures that stayed home bond a little, a successful
-   * run brings its bucket home, then pairs may lay an egg (so new catches can breed straight away).
+   * run brings its bucket home and unlocks the builds whose quests are now met, then pairs may lay
+   * an egg (so new catches can breed straight away).
    */
   function endRun(finished: RunState, success: boolean) {
     let home = restAtHome(homeAquarium.value, gameData);
     if (success) home = bringCatchHome(home, finished, gameData);
+    newlyUnlocked.value = success ? newUnlocks(gameData, unlocked.value, fishermenMet.value, home) : [];
+    unlocked.value = [...unlocked.value, ...newlyUnlocked.value];
     const laid = layEggs(home, finished, gameData);
     homeAquarium.value = home;
     eggs.value = [...eggs.value, ...laid];
@@ -180,7 +198,7 @@ export function useGame(initialSeed: number) {
 
   // Autosave after every change; a lost or finished run deletes the save.
   watch([run, combat, screen, rewardChoices, eventId, shopVisit], () => {
-    if (!run.value || screen.value === 'menu' || screen.value === 'companions') return;
+    if (!run.value || screen.value === 'menu' || screen.value === 'build' || screen.value === 'companions') return;
     if (screen.value === 'complete' || combat.value?.phase === 'lost') {
       savedGame.value = null;
       clearSavedGame();
@@ -219,6 +237,8 @@ export function useGame(initialSeed: number) {
     combat.value = null;
     savedGame.value = null;
     homeAquarium.value = [];
+    unlocked.value = [];
+    fishermenMet.value = [];
     broughtSlots.value = [];
     creatureBook.value = {};
     biggestCatch.value = {};
@@ -232,21 +252,36 @@ export function useGame(initialSeed: number) {
     screen.value = 'menu';
   }
 
+  /** The build and starting item picked on the build screen, used when the run starts. */
+  const chosenBuild = ref<{ buildId: string; itemId: string | undefined }>();
+
   function newRun(newSeed: number) {
     seed.value = newSeed;
     run.value = null;
     combat.value = null;
     broughtSlots.value = [];
-    // Next, choose who to bring along (skipped when the home aquarium is empty).
+    // Choose a build, unless only one is unlocked.
+    if (builds.value.length > 1) screen.value = 'build';
+    else chooseBuild(builds.value[0].id, undefined);
+  }
+
+  /** Next, choose who to bring along (skipped when the home aquarium is empty). */
+  function chooseBuild(buildId: string, itemId: string | undefined) {
+    chosenBuild.value = { buildId, itemId };
     if (homeAquarium.value.length) screen.value = 'companions';
     else startRun();
   }
 
-  /** Every run starts with the first build: there's no build choice for now. */
+  /** Back from the companions screen: to the build screen, or the menu when it was skipped. */
+  function toBuildSelect() {
+    screen.value = builds.value.length > 1 ? 'build' : 'menu';
+  }
+
   function startRun() {
+    const { buildId, itemId } = chosenBuild.value ?? { buildId: builds.value[0].id, itemId: undefined };
     // The brought creatures leave the home aquarium now: like the rest of the bucket, they only
     // come back if the run is successful.
-    run.value = createRun(seed.value, gameData, startingBuilds(gameData)[0].id, brought.value);
+    run.value = createRun(seed.value, gameData, buildId, brought.value, itemId, fishermenToMeet(gameData, unlocked.value));
     if (brought.value.length) {
       homeAquarium.value = homeLeft.value;
       broughtSlots.value = [];
@@ -256,14 +291,14 @@ export function useGame(initialSeed: number) {
   }
 
   /**
-   * Debug only (the menu's dev buttons): a fresh run with the first build, put on level
+   * Debug only (the menu's dev buttons): a fresh run with the first unlocked build, put on level
    * `levelIndex` next to its mini-boss or boss, and straight into that fight.
    */
   function debugStartAt(levelIndex: number, kind: 'miniBoss' | 'boss', newSeed: number) {
     seed.value = newSeed;
     combat.value = null;
-    const fresh = createRun(newSeed, gameData, startingBuilds(gameData)[0].id);
-    const map = buildLevelMap(gameData, levelIndex, fresh);
+    const fresh = createRun(newSeed, gameData, builds.value[0].id, [], undefined, fishermenToMeet(gameData, unlocked.value));
+    const map = buildLevelMap(gameData, levelIndex, fresh, fresh.fishermen);
     const nodes = map.columns.flat();
     const target = nodes.find((n) => n.kind === kind)!;
     const before = nodes.find((n) => n.next.includes(target.id))!;
@@ -283,6 +318,17 @@ export function useGame(initialSeed: number) {
       run.value = visitShop(run.value, nodeId);
       shopVisit.value = { bought: {} };
       screen.value = 'shop';
+      return;
+    }
+    if (kind === 'fisherman') {
+      run.value = visitFisherman(run.value, nodeId);
+      // His quest opens now, whatever happens to this run.
+      const id = findNode(run.value.map, nodeId)?.fisherman;
+      if (id && !fishermenMet.value.includes(id)) {
+        fishermenMet.value = [...fishermenMet.value, id];
+        saveProfile();
+      }
+      screen.value = 'fisherman';
       return;
     }
     if (kind === 'treasure') {
@@ -308,6 +354,11 @@ export function useGame(initialSeed: number) {
     run.value = result.run;
     combat.value = result.combat;
     screen.value = 'combat';
+  }
+
+  /** Done talking with the fisherman: back to the map. */
+  function leaveFisherman() {
+    screen.value = 'map';
   }
 
   function dispatch(action: CombatAction) {
@@ -452,6 +503,8 @@ export function useGame(initialSeed: number) {
     eventId,
     shopVisit,
     dispatch,
+    chooseBuild,
+    toBuildSelect,
     startRun,
     travel,
     claimVictory,
@@ -471,6 +524,11 @@ export function useGame(initialSeed: number) {
     keepWaiting,
     sellWaiting,
     newRun,
+    builds,
+    unlocked,
+    fishermenMet,
+    newlyUnlocked,
+    leaveFisherman,
     debugStartAt,
     savedGame,
     homeAquarium,

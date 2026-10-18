@@ -14,9 +14,13 @@
  * brought from home, at that bond level (0–3). `--lineups` plays the same seeds with no
  * companions, then with standard lineups of each temperament, and ranks them (<name>-lineups.csv).
  *
+ * `--build foraging` plays that build instead of the first one (Rod), locked or not.
+ *
  * `--campaign 20` plays 20 runs in a row (seeds from `--seed`) sharing one home aquarium, starting
  * empty: the bot brings its best companions (`chooseCompanions`), heads home at a leave node when
- * under half Grit, and hatches eggs at once. It reports how fast bond grows (<name>-campaign.csv).
+ * under half Grit, and hatches eggs at once. Fishermen of locked builds stand on its maps, and it
+ * unlocks builds as a player would (it keeps playing its build). It reports how fast bond grows,
+ * and the run each build was unlocked on (<name>-campaign.csv).
  *
  * The bot (`playTurn`) plays one card at a time: it tries each playable card on each target and
  * keeps the one that leaves the fight in the best shape (`evaluate`), until nothing helps. On the
@@ -65,7 +69,11 @@ import {
   sellCreature,
   setText,
   shopItemBlocked,
+  fishermenToMeet,
+  newUnlocks,
+  questProgress,
   startingBuilds,
+  visitFisherman,
   travelTo,
   visitEvent,
   visitShop,
@@ -95,6 +103,8 @@ const COMPANIONS = arg('companions', '').split(',').filter(Boolean);
 const BOND = Number(arg('bond', '0'));
 const LINEUPS = args.includes('--lineups');
 const CAMPAIGN = Number(arg('campaign', '0'));
+const BUILD = arg('build', startingBuilds(data)[0].id);
+if (!data.builds[BUILD]) throw new Error(`Unknown build "${BUILD}"`);
 /** A fight still going after this many turns is stopped and counted as a stall. */
 const MAX_TURNS = 60;
 
@@ -296,11 +306,18 @@ function makeRoom(run: RunState): RunState {
 
 /**
  * One run, with `brought` companions. With `headHome` (the campaign), the bot takes a leave node
- * when it's under half Grit.
+ * when it's under half Grit. `fishermen` stand on the maps; the ones it meets go in `met`.
  */
-function playRun(seed: number, fights: FightRecord[], brought: readonly HomeCreature[] = [], headHome = false): { record: RunRecord; run: RunState } {
+function playRun(
+  seed: number,
+  fights: FightRecord[],
+  brought: readonly HomeCreature[] = [],
+  headHome = false,
+  fishermen: readonly string[] = [],
+  met: string[] = [],
+): { record: RunRecord; run: RunState } {
   const pick = botRng(seed);
-  let run = createRun(seed, data, startingBuilds(data)[0].id, brought);
+  let run = createRun(seed, data, BUILD, brought, undefined, fishermen);
   const end = (outcome: RunRecord['outcome']) => {
     const mine = fights.filter((f) => f.seed === seed);
     const sum = (key: 'turns' | 'caughtByWill' | 'caughtByHealth' | 'escaped') => mine.reduce((a, f) => a + f[key], 0);
@@ -345,6 +362,11 @@ function playRun(seed: number, fights: FightRecord[], brought: readonly HomeCrea
         while (run.coins < heal.price && run.bucket.length > run.companions.length) run = sellCreature(run, run.companions.length, data);
         while (!shopItemBlocked(heal, run, visit) && run.hp * 2 < run.maxHp) ({ run, visit } = buyShopItem(run, visit, heal.id, data));
       }
+      continue;
+    }
+    if (node.kind === 'fisherman') {
+      run = visitFisherman(run, node.id);
+      if (node.fisherman && !met.includes(node.fisherman)) met.push(node.fisherman);
       continue;
     }
     if (node.kind === 'treasure') ({ run, eventId } = visitTreasure(run, node.id, data));
@@ -569,10 +591,16 @@ function campaign(runsInARow: number) {
   const tripsTo: { level: number; tier: number; trips: number }[] = [];
   let companionsLost = 0;
   const bucketsHome: number[] = [];
+  /** Builds unlocked, the run each was unlocked on, and the fishermen met (and the run of the first meeting). */
+  const unlocked: string[] = [];
+  const unlockedOn: Record<string, number> = {};
+  const met: string[] = [];
+  const metOn: Record<string, number> = {};
 
   for (let i = 0; i < runsInARow; i++) {
     const { home: left, brought } = takeFromHome(home, chooseCompanions(home));
-    const { record, run } = playRun(FIRST_SEED + i, fights, brought, true);
+    const { record, run } = playRun(FIRST_SEED + i, fights, brought, true, fishermenToMeet(data, unlocked), met);
+    for (const id of met) metOn[id] ??= i + 1;
     const success = record.outcome === 'won' || record.outcome === 'left';
     home = restAtHome(left, data) as Tracked[];
     if (success) {
@@ -581,6 +609,10 @@ function campaign(runsInARow: number) {
       home.push(...back.slice(0, run.companions.length).map((c) => ({ ...(c as Tracked), trips: (c as Tracked).trips + 1 })));
       home.push(...back.slice(run.companions.length).map(track));
       bucketsHome.push(run.bucket.length);
+      for (const id of newUnlocks(data, unlocked, met, home)) {
+        unlocked.push(id);
+        unlockedOn[id] = i + 1;
+      }
     }
     companionsLost += brought.length - (success ? run.companions.length : 0);
     home.push(...layEggs(home, run, data).map((id) => track(hatchling(id, data))));
@@ -602,6 +634,16 @@ function campaign(runsInARow: number) {
       bucketHome: success ? run.bucket.length : 0,
       home: home.length,
       bestBond: Math.max(0, ...home.map((c) => bondLevel(c, data))),
+      met: met.join(' '),
+      unlocked: unlocked.join(' '),
+      // Each quest's progress at home after the run, e.g. "foraging 3/6".
+      quests: Object.values(data.builds)
+        .filter((b) => b.unlock)
+        .map((b) => {
+          const { have, need } = questProgress(b.unlock!.quest, home, data);
+          return `${b.id} ${have}/${need}`;
+        })
+        .join(' '),
     });
   }
 
@@ -609,6 +651,14 @@ function campaign(runsInARow: number) {
   console.log(`\nCampaign: ${runsInARow} runs in a row (seeds ${FIRST_SEED}–${FIRST_SEED + runsInARow - 1}), one home aquarium`);
   console.table(Object.fromEntries(rows.map(({ run, ...r }) => [run, r])));
   console.log(`Successful runs ${successes}, lost ${runsInARow - successes}. Companions lost: ${companionsLost}. Bucket brought home: ${avg(bucketsHome)} on average.`);
+  console.log('Builds to unlock: the run their fisherman was first met on, and the run they were unlocked on');
+  console.table(
+    Object.fromEntries(
+      Object.values(data.builds)
+        .filter((b) => b.unlock)
+        .map((b) => [b.id, { met: metOn[b.unlock!.fisherman] ?? 'never', unlocked: unlockedOn[b.id] ?? 'never' }]),
+    ),
+  );
   console.log('Run in which the first creature reached each bond level');
   console.table(Object.fromEntries(firstRun.map((run, i) => [`level ${i + 1}`, run ?? 'never'])));
   console.log('Successful runs a creature was brought on before reaching each level (target: level 2 in 2–3, level 3 in about 5)');

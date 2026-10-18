@@ -15,7 +15,10 @@ export interface ContentTranslations {
   moves?: Record<string, string>;
   /** Card id → name. */
   cards?: Record<string, string>;
-  builds?: Record<string, { name?: string; description?: string }>;
+  /** Build id → its name, description, and the title of the quest that unlocks it. */
+  builds?: Record<string, { name?: string; description?: string; quest?: string }>;
+  /** Fisherman id → his name and what he says when met. */
+  fishermen?: Record<string, { name?: string; greeting?: string }>;
   equipment?: Record<string, { name?: string; description?: string }>;
   /** Family id → its name, and its design notes. */
   families?: Record<string, { name?: string; identity?: string; focus?: string }>;
@@ -53,7 +56,11 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
     })),
     creatureTypes: source.creatureTypes.map((t) => ({ ...t, name: tr.creatureTypes?.[t.id] ?? t.name })),
     cards: source.cards.map((c) => ({ ...c, name: tr.cards?.[c.id] ?? c.name })),
-    builds: source.builds.map((b) => ({ ...b, ...tr.builds?.[b.id] })),
+    builds: source.builds.map((b) => {
+      const { quest, ...t } = tr.builds?.[b.id] ?? {};
+      return { ...b, ...t, unlock: b.unlock && { ...b.unlock, name: quest ?? b.unlock.name } };
+    }),
+    fishermen: source.fishermen.map((f) => ({ ...f, ...tr.fishermen?.[f.id] })),
     equipment: source.equipment.map((e) => ({ ...e, ...tr.equipment?.[e.id] })),
     companionBonuses: source.companionBonuses.map((b) => ({ ...b, ...tr.companions?.[b.id] })),
     families: source.families.map((f) => ({ ...f, ...tr.families?.[f.id] })),

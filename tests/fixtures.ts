@@ -71,6 +71,7 @@ export const testData = buildGameData({
     { id: 'basic', name: 'Basic', description: '', starterDeck: ['strike', 'defend'], strongAgainst: [] },
     { id: 'angler', name: 'Angler', description: '', starterDeck: ['hook', 'defend'], strongAgainst: ['fish'], startingItems: ['reel'] },
   ],
+  fishermen: [],
   events: [],
   shop: [],
   equipment: [

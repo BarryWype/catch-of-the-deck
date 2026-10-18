@@ -21,12 +21,11 @@ Slay the Fish: a deck-building fishing roguelike. A pure TypeScript rules engine
 
 1. **Read before writing.** Read the code the change touches and the doc that describes it. For a spec, follow docs/agents/specs.md.
 2. **Change everything the feature touches.** docs/agents/changes.md lists, per kind of change, every file that must follow (engine, data checks, content, both languages, UI, saves, tests, docs, simulator).
-3. **Verify until green.** Run the checks once per task, after all its edits (not once per file), and re-run after each fix until they pass. Done means:
-   - `npm run typecheck` shows no errors and `npm test` passes;
-   - a balance change has a before/after `npm run simulate` (docs/agents/balance.md);
-   - a UI change has been seen working in the browser at phone and desktop sizes (docs/agents/ui.md).
-
-   A test that needs a new expected value gets it only after you've confirmed the new value is the intended behaviour, and the report says so.
+3. Verify in proportion to the change:
+   - Small (text, one number, one card, a doc): `npm run typecheck` and only the test file it touches (`npx vitest run tests/cards.test.ts`). No simulation unless I ask.
+   - Medium (a mechanic, several cards, a creature): typecheck + `npm test`; a balance change gets `npm run simulate -- --runs 100`.
+   - Large (a rework, a spec): everything, 300-run simulations before and after.
+   UI: one screenshot at the size it affects; check the other sizes with JavaScript (positions, overflow), not screenshots.
 4. **Report** in a few bullets: what changed, every decision you made where the request was open, what you didn't verify and why, and anything the user must do. Lead with the outcome.
 
 ## Disclosed guides

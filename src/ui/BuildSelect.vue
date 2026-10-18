@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { creatureTypeNames, describeCard, startingBuilds, type BuildDef, type GameData } from '../engine';
+import { creatureTypeNames, describeCard, type BuildDef, type GameData } from '../engine';
 import CardView from './CardView.vue';
 import { t } from './i18n';
 import SpriteView from './SpriteView.vue';
 
-/** The whole screen: the builds a run can start with, each with its details and starting items. */
-const props = defineProps<{ data: GameData }>();
+/** The whole screen: the builds a run can start with (the unlocked ones), each with its details and starting items. */
+const props = defineProps<{ builds: BuildDef[]; data: GameData }>();
 const emit = defineEmits<{ choose: [buildId: string, itemId: string | undefined]; back: [] }>();
 
 const tagNames = computed(() => creatureTypeNames(props.data));
-const builds = computed(() => startingBuilds(props.data));
 
 /** The starting item picked under each build (its first one until the player picks). */
 const picked = ref<Record<string, string | undefined>>({});
@@ -84,6 +83,9 @@ function deckSummary(build: BuildDef) {
 .back { position: absolute; top: 0; left: 0; }
 .intro h2 { margin: 0; font-size: 1.8rem; }
 .intro p { margin: 4px 0 0; color: var(--muted); }
+@media (max-width: 700px) {
+  .back { position: static; display: block; margin-bottom: 8px; }
+}
 
 .builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; }
 .build {

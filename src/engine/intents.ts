@@ -3,7 +3,7 @@ import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { pickWeighted } from './rng';
-import { nextMoveMods } from './statuses';
+import { nextMoveMods, statusDescription, statusName } from './statuses';
 import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveIntensity, MoveRole, MoveTag } from './types';
 import { text } from './text';
 import { addLog } from './util';
@@ -27,6 +27,9 @@ export interface IntentPreview {
   /** How hard it pulls on the line (before the player's Hold). */
   pull?: number;
   block?: number;
+  /** What the green arrow (Block and its own buffs) and the red arrow (debuffs) do, for their chips' tooltips. */
+  buffText?: string;
+  debuffText?: string;
   /** How hard the move is: one to three pips next to the badge's value. Display-only. */
   intensity?: MoveIntensity;
 }
@@ -166,8 +169,10 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
     description: describeEffects(scaledEffects(move, enemy), { byCreature: true }),
     kinds: [],
   };
-  const addKind = (k: IntentKind) => {
+  const arrowEffects: { buff: Effect[]; debuff: Effect[] } = { buff: [], debuff: [] };
+  const addKind = (k: IntentKind, effect?: Effect) => {
     if (!preview.kinds.includes(k)) preview.kinds.push(k);
+    if (effect && k !== 'attack' && k !== 'pull') arrowEffects[k === 'debuff' ? 'debuff' : 'buff'].push(effect);
   };
   const { scale, less } = moveMods(state, enemy, move);
   const size = enemy.damageScale ?? 1;
@@ -183,12 +188,12 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
         preview.pull = (preview.pull ?? 0) + Math.floor(effect.amount * size * scale);
         break;
       case 'gainBlock':
-        addKind('defend');
+        addKind('defend', effect);
         preview.block = (preview.block ?? 0) + effect.amount;
         break;
       case 'applyStatus':
         // A Wind-up's own status, and a special's, are already its icon.
-        if (effect.status !== 'windUp' && move.role !== 'special') addKind((effect.target ?? 'target') === 'self' && effect.amount > 0 ? 'buff' : 'debuff');
+        if (effect.status !== 'windUp' && move.role !== 'special') addKind((effect.target ?? 'target') === 'self' && effect.amount > 0 ? 'buff' : 'debuff', effect);
         break;
       case 'healPercent':
       case 'ink':
@@ -219,9 +224,16 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
       case 'flipIntent':
       case 'rerollIntent':
       case 'holdFromIntent':
-        addKind('buff');
+        addKind('buff', effect);
         break;
     }
   }
+  // The effects, then what each status they give does.
+  const arrowText = (effects: Effect[]) => {
+    const statuses = effects.flatMap((e) => (e.type === 'applyStatus' ? [`${statusName(e.status)}: ${statusDescription(e.status)}`] : []));
+    return effects.length ? [describeEffects(effects, { byCreature: true }), ...statuses].join(' ') : undefined;
+  };
+  preview.buffText = arrowText(arrowEffects.buff);
+  preview.debuffText = arrowText(arrowEffects.debuff);
   return preview;
 }

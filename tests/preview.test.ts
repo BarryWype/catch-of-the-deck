@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { previewCard, previewIntents, type CombatState, type GameData } from '../src/engine';
+import { previewCard, previewIntent, previewIntents, type CombatState, type GameData } from '../src/engine';
 import { repeat, setup, testData } from './fixtures';
 
 const uidOf = (s: CombatState, defId: string) => s.piles.hand.find((c) => c.defId === defId)!.uid;
@@ -82,6 +82,27 @@ describe('intent preview', () => {
     const s = setup(repeat('strike', 5), { data });
     s.player.block = 3;
     expect(previewIntents(s, data).enemies[0].escape).toBe(4 + 8 - 3);
+  });
+
+  it('says what the arrows do: its own buffs and Block, and its debuffs', () => {
+    const data: GameData = {
+      ...testData,
+      enemies: {
+        ...testData.enemies,
+        dummy: {
+          ...testData.enemies.dummy,
+          moves: [{ id: 'hit', name: 'Brace', tag: 'pull', intensity: 'normal', effects: [
+            { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' },
+            { type: 'gainBlock', amount: 4 },
+            { type: 'applyStatus', status: 'weak', amount: 1 },
+          ] }],
+        },
+      },
+    };
+    const s = setup(repeat('strike', 5), { data });
+    const intent = previewIntent(s, s.enemies[0], data)!;
+    expect(intent.buffText).toBe('Gain 1 Strength. Gain 4 Block. Strength: Adds damage to every hit of an attack.');
+    expect(intent.debuffText).toBe('Apply 1 Weak. Weak: Deals 25% less damage with attacks. Decreases at end of turn.');
   });
 
   it('leaves out a hidden move', () => {

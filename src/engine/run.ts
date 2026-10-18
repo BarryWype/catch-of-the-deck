@@ -61,6 +61,8 @@ export interface RunState {
   rarePity: number;
   /** The families the card reward on offer draws from (the creatures of the fight it follows); none = every family. */
   rewardFamilies: string[];
+  /** Fishermen standing on this run's maps (`fishermenToMeet` when it started). */
+  fishermen: string[];
 }
 
 export const CARD_REWARD_COUNT = 3;
@@ -81,7 +83,7 @@ export const BUCKET_SIZE = 7;
 /**
  * Start a run on the first level, with the chosen build's starter deck, its chosen starting
  * `item`, and `brought` (creatures taken from the home aquarium, see `takeFromHome`) already in
- * the bucket.
+ * the bucket. `fishermen` (`fishermenToMeet`) stand on the maps of their levels.
  */
 export function createRun(
   seed: number,
@@ -89,6 +91,7 @@ export function createRun(
   buildId: string,
   brought: readonly HomeCreature[] = [],
   item: string | undefined = data.builds[buildId]?.startingItems?.[0],
+  fishermen: readonly string[] = [],
 ): RunState {
   const build = data.builds[buildId];
   if (!build) throw new Error(`Unknown build "${buildId}"`);
@@ -119,8 +122,9 @@ export function createRun(
     bossRemoval: false,
     rarePity: RARE_CHANCE,
     rewardFamilies: [],
+    fishermen: [...fishermen],
   };
-  run.map = buildLevelMap(data, 0, run);
+  run.map = buildLevelMap(data, 0, run, run.fishermen);
   return run;
 }
 
@@ -159,7 +163,7 @@ export function enterNextLevel(run: RunState, data: GameData): RunState {
     rewardRerollsUsed: 0,
     bossRemoval: true,
   };
-  next.map = buildLevelMap(data, next.level, next);
+  next.map = buildLevelMap(data, next.level, next, next.fishermen);
   return next;
 }
 
@@ -296,6 +300,11 @@ export function visitTreasure(run: RunState, nodeId: string, data: GameData): { 
 /** Move to an adjacent "finish the session" node: a dead end, the run ends there as a success (see `bringCatchHome`). */
 export function visitLeave(run: RunState, nodeId: string): RunState {
   return moveTo(run, nodeId, 'leave').next;
+}
+
+/** Move to an adjacent fisherman (`MapNode.fisherman`): he talks, nothing else happens on the run. */
+export function visitFisherman(run: RunState, nodeId: string): RunState {
+  return moveTo(run, nodeId, 'fisherman').next;
 }
 
 /** Move to an adjacent shop. */

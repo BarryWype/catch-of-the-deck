@@ -146,7 +146,7 @@ Effect reference:
 
 A damage `bonus` (`{ against: ['crustacean'] }`) deals 20% more against those creature types. No card uses it for now.
 
-To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), the types it's `strongAgainst` (shown on the selection screen), and a gear sprite.
+To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), the types it's `strongAgainst` (shown on the selection screen), and a gear sprite. To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition (e.g. `{ type: 'speciesAtHome', count: 6, creatureTypes: ['crustacean'] }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
 
 Card rewards come from the families of the creatures just beaten (see CARD_REWORK.md). Add `build: 'rod'` (or `'spear'`, `'foraging'`) to offer a card only to that build. Add the card's French name to `src/locales/fr-content.ts`. Run `npm test` afterwards: the content suite checks that your data is valid, and that every language names it.
 

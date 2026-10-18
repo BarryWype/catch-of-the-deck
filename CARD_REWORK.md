@@ -8,7 +8,7 @@ next one starts.
 
 | # | Topic | Decision |
 |---|---|---|
-| 1 | Starter deck | Same for every fishing style: 4 Tug, 4 Hold Tight, 1 Steady Hand, 1 Reel In. |
+| 1 | Starter deck | 4 Tug, 4 Hold Tight, 1 Steady Hand, 1 Reel In. Foraging: 4 Reel In, 4 Hold Tight, 1 Play the Line, 1 Slack Line. |
 | 2 | "Strong against" / Effective | Ignored for now (no new card has a type bonus); to be re-added later. |
 | 3 | Card rewards | The 3 choices come from the families of the creatures in the fight just won, topped up from all families if there aren't enough. Each slot is rare with a 10% chance, +2% for every slot that wasn't rare, back to 10% when a rare appears (kept for the run). |
 | 4 | Tags | Stored on the cards for later; not shown. |
@@ -57,6 +57,8 @@ next one starts.
 | Hold Tight | Defense | 1 | 0 | Gain 5 Hold. | starter | hold | normal |
 | Steady Hand | Attack | 1 | 2 | Deal 10 damage. | starter | damage, patience | normal |
 | Reel In | Drain | 1 | 0 | Drain 7. | starter | drain | normal |
+| Slack Line | Support | 1 | 0 | Apply Slow 4. | starter | slow | normal |
+| Play the Line | Drain | 1 | 2 | Drain 12. Apply Slow 2. | starter | drain, slow, patience | normal |
 | Shell Up | Defense | 1 | 0 | Gain 6 Hold. It stays until your next turn. | Shell | hold | normal |
 | Mussel Bait | Drain | 2 | 0 | Drain 6 at the start of each of your next 3 turns. | Endurance | drain, delayed | normal |
 | Thick Shell | Defense | 1 | 1 | Gain 4 Hold now and at the start of your next 2 turns. | Shell | hold, patience, delayed | normal |
@@ -103,14 +105,14 @@ next one starts.
 | From Nowhere | Attack | 1 | 1 | Deal damage equal to your Hold, then lose half your Hold. | Camo | damage, hold, patience | normal |
 | Unseen Approach | Drain | 0 | 0 | Drain 5. If you haven't played an attack this turn, Drain 10 instead. | Camo | drain, conditional | normal |
 | Shadow the Fish | Defense | 1 | 0 | Gain Hold equal to the value of the creature's next move (up to 12). | Camo | hold, intent | normal |
-| Perfect Disguise | Power | 2 | 0 | At the end of your turn, if you didn't play an attack, gain 6 Hold and apply Slow 1. | Camo | hold, slow, conditional | rare |
+| Perfect Disguise | Power | 2 | 0 | At the end of your turn, if you didn't play an attack, gain 6 Hold; at the start of your next turn, apply Slow 1. | Camo | hold, slow, conditional | rare |
 | Darting Bites | Attack | 1 | 0 | Deal 2 damage 3 times. Draw 1 card. | Swift | damage, multihit, draw | normal |
 | Quick Flick | Attack | 0 | 0 | Deal 3 damage. Draw 1 card. | Swift | damage, draw | normal |
 | Safety in Numbers | Defense | 1 | 0 | Gain 4 Hold. Draw 2 cards. | Swift | hold, draw | normal |
 | Bait Ball | Power | 1 | 0 | Whenever you play a 0-cost card, Drain 3. | Swift | drain | rare |
 | Slime Coat | Support | 1 | 0 | Apply Slow 5. | Slimy | slow | normal |
 | Sticky Snare | Attack | 1 | 0 | Deal 4 damage. Drain 5. | Slimy | damage, drain | normal |
-| Dead Weight | Power | 1 | 0 | At the start of each creature turn, apply Slow 1. | Slimy | slow | rare |
+| Dead Weight | Power | 1 | 0 | At the start of your turn, apply Slow 1 to every creature. | Slimy | slow | rare |
 | Slow Squeeze | Drain | 1 | 1 | Drain 12. | Endurance | drain, patience | normal |
 | Gooey Mess | Power | 2 | 0 | Every Pull against you loses 3 before it reaches your Hold. | Slimy | hold, intent | rare |
 | Venom Barb | Attack | 1 | 0 | Deal 6 damage. Apply Venom 2. | Venom | damage, venom | normal |

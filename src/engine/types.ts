@@ -50,9 +50,9 @@ export interface DamageBonus {
  * - `pushTheLimits`: Slow on creatures no longer wears off.
  * - `oldAsTheRiver`: paying a card's Patience cost deals `amount` damage per point to a random creature.
  * - `baitBall`: playing a 0-cost card Drains `amount` from a random creature.
- * - `deadWeight`: each creature gains `amount` Slow at the start of its turn.
+ * - `deadWeight`: each creature gains `amount` Slow at the start of the player's turn.
  * - `gooeyMess`: every Pull against the player loses `amount` before it reaches their Hold.
- * - `perfectDisguise`: at the end of the player's turn, if no attack was played: `amount` Hold, and 1 Slow on a random creature (per copy).
+ * - `perfectDisguise`: at the end of the player's turn, if no attack was played: `amount` Hold, and 1 Slow on a random creature (per copy) at the start of the next turn.
  */
 export type PowerId =
   | 'hardShell'
@@ -199,6 +199,36 @@ export interface BuildDef {
   startingItems?: string[];
   /** Id of the level from which the build can be picked; the first level if omitted. */
   level?: string;
+  /** Locked until this fisherman's quest is done (see unlocks.ts); available from the start if omitted. */
+  unlock?: BuildUnlock;
+}
+
+/** How a build is unlocked: meet `fisherman` on the map, then meet `quest` by the end of a successful run. */
+export interface BuildUnlock {
+  fisherman: string;
+  /** The quest's title, e.g. "Shells and claws". Display-only. */
+  name: string;
+  quest: QuestCondition;
+}
+
+/**
+ * What a fisherman wants to see. One kind for now:
+ * - `speciesAtHome`: `count` different species of these creature types in the home aquarium.
+ */
+export type QuestCondition = { type: 'speciesAtHome'; count: number; creatureTypes: string[] };
+
+/** An experienced fisherman, met on the map while a build he teaches is still locked. */
+export interface FishermanDef {
+  id: string;
+  name: string;
+  /** The map node's symbol: an icon file name or an emoji. Display-only. */
+  icon: string;
+  /** Display-only: the character art, `ui/assets/character/<sprite>_fish.png`. */
+  sprite?: string;
+  /** Id of the level he stands on, one node after its mini-boss (generated maps only: a hand-made one has no room kept for him). */
+  level: string;
+  /** What he says when met: who he is and the build he teaches. */
+  greeting: string;
 }
 
 /** What a piece of equipment does. Percentages are whole numbers (20 = 20%). */
@@ -573,6 +603,7 @@ export interface GameData {
   enemies: Record<string, EnemyDef>;
   encounters: EncounterDef[];
   builds: Record<string, BuildDef>;
+  fishermen: Record<string, FishermanDef>;
   creatureTypes: Record<string, CreatureTypeDef>;
   equipment: Record<string, EquipmentDef>;
   events: Record<string, EventDef>;

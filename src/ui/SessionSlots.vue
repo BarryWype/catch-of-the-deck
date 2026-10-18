@@ -8,7 +8,7 @@ import { t } from './i18n';
 
 /** The creatures picked from the home aquarium to start the run in the bucket, one per slot. */
 const props = defineProps<{ brought: HomeCreature[]; data: GameData }>();
-const emit = defineEmits<{ remove: [index: number] }>();
+const emit = defineEmits<{ remove: [index: number]; pick: [] }>();
 
 const slots = computed(() =>
   Array.from({ length: SESSION_SLOTS }, (_, i) => {
@@ -40,8 +40,8 @@ const bonuses = computed(() =>
 <template>
   <section class="session-slots" :aria-label="t('slots.label')">
     <header><GameIcon icon="🪣" /> {{ t('slots.title') }}</header>
-    <div v-for="(slot, i) in slots" :key="i" class="slot" :class="{ empty: !slot }">
-      <template v-if="slot">
+    <template v-for="(slot, i) in slots" :key="i">
+      <div v-if="slot" class="slot">
         <SpriteView v-if="slot.creature.sprite" :sprite="slot.creature.sprite" :size="48" />
         <span class="name">
           <span>{{ slot.creature.name }} <span class="stars" v-tip="t('slots.starsTip')">★{{ slot.stars }}</span></span>
@@ -50,9 +50,9 @@ const bonuses = computed(() =>
         <button class="ghost remove" v-tip="t('slots.remove')" :aria-label="t('slots.removeLabel', { name: slot.creature.name })" @click="emit('remove', i)">
           ✕
         </button>
-      </template>
-      <span v-else class="hint">{{ t('slots.empty') }}</span>
-    </div>
+      </div>
+      <button v-else class="slot empty" @click="emit('pick')">{{ t('slots.empty') }}</button>
+    </template>
     <ul v-if="bonuses.length" class="bonuses" :aria-label="t('slots.bonuses')">
       <li v-for="b in bonuses" :key="b.def.id">
         <strong>{{ b.def.icon }} {{ b.def.name }}</strong>
@@ -83,7 +83,10 @@ header { font-weight: 700; padding: 0 4px; }
   border-radius: 10px;
   background: linear-gradient(180deg, #1f3448, #17283a);
 }
-.slot.empty { justify-content: center; border-style: dashed; background: none; }
+.slot.empty { justify-content: center; border-style: dashed; background: none; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+@media (hover: hover) {
+  .slot.empty:hover { border-color: var(--highlight); color: var(--text); }
+}
 .name { display: flex; flex: 1; flex-direction: column; font-size: 0.85rem; font-weight: 600; line-height: 1.15; }
 .name small { color: var(--muted); font-size: 0.7rem; font-weight: 500; }
 .bonuses { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.75rem; }
@@ -93,6 +96,5 @@ header { font-weight: 700; padding: 0 4px; }
 .stars { color: #f2c94c; font-weight: 700; }
 .bonuses .next { color: #c9b26a; font-style: italic; }
 .remove { padding: 2px 8px; }
-.hint { color: var(--muted); font-size: 0.8rem; }
 .help { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
 </style>

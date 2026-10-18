@@ -72,6 +72,14 @@ export const PLAYER_CLIPS: Record<PlayerAnimation, AnimationClip> = {
   hurt: { url: playerHurtUrl, frames: 2, rows: 1, row: 0, fps: 4, loop: false },
 };
 
+const characterFiles = import.meta.glob<string>('./assets/character/*_fish.png', { eager: true, query: '?url', import: 'default' });
+
+/** Another fisherman's idle strip (`FishermanDef.sprite`: assets/character/<sprite>_fish.png, 4 frames of 48×48). */
+export function characterClip(sprite: string | undefined): AnimationClip | undefined {
+  const url = sprite && characterFiles[`./assets/character/${sprite}_fish.png`];
+  return url ? { url, frames: 4, rows: 1, row: 0, fps: 4, loop: true } : undefined;
+}
+
 /**
  * Eggs made by `npm run eggs`: assets/eggs/<colour>.png, 12×2 cells of 32×32 px,
  * idle (6 frames) on top, hatching (12 frames) below.

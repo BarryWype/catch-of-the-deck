@@ -254,6 +254,9 @@ function startPlayerTurn(state: CombatState, data: GameData): void {
   state.bonusTracker.attacksThisTurn = 0;
   state.thisTurn = {};
   if (runDelayedEffects(state)) return;
+  // Dead Weight: every creature gains Slow now, and it slows their coming turn.
+  const deadWeight = powerTotal(state, 'deadWeight');
+  if (deadWeight > 0) resolveEffect(state, { type: 'applyStatus', status: 'slow', amount: deadWeight, target: 'allEnemies' }, { sourceId: PLAYER_ID, raw: true });
   state.player.energy = state.player.maxEnergy;
   drawCards(state, STARTING_HAND_SIZE);
   // Grab the Bait: a random card from the new hand is lost.
@@ -366,11 +369,13 @@ function gainPatience(state: CombatState, amount: number, reason: 'waits' | 'ste
 }
 
 function endTurn(state: CombatState, data: GameData): void {
-  // Perfect Disguise: a quiet turn (no attack) gives Hold, and Slows a random creature.
+  // Perfect Disguise: a quiet turn (no attack) gives Hold now, and Slows a random creature at the
+  // start of the next turn, so the Slow shows for a whole turn before it wears off.
   const disguises = state.bonusTracker.attacksThisTurn === 0 ? powerCount(state, 'perfectDisguise') : 0;
   if (disguises) {
     resolveEffect(state, { type: 'gainBlock', amount: powerTotal(state, 'perfectDisguise') }, { sourceId: PLAYER_ID, raw: true });
-    for (let i = 0; i < disguises; i++) onRandomCreature(state, { type: 'applyStatus', status: 'slow', amount: 1 });
+    const slow: Effect = { type: 'applyStatus', status: 'slow', amount: 1, target: 'randomEnemy' };
+    (state.delayed ??= []).push({ turnsLeft: 1, raw: true, effects: Array.from({ length: disguises }, () => slow) });
   }
   gainPatience(state, state.player.energy, 'waits');
   // Junk still in hand (Slimy Seaweed) costs Grit.
@@ -389,8 +394,6 @@ function endTurn(state: CombatState, data: GameData): void {
     if (!isAlive(enemy)) continue;
     enemy.block = 0;
     delete enemy.statuses.burrowed;
-    const deadWeight = powerTotal(state, 'deadWeight');
-    if (deadWeight > 0) resolveEffect(state, { type: 'applyStatus', status: 'slow', amount: deadWeight }, { sourceId: PLAYER_ID, targetId: enemy.id, raw: true });
     venomStrikes(state, enemy);
     // Venom can wear a creature out before it acts: it's caught.
     if (checkCombatEnd(state)) return;

@@ -8,8 +8,8 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 16;
-export const PROFILE_VERSION = 5;
+export const SAVE_VERSION = 17;
+export const PROFILE_VERSION = 6;
 
 /** Everything needed to pick a run up exactly where it was left. */
 export interface SavedGame {
@@ -34,6 +34,10 @@ export interface Profile {
   biggestCatch: Record<string, CatchSize>;
   /** Eggs waiting to be hatched: the creature id inside each. */
   eggs: string[];
+  /** Builds unlocked through a fisherman's quest (builds without `unlock` are always available). */
+  unlockedBuilds: string[];
+  /** Fishermen met on the map, whose quests are open until their builds are unlocked. */
+  fishermenMet: string[];
 }
 
 type DataFile = 'save' | 'profile';
@@ -116,6 +120,8 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
   if (save.version === 14) save = { ...save, version: 15, run: { ...save.run, rewardRerolls: 1 } };
   // v15 runs had no card removal after a boss.
   if (save.version === 15) save = { ...save, version: 16, run: { ...save.run, bossRemoval: false } };
+  // v16 runs had no fishermen on their maps.
+  if (save.version === 16) save = { ...save, version: 17, run: { ...save.run, fishermen: [] } };
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.
@@ -156,13 +162,25 @@ export function upgradeProfile(profile: Profile): Profile | null {
     const biggestCatch = Object.fromEntries(captured.map((id) => [id, 'normal' as const]));
     profile = { ...profile, version: 5, homeAquarium: profile.homeAquarium.map(rescaleOld), biggestCatch };
   }
+  // v5 had no build unlocks: every run used the first build, so only the default builds are unlocked.
+  if (profile.version === 5) profile = { ...profile, version: 6, unlockedBuilds: [], fishermenMet: [] };
   return profile.version === PROFILE_VERSION ? profile : null;
 }
 
 /** The profile, or a fresh one (nothing owned or met) if there's none or it can't be read. */
 export async function loadProfile(): Promise<Profile> {
   const profile = await read<Profile>('profile');
-  return (profile && upgradeProfile(profile)) ?? { version: PROFILE_VERSION, homeAquarium: [], creatureBook: {}, biggestCatch: {}, eggs: [] };
+  return (
+    (profile && upgradeProfile(profile)) ?? {
+      version: PROFILE_VERSION,
+      homeAquarium: [],
+      creatureBook: {},
+      biggestCatch: {},
+      eggs: [],
+      unlockedBuilds: [],
+      fishermenMet: [],
+    }
+  );
 }
 
 export function writeProfile(profile: Profile) {

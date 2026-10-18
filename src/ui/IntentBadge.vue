@@ -20,6 +20,12 @@ const KIND_TIPS: Record<IntentKind, TextKey> = {
   debuff: 'intent.debuffTip',
 };
 
+/** The arrows also say exactly what the move does to the creature or to the player. */
+function kindTip(kind: IntentKind) {
+  const body = kind === 'debuff' ? props.intent.debuffText : kind === 'defend' || kind === 'buff' ? props.intent.buffText : undefined;
+  return body ? { title: t(KIND_TIPS[kind]), body } : t(KIND_TIPS[kind]);
+}
+
 /** Defends and buffs share the one green arrow. */
 const shownKinds = computed(() => {
   const seen = new Set<string>();
@@ -49,7 +55,7 @@ const body = computed(() => {
   </div>
   <div v-else v-tip="{ title: intent.moveName, detail: TAG_NAMES[intent.tag], body }" class="intent">
     <div class="icons">
-      <span v-for="kind in shownKinds" :key="kind" v-tip="t(KIND_TIPS[kind])" class="icon" :class="kind">
+      <span v-for="kind in shownKinds" :key="kind" v-tip="kindTip(kind)" class="icon" :class="kind">
         <GameIcon :icon="KIND_SHAPES[kind]" />
         <b v-if="kind === 'attack' && damage">{{ damage }}</b>
         <b v-else-if="kind === 'pull' && intent.pull !== undefined">{{ intent.pull }}</b>

@@ -4,7 +4,7 @@ import type { EncounterDef, GameData, LevelDef, LevelNodeKind } from './types';
 /** The node every level's map starts on (the grandparents' house). */
 export const START_NODE_ID = 'start';
 
-export type MapNodeKind = 'start' | LevelNodeKind;
+export type MapNodeKind = 'start' | 'fisherman' | LevelNodeKind;
 
 /** A node of the map being played: its level's `LevelNodeDef`, with the level's tier. */
 export interface MapNode {
@@ -23,6 +23,8 @@ export interface MapNode {
   label: string | null;
   /** Why a mini-boss or boss is let go after the fight (see `isReleaseFight`). */
   releaseReason: string | null;
+  /** Fisherman nodes: who stands there (`FishermanDef`). */
+  fisherman?: string;
   /** Ids of the nodes reachable from here. */
   next: string[];
 }
@@ -32,10 +34,29 @@ export interface GameMap {
   columns: MapNode[][];
 }
 
-/** The map of a level: hand-made, or generated on the coast's places. */
-export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHolder): GameMap {
+/**
+ * The map of a level: hand-made, or generated on the coast's places. `fishermen` (see
+ * `fishermenToMeet`) stand on generated maps of their level.
+ */
+export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHolder, fishermen: readonly string[] = []): GameMap {
   const level = data.levels[levelIndex];
-  return level.nodes ? handMadeMap(level, level.nodes) : generateLevelMap(level, levelIndex, data, holder);
+  if (level.nodes) return handMadeMap(level, level.nodes);
+  const map = generateLevelMap(level, levelIndex, data, holder);
+  placeFishermen(map, fishermen.filter((id) => data.fishermen[id]?.level === level.id));
+  return map;
+}
+
+/**
+ * Each fisherman takes a node of the column right after the mini-boss (all reachable from it): an
+ * event if there is one, else a fight, never the shop or the leave node. No RNG, so the rest of the
+ * map is the same with or without him.
+ */
+function placeFishermen(map: GameMap, fishermen: readonly string[]) {
+  const column = map.columns[COLUMNS_PER_HALF + 2] ?? [];
+  for (const id of fishermen) {
+    const slot = column.find((n) => n.kind === 'event') ?? column.find((n) => n.kind === 'fight');
+    if (slot) Object.assign(slot, { kind: 'fisherman', fisherman: id, spot: null, creatureType: null, label: null });
+  }
 }
 
 function startNode(level: LevelDef, next: string[]): MapNode {

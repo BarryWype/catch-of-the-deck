@@ -6,6 +6,8 @@ A plain-language guide to the rules. For how the code is built, see [ARCHITECTUR
 
 You're an angler setting off from your grandparents' house on the coast. Each run, you fish your way along the shore, through fights with creatures, toward a **boss** at the lighthouse. Creatures you catch go into your **bucket**, and if you make it home, they join your **home aquarium** for good.
 
+Before each run you pick a **fishing style**, which sets your starter deck (see Fishermen and builds), then the companions to bring.
+
 ## A fight in one minute
 
 Each turn you get **3 energy** and draw **5 cards**. Cards cost energy to play. When you're done, click **End Turn**: the creatures then act, and a new turn starts.
@@ -163,6 +165,14 @@ The coast changes every run: beaches, ponds, harbours and rocks land in differen
 | Your **Grit** runs out | Your bucket is lost, including the creatures you brought |
 
 Heading home is the safe choice: you stop while you're ahead and keep everything you've caught.
+
+## Fishermen and builds
+
+- **Fishing styles:** your fishing style sets your starter deck. You start with **Rod fishing** only (4 Tug, 4 Hold Tight, Steady Hand, Reel In). Once you have more than one, you pick before each run; with one, the choice is skipped.
+- **Foraging** is the patient way, for bigger catches: you drain a creature's Will instead of wearing down its Health, and a creature caught by its Will comes out bigger. Its deck: 4 Reel In, 4 Hold Tight, Play the Line and Slack Line.
+- **Old Ned**, an experienced fisherman, teaches it. As a Kid, while you haven't learnt Foraging, he stands one step after the mini-boss (it leads straight to him). Talk to him to open his quest: he wants to see **6 different species of crustaceans, shellfish or critters in your home aquarium**. He says how many you have so far, counting your bucket, and tells you when you already have them all.
+- **Learning it:** Foraging unlocks when a run **ends well** (heading home, ending the run after a boss, or beating the last boss) with his quest met. Meeting him is enough to open the quest, even if that run then goes badly; a run where your Grit runs out never unlocks anything. The end screen says when you've learnt it, and from then on Old Ned no longer appears.
+- **Open quests** show on the home menu, with your progress (e.g. "3/6").
 
 ## Between fights
 

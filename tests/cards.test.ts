@@ -32,6 +32,20 @@ describe('Patience and healing cards', () => {
     expect(s.player.patience).toBe(1);
   });
 
+  it('Slack Line: 4 Slow on the target', () => {
+    const s = playCard(fight(['slackLine']), 'slackLine');
+    expect(s.enemies[0].statuses.slow).toBe(4);
+    expect(s.player.energy).toBe(fight(['slackLine']).player.energy - 1);
+  });
+
+  it('Play the Line: costs 2 Patience, Drain 12 and 2 Slow', () => {
+    const s0 = fight(['playTheLine']);
+    const s = playCard({ ...s0, player: { ...s0.player, patience: 2 } }, 'playTheLine');
+    expect(s.enemies[0].escape).toBe(s0.enemies[0].escape - 12);
+    expect(s.enemies[0].statuses.slow).toBe(2);
+    expect(s.player.patience).toBe(0);
+  });
+
   it('Tickle: Drain 10, and the creature heals 6 but never above its max health', () => {
     const s0 = fight(['tickle']);
     const hurt: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], hp: s0.enemies[0].maxHp - 4 }] };
@@ -356,14 +370,19 @@ describe('Powers', () => {
     expect(s.enemies[0].escape - playCard(s, 'tug').enemies[0].escape).toBe(0);
   });
 
-  it('Dead Weight: each creature gains 1 Slow at the start of its turn, which slows that turn', () => {
+  it('Dead Weight: each creature gains 1 Slow at the start of your turn, which slows its next turn', () => {
     const s0 = rich(fight(['deadWeight']));
     const played = playCard({ ...s0, enemies: [{ ...s0.enemies[0], escapeRate: 10 }] }, 'deadWeight');
-    const s = { ...played, player: { ...played.player, patience: 0 } };
-    const next = endTurn(s);
-    // Slow 1 (20%): +8 instead of +10, then the Slow wears off.
-    expect(next.enemies[0].escape - s.enemies[0].escape).toBe(8);
-    expect(next.enemies[0].statuses.slow).toBeUndefined();
+    const noPatience = (s: CombatState) => ({ ...s, player: { ...s.player, patience: 0 } });
+    const s = noPatience(played);
+    const next = noPatience(endTurn(s));
+    // Played this turn: no Slow yet for this creature turn. The new turn starts with Slow 1 showing.
+    expect(next.enemies[0].escape - s.enemies[0].escape).toBe(10);
+    expect(next.enemies[0].statuses.slow).toBe(1);
+    // Slow 1 (20%): +8 instead of +10, then it wears off and the next turn brings it back.
+    const after = endTurn(next);
+    expect(after.enemies[0].escape - next.enemies[0].escape).toBe(8);
+    expect(after.enemies[0].statuses.slow).toBe(1);
   });
 
   it('Gooey Mess: every Pull loses 3 before reaching your Hold', () => {
@@ -373,13 +392,13 @@ describe('Powers', () => {
     expect(endTurn(s, false).enemies[0].escape - s.enemies[0].escape).toBe(9);
   });
 
-  it('Perfect Disguise: a turn without attacks gives 6 Hold and 1 Slow on a random creature', () => {
+  it('Perfect Disguise: a turn without attacks gives 6 Hold, then 1 Slow on a random creature as the next turn starts', () => {
     // The clownfish is about to Steal the Bait (a Strike of 6): the Hold takes it.
     const s0 = rich(fight(['perfectDisguise', 'tug', 'tug', 'tug', 'tug']));
     const s = playCard({ ...s0, enemies: [{ ...s0.enemies[0], intent: 'nibble' }] }, 'perfectDisguise');
     const quiet = endTurn(s, false);
     expect(quiet.player.hp).toBe(s.player.hp);
-    expect(quiet.log.some((line) => line.includes('gained 1 Slow'))).toBe(true);
+    expect(quiet.enemies[0].statuses.slow).toBe(1);
     const attacked = endTurn(playCard(s, 'tug'), false);
     expect(s.player.hp - attacked.player.hp).toBe(6);
   });

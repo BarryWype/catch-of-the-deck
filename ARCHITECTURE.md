@@ -26,7 +26,7 @@ How Slay the Fish is put together, and the rules the code relies on. Read this b
 ## Screen flow
 
 ```
-menu ──New run──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ (bucket full) ──▶ card reward ──▶ map …
+menu ──New run──▶ build ──▶ companions ──Set off──▶ map ──▶ fight ──win──▶ (bucket full) ──▶ card reward ──▶ map …
   ▲                                  │  ├─▶ event (10%: a fight instead) ─▶ map
   │                                  │  ├─▶ treasure ─▶ map
   │                                  │  └─▶ shop ─▶ map
@@ -37,8 +37,9 @@ menu ──New run──▶ companions ──Set off──▶ map ──▶ figh
 ```
 
 - **Menu:** Resume (disabled without a save), New run, See aquarium, Exit (desktop app only). **Temporary, when ticked in Options** ("Show debug panel", remembered per device in localStorage): a 🛠 Debug drawer on the left edge starts a fresh run straight into each act's mini-boss or boss fight (`debugStartAt`). Above it, a 📘 tab opens **How to play**, a short bullet-point guide to the rules (the full one is GAME_MECHANICS.md). A small **Reset progression** button (bottom right, after a confirmation) deletes both the save and the profile (`resetProgress`). The menu's background is the home aquarium. A 📖 tab on the right edge (menu and See aquarium view) opens the creature book (`CreatureBook.vue`): a drawer listing every creature, grouped by temperament (in `content/companions.ts` order, sprite order within). Each group is a collapsible (`<details>`, closed by default) headed by its temperament, bonus name and how many are discovered; opening it shows the bonus at 1★ (`bonusEffects`) and its full school, then its creatures. All three drawers use `SideDrawer.vue` (an edge tab, a sliding panel, Esc or the backdrop to close). Creatures never encountered show as **?**. The others show their image, their status (Seen or Captured), how many are in the home aquarium, and the biggest size caught (S, M, L or 🏆, from `Profile.biggestCatch`).
-- **No build choice for now** (`BuildSelect.vue` is unused): every run starts with the first build that can start a run (`startingBuilds`: Rod fishing), without a starting item. **New run** goes straight to the companions screen.
-- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature shows its size, stars, bond and bonus, and offers **Bring for the session**; ✕ puts it back. The slots show each companion's stars, and below them each temperament's stars, bonus and what more stars would change. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the menu. With an empty home aquarium this step is skipped.
+- **Build** (screen `build`, `BuildSelect.vue`): **New run** opens it when more than one build is unlocked (`unlockedBuilds`: those that can start a run, from `startingBuilds`, without an `unlock` or unlocked in the profile); with one, it's skipped. It shows each build's types, starter deck and starting items. Picking one (`chooseBuild`) goes on to the companions screen, or straight into the run with an empty home aquarium; **← Back** returns to the menu. The menu lists open quests under its buttons (`openQuests`, `questProgress`).
+- **Fisherman** (screen `fisherman`, `FishermanScreen.vue`): a fisherman node on the map (see Build unlocks). He greets the player, and shows his quest, its progress (home aquarium plus bucket) and when it unlocks; **Back to the map** returns there.
+- **Companions** (screen `companions`): the home aquarium with three session slots (`SessionSlots.vue`) on its right. Clicking a creature shows its size, stars, bond and bonus, and offers **Bring for the session**; ✕ puts it back. The slots show each companion's stars, and below them each temperament's stars, bonus and what more stars would change. The big green **Start fishing** button under the slots starts the run (`startRun`), and **← Back** at the top left returns to the build screen (the menu when it was skipped). With an empty home aquarium this step is skipped.
 
 ## A run
 
@@ -159,6 +160,14 @@ There are two separate collections of creatures. They never share creatures, exc
 
 Anything meant to last between runs (score, unlocks, statistics) belongs in the **profile**, never in `RunState`.
 
+## Build unlocks
+
+Builds can be locked behind a fisherman's quest, as data only (`content/builds.ts` and `content/fishermen.ts`); the rules are in `engine/unlocks.ts`.
+- **Data:** `BuildDef.unlock` names the fisherman (`FishermanDef`: name, map icon, character `sprite`, the `level` he stands on, his `greeting`), the quest's title, and a `QuestCondition`. A build without `unlock` is available from the start. `QuestCondition` is a typed union with one kind for now, `speciesAtHome` (`count` different species of these creature types in the home aquarium); a new kind (a trophy to show, say) is a new case in `questProgress` and `describeQuest`.
+- **Profile:** `Profile.unlockedBuilds` (builds unlocked by quests) and `Profile.fishermenMet`. A fisherman counts as met as soon as the player steps on his node (the profile is written then), so his quest stays open even if that run is lost.
+- **On the map:** `createRun` takes the fishermen to place (`fishermenToMeet`: those teaching a build still locked) and keeps them in `RunState.fishermen`, so later levels get theirs too. `buildLevelMap` puts each on his level's generated map, in the column right after the mini-boss (every node there is reachable from it), in place of an event, or a fight if there's none; never the shop or the leave node. It uses no RNG, so the rest of the map is the same. Hand-made levels never get one. The node is `kind: 'fisherman'` with `MapNode.fisherman`; `visitFisherman` moves there.
+- **Unlocking:** `endRun` in `useGame.ts`, on a successful run only, once the bucket has joined the home aquarium: `newUnlocks` returns the open quests (fisherman met, build locked) that the home aquarium now meets. They're added to the profile and shown on the end screen (`newlyUnlocked`). A lost run, or a boss fleeing, unlocks nothing.
+
 ## Creature families
 
 Families (`content/families.ts`, `FamilyDef`) group temperaments by a shared identity: Venom, Shell, Swift, Hunter, Endurance, Patient, Trickster, Flashy, Camo and Slimy. A temperament can be in several (clawed creatures are Shell and Camo). It's a lookup only (`engine/families.ts`):
@@ -194,7 +203,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 | File | Contents | Written | Deleted |
 |---|---|---|---|
 | `save.json` | `SavedGame`: version, seed, screen, run, combat, pending card rewards, open event, shop visit | After every state change (a watcher in `useGame.ts`) | When the run is lost or completed, or by **Reset progression** |
-| `profile.json` | `Profile`: version, home aquarium, eggs, creature book, biggest catches | When a successful run brings its bucket home, when an egg is laid or hatched, and when a creature is first seen or captured | Only by **Reset progression** |
+| `profile.json` | `Profile`: version, home aquarium, eggs, creature book, biggest catches, unlocked builds, fishermen met | When a successful run brings its bucket home, when an egg is laid or hatched, when a creature is first seen or captured, and when a fisherman is met | Only by **Reset progression** |
 
 - **Where:** in the desktop app, in the app's data folder (`app.getPath('userData')`, e.g. `~/Library/Application Support/Slay the Fish`). In a browser, localStorage under `slay-the-fish:save` and `slay-the-fish:profile`.
 - **Desktop bridge:** `electron/preload.cjs` exposes `window.desktop.readData / writeData / deleteData(name)` and `quit()`. `electron/main.js` only accepts the names in `DATA_FILES`, so the page can't touch any other file.
@@ -204,7 +213,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
   2. Convert older files in `upgradeSave` (or the profile's equivalent).
   3. A file that can't be upgraded is ignored rather than crashing: no Resume, or a fresh profile.
 
-  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond. Version 4 saves were on a generated map: they can't be resumed. Version 13 saves and version 4 profiles had bond points on the old scale (full at 100/200/400) and no sizes: `rescaleBond` keeps each creature's share of full bond (never a lower level), every creature is normal-sized, and every species already captured gets a normal biggest catch.
+  Examples: version 1 saves called the bucket `run.captured`, and `upgradeSave` renames it. Version 2 saves had no companions, so the upgrade adds empty ones (and empty combat bonuses). Version 1 profiles had no creature book; `upgradeProfile` marks everything in the home aquarium as captured. Version 2 profiles had no eggs. Version 3 profiles stored the home aquarium, and version 3 saves the companions, as plain ids; they're upgraded to creatures with no bond. Version 4 saves were on a generated map: they can't be resumed. Version 13 saves and version 4 profiles had bond points on the old scale (full at 100/200/400) and no sizes: `rescaleBond` keeps each creature's share of full bond (never a lower level), every creature is normal-sized, and every species already captured gets a normal biggest catch. Version 5 profiles had no build unlocks (every run used the first build): they get none unlocked and no fisherman met. Version 16 saves had no fishermen on their maps.
 - **Resume** restores every saved field, so the player returns to the same screen. Mid-fight saves include the hand, energy and Will.
 
 ## Desktop app and releases

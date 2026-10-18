@@ -67,6 +67,8 @@ function nodeState(node: MapNode) {
 
 const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: 'question-mark', shop: 'coin-stack', treasure: 'chest', leave: 'house' };
 
+const hasFisherman = computed(() => props.run.map.columns.some((column) => column.some((n) => n.kind === 'fisherman')));
+
 const strongAgainst = computed(() => new Set(props.data.builds[props.run.build]?.strongAgainst ?? []));
 
 /** Every creature this fight can bring is one the run's build is strong against. */
@@ -93,6 +95,8 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
       return { title: t('map.event') };
     case 'treasure':
       return { title: t('map.treasure') };
+    case 'fisherman':
+      return { title: props.data.fishermen[node.fisherman ?? '']?.name ?? t('map.fisherman'), detail: t('map.fishermanDetail') };
     case 'leave':
       return { title: t('map.headHome'), detail: t('map.headHomeDetail') };
     case 'miniBoss':
@@ -237,6 +241,7 @@ function choose(node: MapNode) {
       <li><span class="sym">$</span> {{ t('map.shop') }}</li>
       <li><span class="sym">T</span> {{ t('map.treasure') }}</li>
       <li><span class="sym leave">⌂</span> {{ t('map.headHomeLegend') }}</li>
+      <li v-if="hasFisherman"><span class="sym fisherman">F</span> {{ t('map.fisherman') }}</li>
       <li><span class="sym diamond" /> {{ t('map.miniBoss') }}</li>
       <li><span class="sym boss" /> {{ t('map.boss') }}</li>
     </ul>
@@ -305,7 +310,7 @@ function choose(node: MapNode) {
             </template>
             <template v-else>
               <circle class="body" :r="RADIUS - 1" />
-              <image class="symbol" :href="iconUrl(SYMBOLS[node.kind] ?? '')" x="-9" y="-9" width="18" height="18" />
+              <image class="symbol" :href="iconUrl(node.kind === 'fisherman' ? (data.fishermen[node.fisherman ?? '']?.icon ?? '') : (SYMBOLS[node.kind] ?? ''))" x="-9" y="-9" width="18" height="18" />
             </template>
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
@@ -406,6 +411,7 @@ function choose(node: MapNode) {
   font-weight: 700;
 }
 .sym.leave { border-color: #2d8a73; color: #2d8a73; }
+.sym.fisherman { border-color: var(--highlight); }
 .sym.diamond { width: 11px; height: 11px; margin: 0 2px; border: 2px solid #fff; border-radius: 0; background: #c4531c; transform: rotate(45deg); }
 .sym.boss { border: 3px solid #c4531c; background: #fff; }
 
@@ -426,6 +432,7 @@ function choose(node: MapNode) {
 .node.shop .body,
 .node.treasure .body { fill: #fff; stroke: #2e2d27; stroke-width: 1.8; }
 .node.leave .body { fill: #fff; stroke: #2d8a73; stroke-width: 2.5; }
+.node.fisherman .body { fill: #fff; stroke: var(--highlight); stroke-width: 2.5; }
 .node .symbol { image-rendering: pixelated; pointer-events: none; }
 .node.miniBoss .body { fill: #c4531c; }
 .node.boss .body { fill: #c4531c; stroke-width: 3; }

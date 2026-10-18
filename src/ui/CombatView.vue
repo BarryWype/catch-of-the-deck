@@ -101,6 +101,8 @@ interface Drag {
   /** Where the arrow starts: the top middle of the card. */
   fromX: number;
   fromY: number;
+  /** The card's left edge when picked up: with fromY, where a card that goes fixed stays put. */
+  cardLeft: number;
   moved: boolean;
   /** The enemy under the pointer, when the card can be played on it. */
   targetId: string | null;
@@ -317,6 +319,7 @@ function onCardPointerDown(card: CardInstance, event: PointerEvent) {
     y: event.clientY,
     fromX: rect.left + rect.width / 2,
     fromY: rect.top,
+    cardLeft: rect.left,
     moved: false,
     targetId: null,
     overBattlefield: false,
@@ -396,7 +399,11 @@ const arrowPath = computed(() => {
 function dragStyle(card: CardInstance) {
   const d = drag.value;
   if (d?.uid !== card.uid || d.aimed || !d.moved) return undefined;
-  return { transform: `translate(${d.x - d.startX}px, ${d.y - d.startY}px) rotate(${(d.x - d.startX) / 40}deg) scale(1.05)` };
+  return {
+    transform: `translate(${d.x - d.startX}px, ${d.y - d.startY}px) rotate(${(d.x - d.startX) / 40}deg) scale(1.05)`,
+    '--held-left': `${d.cardLeft}px`,
+    '--held-top': `${d.fromY}px`,
+  };
 }
 
 /**
@@ -1139,7 +1146,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   }
   .hand .slot { flex-shrink: 0; margin-bottom: 0; pointer-events: auto; }
   .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
-  .hand :deep(.card.held) { position: fixed; }
+  .hand :deep(.card.held) { position: fixed; left: var(--held-left); top: var(--held-top); }
 }
 .combat.dragging, .combat.dragging :deep(*) { cursor: grabbing !important; }
 .combat.on-target, .combat.on-target :deep(*) {
@@ -1281,6 +1288,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   }
   .hand .slot { flex-shrink: 0; margin-bottom: 0; }
   .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
+  /* A dragged card goes fixed to escape the scrolling hand's clip, pinned where it was picked up
+     (a fixed card's own position would ignore the hand's scroll); its slot keeps the card's size
+     so the rest of the hand doesn't close up. */
+  .hand .slot:has(.held) { width: 118px; height: 166px; }
+  .hand :deep(.card.held) { position: fixed; left: var(--held-left); top: var(--held-top); }
   /* Out of the scrolling hand, so it's never cut off: just above it, in the middle of the screen. */
   .hint {
     position: fixed;

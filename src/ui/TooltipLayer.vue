@@ -5,6 +5,7 @@ import { activeTip, TOOLTIP_ID } from './tooltip';
 /**
  * The one tooltip of the app (see tooltip.ts). It sits above its element, or below when there's no
  * room above, stays inside the window, and follows the element while it moves (swimming creatures).
+ * It's a popover, shown again for each tip, so it sits in the top layer above any open modal dialog.
  */
 const GAP = 6;
 const EDGE = 6;
@@ -39,6 +40,8 @@ watch(activeTip, async (tip) => {
     return;
   }
   await nextTick(); // measure the new text before placing it
+  el.value?.hidePopover();
+  el.value?.showPopover();
   place();
 });
 onBeforeUnmount(() => cancelAnimationFrame(frame));
@@ -49,6 +52,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     v-if="activeTip"
     :id="TOOLTIP_ID"
     ref="el"
+    popover="manual"
     class="tip"
     :class="{ below: pos?.below, long: !!activeTip.content.body }"
     role="tooltip"
@@ -65,7 +69,11 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 /* The map-node tooltip style, for every hover text in the app. */
 .tip {
   position: fixed;
+  inset: auto;
   z-index: 1000;
+  overflow: visible;
+  margin: 0;
+  border: 0;
   transform: translate(-50%, -100%);
   display: flex;
   flex-direction: column;

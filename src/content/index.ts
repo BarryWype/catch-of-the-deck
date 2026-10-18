@@ -10,6 +10,7 @@ import { enemies } from './enemies';
 import { equipment } from './equipment';
 import { events } from './events';
 import { families } from './families';
+import { fishermen } from './fishermen';
 import { levels } from './levels';
 import { shop } from './shop';
 import { spots } from './spots';
@@ -20,6 +21,7 @@ export const contentSource: ContentSource = {
   enemies,
   encounters,
   builds,
+  fishermen,
   creatureTypes: [...creatureTypes],
   equipment,
   events,

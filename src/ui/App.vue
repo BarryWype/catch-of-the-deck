@@ -7,8 +7,11 @@ import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
 import CardView from './CardView.vue';
 import CombatView from './CombatView.vue';
+import BuildSelect from './BuildSelect.vue';
+import CompanionPicker from './CompanionPicker.vue';
 import EggTray from './EggTray.vue';
 import EventScreen from './EventScreen.vue';
+import FishermanScreen from './FishermanScreen.vue';
 import MapView from './MapView.vue';
 import MenuScreen from './MenuScreen.vue';
 import RewardScreen from './RewardScreen.vue';
@@ -29,7 +32,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft } = game;
+const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked } = game;
 
 /**
  * The top bar's title: the act being played, from its level's "age · place" name. It replaces
@@ -63,6 +66,9 @@ function startNewRun() {
   confirmNewRun.value?.close();
   pendingNewRun();
 }
+
+/** The companion picker, opened from an empty session slot. */
+const picker = ref<InstanceType<typeof CompanionPicker>>();
 
 /** The deck dialog (the deck pill in the top bar): every card in it, by type, then by name. */
 const deckDialog = ref<HTMLDialogElement>();
@@ -100,10 +106,11 @@ const deckCards = computed(() =>
   </header>
 
   <main>
-    <!-- Before a run: pick up to SESSION_SLOTS creatures from home to bring along. -->
-    <div v-if="screen === 'companions'" class="build-layout">
+    <!-- Before a run: pick a starting build, then up to SESSION_SLOTS creatures from home to bring along. -->
+    <BuildSelect v-if="screen === 'build'" :builds="builds" :data="data" @choose="game.chooseBuild" @back="game.toMenu" />
+    <div v-else-if="screen === 'companions'" class="build-layout">
       <header class="companions-head">
-        <button class="ghost" @click="game.toMenu">{{ t('common.back') }}</button>
+        <button class="ghost" @click="game.toBuildSelect">{{ t('common.back') }}</button>
         <div>
           <h2>{{ t('companions.title') }}</h2>
           <p>{{ t('companions.hint', { n: SESSION_SLOTS }) }}</p>
@@ -122,10 +129,11 @@ const deckCards = computed(() =>
           @bring="game.bring"
         />
         <div class="slots-column">
-          <SessionSlots :brought="brought" :data="data" @remove="game.unbring" />
+          <SessionSlots :brought="brought" :data="data" @remove="game.unbring" @pick="picker?.open()" />
           <button class="start-fishing" @click="game.startRun">{{ t('companions.start') }}</button>
         </div>
       </div>
+      <CompanionPicker ref="picker" :creatures="homeLeft" :brought="brought" :data="data" @pick="game.bring" />
     </div>
     <MenuScreen
       v-else-if="screen === 'menu' || !run"
@@ -133,6 +141,8 @@ const deckCards = computed(() =>
       :home-aquarium="homeAquarium"
       :creature-book="creatureBook"
       :biggest-catch="biggestCatch"
+      :unlocked="unlocked"
+      :fishermen-met="fishermenMet"
       :data="data"
       @resume="game.resume"
       @new-run="askNewRun(newRunFromMenu)"
@@ -170,6 +180,14 @@ const deckCards = computed(() =>
     />
     <BucketFull v-else-if="screen === 'bucketFull'" :run="run" :data="data" @keep="game.keepWaiting" @sell="game.sellWaiting" />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
+    <FishermanScreen
+      v-else-if="screen === 'fisherman'"
+      :fisherman-id="findNode(run.map, run.position)?.fisherman ?? ''"
+      :data="data"
+      :creatures="[...homeAquarium, ...run.bucket]"
+      :unlocked="unlocked"
+      @leave="game.leaveFisherman"
+    />
     <section v-else-if="screen === 'leave'" class="complete">
       <div class="leave-icon"><GameIcon icon="🏠" /></div>
       <h2>{{ t('leave.title') }}</h2>
@@ -204,6 +222,9 @@ const deckCards = computed(() =>
         <p>{{ t('complete.fledText') }}</p>
       </template>
       <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
+      <p v-for="id in newlyUnlocked" :key="id" class="unlocked">
+        <GameIcon icon="🎣" /> {{ t('complete.unlocked', { build: data.builds[id]?.name ?? id }) }}
+      </p>
       <div class="complete-actions">
         <button @click="game.toMenu">{{ t('complete.toMenu') }}</button>
       </div>
@@ -230,7 +251,7 @@ const deckCards = computed(() =>
   </dialog>
 
   <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
-  <EggTray v-if="['menu', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
+  <EggTray v-if="['menu', 'build', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
 
   <!-- Every hover text in the app (v-tip) is drawn here. -->
   <TooltipLayer />

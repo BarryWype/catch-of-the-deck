@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import KeywordText from './KeywordText.vue';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
-import type { CatchSize, Discovery, GameData, HomeCreature } from '../engine';
+import { describeQuest, openQuests, questProgress, type CatchSize, type Discovery, type GameData, type HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
 import CreatureBook from './CreatureBook.vue';
@@ -11,13 +11,25 @@ import { playTheme, stopTheme, musicVolume, setMusicVolume, musicOn, setMusicOn 
 import { sfxVolume, setSfxVolume } from './sfx';
 import { language, languages, setLanguage, t } from './i18n';
 
-defineProps<{
+const props = defineProps<{
   canResume: boolean;
   homeAquarium: HomeCreature[];
   creatureBook: Readonly<Record<string, Discovery>>;
   biggestCatch: Readonly<Record<string, CatchSize>>;
+  unlocked: string[];
+  fishermenMet: string[];
   data: GameData;
 }>();
+
+/** Open quests, one line each: who wants what, and how far the home aquarium is. */
+const quests = computed(() =>
+  openQuests(props.data, props.unlocked, props.fishermenMet).map((build) => {
+    const { fisherman, quest } = build.unlock!;
+    const { have, need } = questProgress(quest, props.homeAquarium, props.data);
+    const params = { fisherman: props.data.fishermen[fisherman]?.name ?? fisherman, quest: describeQuest(quest, props.data), have, need, build: build.name };
+    return { id: build.id, text: t(have >= need ? 'menu.questReady' : 'menu.quest', params) };
+  }),
+);
 const emit = defineEmits<{ resume: []; newRun: []; reset: []; debugStart: [levelIndex: number, kind: 'miniBoss' | 'boss'] }>();
 
 /**
@@ -129,6 +141,9 @@ onBeforeUnmount(stopTheme);
         <button class="ghost" @click="openOptions">{{ t('menu.options') }}</button>
         <button v-if="desktop" class="ghost" @click="desktop.quit()">{{ t('menu.exit') }}</button>
       </nav>
+      <ul v-if="quests.length" class="quests">
+        <li v-for="q in quests" :key="q.id"><GameIcon icon="🎣" /> {{ q.text }}</li>
+      </ul>
       <p class="credits">
         {{ t('credits.music') }} · {{ t('credits.menu') }} · {{ t('credits.map') }}
       </p>
@@ -258,6 +273,8 @@ onBeforeUnmount(stopTheme);
 .buttons { display: flex; flex-direction: column; gap: 12px; width: 240px; }
 .buttons button { padding: 14px; font-size: 1.1rem; }
 .buttons .ghost { background: rgb(15 18 25 / 0.6); color: var(--text); }
+/* Open quests, under the buttons. */
+.quests { margin: 0; padding: 0; max-width: 280px; list-style: none; font-size: 0.85rem; line-height: 1.4; text-align: center; color: var(--highlight); }
 /* Who wrote the music. */
 .credits { margin: 0; max-width: 260px; font-size: 0.68rem; line-height: 1.4; color: var(--muted); text-align: center; }
 

@@ -58,4 +58,16 @@ describe('saves from before stars, sizes and the bucket limit', () => {
     expect(save.version).toBe(SAVE_VERSION);
     expect(save.run.bossRemoval).toBe(false);
   });
+
+  it('run save v16: no fishermen on the map', () => {
+    const save = upgradeSave({ version: 16, run: { bucket: [] }, combat: null } as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run.fishermen).toEqual([]);
+  });
+
+  it('profile v5: keeps everything, with only the default builds unlocked and no fisherman met', () => {
+    const old = { version: 5, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {}, eggs: ['clownfish'] };
+    const profile = upgradeProfile(old as never)!;
+    expect(profile).toEqual({ ...old, version: PROFILE_VERSION, unlockedBuilds: [], fishermenMet: [] });
+  });
 });
