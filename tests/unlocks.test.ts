@@ -7,15 +7,17 @@ import {
   COLUMNS_PER_HALF,
   buildLevelMap,
   createRun,
+  describeQuest,
   fishermenToMeet,
   isQuestMet,
   newUnlocks,
   questProgress,
+  questsShownTo,
   unlockedBuilds,
   visitFisherman,
   type QuestCondition,
 } from '../src/engine';
-import { homeCreature } from './fixtures';
+import { caught, homeCreature } from './fixtures';
 
 // useGame's module tree reads these at import; the test has no DOM.
 vi.stubGlobal('window', { matchMedia: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }) });
@@ -49,10 +51,57 @@ describe('quest condition: different species of some creature types at home', ()
   });
 });
 
+describe('quest condition: different species in the bucket', () => {
+  const net = gameData.builds.net.unlock!.quest;
+  const fly = gameData.builds.fly.unlock!.quest;
+  const trophy = (id: string) => ({ id, size: 'trophy' as const });
+
+  it('Net: different schooling species, companions included', () => {
+    expect(questProgress(net, caught('guppy', 'guppy', 'cardinalTetra', 'clownfish'), gameData)).toEqual({ have: 2, need: 3 });
+    expect(isQuestMet(net, [...caught('guppy', 'cardinalTetra'), homeCreature('europeanPilchard')], gameData)).toBe(true);
+  });
+
+  it('Fly: a trophy-size freshwater creature, nothing smaller nor from the sea', () => {
+    expect(isQuestMet(fly, [trophy('guppy')], gameData)).toBe(true);
+    expect(isQuestMet(fly, [{ id: 'guppy', size: 'large' }, trophy('clownfish')], gameData)).toBe(false);
+  });
+
+  it('describes itself in the player’s words', () => {
+    expect(describeQuest(net, gameData)).toBe('3 different schooling species in your bucket');
+    expect(describeQuest(fly, gameData)).toBe('a trophy-size freshwater creature in your bucket');
+  });
+
+  it('is shown to its own fisherman only', () => {
+    const school = caught('guppy', 'cardinalTetra', 'zebrafish');
+    expect(questsShownTo(gameData, 'gus', school)).toEqual(['net']);
+    expect(questsShownTo(gameData, 'silas', school)).toEqual([]);
+    expect(questsShownTo(gameData, 'gus', school.slice(0, 2))).toEqual([]);
+    expect(questsShownTo(gameData, 'oldNed', home(shelled))).toEqual([]);
+  });
+
+  it('meeting Gus with the school in the bucket records it on the run', () => {
+    const r0 = createRun(1, gameData, 'rod', home(['guppy', 'cardinalTetra', 'zebrafish']), undefined, ['gus']);
+    const run = { ...r0, level: 1, map: buildLevelMap(gameData, 1, { rng: 1 }, ['gus']) };
+    const miniBoss = run.map.columns[COLUMNS_PER_HALF + 1][0];
+    const node = run.map.columns.flat().find((n) => n.kind === 'fisherman')!;
+    expect(node.fisherman).toBe('gus');
+    expect(visitFisherman({ ...run, position: miniBoss.id }, node.id, gameData).questsShown).toEqual(['net']);
+    expect(visitFisherman({ ...run, bucket: run.bucket.slice(0, 2), position: miniBoss.id }, node.id, gameData).questsShown).toEqual([]);
+  });
+
+  it('unlocks from what was shown, not from the home aquarium', () => {
+    const school = home(['guppy', 'cardinalTetra', 'zebrafish']);
+    expect(newUnlocks(gameData, [], ['gus'], school)).toEqual([]);
+    expect(newUnlocks(gameData, [], ['gus'], [], ['net'])).toEqual(['net']);
+    expect(newUnlocks(gameData, [], [], [], ['net'])).toEqual([]);
+  });
+});
+
 describe('build unlocks', () => {
-  it('new players start with Rod only; Foraging joins once unlocked', () => {
+  it('new players start with Rod only; the others join once unlocked', () => {
     expect(unlockedBuilds(gameData, []).map((b) => b.id)).toEqual(['rod']);
     expect(unlockedBuilds(gameData, ['foraging']).map((b) => b.id)).toEqual(['rod', 'foraging']);
+    expect(unlockedBuilds(gameData, ['fly', 'net', 'foraging']).map((b) => b.id)).toEqual(['rod', 'foraging', 'net', 'fly']);
   });
 
   it('a met quest unlocks only once its fisherman has been met', () => {
@@ -80,15 +129,20 @@ describe('the fisherman on the map', () => {
     const miniBoss = run.map.columns[COLUMNS_PER_HALF + 1][0];
     const node = run.map.columns.flat().find((n) => n.kind === 'fisherman')!;
     expect(miniBoss.next).toContain(node.id);
-    expect(visitFisherman({ ...run, position: miniBoss.id }, node.id).position).toBe(node.id);
+    expect(visitFisherman({ ...run, position: miniBoss.id }, node.id, gameData).position).toBe(node.id);
   });
 
-  it('is never on the other ages, nor once Foraging is unlocked', () => {
-    expect(fishermenToMeet(gameData, ['foraging'])).toEqual([]);
-    for (let seed = 1; seed <= 20; seed++) {
+  it('each stands on his own age only, and none once his build is unlocked', () => {
+    expect(fishermenToMeet(gameData, [])).toEqual(['oldNed', 'gus', 'silas']);
+    expect(fishermenToMeet(gameData, ['foraging'])).toEqual(['gus', 'silas']);
+    expect(fishermenToMeet(gameData, ['foraging', 'net', 'fly'])).toEqual([]);
+    const all = fishermenToMeet(gameData, []);
+    for (let seed = 1; seed <= 300; seed++) {
       expect(fishermanNodes(0, fishermenToMeet(gameData, ['foraging']), seed)).toHaveLength(0);
-      expect(fishermanNodes(1, ['oldNed'], seed)).toHaveLength(0);
-      expect(fishermanNodes(2, ['oldNed'], seed)).toHaveLength(0);
+      for (const [level, id] of ['oldNed', 'gus', 'silas'].entries()) {
+        expect(fishermanNodes(level, all, seed).map((n) => n.fisherman), `seed ${seed}`).toEqual([id]);
+        expect(fishermanNodes(level, all, seed)[0].column).toBe(COLUMNS_PER_HALF + 2);
+      }
     }
   });
 
@@ -128,6 +182,15 @@ describe('unlocking at the end of a run', () => {
     game.dispatch({ type: 'endTurn' });
     expect(game.unlocked.value).toEqual([]);
     expect(game.newlyUnlocked.value).toEqual([]);
+  });
+
+  it('a bucket quest shown to its fisherman unlocks even if the creatures are gone by the end', async () => {
+    const game = await readyGame();
+    game.homeAquarium.value = [];
+    game.fishermenMet.value = ['gus'];
+    game.run.value = { ...createRun(1, gameData, 'rod', [], undefined, ['gus']), questsShown: ['net'] };
+    game.endRunAfterBoss();
+    expect(game.unlocked.value).toEqual(['net']);
   });
 
   it('not without having met the fisherman', async () => {

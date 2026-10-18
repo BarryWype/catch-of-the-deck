@@ -28,6 +28,19 @@ export const cards: CardDef[] = [
     id: 'playTheLine', name: 'Play the Line', art: '🪢', type: 'drain', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy',
     tags: ['drain', 'slow', 'patience'], effects: [{ type: 'changeEscape', amount: -12 }, { type: 'applyStatus', status: 'slow', amount: 2 }],
   },
+  {
+    id: 'throwTheNet', name: 'Throw the Net', art: 'net-blue', type: 'attack', rarity: 'normal', cost: 1, target: 'none',
+    tags: ['damage'], effects: [{ type: 'dealDamage', amount: 3, target: 'allEnemies' }],
+  },
+  {
+    id: 'drawTheNet', name: 'Draw the Net', art: '🥅', type: 'drain', rarity: 'normal', cost: 1, target: 'none',
+    tags: ['drain'], effects: [{ type: 'changeEscape', amount: -3, target: 'allEnemies' }],
+  },
+  { id: 'waitForTheRise', name: 'Wait for the Rise', art: 'floater1', type: 'support', rarity: 'normal', cost: 1, target: 'none', tags: ['patience'], effects: [{ type: 'gainPatience', amount: 2 }] },
+  {
+    id: 'perfectCast', name: 'Perfect Cast', art: 'lure1', type: 'attack', rarity: 'normal', cost: 0, patienceCost: 3, target: 'enemy',
+    tags: ['damage', 'drain', 'patience'], effects: [{ type: 'dealDamage', amount: 6 }, { type: 'changeEscape', amount: -6 }],
+  },
 
   // --- Shell ----------------------------------------------------------------------
   {

@@ -178,3 +178,37 @@ button.stat { box-shadow: none; font-weight: 500; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .icon-bump { animation: none; }
 }
+
+/* The debug panel's forms (DebugPanel, DebugCombatTools): compact, in a narrow drawer. */
+.debug-tools { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px 16px; font-size: 0.85rem; }
+.debug-tools section { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid #2c3a4a; }
+.debug-tools h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.95rem; color: var(--highlight); }
+.debug-tools h4 { margin: 4px 0 0; font-size: 0.8rem; color: var(--muted); }
+.debug-tools .hint { margin: 0; color: var(--muted); }
+.debug-tools .error { margin: 0; color: #f08a8a; }
+.debug-tools label { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--muted); }
+.debug-tools label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+.debug-tools .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px 10px; }
+.debug-tools .row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.debug-tools .row > select, .debug-tools .row > input { flex: 1; min-width: 0; }
+.debug-tools input, .debug-tools select, .debug-tools textarea {
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #2c3a4a;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.debug-tools input[type='number'] { width: 100%; }
+.debug-tools input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--highlight); }
+.debug-tools textarea { resize: vertical; font-family: monospace; font-size: 0.75rem; }
+.debug-tools button.ghost { padding: 4px 10px; background: rgb(15 18 25 / 0.6); color: var(--text); }
+.debug-tools ul { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.debug-tools .chips li { display: flex; align-items: center; gap: 2px; padding: 1px 2px 1px 8px; border: 1px solid #2c3a4a; border-radius: 999px; }
+.debug-tools .chips button.ghost { padding: 0 6px; border: 0; background: none; }
+.debug-tools .matches { flex-direction: column; max-height: 180px; overflow-y: auto; flex-wrap: nowrap; }
+.debug-tools .matches button { width: 100%; text-align: left; }
+.debug-tools .matches small { color: var(--muted); }
+/* A debug scenario is running: nothing is saved. */
+.debug-badge { padding: 2px 8px; border-radius: 6px; background: #c94a4a; color: #fff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; }

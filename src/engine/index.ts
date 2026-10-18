@@ -23,3 +23,4 @@ export * from './families';
 export * from './bond';
 export * from './sizes';
 export * from './unlocks';
+export * from './debug';

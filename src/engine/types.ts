@@ -1,3 +1,5 @@
+import type { CatchSize } from './sizes';
+
 // ---------------------------------------------------------------------------
 // Content definitions: the shapes designers fill in under /src/content.
 // ---------------------------------------------------------------------------
@@ -191,10 +193,10 @@ export interface BuildDef {
   description: string;
   /** Card ids the run starts with. */
   starterDeck: string[];
-  /** Tags (creature types) this build's cards are strong against. Display-only. */
-  strongAgainst: string[];
   /** Display-only art. */
   sprite?: SpriteRef;
+  /** Display-only: the player's art in fights, `ui/assets/character/<character>_fish/_hook/_hurt.png`; the Fisherman if omitted. */
+  character?: string;
   /** Equipment the player picks one of to start the run with (the first if none is picked). */
   startingItems?: string[];
   /** Id of the level from which the build can be picked; the first level if omitted. */
@@ -212,10 +214,14 @@ export interface BuildUnlock {
 }
 
 /**
- * What a fisherman wants to see. One kind for now:
+ * What a fisherman wants to see:
  * - `speciesAtHome`: `count` different species of these creature types in the home aquarium.
+ * - `inBucket`: `count` different species in the bucket (companions included) when the player
+ *   meets him, matching every filter given: a `temperament`, a `water`, a `size` or bigger.
  */
-export type QuestCondition = { type: 'speciesAtHome'; count: number; creatureTypes: string[] };
+export type QuestCondition =
+  | { type: 'speciesAtHome'; count: number; creatureTypes: string[] }
+  | { type: 'inBucket'; count: number; temperament?: string; water?: string; size?: CatchSize };
 
 /** An experienced fisherman, met on the map while a build he teaches is still locked. */
 export interface FishermanDef {

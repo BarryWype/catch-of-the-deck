@@ -2,10 +2,12 @@
 import KeywordText from './KeywordText.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
-import { describeQuest, openQuests, questProgress, type CatchSize, type Discovery, type GameData, type HomeCreature } from '../engine';
+import { describeQuest, openQuests, questProgress, type CatchSize, type DebugScenario, type Discovery, type GameData, type HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
 import CreatureBook from './CreatureBook.vue';
+import DebugPanel from './DebugPanel.vue';
+import { debugPanel as debug, setDebugPanel as setDebug } from './debugStore';
 import SideDrawer from './SideDrawer.vue';
 import { playTheme, stopTheme, musicVolume, setMusicVolume, musicOn, setMusicOn } from './music';
 import { sfxVolume, setSfxVolume } from './sfx';
@@ -21,42 +23,18 @@ const props = defineProps<{
   data: GameData;
 }>();
 
-/** Open quests, one line each: who wants what, and how far the home aquarium is. */
+/** Open quests, one line each: who wants what, and how far the home aquarium is (a bucket quest has no progress at home). */
 const quests = computed(() =>
   openQuests(props.data, props.unlocked, props.fishermenMet).map((build) => {
     const { fisherman, quest } = build.unlock!;
     const { have, need } = questProgress(quest, props.homeAquarium, props.data);
     const params = { fisherman: props.data.fishermen[fisherman]?.name ?? fisherman, quest: describeQuest(quest, props.data), have, need, build: build.name };
-    return { id: build.id, text: t(have >= need ? 'menu.questReady' : 'menu.quest', params) };
+    const key = quest.type === 'inBucket' ? 'menu.questBucket' : have >= need ? 'menu.questReady' : 'menu.quest';
+    return { id: build.id, text: t(key, params) };
   }),
 );
-const emit = defineEmits<{ resume: []; newRun: []; reset: []; debugStart: [levelIndex: number, kind: 'miniBoss' | 'boss'] }>();
+const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [DebugScenario] }>();
 
-/**
- * Temporary shortcuts for testing the bosses, in a drawer on the left shown when "Show debug
- * panel" is ticked in the options. The choice is a per-device convenience, kept in localStorage.
- */
-const DEBUG_KEY = 'slay-the-fish:debug-panel';
-function readDebug() {
-  try {
-    return localStorage.getItem(DEBUG_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-const debug = ref(readDebug());
-function setDebug(on: boolean) {
-  debug.value = on;
-  try {
-    localStorage.setItem(DEBUG_KEY, String(on));
-  } catch {
-    // Storage blocked: the panel just won't be remembered.
-  }
-}
-const DEBUG_STARTS = [0, 1, 2].flatMap((level) => [
-  { level, kind: 'miniBoss' as const, label: t('debug.miniBoss', { n: level + 1 }) },
-  { level, kind: 'boss' as const, label: t('debug.boss', { n: level + 1 }) },
-]);
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
 const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'style', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
@@ -157,11 +135,9 @@ onBeforeUnmount(stopTheme);
         </li>
       </ul>
     </SideDrawer>
-    <SideDrawer v-if="debug" side="left" icon="🛠" :title="t('debug.title')" :tab-offset="34" :width="300">
-      <nav class="debug" :aria-label="t('debug.title')">
-        <p>{{ t('debug.hint') }}</p>
-        <button v-for="d in DEBUG_STARTS" :key="d.label" class="ghost" @click="emit('debugStart', d.level, d.kind)">{{ d.label }}</button>
-      </nav>
+    <!-- Shown when "Show debug panel" is ticked in the options (debugStore.ts). -->
+    <SideDrawer v-if="debug" side="left" icon="🛠" :title="t('debug.title')" :tab-offset="34" :width="420">
+      <DebugPanel :data="data" @play="emit('playScenario', $event)" />
     </SideDrawer>
     <button
       v-if="!viewing"
@@ -325,9 +301,6 @@ onBeforeUnmount(stopTheme);
 
 .guide { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 18px 20px 18px 36px; line-height: 1.45; }
 .guide b { color: var(--highlight); }
-.debug { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-.debug p { margin: 0 0 4px; color: var(--muted); font-size: 0.85rem; }
-.debug button { padding: 8px 12px; background: rgb(15 18 25 / 0.6); color: var(--text); text-align: left; }
 .show-menu { position: absolute; top: 12px; right: 16px; z-index: 1; padding: 8px 14px; }
 
 /* Small screens: a smaller panel, which scrolls itself rather than being cut off when the phone

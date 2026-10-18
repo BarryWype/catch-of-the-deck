@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { describeQuest, questProgress, type GameData } from '../engine';
+import { describeQuest, questProgress, type Catch, type GameData } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import GameIcon from './GameIcon.vue';
 import { t } from './i18n';
 import { characterClip } from './sprites';
 
 /**
- * Meeting a fisherman on the map: who he is, the build he teaches, and his quest. Progress counts
- * `creatures`: the home aquarium and the bucket, as they'd be if the run ended well now.
+ * Meeting a fisherman on the map: who he is, the build he teaches, and his quest. A home quest's
+ * progress counts `creatures` (the home aquarium and the bucket, as they'd be if the run ended well
+ * now); a bucket quest's counts `bucket` alone.
  */
-const props = defineProps<{ fishermanId: string; data: GameData; creatures: { id: string }[]; unlocked: string[] }>();
+const props = defineProps<{ fishermanId: string; data: GameData; creatures: { id: string }[]; bucket: Catch[]; unlocked: string[] }>();
 const emit = defineEmits<{ leave: [] }>();
 
 const fisherman = computed(() => props.data.fishermen[props.fishermanId]);
@@ -18,7 +19,10 @@ const clip = computed(() => characterClip(fisherman.value?.sprite));
 const quests = computed(() =>
   Object.values(props.data.builds)
     .filter((b) => b.unlock?.fisherman === props.fishermanId && !props.unlocked.includes(b.id))
-    .map((b) => ({ build: b, quest: b.unlock!, ...questProgress(b.unlock!.quest, props.creatures, props.data) })),
+    .map((b) => {
+      const inBucket = b.unlock!.quest.type === 'inBucket';
+      return { build: b, quest: b.unlock!, inBucket, ...questProgress(b.unlock!.quest, inBucket ? props.bucket : props.creatures, props.data) };
+    }),
 );
 </script>
 
@@ -34,7 +38,8 @@ const quests = computed(() =>
       <h3>{{ t('fisherman.questTitle', { name: q.quest.name }) }}</h3>
       <p>{{ t('fisherman.wants', { quest: describeQuest(q.quest.quest, data) }) }}</p>
       <p class="progress" :class="{ ready: q.have >= q.need }">
-        {{ q.have >= q.need ? t('fisherman.ready') : t('fisherman.progress', { have: q.have, need: q.need }) }}
+        <template v-if="q.inBucket">{{ q.have >= q.need ? t('fisherman.bucketReady') : t('fisherman.bucketProgress', { have: q.have, need: q.need }) }}</template>
+        <template v-else>{{ q.have >= q.need ? t('fisherman.ready') : t('fisherman.progress', { have: q.have, need: q.need }) }}</template>
       </p>
       <p class="rule">{{ t('fisherman.rule', { build: q.build.name }) }}</p>
     </article>

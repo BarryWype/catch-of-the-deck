@@ -56,6 +56,38 @@ describe('Patience and healing cards', () => {
   });
 });
 
+describe('Net and Fly starter cards', () => {
+  it('Throw the Net: 3 damage to every creature, no target needed', () => {
+    const s0 = fight(['throwTheNet'], ['clownfish', 'guppy', 'goldfish']);
+    const s = playCard(s0, 'throwTheNet');
+    expect(s.enemies.map((e) => e.hp)).toEqual(s0.enemies.map((e) => e.hp - 3));
+    expect(s.player.energy).toBe(s0.player.energy - 1);
+    expect(describeCard(gameData.cards.throwTheNet)).toBe('3 damage to ALL creatures.');
+  });
+
+  it('Draw the Net: Drain 3 on every creature', () => {
+    const s0 = fight(['drawTheNet'], ['clownfish', 'guppy']);
+    const s = playCard(s0, 'drawTheNet');
+    expect(s.enemies.map((e) => e.escape)).toEqual(s0.enemies.map((e) => e.escape - 3));
+    expect(describeCard(gameData.cards.drawTheNet)).toBe('3 drain to ALL creatures.');
+  });
+
+  it('Wait for the Rise: 2 Patience, never above 5', () => {
+    const s0 = fight(['waitForTheRise']);
+    expect(playCard(s0, 'waitForTheRise').player.patience).toBe(2);
+    expect(playCard({ ...s0, player: { ...s0.player, patience: 4 } }, 'waitForTheRise').player.patience).toBe(5);
+  });
+
+  it('Perfect Cast: no energy but 3 Patience, 6 damage and Drain 6', () => {
+    const s0 = fight(['perfectCast']);
+    expect(() => playCard({ ...s0, player: { ...s0.player, patience: 2 } }, 'perfectCast')).toThrow();
+    const s = playCard({ ...s0, player: { ...s0.player, patience: 4 } }, 'perfectCast');
+    expect(s.enemies[0].hp).toBe(s0.enemies[0].hp - 6);
+    expect(s.enemies[0].escape).toBe(s0.enemies[0].escape - 6);
+    expect(s.player).toMatchObject({ patience: 1, energy: s0.player.energy });
+  });
+});
+
 describe('cards that scale with statuses', () => {
   it('Seize the Lull: 6 damage, +2 per Slow on the creature', () => {
     const s0 = fight(['seizeTheLull']);

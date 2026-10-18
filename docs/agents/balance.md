@@ -2,6 +2,8 @@
 
 Difficulty is the user's call, so the deliverable is measurement: what a change did to the numbers, against their targets.
 
+Redirect the report to a file and read only the ‘All ages together’ table. When tests fail, rerun just the failing file.
+
 ## The tools
 
 - `npm run simulate -- --runs 300 --out <name>`: a bot plays 300 seeded runs (seeds 1–300, so the same code gives the same numbers). Each run saves `simulation/<name>-runs.csv` and `<name>-fights.csv`. The printed report has an "All ages together" table: turns, Grit lost, escape rate and Patience for normal fights, mini-bosses and bosses, plus the share of each move role.

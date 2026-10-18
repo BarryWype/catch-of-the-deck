@@ -6,7 +6,6 @@ import {
   activeBonuses,
   availableDestinations,
   describeCompanionEffect,
-  encountersFor,
   findNode,
   type GameData,
   type MapNode,
@@ -69,23 +68,12 @@ const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: 'question-mar
 
 const hasFisherman = computed(() => props.run.map.columns.some((column) => column.some((n) => n.kind === 'fisherman')));
 
-const strongAgainst = computed(() => new Set(props.data.builds[props.run.build]?.strongAgainst ?? []));
-
-/** Every creature this fight can bring is one the run's build is strong against. */
-function isStrong(node: MapNode) {
-  if (!['fight', 'miniBoss', 'boss'].includes(node.kind)) return false;
-  return encountersFor(node, props.data).every((e) =>
-    e.enemies.every((id) => (props.data.enemies[id]?.tags ?? []).some((t) => strongAgainst.value.has(t))),
-  );
-}
-
 function creatureNames(node: MapNode) {
   return [...new Set((node.enemies ?? []).map((id) => props.data.enemies[id]?.name ?? id))].join(', ');
 }
 
-/** Hover text: what the node is, plus a hint when the build is strong against its creatures. */
+/** Hover text: what the node is. */
 function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: string } {
-  const strong = isStrong(node) ? t('map.strong') : undefined;
   switch (node.kind) {
     case 'start':
       return { title: props.data.character.home.name };
@@ -101,12 +89,12 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
       return { title: t('map.headHome'), detail: t('map.headHomeDetail') };
     case 'miniBoss':
     case 'boss':
-      return { title: `${t(node.kind === 'boss' ? 'map.boss' : 'map.miniBoss')} · ${node.label ?? ''}`, detail: creatureNames(node), hint: strong };
+      return { title: `${t(node.kind === 'boss' ? 'map.boss' : 'map.miniBoss')} · ${node.label ?? ''}`, detail: creatureNames(node) };
     default: {
       const spot = node.spot ? props.data.spots[node.spot] : undefined;
       const type = node.creatureType ? props.data.creatureTypes[node.creatureType]?.name : undefined;
       const detail = node.enemies ? creatureNames(node) : [node.label && spot?.name, type].filter(Boolean).join(' · ');
-      return { title: node.label ?? spot?.name ?? t('map.fight'), detail: detail || undefined, hint: strong };
+      return { title: node.label ?? spot?.name ?? t('map.fight'), detail: detail || undefined };
     }
   }
 }
@@ -284,7 +272,7 @@ function choose(node: MapNode) {
           v-for="node in nodes"
           :key="node.id"
           class="node"
-          :class="[node.kind, nodeState(node), { strong: isStrong(node) }]"
+          :class="[node.kind, nodeState(node)]"
           :transform="`translate(${node.x} ${node.y}) scale(${nodeSize / scale})`"
           :role="destinations.has(node.id) ? 'button' : undefined"
           :tabindex="destinations.has(node.id) ? 0 : undefined"
@@ -450,8 +438,6 @@ function choose(node: MapNode) {
 .node .hit { fill: transparent; }
 .node .check { font-size: 11px; font-weight: 800; fill: #fff; paint-order: stroke; stroke: #14232a; stroke-width: 3px; pointer-events: none; }
 
-/* Fights the run's build is strong against get a green outline. */
-.node.strong .body { stroke: #7ee08a; }
 
 .node .ring { fill: none; stroke: var(--highlight); stroke-width: 3; }
 .node.current .ring { stroke: #fff; stroke-width: 4; }

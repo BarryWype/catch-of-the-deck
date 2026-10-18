@@ -1,20 +1,21 @@
 import type { BuildDef } from '../engine';
 import type { CreatureType } from './creatureTypes';
 
-/**
- * Creature types each build specialises in. Build cards in cards.ts use these
- * in their damage `bonus`, so changing a list here retargets the whole build.
- */
-export const ROD_TARGETS: CreatureType[] = ['sportFish', 'smallFish', 'deepSea'];
-export const SPEAR_TARGETS: CreatureType[] = ['rockFish', 'bigFish', 'tentacled'];
+/** The creature types of Old Ned's quest. */
 export const FORAGING_TARGETS: CreatureType[] = ['crustacean', 'shellfish', 'critter'];
 
 /** Different species of FORAGING_TARGETS Old Ned wants in the home aquarium before teaching Foraging. */
 const FORAGING_QUEST_SPECIES = 4;
+/** Different schooling species Gus wants in the bucket before teaching Net fishing. */
+const NET_QUEST_SPECIES = 3;
 
 const STARTER_DECK = ['tug', 'tug', 'tug', 'tug', 'holdTight', 'holdTight', 'holdTight', 'holdTight', 'steadyHand', 'reelIn'];
 /** Wears creatures out instead of hitting them: Drain and Slow. */
 const FORAGING_DECK = ['reelIn', 'reelIn', 'reelIn', 'reelIn', 'holdTight', 'holdTight', 'holdTight', 'holdTight', 'playTheLine', 'slackLine'];
+/** Hits every creature at once: made for group fights. */
+const NET_DECK = ['tug', 'tug', 'tug', 'reelIn', 'reelIn', 'holdTight', 'holdTight', 'holdTight', 'throwTheNet', 'drawTheNet'];
+/** Saves Patience to slow the Will, then spends it on one Perfect Cast. */
+const FLY_DECK = ['tug', 'tug', 'tug', 'reelIn', 'reelIn', 'holdTight', 'holdTight', 'holdTight', 'waitForTheRise', 'perfectCast'];
 
 /**
  * Starting builds. Each sets the starter deck, and can offer starting items to pick one from
@@ -28,29 +29,45 @@ export const builds: BuildDef[] = [
     name: 'Rod fishing',
     description: 'Patience and a good cast. Lands fish that bite on a line.',
     starterDeck: STARTER_DECK,
-    strongAgainst: ROD_TARGETS,
     sprite: { sheet: 'gear', index: 1 },
-  },
-  {
-    id: 'spear',
-    name: 'Spear fishing',
-    description: 'Dive in and strike. Hunts the big, the rocky and the tentacled.',
-    starterDeck: STARTER_DECK,
-    strongAgainst: SPEAR_TARGETS,
-    sprite: { sheet: 'gear', index: 29 },
-    level: 'adult',
   },
   {
     id: 'foraging',
     name: 'Foraging',
-    description: 'Nets and crab nets along the shore. Scoops up everything with a shell.',
+    description: 'Rock pools and tide lines. Gathers everything with a shell or a claw.',
     starterDeck: FORAGING_DECK,
-    strongAgainst: FORAGING_TARGETS,
-    sprite: { sheet: 'gear', index: 23 },
+    sprite: { sheet: 'gear', index: 25 },
+    character: 'Woodcutter',
     unlock: {
       fisherman: 'oldNed',
       name: 'Shells and claws',
       quest: { type: 'speciesAtHome', count: FORAGING_QUEST_SPECIES, creatureTypes: FORAGING_TARGETS },
+    },
+  },
+  {
+    id: 'net',
+    name: 'Net fishing',
+    description: 'One throw, the whole school. Hits every creature at once, at its best in a crowd.',
+    starterDeck: NET_DECK,
+    sprite: { sheet: 'gear', index: 23 },
+    character: 'SteamMan',
+    unlock: {
+      fisherman: 'gus',
+      name: 'A full school',
+      quest: { type: 'inBucket', count: NET_QUEST_SPECIES, temperament: 'schooling' },
+    },
+  },
+  {
+    id: 'fly',
+    name: 'Fly fishing',
+    description: 'Stand still and wait for the rise. Save Patience to slow the Will, then spend it on one perfect cast.',
+    starterDeck: FLY_DECK,
+    sprite: { sheet: 'gear', index: 9 },
+    character: 'GraveRobber',
+    unlock: {
+      fisherman: 'silas',
+      name: 'Fresh from the creek',
+      quest: { type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' },
     },
   },
 ];

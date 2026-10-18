@@ -43,7 +43,7 @@ import { COMPACT_QUERY, useMedia } from './useScreen';
 import {
   animatedSheetFor,
   creatureClip,
-  PLAYER_CLIPS,
+  playerClip as characterAnimation,
   type AnimationClip,
   type AnimationName,
   type PlayerAnimation,
@@ -61,6 +61,8 @@ const props = defineProps<{
   releaseReason: string | null;
   /** The fight's map node spot id: the scene's water colour (see `data.spots`). */
   spot?: string;
+  /** The player's art (`BuildDef.character`). */
+  character?: string;
 }>();
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; menu: [] }>();
 
@@ -196,7 +198,7 @@ onBeforeUnmount(() => clearTimeout(hurtTimer));
 
 function playerClip(): AnimationClip {
   const name = animations[PLAYER_ID]?.name;
-  return PLAYER_CLIPS[name === 'win' || name === 'hurt' ? name : 'idle'];
+  return characterAnimation(name === 'win' || name === 'hurt' ? name : 'idle', props.character);
 }
 function enemyClip(enemy: EnemyState): AnimationClip | undefined {
   const sprite = props.data.enemies[enemy.defId].sprite;
@@ -831,6 +833,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <CardView :card="data.cards[card.defId]" :description="card.text" />
     </div>
 
+    <!-- The debug scenario's in-fight tools (DebugCombatTools), from App. -->
+    <slot name="debug" />
     <div v-if="state.phase !== 'playerTurn' && overlayVisible" class="overlay">
       <div class="panel">
         <template v-if="state.phase === 'won'">

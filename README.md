@@ -43,19 +43,48 @@ Add `?seed=12345` to the URL to replay a specific run. The current seed is shown
 
 Companions in the simulator: `--companions clownfish,blueTang --bond 2` starts every run with those creatures at that bond level (0–3). `--lineups` plays the seeds with no companions, then with four standard lineups per temperament (one tier 1 at bond 1, two tier 1s at bond 1, a full school of the lowest tiers at bond 1, one of the highest tier at bond 3), and prints a ranking by median fights with the difference from no companions (`<name>-lineups.csv`). `--campaign 20` plays 20 runs sharing one home aquarium, starting empty: the bot brings the 3 creatures giving the most stars to one temperament (a full school first), heads home at a leave node under half Grit and hatches eggs at once. It reports when a creature first reached each bond level, successful and lost runs, companions lost, the bucket brought home, the bond a companion gains per run (and the runs that would take to reach levels 2 and 3, by tier), and the sizes caught (`<name>-campaign.csv`). The bot plays greedily, card by card, and picks paths, rewards and events at random: it's a stand-in for a player, so read its numbers as trends rather than as what a person would get.
 
+## Debug panel
+
+Tick **Show debug panel** in the options: a 🛠 drawer opens on the menu's left edge. Set up a scenario (build, locked or not; age; fights already played; Grit, coins and rerolls; companions with a bond level and size; creatures already in the bucket; the deck, searchable by name or family, and an optional opening hand; the seed) and where it starts: a fight against one creature, an encounter, or the age's mini-boss or boss, or an event, shop, treasure or fisherman of that age. **Quick start** buttons still jump to each age's mini-boss and boss. Ticking **Use this profile** plays with its own unlocked builds, fishermen met and home aquarium (a quest like "a freshwater trophy in your bucket at Silent Silas" is one scenario); otherwise it plays with a copy of yours.
+
+A scenario plays in a **sandbox**: a red DEBUG badge shows in the top bar, nothing is written to the save or the profile, and **End scenario** (or going back to the menu) brings your real profile back untouched. In a scenario's fights, a 🛠 drawer sets Grit, Hold, Patience and energy (or infinite energy), each creature's Health, Will, statuses and next move, catches a creature now, adds any card to the hand, draws cards and skips to the creatures' turn.
+
+Scenarios can be saved by name (in localStorage, on this device), copied as JSON and pasted back. The JSON is a `DebugScenario` (`src/engine/debug.ts`); only `build`, `level` and `start` are required:
+
+```json
+{
+  "seed": 4821,
+  "build": "fly",
+  "level": 2,
+  "fights": 14,
+  "hp": 40,
+  "coins": 50,
+  "rerolls": 1,
+  "companions": [{ "id": "clownfish", "bond": 2, "size": "large" }],
+  "bucket": [{ "id": "progenetica", "size": "trophy" }],
+  "deck": ["tug", "tug", "reelIn", "holdTight", "perfectCast"],
+  "hand": ["perfectCast"],
+  "start": { "type": "fisherman", "id": "silas" },
+  "profile": { "unlocked": [], "fishermenMet": [], "home": [{ "id": "guppy", "bond": 1, "size": "small" }] }
+}
+```
+
+`start` is `{ "type": "creature" | "encounter" | "event" | "fisherman", "id": … }` or `{ "type": "miniBoss" | "boss" | "shop" | "treasure" }`. `bond` is a bond level (0–3), `size` one of `small`, `normal`, `large`, `trophy`, and `level` the age (0 = kid). Pasting checks every id and number, and says what's wrong. In a test, `fromScenario(json)` (`tests/fixtures.ts`) gives the run and fight it starts in.
+
 ## How to play
 
 You play a young fisherman setting off on their fishing journey from the grandparents' house on the waterfront. Before the first fight you pick a fishing style, which sets your starter deck:
 
-| Build | Strong against | Starter deck |
+| Build | Unlocked by | Starter deck |
 | --- | --- | --- |
-| Rod fishing | Sport fish, Small fish, Deep sea | 5 Cast, 4 Bucket, 1 Set the Hook |
-| Spear fishing | Rock fish, Big fish, Tentacled | 5 Sharp Stick, 4 Bucket, 1 Harpoon |
-| Foraging | Crustacean, Shellfish, Critter | 5 Small Net, 4 Bucket, 1 Crab Net |
+| Rod fishing | from the start | 4 Tug, 4 Hold Tight, 1 Steady Hand, 1 Reel In |
+| Foraging | Old Ned (Kid) | 4 Reel In, 4 Hold Tight, 1 Play the Line, 1 Slack Line |
+| Net fishing | Gus the Netmaker (Adult) | 3 Tug, 2 Reel In, 3 Hold Tight, 1 Throw the Net, 1 Draw the Net |
+| Fly fishing | Silent Silas (Elder) | 3 Tug, 2 Reel In, 3 Hold Tight, 1 Wait for the Rise, 1 Perfect Cast |
 
-Every creature has a type (shown under its name, and as the icon of map events). Build cards deal 20% more damage to their types and glow **Effective!** when the bonus applies.
+Every creature has a type (shown under its name, and as the icon of map events).
 
-- A run takes place on a map that you cross from left to right: a starting point, 20 fights and a boss at the end. Column 10 is a harbour of 3–4 nodes: 🛒 shops, plus one 🚪 "finish the session" node, a dead end where you can end the run and take your bucket home. Your position is marked **A**, and the destinations you can reach next are highlighted in yellow. Each event shows a creature type (🐠 small fish, 🦀 crustacean…), tinted green when your build is strong against it; the actual creature is drawn from that type when you get there. Everything comes from the run seed. Hover over an event to see its type.
+- A run takes place on a map that you cross from left to right: a starting point, 20 fights and a boss at the end. Column 10 is a harbour of 3–4 nodes: 🛒 shops, plus one 🚪 "finish the session" node, a dead end where you can end the run and take your bucket home. Your position is marked **A**, and the destinations you can reach next are highlighted in yellow. Each event shows a creature type (🐠 small fish, 🦀 crustacean…); the actual creature is drawn from that type when you get there. Everything comes from the run seed. Hover over an event to see its type.
 - You start each turn with 5 cards and 3 energy. Click a card to play it. With several enemies, click the card and then the enemy you want to hit.
 - Each enemy shows its **intent** above its head: 🗡️ attack (with the real damage it will deal), 🛡️ block, 💢 buff, 🌀 debuff. Hover over an intent for details.
 - Click **End Turn** and the enemies carry out the intents they showed.
@@ -146,9 +175,9 @@ Effect reference:
 
 A damage `bonus` (`{ against: ['crustacean'] }`) deals 20% more against those creature types. No card uses it for now.
 
-To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), the types it's `strongAgainst` (shown on the selection screen), and a gear sprite. To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition (e.g. `{ type: 'speciesAtHome', count: 6, creatureTypes: ['crustacean'] }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
+To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), a gear sprite, and the player's `character` art (see Player animations). To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition: species at home (`{ type: 'speciesAtHome', count: 6, creatureTypes: ['crustacean'] }`), or species in the bucket when you meet the fisherman, with any of a `temperament`, a `water` and a minimum `size` (`{ type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
 
-Card rewards come from the families of the creatures just beaten (see CARD_REWORK.md). Add `build: 'rod'` (or `'spear'`, `'foraging'`) to offer a card only to that build. Add the card's French name to `src/locales/fr-content.ts`. Run `npm test` afterwards: the content suite checks that your data is valid, and that every language names it.
+Card rewards come from the families of the creatures just beaten (see CARD_REWORK.md). Add `build: 'rod'` (or `'foraging'`, `'net'`, `'fly'`) to offer a card only to that build. Add the card's French name to `src/locales/fr-content.ts`. Run `npm test` afterwards: the content suite checks that your data is valid, and that every language names it.
 
 ## Creatures (enemies)
 
@@ -213,13 +242,15 @@ By default it only creates **missing** sheets, so any sheet you've edited by han
 
 ## Player animations
 
-The fisherman uses three strips of 48×48 frames in `src/ui/assets/`. They are registered in `PLAYER_CLIPS` in `src/ui/sprites.ts`, where you can change the frame count and speed:
+The player uses three strips of 48×48 frames in `src/ui/assets/character/`, named after the build's `character` (`Fisherman` by default; Foraging plays as `SteamMan`). They are registered in `PLAYER_STRIPS` in `src/ui/sprites.ts`, where you can change the frame count and speed:
 
 | File | Frames | When it plays |
 | --- | --- | --- |
-| `Fisherman_fish.png` | 4 | idle, loops during the fight |
-| `Fisherman_hurt.png` | 2 | when an attack costs HP (shortly after the creature's lunge), then back to idle |
-| `Fisherman_hook.png` | 6 | when the fight is won or the creature gets away; holds the last frame |
+| `<character>_fish.png` | 4 | idle, loops during the fight |
+| `<character>_hurt.png` | 2 | when an attack costs HP (shortly after the creature's lunge), then back to idle |
+| `<character>_hook.png` | 6 | when the fight is won or the creature gets away; holds the last frame |
+
+`SteamMan`, `GraveRobber` and `Woodcutter` came without a hurt strip: `npm run hurt-sprites` makes one from each idle strip (a red flash, then the rod swung back over the shoulder as in `Fisherman_hurt.png`). It overwrites them, so skip it once one has been drawn by hand.
 
 ## Gear
 

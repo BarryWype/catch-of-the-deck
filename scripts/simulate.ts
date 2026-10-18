@@ -365,7 +365,7 @@ function playRun(
       continue;
     }
     if (node.kind === 'fisherman') {
-      run = visitFisherman(run, node.id);
+      run = visitFisherman(run, node.id, data);
       if (node.fisherman && !met.includes(node.fisherman)) met.push(node.fisherman);
       continue;
     }
@@ -609,7 +609,7 @@ function campaign(runsInARow: number) {
       home.push(...back.slice(0, run.companions.length).map((c) => ({ ...(c as Tracked), trips: (c as Tracked).trips + 1 })));
       home.push(...back.slice(run.companions.length).map(track));
       bucketsHome.push(run.bucket.length);
-      for (const id of newUnlocks(data, unlocked, met, home)) {
+      for (const id of newUnlocks(data, unlocked, met, home, run.questsShown)) {
         unlocked.push(id);
         unlockedOn[id] = i + 1;
       }
@@ -636,10 +636,11 @@ function campaign(runsInARow: number) {
       bestBond: Math.max(0, ...home.map((c) => bondLevel(c, data))),
       met: met.join(' '),
       unlocked: unlocked.join(' '),
-      // Each quest's progress at home after the run, e.g. "foraging 3/6".
+      // Each quest's progress after the run: at home, e.g. "foraging 3/6", or shown in the bucket ("net shown").
       quests: Object.values(data.builds)
         .filter((b) => b.unlock)
         .map((b) => {
+          if (b.unlock!.quest.type === 'inBucket') return `${b.id} ${run.questsShown.includes(b.id) ? 'shown' : '-'}`;
           const { have, need } = questProgress(b.unlock!.quest, home, data);
           return `${b.id} ${have}/${need}`;
         })

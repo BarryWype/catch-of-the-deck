@@ -65,6 +65,12 @@ describe('saves from before stars, sizes and the bucket limit', () => {
     expect(save.run.fishermen).toEqual([]);
   });
 
+  it('run save v17: no bucket quest shown yet', () => {
+    const save = upgradeSave({ version: 17, run: { bucket: [], fishermen: [] }, combat: null } as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run.questsShown).toEqual([]);
+  });
+
   it('profile v5: keeps everything, with only the default builds unlocked and no fisherman met', () => {
     const old = { version: 5, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {}, eggs: ['clownfish'] };
     const profile = upgradeProfile(old as never)!;

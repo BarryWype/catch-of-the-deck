@@ -1,6 +1,3 @@
-import playerIdleUrl from './assets/character/Fisherman_fish.png';
-import playerWinUrl from './assets/character/Fisherman_hook.png';
-import playerHurtUrl from './assets/character/Fisherman_hurt.png';
 import fishesUrl from './assets/fishes.png';
 import gearUrl from './assets/fishing_gear.png';
 import objectsUrl from './assets/objects.png';
@@ -64,20 +61,28 @@ export function creatureClip(url: string, name: AnimationName): AnimationClip {
   return { url, frames: 6, rows: 4, ...CREATURE_ROWS[name] };
 }
 
-/** The fisherman: one strip of 48×48 frames per animation. */
+/**
+ * Characters: assets/character/<name>_fish.png (idle, 4 frames), _hook.png (a catch, 6) and
+ * _hurt.png (2, see scripts/generate-hurt-sprites.mjs), strips of 48×48 frames.
+ */
+const characterFiles = import.meta.glob<string>('./assets/character/*.png', { eager: true, query: '?url', import: 'default' });
+const characterUrl = (name: string, strip: string) => characterFiles[`./assets/character/${name}_${strip}.png`];
+
+/** The player in a fight, as the build's `character` (the Fisherman by default). */
 export type PlayerAnimation = 'idle' | 'win' | 'hurt';
-export const PLAYER_CLIPS: Record<PlayerAnimation, AnimationClip> = {
-  idle: { url: playerIdleUrl, frames: 4, rows: 1, row: 0, fps: 4, loop: true },
-  win: { url: playerWinUrl, frames: 6, rows: 1, row: 0, fps: 8, loop: false },
-  hurt: { url: playerHurtUrl, frames: 2, rows: 1, row: 0, fps: 4, loop: false },
+const PLAYER_STRIPS: Record<PlayerAnimation, Omit<AnimationClip, 'url'> & { strip: string }> = {
+  idle: { strip: 'fish', frames: 4, rows: 1, row: 0, fps: 4, loop: true },
+  win: { strip: 'hook', frames: 6, rows: 1, row: 0, fps: 8, loop: false },
+  hurt: { strip: 'hurt', frames: 2, rows: 1, row: 0, fps: 4, loop: false },
 };
+export function playerClip(animation: PlayerAnimation, character = 'Fisherman'): AnimationClip {
+  const { strip, ...clip } = PLAYER_STRIPS[animation];
+  return { url: characterUrl(character, strip) ?? characterUrl('Fisherman', strip), ...clip };
+}
 
-const characterFiles = import.meta.glob<string>('./assets/character/*_fish.png', { eager: true, query: '?url', import: 'default' });
-
-/** Another fisherman's idle strip (`FishermanDef.sprite`: assets/character/<sprite>_fish.png, 4 frames of 48×48). */
+/** Another fisherman's idle strip (`FishermanDef.sprite`), if his art exists. */
 export function characterClip(sprite: string | undefined): AnimationClip | undefined {
-  const url = sprite && characterFiles[`./assets/character/${sprite}_fish.png`];
-  return url ? { url, frames: 4, rows: 1, row: 0, fps: 4, loop: true } : undefined;
+  return sprite && characterUrl(sprite, 'fish') ? playerClip('idle', sprite) : undefined;
 }
 
 /**

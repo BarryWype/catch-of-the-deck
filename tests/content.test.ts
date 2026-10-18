@@ -9,26 +9,25 @@ describe('game content', () => {
     expect(validateContent(contentSource)).toEqual([]);
   });
 
-  it('every fishing style starts with a 10-card deck; Foraging has its own', () => {
+  it('every fishing style starts with its own 10-card deck', () => {
     const counts = (deck: string[]) => {
       const out: Record<string, number> = {};
       for (const id of deck) out[id] = (out[id] ?? 0) + 1;
       return out;
     };
-    for (const build of Object.values(gameData.builds)) {
-      const expected = build.id === 'foraging' ? { reelIn: 4, holdTight: 4, playTheLine: 1, slackLine: 1 } : { tug: 4, holdTight: 4, steadyHand: 1, reelIn: 1 };
-      expect(counts(build.starterDeck), build.id).toEqual(expected);
-    }
+    const expected: Record<string, Record<string, number>> = {
+      rod: { tug: 4, holdTight: 4, steadyHand: 1, reelIn: 1 },
+      foraging: { reelIn: 4, holdTight: 4, playTheLine: 1, slackLine: 1 },
+      net: { tug: 3, reelIn: 2, holdTight: 3, throwTheNet: 1, drawTheNet: 1 },
+      fly: { tug: 3, reelIn: 2, holdTight: 3, waitForTheRise: 1, perfectCast: 1 },
+    };
+    expect(Object.keys(gameData.builds)).toEqual(Object.keys(expected));
+    for (const build of Object.values(gameData.builds)) expect(counts(build.starterDeck), build.id).toEqual(expected[build.id]);
   });
 
   it('starter and junk cards have no family, so they are never offered; every other card has one', () => {
     const starters = new Set(Object.values(gameData.builds).flatMap((b) => b.starterDeck));
     for (const card of Object.values(gameData.cards)) expect(card.family === undefined, card.id).toBe(starters.has(card.id) || card.type === 'junk');
-  });
-
-  it('every creature type is the specialty of exactly one build', () => {
-    const covered = Object.values(gameData.builds).flatMap((b) => b.strongAgainst);
-    expect([...covered].sort()).toEqual(Object.keys(gameData.creatureTypes).sort());
   });
 
   it('every card has rules text', () => {
@@ -106,11 +105,20 @@ describe('creatures', () => {
 });
 
 describe('equipment', () => {
-  it('no build offers starting items for now; only Kid builds can start a run, and Foraging must be unlocked', () => {
+  it('no build offers starting items for now; every build starts as a Kid, and all but Rod must be unlocked', () => {
     for (const build of Object.values(gameData.builds)) expect(build.startingItems ?? []).toEqual([]);
-    expect(startingBuilds(gameData).map((b) => b.id)).toEqual(['rod', 'foraging']);
+    expect(startingBuilds(gameData).map((b) => b.id)).toEqual(['rod', 'foraging', 'net', 'fly']);
     expect(unlockedBuilds(gameData, []).map((b) => b.id)).toEqual(['rod']);
     expect(gameData.builds.foraging.unlock).toMatchObject({ fisherman: 'oldNed', quest: { type: 'speciesAtHome', creatureTypes: ['crustacean', 'shellfish', 'critter'] } });
+    expect(gameData.builds.net.unlock).toMatchObject({ fisherman: 'gus', quest: { type: 'inBucket', count: 3, temperament: 'schooling' } });
+    expect(gameData.builds.fly.unlock).toMatchObject({ fisherman: 'silas', quest: { type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' } });
+    expect([gameData.fishermen.oldNed.level, gameData.fishermen.gus.level, gameData.fishermen.silas.level]).toEqual(['kid', 'adult', 'elder']);
+  });
+
+  it('catches bucket quests no creature can meet', () => {
+    const quest = { type: 'inBucket' as const, count: 1, temperament: 'schooling', water: 'nowhere' };
+    const bad = { ...contentSource, builds: contentSource.builds.map((b) => (b.id === 'net' ? { ...b, unlock: { ...b.unlock!, quest } } : b)) };
+    expect(validateContent(bad)).toEqual([expect.stringContaining('can meet the quest')]);
   });
 
   it('catches unknown fishermen and bad quests', () => {
@@ -121,7 +129,7 @@ describe('equipment', () => {
       expect.stringContaining("quest's count"),
       expect.stringContaining('unknown creature type "nope"'),
     ]);
-    expect(validateContent({ ...contentSource, fishermen: contentSource.fishermen.map((f) => ({ ...f, level: 'teen' })) })).toEqual([
+    expect(validateContent({ ...contentSource, fishermen: contentSource.fishermen.map((f, i) => (i ? f : { ...f, level: 'teen' })) })).toEqual([
       expect.stringContaining('unknown level "teen"'),
     ]);
   });
@@ -145,7 +153,7 @@ describe('content validation', () => {
     cards: [{ id: 'a', name: 'A', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', effects: [{ type: 'dealDamage', amount: 1 }] }],
     enemies: [{ id: 'e', name: 'E', hp: [5, 5], escapeAt: 50, escapeStart: 25, escapeRate: 10, moves: [{ id: 'm', name: 'M', tag: 'pull', intensity: 'normal' as const, effects: [{ type: 'pull', amount: 1 }] }], pattern: { type: 'sequence', moves: ['m'] } }],
     encounters: [{ id: 'x', name: 'X', enemies: ['e'] }],
-    builds: [{ id: 'b', name: 'B', description: '', starterDeck: ['a'], strongAgainst: [] }],
+    builds: [{ id: 'b', name: 'B', description: '', starterDeck: ['a'] }],
     fishermen: [],
     creatureTypes: [{ id: 't', name: 'T' }],
     equipment: [],
@@ -206,14 +214,13 @@ describe('content validation', () => {
     expect(validateContent(bad)).toHaveLength(3);
   });
 
-  it('catches unknown creature types in tags, bonuses and builds', () => {
+  it('catches unknown creature types in tags and bonuses', () => {
     const bad: ContentSource = {
       ...base,
       enemies: [{ ...base.enemies[0], tags: ['ghostType'] }],
       cards: [{ ...base.cards[0], effects: [{ type: 'dealDamage', amount: 1, bonus: { against: ['typo'] } }] }],
-      builds: [{ ...base.builds[0], strongAgainst: ['nope'] }],
     };
-    expect(validateContent(bad)).toHaveLength(3);
+    expect(validateContent(bad)).toHaveLength(2);
   });
 
   it('catches an invalid character', () => {

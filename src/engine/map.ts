@@ -48,13 +48,14 @@ export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHol
 
 /**
  * Each fisherman takes a node of the column right after the mini-boss (all reachable from it): an
- * event if there is one, else a fight, never the shop or the leave node. No RNG, so the rest of the
- * map is the same with or without him.
+ * event if there is one, else a fight, else one of two shops; never the last shop nor the leave
+ * node. No RNG, so the rest of the map is the same with or without him.
  */
 function placeFishermen(map: GameMap, fishermen: readonly string[]) {
   const column = map.columns[COLUMNS_PER_HALF + 2] ?? [];
   for (const id of fishermen) {
-    const slot = column.find((n) => n.kind === 'event') ?? column.find((n) => n.kind === 'fight');
+    const shops = column.filter((n) => n.kind === 'shop');
+    const slot = column.find((n) => n.kind === 'event') ?? column.find((n) => n.kind === 'fight') ?? (shops.length > 1 ? shops[0] : undefined);
     if (slot) Object.assign(slot, { kind: 'fisherman', fisherman: id, spot: null, creatureType: null, label: null });
   }
 }

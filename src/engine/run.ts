@@ -8,6 +8,7 @@ import { nextFloat, nextInt } from './rng';
 import { rollSize, type Catch } from './sizes';
 import { isAlive } from './effects';
 import { creatureFamilies } from './families';
+import { questsShownTo } from './unlocks';
 import type { BuildDef, CardDef, CombatState, EnemyState, GameData } from './types';
 import { clone } from './util';
 
@@ -63,6 +64,8 @@ export interface RunState {
   rewardFamilies: string[];
   /** Fishermen standing on this run's maps (`fishermenToMeet` when it started). */
   fishermen: string[];
+  /** Builds whose bucket quest the bucket met when the player met their fisherman (`questsShownTo`). */
+  questsShown: string[];
 }
 
 export const CARD_REWARD_COUNT = 3;
@@ -123,6 +126,7 @@ export function createRun(
     rarePity: RARE_CHANCE,
     rewardFamilies: [],
     fishermen: [...fishermen],
+    questsShown: [],
   };
   run.map = buildLevelMap(data, 0, run, run.fishermen);
   return run;
@@ -302,9 +306,12 @@ export function visitLeave(run: RunState, nodeId: string): RunState {
   return moveTo(run, nodeId, 'leave').next;
 }
 
-/** Move to an adjacent fisherman (`MapNode.fisherman`): he talks, nothing else happens on the run. */
-export function visitFisherman(run: RunState, nodeId: string): RunState {
-  return moveTo(run, nodeId, 'fisherman').next;
+/** Move to an adjacent fisherman (`MapNode.fisherman`): he talks, and sees the bucket for his bucket quests. */
+export function visitFisherman(run: RunState, nodeId: string, data: GameData): RunState {
+  const next = moveTo(run, nodeId, 'fisherman').next;
+  const fisherman = findNode(next.map, nodeId)?.fisherman;
+  const shown = fisherman ? questsShownTo(data, fisherman, next.bucket).filter((id) => !next.questsShown.includes(id)) : [];
+  return shown.length ? { ...next, questsShown: [...next.questsShown, ...shown] } : next;
 }
 
 /** Move to an adjacent shop. */

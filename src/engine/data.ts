@@ -263,7 +263,6 @@ export function validateContent(source: ContentSource): string[] {
     for (const id of build.starterDeck) {
       if (!cardIds.has(id)) errors.push(`${where}: starter deck references unknown card "${id}".`);
     }
-    checkTags(where, build.strongAgainst);
     for (const id of build.startingItems ?? []) {
       if (!equipmentIds.has(id)) errors.push(`${where}: starting items reference unknown equipment "${id}".`);
     }
@@ -274,8 +273,15 @@ export function validateContent(source: ContentSource): string[] {
       const { fisherman, quest } = build.unlock;
       if (!source.fishermen.some((f) => f.id === fisherman)) errors.push(`${where}: unknown fisherman "${fisherman}".`);
       if (!(Number.isInteger(quest.count) && quest.count > 0)) errors.push(`${where}: the quest's count must be a whole number > 0.`);
-      if (quest.creatureTypes.length === 0) errors.push(`${where}: the quest needs at least one creature type.`);
-      checkTags(`${where} quest`, quest.creatureTypes);
+      if (quest.type === 'speciesAtHome') {
+        if (quest.creatureTypes.length === 0) errors.push(`${where}: the quest needs at least one creature type.`);
+        checkTags(`${where} quest`, quest.creatureTypes);
+      } else {
+        const species = source.enemies.filter(
+          (e) => (quest.temperament === undefined || e.temperament === quest.temperament) && (quest.water === undefined || e.water === quest.water),
+        );
+        if (species.length < quest.count) errors.push(`${where}: fewer than ${quest.count} species can meet the quest.`);
+      }
     }
   }
   const fishermanIds = new Set<string>();

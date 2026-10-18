@@ -42,11 +42,6 @@ function deckSummary(build: BuildDef) {
           </div>
         </header>
 
-        <div class="strong">
-          <span class="label">{{ t('build.strongAgainst') }}</span>
-          <span v-for="tag in build.strongAgainst" :key="tag" class="chip">{{ tagNames[tag] ?? tag }}</span>
-        </div>
-
         <h4>{{ t('build.starterDeck', { n: build.starterDeck.length }) }}</h4>
         <div class="deck">
           <div v-for="{ card, count } in deckSummary(build)" :key="card.id" class="deck-card">
@@ -102,10 +97,6 @@ function deckSummary(build: BuildDef) {
 .build h4 { margin: 6px 0 0; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .description { margin: 4px 0 0; color: var(--muted); }
 .icon { flex: none; filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.5)); }
-
-.strong { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.label { font-size: 0.8rem; color: var(--muted); }
-.chip { padding: 2px 10px; border-radius: 10px; background: #2f5a3a; font-size: 0.8rem; font-weight: 600; }
 
 .deck { display: flex; gap: 10px; flex-wrap: wrap; }
 .deck-card { position: relative; }

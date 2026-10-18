@@ -24,8 +24,9 @@ import {
   createRun,
   enterNextLevel,
   isLastLevel,
-  buildLevelMap,
-  START_NODE_ID,
+  applyWithInfiniteEnergy,
+  debugCreature,
+  startScenario,
   fishermenToMeet,
   newUnlocks,
   unlockedBuilds,
@@ -44,6 +45,7 @@ import {
   type CatchSize,
   type CombatAction,
   type CombatState,
+  type DebugScenario,
   type Discovery,
   type HomeCreature,
   type RunState,
@@ -107,7 +109,17 @@ export function useGame(initialSeed: number) {
   /** On the end screen, how the run ended. Only `fled` leaves the bucket behind. */
   const runEnd = ref<'won' | 'left' | 'fled'>('won');
 
+  /**
+   * The debug scenario being played (see README → Debug panel), null otherwise. It plays in a
+   * sandbox: nothing is saved, and `realProfile` is put back when it ends.
+   */
+  const debugScenario = shallowRef<DebugScenario | null>(null);
+  /** Debug only: cards cost no energy. */
+  const infiniteEnergy = ref(false);
+  let realProfile: { home: HomeCreature[]; book: typeof creatureBook.value; biggest: typeof biggestCatch.value; eggs: string[]; unlocked: string[]; met: string[] } | null = null;
+
   function saveProfile() {
+    if (debugScenario.value) return;
     writeProfile({
       version: PROFILE_VERSION,
       homeAquarium: homeAquarium.value,
@@ -170,7 +182,7 @@ export function useGame(initialSeed: number) {
   function endRun(finished: RunState, success: boolean) {
     let home = restAtHome(homeAquarium.value, gameData);
     if (success) home = bringCatchHome(home, finished, gameData);
-    newlyUnlocked.value = success ? newUnlocks(gameData, unlocked.value, fishermenMet.value, home) : [];
+    newlyUnlocked.value = success ? newUnlocks(gameData, unlocked.value, fishermenMet.value, home, finished.questsShown) : [];
     unlocked.value = [...unlocked.value, ...newlyUnlocked.value];
     const laid = layEggs(home, finished, gameData);
     homeAquarium.value = home;
@@ -198,7 +210,7 @@ export function useGame(initialSeed: number) {
 
   // Autosave after every change; a lost or finished run deletes the save.
   watch([run, combat, screen, rewardChoices, eventId, shopVisit], () => {
-    if (!run.value || screen.value === 'menu' || screen.value === 'build' || screen.value === 'companions') return;
+    if (debugScenario.value || !run.value || screen.value === 'menu' || screen.value === 'build' || screen.value === 'companions') return;
     if (screen.value === 'complete' || combat.value?.phase === 'lost') {
       savedGame.value = null;
       clearSavedGame();
@@ -247,8 +259,9 @@ export function useGame(initialSeed: number) {
     clearProfile();
   }
 
-  /** Back to the landing menu; the run stays saved. */
+  /** Back to the landing menu; the run stays saved. A debug scenario ends there. */
   function toMenu() {
+    if (debugScenario.value) endScenario();
     screen.value = 'menu';
   }
 
@@ -256,6 +269,7 @@ export function useGame(initialSeed: number) {
   const chosenBuild = ref<{ buildId: string; itemId: string | undefined }>();
 
   function newRun(newSeed: number) {
+    if (debugScenario.value) endScenario();
     seed.value = newSeed;
     run.value = null;
     combat.value = null;
@@ -291,19 +305,65 @@ export function useGame(initialSeed: number) {
   }
 
   /**
-   * Debug only (the menu's dev buttons): a fresh run with the first unlocked build, put on level
-   * `levelIndex` next to its mini-boss or boss, and straight into that fight.
+   * Debug only: play `scenario` in the sandbox, with its profile (or a copy of the real one), from
+   * its start node.
    */
-  function debugStartAt(levelIndex: number, kind: 'miniBoss' | 'boss', newSeed: number) {
-    seed.value = newSeed;
+  function playScenario(scenario: DebugScenario) {
+    if (!debugScenario.value) {
+      realProfile = {
+        home: homeAquarium.value,
+        book: creatureBook.value,
+        biggest: biggestCatch.value,
+        eggs: eggs.value,
+        unlocked: unlocked.value,
+        met: fishermenMet.value,
+      };
+    }
+    debugScenario.value = scenario;
+    const profile = scenario.profile;
+    if (profile) {
+      homeAquarium.value = profile.home.map((c) => debugCreature(c, gameData));
+      unlocked.value = [...profile.unlocked];
+      fishermenMet.value = [...profile.fishermenMet];
+    }
+    const started = startScenario(scenario, gameData);
+    seed.value = started.run.seed;
+    run.value = started.run;
+    combat.value = started.combat ?? null;
+    eventId.value = started.eventId ?? null;
+    shopVisit.value = { bought: {} };
+    rewardChoices.value = [];
+    if (started.kind === 'fisherman') {
+      const id = findNode(started.run.map, started.run.position)?.fisherman;
+      if (id && !fishermenMet.value.includes(id)) fishermenMet.value = [...fishermenMet.value, id];
+    }
+    screen.value = started.kind === 'fight' ? 'combat' : started.kind === 'treasure' ? 'event' : started.kind;
+  }
+
+  /** Leave the debug scenario: the real profile is back, untouched, and the menu shows. */
+  function endScenario() {
+    if (realProfile) {
+      homeAquarium.value = realProfile.home;
+      creatureBook.value = realProfile.book;
+      biggestCatch.value = realProfile.biggest;
+      eggs.value = realProfile.eggs;
+      unlocked.value = realProfile.unlocked;
+      fishermenMet.value = realProfile.met;
+      realProfile = null;
+    }
+    debugScenario.value = null;
+    infiniteEnergy.value = false;
+    run.value = null;
     combat.value = null;
-    const fresh = createRun(newSeed, gameData, builds.value[0].id, [], undefined, fishermenToMeet(gameData, unlocked.value));
-    const map = buildLevelMap(gameData, levelIndex, fresh, fresh.fishermen);
-    const nodes = map.columns.flat();
-    const target = nodes.find((n) => n.kind === kind)!;
-    const before = nodes.find((n) => n.next.includes(target.id))!;
-    run.value = { ...fresh, level: levelIndex, map, position: before.id, visited: [START_NODE_ID, before.id] };
-    travel(target.id);
+    eventId.value = null;
+    screen.value = 'menu';
+  }
+
+  /** Debug only: the fight as the in-fight tools changed it. */
+  function setDebugCombat(state: CombatState) {
+    if (!debugScenario.value || !combat.value) return;
+    combat.value = state;
+    if (state.phase === 'lost' && run.value) endRun(run.value, false);
   }
 
   function travel(nodeId: string) {
@@ -321,7 +381,7 @@ export function useGame(initialSeed: number) {
       return;
     }
     if (kind === 'fisherman') {
-      run.value = visitFisherman(run.value, nodeId);
+      run.value = visitFisherman(run.value, nodeId, gameData);
       // His quest opens now, whatever happens to this run.
       const id = findNode(run.value.map, nodeId)?.fisherman;
       if (id && !fishermenMet.value.includes(id)) {
@@ -363,7 +423,7 @@ export function useGame(initialSeed: number) {
 
   function dispatch(action: CombatAction) {
     if (!combat.value) return;
-    combat.value = applyAction(combat.value, action, gameData);
+    combat.value = debugScenario.value && infiniteEnergy.value ? applyWithInfiniteEnergy(combat.value, action, gameData) : applyAction(combat.value, action, gameData);
     if (combat.value.phase === 'lost' && run.value) endRun(run.value, false);
   }
 
@@ -529,7 +589,11 @@ export function useGame(initialSeed: number) {
     fishermenMet,
     newlyUnlocked,
     leaveFisherman,
-    debugStartAt,
+    debugScenario,
+    infiniteEnergy,
+    playScenario,
+    endScenario,
+    setDebugCombat,
     savedGame,
     homeAquarium,
     creatureBook,

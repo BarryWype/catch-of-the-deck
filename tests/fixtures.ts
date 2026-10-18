@@ -1,4 +1,19 @@
-import { applyAction, buildGameData, createCombat, type Catch, type CombatState, type CompanionEffect, type GameData, type GameMap, type HomeCreature, type MapNodeKind } from '../src/engine';
+import {
+  applyAction,
+  buildGameData,
+  createCombat,
+  startScenario,
+  validateScenario,
+  type Catch,
+  type CombatState,
+  type CompanionEffect,
+  type DebugScenario,
+  type GameData,
+  type GameMap,
+  type HomeCreature,
+  type MapNodeKind,
+} from '../src/engine';
+import { gameData } from '../src/content';
 
 /**
  * Test-only content with fixed numbers, so engine tests don't break when a
@@ -68,8 +83,8 @@ export const testData = buildGameData({
   ],
   encounters: [{ id: 'dummy', name: 'Dummy', enemies: ['dummy'] }],
   builds: [
-    { id: 'basic', name: 'Basic', description: '', starterDeck: ['strike', 'defend'], strongAgainst: [] },
-    { id: 'angler', name: 'Angler', description: '', starterDeck: ['hook', 'defend'], strongAgainst: ['fish'], startingItems: ['reel'] },
+    { id: 'basic', name: 'Basic', description: '', starterDeck: ['strike', 'defend'] },
+    { id: 'angler', name: 'Angler', description: '', starterDeck: ['hook', 'defend'], startingItems: ['reel'] },
   ],
   fishermen: [],
   events: [],
@@ -162,4 +177,14 @@ export function caught(...ids: string[]): Catch[] {
 /** The creature ids of a bucket or aquarium. */
 export function ids(creatures: readonly { id: string }[]): string[] {
   return creatures.map((c) => c.id);
+}
+
+/**
+ * The run (and fight, event…) a debug scenario starts in, with the real content by default: paste
+ * the JSON copied from the debug panel (README → Debug panel).
+ */
+export function fromScenario(scenario: DebugScenario, data: GameData = gameData) {
+  const error = validateScenario(scenario, data);
+  if (error) throw new Error(`Invalid scenario (${error.code}): ${error.detail}`);
+  return startScenario(scenario, data);
 }

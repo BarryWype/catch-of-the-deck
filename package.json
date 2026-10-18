@@ -1,7 +1,7 @@
 {
   "name": "spire-slice",
   "private": true,
-  "version": "0.1.17",
+  "version": "0.1.18",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -16,6 +16,7 @@
     "terrain": "node scripts/generate-map-terrain.mjs",
     "shore": "node scripts/draw-shore.mjs",
     "eggs": "node scripts/extract-eggs.mjs",
+    "hurt-sprites": "node scripts/generate-hurt-sprites.mjs",
     "sea": "node scripts/draw-sea.mjs",
     "coast": "node scripts/draw-coast.mjs",
     "test": "vitest run",

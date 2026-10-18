@@ -7,6 +7,7 @@ import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
 import CardView from './CardView.vue';
 import CombatView from './CombatView.vue';
+import DebugCombatTools from './DebugCombatTools.vue';
 import BuildSelect from './BuildSelect.vue';
 import CompanionPicker from './CompanionPicker.vue';
 import EggTray from './EggTray.vue';
@@ -32,7 +33,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked } = game;
+const { data, seed, run, combat, screen, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked } = game;
 
 /**
  * The top bar's title: the act being played, from its level's "age · place" name. It replaces
@@ -85,6 +86,7 @@ const deckCards = computed(() =>
 <template>
   <header v-if="run && screen !== 'menu'" class="topbar">
     <div class="act">
+      <span v-if="debugScenario" class="debug-badge" v-tip="t('debug.badgeTip')">{{ t('debug.badge') }}</span>
       <b>{{ act.age }}</b>
       <span v-if="act.place" class="act-place">{{ act.place }}</span>
     </div>
@@ -100,7 +102,8 @@ const deckCards = computed(() =>
       </span>
       <button class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })" @click="deckDialog?.showModal()">🂠 <b>{{ run.deck.length }}</b></button>
       <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
-      <button class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
+      <button v-if="debugScenario" class="ghost" @click="game.endScenario">{{ t('debug.end') }}</button>
+      <button v-else class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
       <button class="ghost new-run" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
     </div>
   </header>
@@ -147,7 +150,7 @@ const deckCards = computed(() =>
       @resume="game.resume"
       @new-run="askNewRun(newRunFromMenu)"
       @reset="game.resetProgress"
-      @debug-start="(level, kind) => game.debugStartAt(level, kind, randomSeed())"
+      @play-scenario="game.playScenario"
     />
     <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
@@ -172,12 +175,24 @@ const deckCards = computed(() =>
       :equipment="run.equipment"
       :new-eggs="newEggs"
       :spot="findNode(run.map, run.position)?.spot ?? undefined"
+      :character="data.builds[run.build]?.character"
       :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? t('combat.defaultRelease')) : null"
       @action="game.dispatch"
       @claim-victory="game.claimVictory"
       @leave="game.leaveFight"
       @menu="game.toMenu"
-    />
+    >
+      <template v-if="debugScenario" #debug>
+        <DebugCombatTools
+          :state="combat"
+          :data="data"
+          :infinite-energy="infiniteEnergy"
+          @update="game.setDebugCombat"
+          @action="game.dispatch"
+          @infinite-energy="infiniteEnergy = $event"
+        />
+      </template>
+    </CombatView>
     <BucketFull v-else-if="screen === 'bucketFull'" :run="run" :data="data" @keep="game.keepWaiting" @sell="game.sellWaiting" />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <FishermanScreen
@@ -185,6 +200,7 @@ const deckCards = computed(() =>
       :fisherman-id="findNode(run.map, run.position)?.fisherman ?? ''"
       :data="data"
       :creatures="[...homeAquarium, ...run.bucket]"
+      :bucket="run.bucket"
       :unlocked="unlocked"
       @leave="game.leaveFisherman"
     />

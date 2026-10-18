@@ -269,6 +269,10 @@ export const frContent: ContentTranslations = {
     reelIn: 'Moulinet',
     slackLine: 'Donner du mou',
     playTheLine: 'Fatiguer la prise',
+    throwTheNet: 'Lancer le filet',
+    drawTheNet: 'Remonter le filet',
+    waitForTheRise: 'Attendre le gobage',
+    perfectCast: 'Lancer parfait',
     sting: 'Piqûre',
     numbingSting: 'Piqûre engourdissante',
     venomBarb: 'Barbillon venimeux',
@@ -334,11 +338,20 @@ export const frContent: ContentTranslations = {
 
   builds: {
     rod: { name: 'Pêche à la canne', description: 'De la patience et un bon lancer. Ramène les poissons qui mordent à l’hameçon.' },
-    spear: { name: 'Chasse sous-marine', description: 'Plonge et frappe. Chasse les gros, ceux des rochers et ceux à tentacules.' },
     foraging: {
       name: 'Pêche à pied',
-      description: 'Épuisettes et balances à crabes le long du rivage. Ramasse tout ce qui a une coquille.',
+      description: 'Mares et laisses de mer. Ramasse tout ce qui a une coquille ou une pince.',
       quest: 'Coquilles et pinces',
+    },
+    net: {
+      name: 'Pêche au filet',
+      description: 'Un seul lancer, tout le banc. Touche toutes les créatures à la fois, à son meilleur dans la foule.',
+      quest: 'Un banc complet',
+    },
+    fly: {
+      name: 'Pêche à la mouche',
+      description: 'Reste immobile et attends le gobage. Garde ta Patience pour ralentir la Volonté, puis dépense-la en un lancer parfait.',
+      quest: 'Tout droit du ruisseau',
     },
   },
 
@@ -347,6 +360,16 @@ export const frContent: ContentTranslations = {
       name: 'Le vieux Ned',
       greeting:
         'Cinquante ans que je pêche sur ce rivage, petit. Tu les brusques trop. Essaie la pêche à pied : la manière patiente, pour de plus belles prises. Draine la Volonté d’une créature au lieu d’user sa Santé, et elle vient à toi.',
+    },
+    gus: {
+      name: 'Gus le Ramendeur',
+      greeting:
+        'Trente ans que je ramende des filets dans ce port, et tu les attrapes encore un par un ? Essaie la pêche au filet : un bon lancer touche tout le banc, et plus ils sont nombreux, mieux ça marche.',
+    },
+    silas: {
+      name: 'Silas le Silencieux',
+      greeting:
+        'Chut. Toute ta vie, tu as barboté. Essaie la pêche à la mouche : reste immobile et laisse ta Patience monter, pour que leur Volonté grimpe moins vite. Puis dépense tout en un lancer parfait.',
     },
   },
 

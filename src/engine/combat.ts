@@ -422,7 +422,8 @@ function endTurn(state: CombatState, data: GameData): void {
   startPlayerTurn(state, data);
 }
 
-function checkCombatEnd(state: CombatState): boolean {
+/** Sets `phase` once the player is down, a creature got away, or every creature is caught. True when the fight is over. */
+export function checkCombatEnd(state: CombatState): boolean {
   if (state.phase !== 'playerTurn') return true;
   const escaped = state.enemies.find((e) => isAlive(e) && e.escape >= e.escapeAt);
   if (state.player.hp <= 0) {
