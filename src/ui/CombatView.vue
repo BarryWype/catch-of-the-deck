@@ -16,12 +16,14 @@ import {
   previewIntent,
   previewIntents,
   escapeRise,
+  takeReport,
   HOLD_PER_PATIENCE,
   MAX_PATIENCE,
   PATIENCE_ESCAPE_PERCENT,
   validateAction,
   type CardInstance,
   type CombatAction,
+  type CombatReport,
   type CombatState,
   type EnemyState,
   type GameData,
@@ -36,6 +38,7 @@ import HealthBar from './HealthBar.vue';
 import StatusList from './StatusList.vue';
 import PowerList from './PowerList.vue';
 import { playTheme, stopTheme } from './music';
+import { playSfx } from './sfx';
 import { COMPACT_QUERY, useMedia } from './useScreen';
 import {
   animatedSheetFor,
@@ -116,6 +119,8 @@ const instantSale = computed(() => {
 const isPlayerTurn = computed(() => props.state.phase === 'playerTurn');
 const livingEnemies = computed(() => props.state.enemies.filter(isAlive));
 const recentLog = computed(() => props.state.log.slice(-8).reverse());
+/** The fight log can be folded away, leaving only its toggle. */
+const logOpen = ref(true);
 
 /** The end-of-fight overlay waits a moment so the capture / flee animation can play. */
 const OVERLAY_DELAY_MS = 900;
@@ -204,11 +209,22 @@ function onAnimationDone(id: string) {
   if (props.state.phase === 'playerTurn' && (name === 'attack' || name === 'hurt')) animate(id, 'idle');
 }
 
+/** One sound per thing the last action did: a hit that lands or is held, Venom or Slow, and the
+ * player's own damage and calming. */
+function playSound(event: CombatReport) {
+  if (event.kind === 'strike') playSfx(event.hpLost > 0 ? 'splash-big.wav' : 'umbrella-open.wav');
+  else if (event.kind === 'pull') playSfx(event.raised > 0 ? 'dive.wav' : 'umbrella-open.wav');
+  else if (event.kind === 'status') playSfx(event.status === 'venom' ? 'fish-flop.wav' : 'Hook_Set_Hard.wav');
+  else if (event.kind === 'drain') playSfx('wave-wash.wav');
+  else playSfx('dig-sand.wav');
+}
+
 watch(
   () => props.state,
   (state, previous) => {
     if (selectedUid.value && !isCardPlayable(state, selectedUid.value, props.data)) selectedUid.value = null;
     if (!previous) return;
+    for (const event of takeReport()) playSound(event);
 
     const caughtOrEscaped = state.phase === 'won' || state.phase === 'fled';
     if (caughtOrEscaped && previous.phase === 'playerTurn') {
@@ -225,6 +241,8 @@ watch(
       const before = previous.enemies.find((e) => e.id === enemy.id);
       if (!before) continue;
       if (!isAlive(enemy) && isAlive(before)) {
+        // A release (mini-boss, boss) swims away instead: it is not a catch.
+        if (!props.releaseReason) playSfx('treasure-found.wav');
         animate(enemy.id, props.releaseReason ? 'flee' : 'capture');
         if (state.phase === 'playerTurn') leaveBattlefield(enemy);
       } else if (state.phase === 'fled' && previous.phase !== 'fled' && enemy.escape >= enemy.escapeAt) {
@@ -705,7 +723,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             v-tip="`${state.player.block} ${term('hold')}`"
             class="player-hold"
           >
-            <GameIcon icon="shield3" />{{ shownState.player.block === state.player.block ? state.player.block : `${state.player.block} → ${shownState.player.block}` }}
+            <GameIcon icon="life-buoy" />{{ shownState.player.block === state.player.block ? state.player.block : `${state.player.block} → ${shownState.player.block}` }}
           </span>
         </Transition>
       </div>
@@ -741,9 +759,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <TransitionGroup tag="ul" name="note" class="caught-notes" aria-live="polite">
         <li v-for="note in caughtNotes" :key="note.id">{{ note.text }}</li>
       </TransitionGroup>
-      <ol class="log">
-        <li v-for="(line, i) in recentLog" :key="state.log.length - i"><KeywordText :text="line" /></li>
-      </ol>
+      <div v-if="recentLog.length" class="log-box">
+        <button
+          v-tip="t('combat.log')"
+          class="log-toggle"
+          type="button"
+          :aria-expanded="logOpen"
+          @click="logOpen = !logOpen"
+        >
+          {{ logOpen ? '❮' : '❯' }}
+        </button>
+        <ol v-show="logOpen" class="log">
+          <li v-for="(line, i) in recentLog" :key="state.log.length - i"><KeywordText :text="line" /></li>
+        </ol>
+      </div>
     </section>
 
     <section class="controls">
@@ -1020,21 +1049,35 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 .note-enter-active, .note-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
 .note-enter-from, .note-leave-to { opacity: 0; transform: translateY(-8px); }
 
-.log {
+.log-box {
   position: absolute;
   top: 16px;
   left: 16px;
+  max-width: 260px;
+}
+.log-toggle {
+  padding: 0 6px;
+  border: none;
+  border-radius: 8px;
+  background: rgb(10 14 20 / 0.6);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .log-toggle:hover { color: var(--text); }
+}
+.log {
   margin: 0;
   padding: 6px 10px;
   list-style: none;
   font-size: 0.72rem;
   color: var(--muted);
-  max-width: 260px;
   /* Readable on any ground, light sand or dark rock. */
   border-radius: 8px;
   background: rgb(10 14 20 / 0.6);
 }
-.log:empty { display: none; }
 .log li:first-child { color: var(--text); }
 
 .controls { display: flex; align-items: flex-end; gap: 16px; padding: 0 8px 12px; }
@@ -1216,7 +1259,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   .player-hold { right: auto; left: 20%; bottom: 84%; padding: 1px 8px 1px 3px; font-size: 1rem; }
   .player-hold .game-icon { width: 22px; height: 22px; }
   .enemies { flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
-  .log { display: none; }
+  .log-box { display: none; }
   /* Wrapped combatants take the bottom corners, so the panel goes top left (the log is gone);
      with the fisherman up on the bank, the bottom left is free and it stays there. */
   .battlefield:not(.bank) .resources { top: 16px; bottom: auto; }

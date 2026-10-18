@@ -1,6 +1,6 @@
-import playerIdleUrl from './assets/Fisherman_fish.png';
-import playerWinUrl from './assets/Fisherman_hook.png';
-import playerHurtUrl from './assets/Fisherman_hurt.png';
+import playerIdleUrl from './assets/character/Fisherman_fish.png';
+import playerWinUrl from './assets/character/Fisherman_hook.png';
+import playerHurtUrl from './assets/character/Fisherman_hurt.png';
 import fishesUrl from './assets/fishes.png';
 import gearUrl from './assets/fishing_gear.png';
 import objectsUrl from './assets/objects.png';
@@ -9,6 +9,7 @@ import beigeEggUrl from './assets/eggs/beige.png';
 import goldEggUrl from './assets/eggs/gold.png';
 import purpleEggUrl from './assets/eggs/purple.png';
 import whiteEggUrl from './assets/eggs/white.png';
+import octopusUrl from './assets/creatures/Octopus.png';
 
 export interface SpriteSheet {
   url: string;
@@ -25,6 +26,8 @@ export const SHEETS: Record<string, SpriteSheet> = {
   objects: { url: objectsUrl, columns: 5, rows: 4, cell: 32 },
   /** Map terrain patches, made by `npm run terrain`. */
   terrain: { url: terrainUrl, columns: 9, rows: 1, cell: 40 },
+  /** Giant octopus: one 4-frame idle strip. */
+  octopus: { url: octopusUrl, columns: 4, rows: 1, cell: 96 },
 };
 
 /** One animation: a row of square frames in a sheet. Looping clips repeat; others hold their last frame. */
@@ -52,7 +55,12 @@ const CREATURE_ROWS: Record<AnimationName, { row: number; fps: number; loop: boo
   flee: { row: 3, fps: 12, loop: false },
 };
 
+/** Creature art drawn as a single strip (sheet names in SHEETS): every animation plays that strip. */
+const STRIP_SHEETS = ['octopus'];
+
 export function creatureClip(url: string, name: AnimationName): AnimationClip {
+  const strip = STRIP_SHEETS.map((id) => SHEETS[id]).find((sheet) => sheet.url === url);
+  if (strip) return { url, frames: strip.columns, rows: 1, row: 0, fps: 6, loop: name === 'idle' };
   return { url, frames: 6, rows: 4, ...CREATURE_ROWS[name] };
 }
 
@@ -86,6 +94,7 @@ for (const [path, url] of Object.entries(creatureFiles)) {
 
 /** URL of the animated sheet for a sprite, if one exists. */
 export function animatedSheetFor(sprite: { sheet: string; index: number }): string | undefined {
+  if (STRIP_SHEETS.includes(sprite.sheet)) return SHEETS[sprite.sheet].url;
   return sprite.sheet === 'fishes' ? animatedByIndex[sprite.index] : undefined;
 }
 

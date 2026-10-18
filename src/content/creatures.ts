@@ -1,4 +1,4 @@
-import type { Habitat, Statuses } from '../engine';
+import type { Habitat, SpriteRef, Statuses } from '../engine';
 import { move, STEAL, WIND_UP, type Behavior, type BehaviorId } from './behaviors';
 import type { CreatureType } from './creatureTypes';
 
@@ -24,6 +24,7 @@ import type { CreatureType } from './creatureTypes';
  *   its temperament's (see Pike and Red piranha below).
  * - `strength` (optional): Strength it starts every fight with.
  * - `habitat` (optional): 'swim' | 'drift' | 'bottom', how it moves in the aquarium.
+ * - `sprite` (optional): its own art (a sheet in ui/sprites.ts) instead of its cell in fishes.png.
  */
 /** Bond points to be fully bonded, by tier, for creatures without their own `bondToFull`. */
 export const BOND_BY_TIER: Record<CreatureDef['tier'], number> = { 1: 40, 2: 60, 3: 90 };
@@ -54,6 +55,8 @@ export interface CreatureDef {
   statuses?: Statuses;
   /** How it moves in the aquarium. Defaults from its temperament (see enemies.ts). */
   habitat?: Habitat;
+  /** Its own art, for creatures beyond fishes.png. */
+  sprite?: SpriteRef;
 }
 
 export const creatures: CreatureDef[] = [
@@ -233,4 +236,7 @@ export const creatures: CreatureDef[] = [
   { no: 142, id: 'spoonWorm', name: 'Spoon worm', scientific: 'Bonellia viridis', type: 'critter', water: 'salt', tier: 1, hp: [14, 18], sellValue: 3, breedChance: 0.1, escapeAt: 60, escapeStart: 30, escapeRate: 6, temperament: 'bottomDweller' },
   { no: 143, id: 'planaria', name: 'Planaria', scientific: 'Planaria torva', type: 'critter', water: 'fresh', tier: 1, hp: [10, 14], sellValue: 2, breedChance: 0.1, escapeAt: 50, escapeStart: 32, escapeRate: 3, temperament: 'bottomDweller' },
   { no: 144, id: 'medicinalLeech', name: 'Medicinal leech', scientific: 'Hirudo medicinalis', type: 'critter', water: 'fresh', tier: 1, hp: [14, 18], sellValue: 3, breedChance: 0.1, escapeAt: 60, escapeStart: 30, escapeRate: 6, temperament: 'eel' },
+
+  // --- Own art (not in fishes.png) -------------------------------------------
+  { no: 145, id: 'giantPacificOctopus', name: 'Giant octopus', scientific: 'Enteroctopus dofleini', type: 'tentacled', water: 'salt', tier: 2, hp: [42, 48], sellValue: 11, breedChance: 0.1, escapeAt: 120, escapeStart: 60, escapeRate: 11, temperament: 'cephalopod', sprite: { sheet: 'octopus', index: 1 } },
 ];

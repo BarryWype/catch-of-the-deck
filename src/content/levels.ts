@@ -29,7 +29,7 @@ export const levels: LevelDef[] = [
     start: HOME,
     height: 300,
     miniBoss: { x: 692, y: 206, label: 'Estuary', enemies: ['blueCrab'], releaseReason: 'too feisty to keep' },
-    boss: { x: 1262, y: 230, label: 'Lighthouse Point', enemies: ['commonLobster'], releaseReason: 'a protected species here' },
+    boss: { x: 1262, y: 230, label: 'Lighthouse Point', enemies: ['giantPacificOctopus'], releaseReason: 'a protected species here' },
     escape: ESCAPE,
     // The base map's own spots by the house: its rocks, the sea beside them, and its creek.
     firstColumn: [

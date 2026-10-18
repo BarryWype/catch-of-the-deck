@@ -7,18 +7,19 @@ type Tip = Exclude<TipContent, string>;
 /** A piece of text: plain, or a keyword with its explanation and, for some, an icon shown before it. */
 export type TextPart = { text: string; tip?: Tip; icon?: string };
 
-const WORDS = ['drain', 'strike', 'pull', 'exhaust', 'block', 'attack'] as const;
+const WORDS = ['damage', 'drain', 'strike', 'pull', 'exhaust', 'block', 'attack'] as const;
 
 /** The icon (a file in assets/icons) shown before each keyword that has one. */
 const ICONS: Partial<Record<string, string>> = {
   grit: 'muscle',
-  hold: 'shield3',
+  hold: 'life-buoy',
   will: 'excape1',
   patience: 'coffee',
+  damage: 'rod2',
   drain: 'net-green',
   strike: 'bite1',
   pull: 'excape1',
-  block: 'shield3',
+  block: 'life-buoy',
   attack: 'hook-on-string',
   venom: 'venom1',
   strength: 'muscle-up',

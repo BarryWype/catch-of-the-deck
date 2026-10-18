@@ -32,22 +32,23 @@ describe('game content', () => {
   });
 
   it('generates readable rules text', () => {
-    expect(describeCard(gameData.cards.tug)).toBe('Deal 5 damage.');
-    expect(describeCard(gameData.cards.reelIn)).toBe('Drain 7.');
-    expect(describeCard(gameData.cards.sting)).toBe('Deal 2 damage. Apply 3 Venom.');
-    expect(describeCard(gameData.cards.dartingNips)).toBe('Deal 2 damage 4 times to random creatures.');
-    expect(describeCard(gameData.cards.cheapShot)).toBe('Deal 5 damage. The creature gains 5 Will.');
+    expect(describeCard(gameData.cards.tug)).toBe('5 damage.');
+    expect(describeCard(gameData.cards.reelIn)).toBe('7 drain.');
+    expect(describeCard(gameData.cards.sting)).toBe('2 damage. Apply 3 Venom.');
+    expect(describeCard(gameData.cards.dartingNips)).toBe('2 damage 4 times to random creatures.');
+    expect(describeCard(gameData.cards.cheapShot)).toBe('5 damage. The creature gains 5 Will.');
     expect(describeCard(gameData.cards.numbingSting)).toBe('Apply 2 Venom. Apply 2 Slow. Targets a random creature.');
     expect(describeCard(gameData.cards.stickySlime)).toBe('Gain 4 Hold. Apply 3 Slow. Targets a random creature.');
     // With modifiers, the real number follows in brackets.
-    expect(describeCard(gameData.cards.tug, { attacker: { strength: 1 } })).toBe('Deal 5 (6) damage.');
-    expect(describeCard(gameData.cards.tug, { attacker: { weak: 1 } })).toBe('Deal 5 (3) damage.');
+    expect(describeCard(gameData.cards.tug, { attacker: { strength: 1 } })).toBe('5 (6) damage.');
+    expect(describeCard(gameData.cards.tug, { attacker: { weak: 1 } })).toBe('5 (3) damage.');
   });
 });
 
 describe('creatures', () => {
-  it('has one entry per sprite (1–144), with unique ids', () => {
-    expect(creatures.map((c) => c.no)).toEqual(Array.from({ length: 144 }, (_, i) => i + 1));
+  it('has one entry per fishes.png sprite (1–144) then its own-art creatures, with unique ids', () => {
+    expect(creatures.map((c) => c.no)).toEqual(Array.from({ length: creatures.length }, (_, i) => i + 1));
+    expect(creatures.filter((c) => !c.sprite)).toHaveLength(144);
     expect(new Set(creatures.map((c) => c.id)).size).toBe(creatures.length);
   });
 
@@ -78,7 +79,7 @@ describe('creatures', () => {
 
   it('every creature is an enemy with its sprite, and a solo encounter at its tier', () => {
     for (const c of creatures) {
-      expect(gameData.enemies[c.id].sprite).toEqual({ sheet: 'fishes', index: c.no });
+      expect(gameData.enemies[c.id].sprite).toEqual(c.sprite ?? { sheet: 'fishes', index: c.no });
       expect(gameData.encounters.find((e) => e.id === c.id)).toMatchObject({ tier: c.tier, enemies: [c.id] });
     }
   });

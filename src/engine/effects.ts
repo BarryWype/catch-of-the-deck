@@ -12,6 +12,7 @@ import {
 } from './constants';
 import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
 import { drawCards } from './piles';
+import { reportEvent } from './report';
 import { nextInt } from './rng';
 import { addStatus, getStatus, statusName } from './statuses';
 import { text } from './text';
@@ -127,6 +128,11 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
   switch (effect.type) {
     case 'dealDamage': {
       const hits = effect.hits ?? 1;
+      // What this Strike did to the player, reported as one event however many hits land.
+      let strikeBlocked = 0;
+      let strikeHpLost = 0;
+      // A played card's own damage, however many hits or targets it lands on.
+      let playerHit = false;
       for (let i = 0; i < hits; i++) {
         for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
           const fromPlayer = source.id === PLAYER_ID;
@@ -153,6 +159,12 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           }
           const { blocked, hpLost } = applyDamage(t, amount);
           ctx.dealt = (ctx.dealt ?? 0) + hpLost;
+          if (enemyAttack) {
+            strikeBlocked += blocked;
+            strikeHpLost += hpLost;
+          } else if (ctx.fromCard) {
+            playerHit = true;
+          }
           if (ctx.attack) coatWithVenom(state, t);
           if (fromPlayer) hookWithVenom(state, ctx, t);
           const params = { who: t.name, attacker: source.name, n: hpLost, soaked: blocked ? text('log.soaked', { n: blocked }) : '' };
@@ -162,6 +174,8 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           if (enemyAttack) afterEnemyHit(state, source.id, amount, hpLost);
         }
       }
+      if (strikeBlocked + strikeHpLost > 0) reportEvent({ kind: 'strike', blocked: strikeBlocked, hpLost: strikeHpLost });
+      if (playerHit) reportEvent({ kind: 'hit' });
       return;
     }
     case 'gainBlock': {
@@ -180,6 +194,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       const held = Math.min(state.player.block, pull);
       state.player.block -= held;
       enemy.escape = Math.min(enemy.escapeAt, enemy.escape + pull - held);
+      if (pull > 0) reportEvent({ kind: 'pull', blocked: held, raised: pull - held });
       const holding = held ? text('log.heldPart', { n: held }) : '';
       addLog(state, text('log.pulls', { name: enemy.name, held: holding, escape: enemy.escape, escapeAt: enemy.escapeAt }));
       return;
@@ -358,7 +373,9 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         addLog(state, text('log.slowCap', { n: effect.amount }));
       }
       return;
-    case 'changeEscape':
+    case 'changeEscape': {
+      // A played card's calming, reported as one event however many creatures it reaches.
+      let calmed = false;
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         if (!('escape' in t)) continue;
         const enemy = t as EnemyState;
@@ -366,12 +383,16 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         const calming = source.id === PLAYER_ID && amount < 0 && !ctx.raw;
         const pull = calming ? Math.ceil((-amount * (state.pullPercent ?? 0)) / 100) : 0;
         const change = amount - pull - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
+        const before = enemy.escape;
         enemy.escape = Math.max(0, Math.min(enemy.escapeAt, enemy.escape + change));
         if (ctx.attack && change < 0) coatWithVenom(state, enemy);
         if (source.id === PLAYER_ID && change < 0) hookWithVenom(state, ctx, enemy);
+        if (enemy.escape < before) calmed = true;
         addLog(state, text(change >= 0 ? 'log.panics' : 'log.calms', { name: enemy.name, escape: enemy.escape, escapeAt: enemy.escapeAt }));
       }
+      if (calmed) reportEvent({ kind: 'drain' });
       return;
+    }
     case 'multiplyStatus':
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         const stacks = getStatus(t, effect.status);

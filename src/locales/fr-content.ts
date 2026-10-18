@@ -117,6 +117,7 @@ export const frContent: ContentTranslations = {
     commonJellyfish: 'Méduse commune',
     flameJellyfish: 'Méduse flamme',
     commonOctopus: 'Poulpe',
+    giantPacificOctopus: 'Pieuvre géante',
     flapjackOctopus: 'Poulpe dumbo',
     atlanticGiantSquid: 'Calmar géant',
     commonSquid: 'Calmar',

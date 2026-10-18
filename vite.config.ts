@@ -9,9 +9,9 @@ const wslOnWindowsDrive = !!process.env.WSL_DISTRO_NAME && process.cwd().startsW
 export default defineConfig({
   // Relative asset paths, so the build also works when Electron opens it from disk.
   base: './',
-  // The music (src/audio/music) stays out of the bundle: Vite serves it in dev (as /music/…,
-  // where music.ts plays it from), and `npm run build` copies the MP3s into dist/music
-  // (scripts/copy-music.mjs) so the masters next to them never ship.
+  // The audio (src/audio) stays out of the bundle: Vite serves it in dev (as /music/… and /sfx/…,
+  // where music.ts and sfx.ts play it from), and `npm run build` copies it into dist/music and
+  // dist/sfx (scripts/copy-audio.mjs) so the masters next to them never ship.
   publicDir: process.env.NODE_ENV === 'development' ? 'src/audio' : false,
   plugins: [vue()],
   server: {

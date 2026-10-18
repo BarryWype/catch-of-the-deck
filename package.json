@@ -1,7 +1,7 @@
 {
   "name": "spire-slice",
   "private": true,
-  "version": "0.1.14",
+  "version": "0.1.15",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run typecheck && vite build && node scripts/copy-music.mjs",
+    "build": "npm run typecheck && vite build && node scripts/copy-audio.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.engine.json",
     "sprites": "node scripts/generate-creature-sprites.mjs",

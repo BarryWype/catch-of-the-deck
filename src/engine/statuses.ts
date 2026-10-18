@@ -1,5 +1,6 @@
 import { BURROW_PERCENT, MAX_SLOW_PERCENT, MOVE_INTENSITY, PATIENCE_ESCAPE_PERCENT, SLOW_PERCENT, WIND_UP_PERCENT } from './constants';
 import { escapeRateReduction } from './equipment';
+import { reportEvent } from './report';
 import { text } from './text';
 import type { Combatant, EnemyMove, EnemyState, StatusId } from './types';
 
@@ -49,6 +50,9 @@ export function getStatus(combatant: Combatant, id: StatusId): number {
 }
 
 export function addStatus(combatant: Combatant, id: StatusId, amount: number): void {
+  // The player inflicting Venom or Slow is part of the report (a creature gaining it is reported
+  // too: any source counts).
+  if ((id === 'venom' || id === 'slow') && amount > 0) reportEvent({ kind: 'status', status: id });
   const next = getStatus(combatant, id) + amount;
   // Decaying statuses are durations, so they can't go negative. Strength can.
   if (next === 0 || (STATUS_META[id].decays && next < 0)) {

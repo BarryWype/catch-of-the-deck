@@ -70,6 +70,7 @@ watch(
   white-space: nowrap;
   text-shadow: 0 1px 2px #000, 0 0 4px rgb(0 0 0 / 0.8);
 }
+.value > span { display: flex; align-items: center; gap: 0.325rem; }
 .grit .bar { background: #3a2716; }
 /* Hold: a light water-blue wash over the whole Grit bar, on top of its outline. */
 .grit.blocking .bar { background: color-mix(in srgb, #3a2716 70%, var(--block)); }
@@ -77,6 +78,7 @@ watch(
 .grit.blocking .fill { background: color-mix(in srgb, var(--grit) 55%, var(--block)); }
 /* The drop waits hidden at the cup's rim, then falls and fades while the cup shakes. */
 .cup { position: relative; display: inline-block; }
+.cup .game-icon{ height: 1.8rem; width: 1.8rem; margin-right: 0.325rem; }
 .drop {
   position: absolute;
   top: 10%;

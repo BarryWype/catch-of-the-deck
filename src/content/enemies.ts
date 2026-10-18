@@ -30,7 +30,7 @@ function toEnemy(creature: CreatureDef): EnemyDef {
     ...('bossPattern' in behavior && behavior.bossPattern ? { bossPattern: behavior.bossPattern } : {}),
     tags: [creature.type],
     startingStatuses: { ...creature.statuses, ...(creature.strength ? { strength: creature.strength } : {}) },
-    sprite: { sheet: 'fishes', index: creature.no },
+    sprite: creature.sprite ?? { sheet: 'fishes', index: creature.no },
     habitat: creature.habitat ?? HABITAT_BY_TEMPERAMENT[creature.temperament] ?? 'swim',
     temperament: creature.temperament,
     water: creature.water,

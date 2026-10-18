@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { creatureFamilies, describeCard, type CardDef } from '../engine';
 import { gameData } from '../content';
 import { t } from './i18n';
@@ -64,8 +64,27 @@ const artStyle = computed(() => {
   const colour = FAMILY_COLOURS[props.card.family ?? ''];
   return colour && { background: `radial-gradient(circle at 50% 35%, color-mix(in srgb, ${colour} 70%, #14161c), color-mix(in srgb, ${colour} 35%, #0e1016))` };
 });
-/** Rules text longer than this gets a smaller font so it stays inside the card. */
-const LONG_TEXT = 85;
+/** Rules text steps down these font scales until it fits the space left under the art. */
+const TEXT_SCALES = [1, 0.9, 0.8, 0.72, 0.65];
+const desc = ref<HTMLElement>();
+const textScale = ref(1);
+async function fitText() {
+  for (const scale of TEXT_SCALES) {
+    textScale.value = scale;
+    await nextTick();
+    const el = desc.value;
+    if (!el || (el.firstElementChild as HTMLElement).offsetHeight <= el.clientHeight) return;
+  }
+}
+/** The box changes size with the screen, and from nothing when a hidden card is shown. */
+let resizes: ResizeObserver | undefined;
+onMounted(() => {
+  resizes = new ResizeObserver(() => fitText());
+  resizes.observe(desc.value!);
+  document.fonts.ready.then(fitText);
+});
+onBeforeUnmount(() => resizes?.disconnect());
+watch(text, fitText);
 /** Splits out "5 (9)" pairs (printed amount, real amount) so the real one can be coloured. */
 const parts = computed(() =>
   text.value.split(/(\d+ \(\d+\))/).map((part) => {
@@ -90,8 +109,8 @@ const parts = computed(() =>
       <template v-else>{{ card.art ?? TYPE_ICON[card.type] }}</template>
     </span>
     <span class="type">{{ t(`card.type.${card.type}`) }}</span>
-    <span class="desc" :class="{ long: text.length > LONG_TEXT }">
-      <span>
+    <span ref="desc" class="desc">
+      <span :style="{ fontSize: `${textScale}em` }">
         <template v-for="(part, i) in parts" :key="i">
           <template v-if="'real' in part">{{ part.base }} <b class="real" :class="part.up ? 'up' : 'down'">({{ part.real }})</b></template>
           <KeywordText v-else :text="part.text" />
@@ -182,7 +201,7 @@ const parts = computed(() =>
   font-size: 0.7rem;
   font-weight: 800;
 }
-.name { font-weight: 700; font-size: 0.95rem; margin: 2px 0 6px 12px; }
+.name { font-weight: 500; font-size: 0.82rem; line-height: 1; margin: 0 0 4px 12px; color: color-mix(in srgb, var(--text) 80%, transparent); }
 .rarity-rare .name { color: #ffd76a; }
 .art {
   display: grid;
@@ -203,8 +222,7 @@ const parts = computed(() =>
   text-transform: uppercase;
   color: var(--muted);
 }
-.desc { flex: 1; display: grid; place-items: center; font-size: 0.78rem; line-height: 1.25; }
-.desc.long { font-size: 0.66rem; line-height: 1.2; }
+.desc { flex: 1; min-height: 0; display: grid; place-items: center; font-size: 0.78rem; line-height: 1; }
 
 .card.effective { box-shadow: 0 0 0 2px #7be38f, 0 0 16px rgb(123 227 143 / 0.55), 0 4px 10px rgb(0 0 0 / 0.4); }
 .effective-badge {
@@ -229,11 +247,10 @@ const parts = computed(() =>
 /* Small screens: a smaller card, its text a little smaller. */
 @media (max-width: 700px), (max-height: 500px) {
   .card { width: 118px; height: 166px; padding: 6px; border-radius: 10px; }
-  .name { font-size: 0.82rem; margin: 2px 0 4px 12px; }
+  .name { font-size: 0.72rem; margin: 0 0 3px 12px; }
   .art { height: 40px; font-size: 1.4rem; }
   .type { margin: -6px 0 4px; font-size: 0.6rem; }
-  .desc { font-size: 0.7rem; line-height: 1.2; }
-  .desc.long { font-size: 0.6rem; }
+  .desc { font-size: 0.7rem; }
   .cost { width: 26px; height: 26px; line-height: 22px; top: -8px; left: -8px; }
   .card.selected { transform: translateY(-14px) scale(1.05); }
 }

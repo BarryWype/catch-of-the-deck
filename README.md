@@ -152,7 +152,7 @@ Card rewards come from the families of the creatures just beaten (see CARD_REWOR
 
 ## Creatures (enemies)
 
-Enemies are the 144 creatures in `src/ui/assets/fishes.png`, listed in **`src/content/creatures.ts`**, one line each:
+Enemies are the 144 creatures in `src/ui/assets/fishes.png`, plus a few with their own art (`sprite`, e.g. the Giant octopus), listed in **`src/content/creatures.ts`**, one line each:
 
 ```ts
 { no: 54, id: 'pike', name: 'Pike', scientific: 'Esox lucius', type: 'sportFish', tier: 2, hp: [40, 44], sellValue: 10, escapeAt: 135, escapeStart: 74, escapeRate: 38, temperament: 'predator' },
@@ -164,6 +164,7 @@ Enemies are the 144 creatures in `src/ui/assets/fishes.png`, listed in **`src/co
 - `hp` is a `[min, max]` range, rolled each fight.
 - `strength` (optional) is Strength the creature starts every fight with. It is shown on screen and adds to every hit.
 - `habitat` (optional) is how the creature moves in the aquarium: `swim` back and forth, `drift` up and down, or crawl along the `bottom`. By default jellyfish drift; armored creatures, crustaceans and bottom dwellers crawl; everything else swims.
+- `sprite` (optional) is its own art, for a creature beyond `fishes.png`: numbered after 144, with a sheet added to `SHEETS` in `src/ui/sprites.ts` (single-strip art also goes in `STRIP_SHEETS`).
 - `sellValue` is how many coins it sells for from the aquarium.
 - `escapeStart`, `escapeRate` and `escapeAt` drive the tug of war (the "Will" bar): it starts at `escapeStart`, rises by `escapeRate` after each enemy turn, and the creature flees with no reward once it reaches `escapeAt`. Pushed down to 0, the creature is captured.
 - `temperament` picks a shared move set from **`src/content/behaviors.ts`**: `reefFish`, `schooling`, `predator`, `venomous`, `puffer`, `ambusher`, `fighter`, `giant`, `eel`, `armored`, `jellyfish`, `cephalopod`, `clawed` or `bottomDweller`. Change one to rebalance every creature with that temperament.

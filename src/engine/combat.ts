@@ -19,6 +19,7 @@ import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, reso
 import { chooseIntent, executeIntent, getIntentMove, patternOf, telegraphSecondWind } from './intents';
 import { discardHand, drawCards } from './piles';
 import { nextInt, shuffleInPlace } from './rng';
+import { takeReport } from './report';
 import { escapeRise, getStatus, tickStatuses } from './statuses';
 import type { CardDef, Combatant, CombatAction, CombatState, CompanionEffect, Effect, EnemyMove, EnemyState, GameData, IntentPattern, StatusId } from './types';
 import { addLog, clone } from './util';
@@ -203,6 +204,8 @@ export function turnAverage(moves: EnemyMove[], pattern: IntentPattern): number 
  * object if the action is illegal (check with `validateAction` for the reason).
  */
 export function applyAction(state: CombatState, action: CombatAction, data: GameData): CombatState {
+  // An action reports only its own events: whatever the last one left unread is dropped.
+  takeReport();
   if (validateAction(state, action, data) !== null) return state;
   const next = clone(state);
   switch (action.type) {

@@ -38,7 +38,7 @@ describe('Patience and healing cards', () => {
     const s = playCard(hurt, 'tickle');
     expect(s.enemies[0].escape).toBe(s0.enemies[0].escape - 10);
     expect(s.enemies[0].hp).toBe(s0.enemies[0].maxHp);
-    expect(describeCard(gameData.cards.tickle)).toBe('Drain 10. The creature heals 6.');
+    expect(describeCard(gameData.cards.tickle)).toBe('10 drain. The creature heals 6.');
   });
 });
 
@@ -48,8 +48,8 @@ describe('cards that scale with statuses', () => {
     const slowed: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], statuses: { slow: 3 } }] };
     expect(playCard(slowed, 'seizeTheLull').enemies[0].hp).toBe(s0.enemies[0].hp - 12);
     expect(playCard(s0, 'seizeTheLull').enemies[0].hp).toBe(s0.enemies[0].hp - 6);
-    expect(describeCard(gameData.cards.seizeTheLull)).toBe('Deal 6 damage, +2 for each Slow on the creature.');
-    expect(describeCard(gameData.cards.seizeTheLull, { defender: { slow: 3 } })).toBe('Deal 6 (12) damage, +2 for each Slow on the creature.');
+    expect(describeCard(gameData.cards.seizeTheLull)).toBe('6 damage, +2 for each Slow on the creature.');
+    expect(describeCard(gameData.cards.seizeTheLull, { defender: { slow: 3 } })).toBe('6 (12) damage, +2 for each Slow on the creature.');
   });
 
   it('Wear Them Out: Drain 3 per Slow; nothing without Slow', () => {
@@ -57,7 +57,7 @@ describe('cards that scale with statuses', () => {
     const slowed: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], statuses: { slow: 4 } }] };
     expect(playCard(slowed, 'wearThemOut').enemies[0].escape).toBe(s0.enemies[0].escape - 12);
     expect(playCard(s0, 'wearThemOut').enemies[0].escape).toBe(s0.enemies[0].escape);
-    expect(describeCard(gameData.cards.wearThemOut)).toBe('Drain 3 for each Slow on the creature.');
+    expect(describeCard(gameData.cards.wearThemOut)).toBe('3 drain for each Slow on the creature.');
   });
 
   it('Bogged Down: doubles a random creature’s Slow, which gains 5 Will', () => {
@@ -114,7 +114,7 @@ describe('delayed cards', () => {
       escapes.push(s.enemies[1].escape);
     }
     expect(escapes.slice(1).map((e, i) => escapes[i] - e)).toEqual([6, 6, 6, 0]);
-    expect(describeCard(gameData.cards.musselBait)).toBe('At the start of each of your next 3 turns: drain 6.');
+    expect(describeCard(gameData.cards.musselBait)).toBe('At the start of each of your next 3 turns: 6 drain.');
   });
 
   it('Thick Shell: 4 Hold now and at the start of your next 2 turns', () => {
@@ -140,7 +140,7 @@ describe('delayed cards', () => {
     const s = playCard({ ...s0, enemies: [{ ...s0.enemies[0], block: 3 }] }, 'severeBite');
     expect(s.enemies[0].hp).toBe(s0.enemies[0].hp - 5);
     expect(quietTurn(s).enemies[0].hp).toBe(s0.enemies[0].hp - 7);
-    expect(describeCard(gameData.cards.severeBite)).toBe('Deal 8 damage. At the start of your next turn, deal half the damage dealt again.');
+    expect(describeCard(gameData.cards.severeBite)).toBe('8 damage. At the start of your next turn, deal half the damage dealt again.');
   });
 });
 
@@ -158,7 +158,7 @@ describe('cards that read or change the next move', () => {
     const pull = playCard(about(s0, 'dartAway'), 'duckAndJab');
     expect(s0.enemies[0].hp - pull.enemies[0].hp).toBe(4);
     expect(describeCard(gameData.cards.duckAndJab)).toBe(
-      'If the creature is about to Strike: deal 12 damage. The creature gains 6 Will. Otherwise: deal 4 damage.',
+      'If the creature is about to Strike: 12 damage. The creature gains 6 Will. Otherwise: 4 damage.',
     );
   });
 
@@ -274,7 +274,7 @@ describe('cards that last until the end of your turn', () => {
     // Unseen Approach is itself a Drain card: only the cards before it count.
     expect(s0.enemies[0].escape - playCard(s0, 'unseenApproach').enemies[0].escape).toBe(10);
     expect(attacked.enemies[0].escape - playCard(attacked, 'unseenApproach').enemies[0].escape).toBe(5);
-    expect(describeCard(gameData.cards.unseenApproach)).toBe("If you haven't played an attack this turn: drain 10. Otherwise: drain 5.");
+    expect(describeCard(gameData.cards.unseenApproach)).toBe("If you haven't played an attack this turn: 10 drain. Otherwise: 5 drain.");
   });
 });
 
@@ -403,7 +403,7 @@ describe('attack cards from the Flashy, Patient and Endurance families', () => {
     expect(dealt('dartAway')).toBe(10);
     expect(dealt('nibble')).toBe(5);
     expect(dealt('nip')).toBe(5);
-    expect(describeCard(gameData.cards.lureAndLunge)).toBe('If the creature is about to Pull: deal 10 damage. Otherwise: deal 5 damage.');
+    expect(describeCard(gameData.cards.lureAndLunge)).toBe('If the creature is about to Pull: 10 damage. Otherwise: 5 damage.');
   });
 
   it('Patient Strike and The Long Wait spend Patience for big hits', () => {
@@ -433,7 +433,7 @@ describe('attack cards from the Flashy, Patient and Endurance families', () => {
     expect(s0.enemies[0].escape - plain.enemies[0].escape).toBe(8);
     const slowed: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], statuses: { slow: 1 } }] };
     expect(slowed.enemies[0].escape - playCard(slowed, 'tiringBlow').enemies[0].escape).toBe(12);
-    expect(describeCard(gameData.cards.tiringBlow)).toBe('Deal 10 damage. If the creature has Slow: drain 12. Otherwise: drain 8.');
+    expect(describeCard(gameData.cards.tiringBlow)).toBe('10 damage. If the creature has Slow: 12 drain. Otherwise: 8 drain.');
   });
 
   it('ifStatus checks the target, and does nothing without an `else`', () => {

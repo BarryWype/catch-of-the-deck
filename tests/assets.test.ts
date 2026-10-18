@@ -12,7 +12,7 @@ function pngSize(file: string) {
 }
 
 describe('creature animation sheets', () => {
-  it.each(creatures.map((c) => [c.no, c.name] as const))('#%i %s has a 6×4 sheet of 48px frames', (no) => {
+  it.each(creatures.filter((c) => !c.sprite).map((c) => [c.no, c.name] as const))('#%i %s has a 6×4 sheet of 48px frames', (no) => {
     const file = `${CREATURE_DIR}${String(no).padStart(3, '0')}.png`;
     expect(existsSync(file), `${file} is missing: run "npm run sprites"`).toBe(true);
     expect(pngSize(file)).toEqual({ width: 6 * 48, height: 4 * 48 });
