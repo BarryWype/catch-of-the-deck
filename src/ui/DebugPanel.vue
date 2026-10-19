@@ -13,6 +13,7 @@ import {
   type DebugScenario,
   type DebugStart,
   type GameData,
+  type StoreKind,
 } from '../engine';
 import { t, type TextKey } from './i18n';
 import { deleteScenario, saveScenario, savedScenarios } from './debugStore';
@@ -24,8 +25,10 @@ import { deleteScenario, saveScenario, savedScenarios } from './debugStore';
 const props = defineProps<{ data: GameData }>();
 const emit = defineEmits<{ play: [DebugScenario] }>();
 
-const START_TYPES = ['creature', 'encounter', 'miniBoss', 'boss', 'event', 'shop', 'treasure', 'fisherman'] as const;
+/** Where a scenario can start; each store is its own entry, started as `{ type: 'shop', store }`. */
+const START_TYPES = ['creature', 'encounter', 'miniBoss', 'boss', 'event', 'cafe', 'tackle', 'bait', 'treasure', 'fisherman'] as const;
 type StartType = (typeof START_TYPES)[number];
+const isStore = (type: string): type is StoreKind => (STORE_KINDS as readonly string[]).includes(type);
 const BONDS = Array.from({ length: MAX_BOND_LEVEL + 1 }, (_, i) => i);
 
 const byName = <T extends { name: string }>(list: T[]) => [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -41,7 +44,6 @@ const startIds = computed(() => {
   if (type === 'encounter') return encounters.value.map((e) => ({ id: e.id, name: `${e.name} (${e.enemies.length})` }));
   if (type === 'event') return events.value;
   if (type === 'fisherman') return fishermen.value;
-  if (type === 'shop') return STORE_KINDS.map((id) => ({ id, name: t(`shop.title.${id}`) }));
   return [];
 });
 
@@ -82,8 +84,8 @@ function resetDeck() {
 function scenario(): DebugScenario {
   const type = startType.value;
   const start = (
-    type === 'shop'
-      ? { type, store: startId.value }
+    isStore(type)
+      ? { type: 'shop', store: type }
       : ['creature', 'encounter', 'event', 'fisherman'].includes(type)
         ? { type, id: startId.value }
         : { type }
@@ -124,8 +126,8 @@ function load(s: DebugScenario) {
     fishermenMet: [...(s.profile?.fishermenMet ?? [])],
     home: (s.profile?.home ?? []).map((c) => ({ ...c })),
   });
-  startType.value = s.start.type;
-  startId.value = 'id' in s.start ? s.start.id : 'store' in s.start ? (s.start.store ?? 'tackle') : '';
+  startType.value = s.start.type === 'shop' ? (s.start.store ?? 'tackle') : s.start.type;
+  startId.value = 'id' in s.start ? s.start.id : '';
 }
 
 const error = ref<DebugError | null>(null);

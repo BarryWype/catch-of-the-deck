@@ -260,7 +260,7 @@ The three stores' scenes (`src/ui/assets/stores/`: `cafe.png`, `tackle-shop.png`
 npm run store-art
 ```
 
-It prints the layout the UI relies on: the shelf boards and item slots, the counter top the keeper stands on, and the Bait shop's tank and sign. `SLOTS`, `KEEPER`, `TANK` and `SIGN` at the top of `src/ui/ShopScreen.vue` repeat them in the same art pixels: keep both in step.
+It prints the layout the UI relies on: the shelf boards and item slots, the counter top the keeper stands on, and the Bait shop's tank and sign. `SLOTS`, `COUNTER` (a store with two items or fewer sells from its counter), `KEEPER`, `TANK` and `SIGN` at the top of `src/ui/ShopScreen.vue` repeat them in the same art pixels: keep both in step.
 
 ## Gear
 

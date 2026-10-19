@@ -8,7 +8,7 @@ vi.stubGlobal('navigator', { language: 'en' });
 vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} });
 
 const home = [{ id: 'clownfish', bond: 3, size: 'normal' as const }];
-const writes = { profile: vi.fn(), save: vi.fn(), clearSave: vi.fn(), clearProfile: vi.fn() };
+const writes = { profile: vi.fn(), save: vi.fn(), clearSave: vi.fn(), clearProfile: vi.fn(), transfer: vi.fn() };
 vi.mock('../src/ui/saveStore', () => ({
   SAVE_VERSION: 1,
   PROFILE_VERSION: 1,
@@ -18,6 +18,7 @@ vi.mock('../src/ui/saveStore', () => ({
   writeSavedGame: writes.save,
   clearSavedGame: writes.clearSave,
   clearProfile: writes.clearProfile,
+  applyTransfer: writes.transfer,
 }));
 
 const { useGame } = await import('../src/ui/useGame');
@@ -76,5 +77,25 @@ describe('the debug sandbox', () => {
     game.startRun();
     await nextTick();
     expect(writes.save).toHaveBeenCalled();
+  });
+
+  it('a transfer code is refused during a scenario, and applied and shown outside one', async () => {
+    const game = useGame(1);
+    await nextTick();
+    const contents = {
+      save: null,
+      profile: { version: 1, homeAquarium: [{ id: 'guppy', bond: 0, size: 'large' as const }], creatureBook: { guppy: 'captured' as const }, biggestCatch: {}, eggs: ['guppy'], unlockedBuilds: [], fishermenMet: [] },
+    };
+    game.playScenario({ seed: 5, build: 'net', level: 0, start: { type: 'creature', id: 'clownfish' } });
+    expect(game.importTransfer(contents)).toBe(false);
+    expect(writes.transfer).not.toHaveBeenCalled();
+    game.toMenu();
+
+    expect(game.importTransfer(contents)).toBe(true);
+    expect(writes.transfer).toHaveBeenCalledWith(contents);
+    expect(game.homeAquarium.value.map((c) => c.id)).toEqual(['guppy']);
+    expect(game.eggs.value).toEqual(['guppy']);
+    expect(game.savedGame.value).toBeNull();
+    expect(game.screen.value).toBe('menu');
   });
 });

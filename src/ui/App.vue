@@ -149,6 +149,7 @@ const deckCards = computed(() =>
       :data="data"
       @resume="game.resume"
       @new-run="askNewRun(newRunFromMenu)"
+      :import-transfer="game.importTransfer"
       @reset="game.resetProgress"
       @play-scenario="game.playScenario"
     />

@@ -143,6 +143,8 @@ const BOARD_TOP = { A: 56, B: 96 };
 const SHELF_X = { left: [8, 88], right: [152, 232] };
 /** Where an item's base sits: its centre x, and the board it stands on. */
 const SLOT_X = { left: [28, 68], right: [172, 212] };
+/** A store with only this many items sells from the counter instead, either side of the keeper (their centre x). */
+const COUNTER_SLOTS = [88, 152];
 /** Where the keeper sprite goes (its top-left corner); every keeper is KEEPER_W x KEEPER_H. */
 const KEEPER_W = 30;
 const KEEPER_H = 46;
@@ -448,8 +450,8 @@ function keeper(name, { skin, hair, shirt, apron, hat, beard, extra }) {
  * The bait shop's empty aquarium sits on the counter, right, in place of the lower
  * right shelf; the sign hangs on the counter front below it. Both rects are printed.
  */
-const TANK = { x: 160, y: 86, w: 64, h: 33 };
-const SIGN = { x: 166, y: 126, w: 52, h: 24 };
+const TANK = { x: 172, y: 86, w: 64, h: 33 };
+const SIGN = { x: 178, y: 126, w: 52, h: 24 };
 
 {
   const c = canvas(W, H);
@@ -493,7 +495,7 @@ const SIGN = { x: 166, y: 126, w: 52, h: 24 };
   jar(c, 153, BOARD_TOP.A - 12, GREEN_L, SEA_D);
   jar(c, 222, BOARD_TOP.A - 12, ORANGE, GREEN);
   tin(c, 9, BOARD_TOP.B - 10, GREEN, CREAM);
-  jar(c, 78, BOARD_TOP.B - 12, hex('#c5b6df'), GOLD);
+  jar(c, 52, BOARD_TOP.B - 12, hex('#c5b6df'), GOLD);
 
   // A cooler under the lower left shelf.
   prop(c, 18, 104, 30, 15, (p) => {
@@ -642,8 +644,8 @@ const SIGN = { x: 166, y: 126, w: 52, h: 24 };
   cup(222, BOARD_TOP.A - 7, WHITE);
   cup(222, BOARD_TOP.A - 13, SKY);
   jar(c, 9, BOARD_TOP.B - 12, hex('#6a4a30'), RED);
-  jar(c, 78, BOARD_TOP.B - 12, hex('#e8d9b0'), GOLD);
-  prop(c, 152, BOARD_TOP.B - 11, 13, 11, (p) => {
+  jar(c, 52, BOARD_TOP.B - 12, hex('#e8d9b0'), GOLD);
+  prop(c, 186, BOARD_TOP.B - 11, 13, 11, (p) => {
     p.disc(6, 6, 4.5, hex('#e86838'));
     p.rect(4, 0, 8, 1, hex('#e86838'));
     p.line(10, 4, 12, 2, hex('#e86838'));
@@ -651,7 +653,7 @@ const SIGN = { x: 166, y: 126, w: 52, h: 24 };
   });
   jar(c, 222, BOARD_TOP.B - 12, hex('#e86890'), GREEN);
 
-  // A plant on the left of the counter, an espresso machine and a cake dome by the barista.
+  // A plant, an espresso machine and a cake dome along the counter, clear of the two items on it by the barista (`COUNTER_SLOTS`).
   prop(c, 8, 100, 22, 19, (p) => {
     p.rect(6, 11, 15, 18, hex('#b64336'));
     p.rect(6, 11, 15, 12, hex('#e86838'));
@@ -660,7 +662,7 @@ const SIGN = { x: 166, y: 126, w: 52, h: 24 };
     p.rect(9, 9, 11, 9, GREEN_D);
   });
   // The espresso machine: a red body, chrome top, group head, and a cup under it.
-  prop(c, 72, 99, 30, 20, (p) => {
+  prop(c, 38, 99, 30, 20, (p) => {
     p.rect(1, 0, 28, 4, STEEL);
     p.rect(1, 0, 28, 0, STEEL_L);
     p.rect(3, 5, 26, 16, RED);
@@ -675,9 +677,9 @@ const SIGN = { x: 166, y: 126, w: 52, h: 24 };
     p.rect(0, 17, 29, 19, STEEL_D);
     p.rect(0, 17, 29, 17, STEEL);
   });
-  c.line(82, 110, 81, 107, alpha(WHITE, 160));
-  c.line(84, 109, 85, 106, alpha(WHITE, 120));
-  prop(c, 140, 98, 26, 21, (p) => {
+  c.line(48, 110, 47, 107, alpha(WHITE, 160));
+  c.line(50, 109, 51, 106, alpha(WHITE, 120));
+  prop(c, 174, 98, 26, 21, (p) => {
     p.rect(1, 17, 24, 20, WHITE);
     p.rect(0, 19, 25, 20, STEEL);
     p.rect(5, 10, 20, 16, hex('#ffa074'));
@@ -878,4 +880,5 @@ storeNode('bait-node.png', {
 
 console.log(`  Counter top y=${COUNTER_TOP}; keeper sprite ${KEEPER_W}x${KEEPER_H} at (${KEEPER_AT.x}, ${KEEPER_AT.y}).`);
 console.log(`  Slots: x ${[...SLOT_X.left, ...SLOT_X.right].join(', ')} on boards y=${BOARD_TOP.A} and y=${BOARD_TOP.B} (bait shop: no lower right board).`);
+console.log(`  Cafe items on the counter at x ${COUNTER_SLOTS.join(', ')}.`);
 console.log(`  Bait shop tank ${JSON.stringify(TANK)}, sign ${JSON.stringify(SIGN)}.`);

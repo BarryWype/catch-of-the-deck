@@ -52,6 +52,7 @@ import {
   type ShopVisit,
 } from '../engine';
 import {
+  applyTransfer,
   clearProfile,
   clearSavedGame,
   loadProfile,
@@ -60,7 +61,9 @@ import {
   SAVE_VERSION,
   writeProfile,
   writeSavedGame,
+  type Profile,
   type SavedGame,
+  type TransferContents,
 } from './saveStore';
 
 export type Screen = 'menu' | 'build' | 'companions' | 'map' | 'combat' | 'bucketFull' | 'event' | 'fisherman' | 'shop' | 'leave' | 'reward' | 'complete';
@@ -94,14 +97,15 @@ export function useGame(initialSeed: number) {
   /** Builds unlocked through fishermen's quests, and the fishermen met (whose quests are open). */
   const unlocked = ref<string[]>([]);
   const fishermenMet = ref<string[]>([]);
-  loadProfile().then((profile) => {
+  function setProfile(profile: Profile) {
     homeAquarium.value = profile.homeAquarium;
     creatureBook.value = profile.creatureBook;
     biggestCatch.value = profile.biggestCatch;
     eggs.value = profile.eggs;
     unlocked.value = profile.unlockedBuilds;
     fishermenMet.value = profile.fishermenMet;
-  });
+  }
+  loadProfile().then(setProfile);
   /** The builds a run can start with. */
   const builds = computed(() => unlockedBuilds(gameData, unlocked.value));
   /** The finish node the player clicked, waiting for them to confirm on the leave screen. */
@@ -258,6 +262,22 @@ export function useGame(initialSeed: number) {
     eggs.value = [];
     clearSavedGame();
     clearProfile();
+  }
+
+  /**
+   * Replace this device's progress with what a transfer code brought, and show it straight away.
+   * Refused (false) while a debug scenario plays: the sandbox must not write the real files.
+   */
+  function importTransfer(contents: TransferContents): boolean {
+    if (debugScenario.value) return false;
+    applyTransfer(contents);
+    run.value = null;
+    combat.value = null;
+    broughtSlots.value = [];
+    savedGame.value = contents.save;
+    setProfile(contents.profile);
+    screen.value = 'menu';
+    return true;
   }
 
   /** Back to the landing menu; the run stays saved. A debug scenario ends there. */
@@ -612,5 +632,6 @@ export function useGame(initialSeed: number) {
     resume,
     toMenu,
     resetProgress,
+    importTransfer,
   };
 }

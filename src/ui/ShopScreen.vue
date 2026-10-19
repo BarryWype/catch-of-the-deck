@@ -35,22 +35,32 @@ const tagNames = computed(() => creatureTypeNames(props.data));
 /**
  * The store scenes (src/ui/assets/stores, made by scripts/generate-store-art.mjs), 240x160 art
  * pixels: positions below are in those pixels, the same as the script's. Items stand on the shelf
- * boards, the upper row first; the Bait shop has no lower right board, its tank stands there.
+ * boards, the upper row first, inner spots first and alternating left and right, so a few items spread out
+ * without reaching the scene's edges; the Bait shop
+ * has no lower right board, its tank stands there.
  */
 const ART = { w: 240, h: 160 };
 const SLOTS = [
-  { x: 28, y: 56 },
   { x: 68, y: 56 },
   { x: 172, y: 56 },
+  { x: 28, y: 56 },
   { x: 212, y: 56 },
-  { x: 28, y: 96 },
   { x: 68, y: 96 },
   { x: 172, y: 96 },
+  { x: 28, y: 96 },
   { x: 212, y: 96 },
 ];
+/**
+ * A store with no more items than this sells from its counter, either side of the keeper (`COUNTER_SLOTS`
+ * in the script). Not the Bait shop: its tank takes the counter, and labels there would cover the keeper.
+ */
+const COUNTER = [
+  { x: 88, y: 118 },
+  { x: 152, y: 118 },
+];
 const KEEPER = { x: 105, y: 72, w: 30, h: 46 };
-const TANK = { x: 160, y: 86, w: 64, h: 33 };
-const SIGN = { x: 166, y: 126, w: 52, h: 24 };
+const TANK = { x: 172, y: 86, w: 64, h: 33 };
+const SIGN = { x: 178, y: 126, w: 52, h: 24 };
 const SCENES: Record<StoreKind, { art: string; keeper: string }> = {
   cafe: { art: cafeUrl, keeper: cafeKeeperUrl },
   tackle: { art: tackleUrl, keeper: tackleKeeperUrl },
@@ -65,10 +75,19 @@ const pct = (r: { x: number; y: number; w?: number; h?: number }) => ({
 });
 
 const items = computed(() => storeItems(props.visit, props.data));
-const shelved = computed(() => items.value.filter((i) => i.effect.type !== 'aquariumSale').slice(0, SLOTS.length));
+const forSale = computed(() => items.value.filter((i) => i.effect.type !== 'aquariumSale'));
+const places = computed(() => (props.visit.store !== 'bait' && forSale.value.length <= COUNTER.length ? COUNTER : SLOTS));
+const shelved = computed(() => forSale.value.slice(0, places.value.length));
+/** Where each shelved item stands: an item alone on its board is centred on it (the shelves span `SHELF_X` in the script). */
+const SHELF_CENTRE = { left: 48, right: 192 };
+const spots = computed(() => {
+  if (places.value === COUNTER) return COUNTER;
+  const used = SLOTS.slice(0, shelved.value.length);
+  const side = (s: { x: number }) => (s.x < ART.w / 2 ? 'left' : 'right');
+  return used.map((s) => (used.filter((o) => o.y === s.y && side(o) === side(s)).length === 1 ? { ...s, x: SHELF_CENTRE[side(s)] } : s));
+});
 const aquarium = computed(() => items.value.find((i) => i.effect.type === 'aquariumSale'));
 const family = computed(() => (props.visit.family ? props.data.families[props.visit.family] : undefined));
-const emblem = computed(() => family.value && props.data.enemies[family.value.emblem]?.sprite);
 const soldSprite = computed(() => props.visit.sold && props.data.enemies[props.visit.sold.id]?.sprite);
 
 /** The item waiting for the player to pick a card (`removeCard`) or a bucket creature. */
@@ -96,7 +115,7 @@ function effectText(item: ShopItemDef) {
 function tip(item: ShopItemDef) {
   return {
     title: item.name,
-    detail: `${effectText(item)}${item.limit ? ` · ${t('shop.oncePerVisit')}` : ''}`,
+    detail: `${effectText(item)}`,
     body: blocked(item) ?? '',
   };
 }
@@ -160,7 +179,7 @@ function talk() {
     </template>
 
     <template v-else-if="picking">
-      <p>{{ t('shop.chooseCreature', { item: picking.name }) }}</p>
+      <p>{{ t(picking.effect.type === 'aquariumSale' ? 'shop.chooseOne' : 'shop.chooseCreature', { item: picking.name }) }}</p>
       <p class="effect">{{ effectText(picking) }}</p>
       <ul class="picker">
         <li v-for="c in choices" :key="c.slot">
@@ -196,12 +215,13 @@ function talk() {
           >
             <SpriteView v-if="soldSprite" class="sold" :sprite="soldSprite" :size="48" />
           </button>
+          <!-- The sign is blank in the art: what the keeper is after is written here. -->
           <div class="sign" :style="pct(SIGN)">
-            <SpriteView v-if="emblem" :sprite="emblem" :size="22" />
-            <span>
-              <b>×2</b>
-              <small>{{ visit.sold ? t('shop.aquariumSold') : t('shop.aquariumSign', { family: family?.name ?? '' }) }}</small>
-            </span>
+            <template v-if="visit.sold"><b>{{ t('shop.aquariumSold') }}</b></template>
+            <template v-else>
+              <b>{{ t('shop.aquariumSign', { family: family?.name ?? '' }) }}</b>
+              <small>{{ t('shop.aquariumTerms') }}</small>
+            </template>
           </div>
         </template>
 
@@ -210,7 +230,8 @@ function talk() {
           :key="item.id"
           type="button"
           class="slot"
-          :style="pct(SLOTS[i])"
+          :class="{ counter: places === COUNTER }"
+          :style="pct(spots[i])"
           :disabled="!!blocked(item)"
           :aria-label="item.name"
           v-tip="tip(item)"
@@ -219,9 +240,10 @@ function talk() {
           <span class="item-icon"><GameIcon :icon="item.icon ?? '🎁'" /></span>
           <span class="name">{{ item.name }}</span>
           <span class="price">
-            <template v-if="item.price"><GameIcon icon="🪙" /> {{ item.price }}</template>
+            <template v-if="item.price"><span class="coin"><GameIcon icon="🪙" /></span> {{ item.price }}</template>
             <template v-else>{{ t('shop.free') }}</template>
           </span>
+          <span class="shadow" aria-hidden="true" />
         </button>
       </div>
       <button class="ghost" @click="emit('leave')">{{ t('shop.leave') }}</button>
@@ -297,42 +319,72 @@ function talk() {
 .sign {
   position: absolute;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 0 4%;
   color: #2e1c2c;
-  line-height: 1;
+  line-height: 1.05;
+  text-align: center;
   pointer-events: none;
 }
-.sign span { display: flex; flex-direction: column; align-items: flex-start; }
-.sign b { font-size: 1rem; }
-.sign small { max-width: 9em; font-size: 0.62rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sign b { font-size: 0.85rem; }
+.sign small { font-size: 0.68rem; font-weight: 700; color: #8d2c44; }
 
 .slot {
   position: absolute;
-  transform: translate(-50%, -100%);
-  width: 15%;
+  /* Its bottom on the shelf or counter top, sunk 5px so the item looks set on it. */
+  transform: translate(-50%, calc(-100% + 5px));
+  width: 16%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 5px 2px 4px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #26304a, #1b2233);
-  border: 1px solid var(--line);
-  box-shadow: 0 4px 10px rgb(0 0 0 / 0.4);
-  color: var(--text);
+  gap: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #fff;
   font: inherit;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease;
 }
 @media (hover: hover) {
-  .slot:not(:disabled):hover { transform: translate(-50%, calc(-100% - 3px)); border-color: rgb(245 215 110 / 0.45); }
+  .slot:not(:disabled):hover { transform: translate(-50%, calc(-100% + 2px)); }
 }
-.slot:disabled { opacity: 0.55; cursor: not-allowed; }
-.slot .item-icon { font-size: 1.4rem; line-height: 1; }
-.slot .name { max-width: 100%; font-size: 0.64rem; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.slot .price { display: inline-flex; align-items: center; gap: 3px; font-size: 0.78rem; font-weight: 800; color: var(--highlight); }
+.slot.counter { width: 24%; }
+/* On a shelf a name stays on one line: a second would reach the item on the shelf above. */
+.slot:not(.counter) { width: max-content; min-width: 16%; }
+.slot:not(.counter) .name { white-space: nowrap; }
+.slot:disabled { opacity: 1; cursor: not-allowed; }
+/* Name and price above the icon, outlined so they read on any wall. */
+.slot .name,
+.slot .price {
+  max-width: 100%;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  /* A 2px dark outline all round, then a soft shadow, so the words stand out from the wall behind. */
+  text-shadow:
+    2px 0 0 #2e1c2c, -2px 0 0 #2e1c2c, 0 2px 0 #2e1c2c, 0 -2px 0 #2e1c2c,
+    2px 2px 0 #2e1c2c, -2px 2px 0 #2e1c2c, 2px -2px 0 #2e1c2c, -2px -2px 0 #2e1c2c,
+    0 3px 6px rgb(0 0 0 / 0.8);
+}
+.slot .price { display: inline-flex; align-items: center; gap: 3px; font-size: 1.1rem; font-weight: 800; color: var(--highlight); }
+.slot .coin { font-size: 1.3em; line-height: 1; filter: drop-shadow(0 0 1px #2e1c2c) drop-shadow(0 2px 2px rgb(0 0 0 / 0.7)); }
+/* The item itself stands on its shelf or the counter over a shadow, bobbing slowly. */
+.slot .item-icon { order: 2; font-size: 2.2rem; line-height: 1; margin-top: 6px; animation: bob 2s ease-in-out infinite; filter: drop-shadow(0 2px 0 rgb(46 28 44 / 0.6)); }
+.slot .shadow { order: 3; width: 2.2rem; height: 5px; margin-top: -2px; border-radius: 50%; background: rgb(0 0 0 / 0.35); }
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot .item-icon { animation: none; }
+}
 
 .deck { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
 .picker { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 760px; margin: 0; padding: 0; list-style: none; }
@@ -355,12 +407,14 @@ function talk() {
 
 /* Small screens: tags too tight for a name (its tooltip keeps it), and a smaller sign. */
 @media (max-width: 700px), (max-height: 500px) {
-  .slot { width: 15%; padding: 3px 1px; border-radius: 7px; }
-  .slot .item-icon { font-size: 1.05rem; }
+  /* Shelves are too close for a name (the tooltip keeps it); the counter has room. */
   .slot .name { display: none; }
-  .slot .price { font-size: 0.64rem; }
+  .slot.counter .name { display: block; font-size: 0.78rem; }
+  .slot .price { font-size: 0.85rem; }
+  .slot .item-icon { font-size: 1.5rem; }
+  .slot .shadow { width: 1.5rem; height: 4px; }
   .bubble { font-size: 0.72rem; padding: 6px 8px; width: 80%; }
-  .sign b { font-size: 0.75rem; }
-  .sign small { display: none; }
+  .sign b { font-size: 0.52rem; }
+  .sign small { font-size: 0.46rem; }
 }
 </style>

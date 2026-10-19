@@ -1,7 +1,7 @@
 {
   "name": "spire-slice",
   "private": true,
-  "version": "0.1.19",
+  "version": "0.1.20",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -28,6 +28,8 @@
     "reward-shares": "node scripts/reward-shares.mjs"
   },
   "dependencies": {
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^2.0.4",
     "vue": "^3.5.12"
   },
   "devDependencies": {
@@ -56,6 +58,9 @@
       "target": "dmg",
       "identity": "-",
       "hardenedRuntime": false,
+      "extendInfo": {
+        "NSCameraUsageDescription": "Slay the Fish uses the camera to scan a save transfer code from another device."
+      },
       "artifactName": "slay-the-fish-mac-${arch}.${ext}"
     },
     "win": {
