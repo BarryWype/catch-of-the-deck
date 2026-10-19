@@ -62,7 +62,8 @@ const portraitStyle = computed(() => ({
       <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
     </div>
     <!-- Everything about it in one block above the sprite, the bars the same width: its name, its
-         Will, its health, then its statuses. -->
+         Will, its health, then its statuses. Compact screens drop the name (it stays in the
+         creature's tip). -->
     <div v-if="!bare" class="hud">
       <div v-if="combatant.id !== PLAYER_ID" class="name">{{ combatant.name }}</div>
       <PanicBar v-if="escapeBar" v-bind="escapeBar" />
@@ -158,5 +159,6 @@ const portraitStyle = computed(() => ({
   .combatant { padding: 4px 6px; gap: 3px; }
   .intent-slot { min-height: 36px; }
   .hud { width: 150px; gap: 3px; }
+  .name { display: none; }
 }
 </style>
