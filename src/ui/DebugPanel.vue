@@ -5,6 +5,7 @@ import {
   MAX_BOND_LEVEL,
   parseScenario,
   SESSION_SLOTS,
+  STORE_KINDS,
   validateScenario,
   type Catch,
   type DebugCreature,
@@ -12,6 +13,7 @@ import {
   type DebugScenario,
   type DebugStart,
   type GameData,
+  type StoreKind,
 } from '../engine';
 import { t, type TextKey } from './i18n';
 import { deleteScenario, saveScenario, savedScenarios } from './debugStore';
@@ -23,8 +25,10 @@ import { deleteScenario, saveScenario, savedScenarios } from './debugStore';
 const props = defineProps<{ data: GameData }>();
 const emit = defineEmits<{ play: [DebugScenario] }>();
 
-const START_TYPES = ['creature', 'encounter', 'miniBoss', 'boss', 'event', 'shop', 'treasure', 'fisherman'] as const;
+/** Where a scenario can start; each store is its own entry, started as `{ type: 'shop', store }`. */
+const START_TYPES = ['creature', 'encounter', 'miniBoss', 'boss', 'event', 'cafe', 'tackle', 'bait', 'treasure', 'fisherman'] as const;
 type StartType = (typeof START_TYPES)[number];
+const isStore = (type: string): type is StoreKind => (STORE_KINDS as readonly string[]).includes(type);
 const BONDS = Array.from({ length: MAX_BOND_LEVEL + 1 }, (_, i) => i);
 
 const byName = <T extends { name: string }>(list: T[]) => [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -79,7 +83,13 @@ function resetDeck() {
 
 function scenario(): DebugScenario {
   const type = startType.value;
-  const start = (['creature', 'encounter', 'event', 'fisherman'].includes(type) ? { type, id: startId.value } : { type }) as DebugStart;
+  const start = (
+    isStore(type)
+      ? { type: 'shop', store: type }
+      : ['creature', 'encounter', 'event', 'fisherman'].includes(type)
+        ? { type, id: startId.value }
+        : { type }
+  ) as DebugStart;
   return {
     seed: draft.seed,
     build: draft.build,
@@ -116,7 +126,7 @@ function load(s: DebugScenario) {
     fishermenMet: [...(s.profile?.fishermenMet ?? [])],
     home: (s.profile?.home ?? []).map((c) => ({ ...c })),
   });
-  startType.value = s.start.type;
+  startType.value = s.start.type === 'shop' ? (s.start.store ?? 'tackle') : s.start.type;
   startId.value = 'id' in s.start ? s.start.id : '';
 }
 

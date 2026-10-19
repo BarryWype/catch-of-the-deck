@@ -7,6 +7,7 @@ import AnimatedSprite from './AnimatedSprite.vue';
 import { t } from './i18n';
 import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
+import { HOLD_ICON } from './icons';
 import { animatedSheetFor, creatureClip } from './sprites';
 
 const props = withDefaults(
@@ -182,7 +183,7 @@ onBeforeUnmount(() => {
 
 const residents = computed(() => {
   const copies = new Map<string, number>();
-  return props.creatures.map(({ id, size }, slot) => {
+  return props.creatures.map(({ id, size, lifeJacket }, slot) => {
     const def = props.data.enemies[id];
     const points = props.bonds?.[slot];
     const habitat = def?.habitat ?? 'swim';
@@ -202,6 +203,7 @@ const residents = computed(() => {
       bonus: def?.temperament ? props.data.companionBonuses[def.temperament] : undefined,
       angry: props.companions !== undefined && slot >= props.companions,
       bond: bondOf(id, points),
+      lifeJacket: !!lifeJacket,
       size,
       stars: points === undefined ? undefined : companionStars({ id, bond: points, size }, props.data),
     };
@@ -225,6 +227,7 @@ function residentTip(r: Resident) {
     r.stars ? t('aquarium.stars', { n: r.stars }) : '',
     props.interactive && props.action === 'sell' ? t('aquarium.sellsFor', { coins: r.sellValue }) : '',
     r.angry ? t('aquarium.angry') : '',
+    r.lifeJacket ? t('shop.lifeJacket') : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -254,14 +257,11 @@ const plants = [
 
 <template>
   <section class="aquarium" :aria-label="title ?? t('aquarium.default')">
-    <header class="label">
-      <span><GameIcon :icon="icon" /> {{ title ?? t('aquarium.default') }}</span>
+    
+    <div ref="tank" class="tank">
       <span class="count" :class="{ full: capacity !== undefined && creatures.length >= capacity }">
         {{ capacity === undefined ? t('aquarium.count', { n: creatures.length }) : t('aquarium.countOf', { n: creatures.length, max: capacity }) }}
       </span>
-    </header>
-
-    <div ref="tank" class="tank">
       <div class="surface" />
       <div class="rays" />
       <PixelBubbles />
@@ -300,6 +300,7 @@ const plants = [
             <span v-else class="emoji">{{ r.portrait }}</span>
           </div>
           <!-- Outside .bob, which mirrors the sprite, so the badges read the right way. -->
+          <span v-if="r.lifeJacket" class="jacket" aria-hidden="true"><GameIcon :icon="HOLD_ICON" /></span>
           <span v-if="r.angry" class="angry" aria-hidden="true">💢</span>
           <span v-else-if="r.bond?.level" class="bond" :class="{ full: r.bond.level === MAX_BOND_LEVEL }" aria-hidden="true">
             ♥{{ r.bond.level }}
@@ -344,7 +345,8 @@ const plants = [
 <style scoped>
 .aquarium { display: flex; flex-direction: column; gap: 6px; min-height: 220px; }
 .label { display: flex; justify-content: space-between; font-weight: 700; padding: 0 4px; }
-.count { color: var(--muted); font-weight: 500; }
+.count { color: var(--muted); font-weight: 500; text-shadow: 2px 0 0 #2e1c2c, -2px 0 0 #2e1c2c, 0 2px 0 #2e1c2c, 0 -2px 0 #2e1c2c, 2px 2px 0 #2e1c2c, -2px 2px 0 #2e1c2c, 2px -2px 0 #2e1c2c, -2px -2px 0 #2e1c2c, 0 3px 6px rgb(0 0 0 / 0.8); position: absolute;
+  right: 10px; }
 .count.full { color: #f0a050; font-weight: 700; }
 
 .tank {
@@ -464,6 +466,8 @@ const plants = [
 .sell-panel .size { color: var(--muted); font-size: 0.75rem; }
 .sell-panel .stars { color: #f2c94c; }
 .angry { position: absolute; top: -4px; right: 18px; font-size: 1rem; pointer-events: none; }
+/* The life jacket's buoy, on the other side from the mood and bond marks. */
+.jacket { position: absolute; top: -4px; left: 14px; font-size: 1rem; pointer-events: none; }
 .sell-panel .blocked { color: var(--muted); font-size: 0.75rem; }
 .sell-panel .actions { display: flex; gap: 6px; margin-top: 4px; }
 

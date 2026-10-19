@@ -41,7 +41,7 @@ export const testData = buildGameData({
     { id: 'lure', family: 'shells', name: 'Lure', type: 'support', rarity: 'normal', cost: 0, target: 'none', build: 'angler', effects: [{ type: 'drawCards', amount: 1 }] },
     {
       id: 'hook', name: 'Hook', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy',
-      effects: [{ type: 'dealDamage', amount: 5, hits: 2, bonus: { against: ['fish'] } }],
+      effects: [{ type: 'dealDamage', amount: 5, hits: 2 }],
     },
   ],
   enemies: [
@@ -89,6 +89,7 @@ export const testData = buildGameData({
   fishermen: [],
   events: [],
   shop: [],
+  blessings: [],
   equipment: [
     { id: 'reel', name: 'Reel', description: '', effects: [{ type: 'slowEscape', percent: 20 }] },
     { id: 'spear', name: 'Spear', description: '', effects: [{ type: 'sellOnCapture', bonusPercent: 20 }] },

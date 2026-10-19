@@ -109,7 +109,7 @@ describe('equipment', () => {
     for (const build of Object.values(gameData.builds)) expect(build.startingItems ?? []).toEqual([]);
     expect(startingBuilds(gameData).map((b) => b.id)).toEqual(['rod', 'foraging', 'net', 'fly']);
     expect(unlockedBuilds(gameData, []).map((b) => b.id)).toEqual(['rod']);
-    expect(gameData.builds.foraging.unlock).toMatchObject({ fisherman: 'oldNed', quest: { type: 'speciesAtHome', creatureTypes: ['crustacean', 'shellfish', 'critter'] } });
+    expect(gameData.builds.foraging.unlock).toMatchObject({ fisherman: 'oldNed', quest: { type: 'speciesAtHome', temperaments: ['armored', 'clawed', 'bottomDweller'] } });
     expect(gameData.builds.net.unlock).toMatchObject({ fisherman: 'gus', quest: { type: 'inBucket', count: 3, temperament: 'schooling' } });
     expect(gameData.builds.fly.unlock).toMatchObject({ fisherman: 'silas', quest: { type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' } });
     expect([gameData.fishermen.oldNed.level, gameData.fishermen.gus.level, gameData.fishermen.silas.level]).toEqual(['kid', 'adult', 'elder']);
@@ -122,12 +122,16 @@ describe('equipment', () => {
   });
 
   it('catches unknown fishermen and bad quests', () => {
-    const unlock = { fisherman: 'ghost', name: 'Q', quest: { type: 'speciesAtHome' as const, count: 0, creatureTypes: ['nope'] } };
+    const unlock = { fisherman: 'ghost', name: 'Q', quest: { type: 'speciesAtHome' as const, count: 0, temperaments: ['nope'] } };
     const bad = { ...contentSource, builds: contentSource.builds.map((b) => (b.id === 'foraging' ? { ...b, unlock } : b)) };
     expect(validateContent(bad)).toEqual([
       expect.stringContaining('unknown fisherman "ghost"'),
       expect.stringContaining("quest's count"),
-      expect.stringContaining('unknown creature type "nope"'),
+      expect.stringContaining('unknown temperament "nope"'),
+    ]);
+    const empty = { ...unlock, fisherman: 'oldNed', quest: { ...unlock.quest, count: 1, temperaments: [] } };
+    expect(validateContent({ ...contentSource, builds: contentSource.builds.map((b) => (b.id === 'foraging' ? { ...b, unlock: empty } : b)) })).toEqual([
+      expect.stringContaining('at least one temperament'),
     ]);
     expect(validateContent({ ...contentSource, fishermen: contentSource.fishermen.map((f, i) => (i ? f : { ...f, level: 'teen' })) })).toEqual([
       expect.stringContaining('unknown level "teen"'),
@@ -158,6 +162,7 @@ describe('content validation', () => {
     creatureTypes: [{ id: 't', name: 'T' }],
     equipment: [],
     events: [],
+    blessings: [],
     shop: [],
     companionBonuses: [],
     families: [],
@@ -214,13 +219,9 @@ describe('content validation', () => {
     expect(validateContent(bad)).toHaveLength(3);
   });
 
-  it('catches unknown creature types in tags and bonuses', () => {
-    const bad: ContentSource = {
-      ...base,
-      enemies: [{ ...base.enemies[0], tags: ['ghostType'] }],
-      cards: [{ ...base.cards[0], effects: [{ type: 'dealDamage', amount: 1, bonus: { against: ['typo'] } }] }],
-    };
-    expect(validateContent(bad)).toHaveLength(2);
+  it('catches unknown creature types in tags', () => {
+    const bad: ContentSource = { ...base, enemies: [{ ...base.enemies[0], tags: ['ghostType'] }] };
+    expect(validateContent(bad)).toHaveLength(1);
   });
 
   it('catches an invalid character', () => {

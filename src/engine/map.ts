@@ -1,5 +1,5 @@
 import { nextFloat, nextInt, shuffleInPlace, type RngHolder } from './rng';
-import type { EncounterDef, GameData, LevelDef, LevelNodeKind } from './types';
+import type { EncounterDef, GameData, LevelDef, LevelNodeKind, StoreKind } from './types';
 
 /** The node every level's map starts on (the grandparents' house). */
 export const START_NODE_ID = 'start';
@@ -16,15 +16,16 @@ export interface MapNode {
   kind: MapNodeKind;
   /** Creature tier its fight draws from (the level's tier). */
   tier: number;
-  /** Fights: fishing spot id, creature type and fixed creatures (see `encountersFor`); null when not set. */
+  /** Fights: fishing spot id and fixed creatures (see `encountersFor`); null when not set. */
   spot: string | null;
-  creatureType: string | null;
   enemies: string[] | null;
   label: string | null;
   /** Why a mini-boss or boss is let go after the fight (see `isReleaseFight`). */
   releaseReason: string | null;
   /** Fisherman nodes: who stands there (`FishermanDef`). */
   fisherman?: string;
+  /** Shop nodes: which store it is (`assignStores`). */
+  store?: StoreKind;
   /** Ids of the nodes reachable from here. */
   next: string[];
 }
@@ -40,9 +41,17 @@ export interface GameMap {
  */
 export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHolder, fishermen: readonly string[] = []): GameMap {
   const level = data.levels[levelIndex];
-  if (level.nodes) return handMadeMap(level, level.nodes);
+  if (level.nodes) return assignStores(handMadeMap(level, level.nodes), holder);
   const map = generateLevelMap(level, levelIndex, data, holder);
   placeFishermen(map, fishermen.filter((id) => data.fishermen[id]?.level === level.id));
+  return assignStores(map, holder);
+}
+
+export const STORE_KINDS: readonly StoreKind[] = ['cafe', 'tackle', 'bait'];
+
+/** Every shop node becomes one of the stores, each as likely, drawn last so the rest of the map doesn't depend on it. */
+function assignStores(map: GameMap, holder: RngHolder): GameMap {
+  for (const node of map.columns.flat()) if (node.kind === 'shop') node.store = STORE_KINDS[nextInt(holder, 0, STORE_KINDS.length - 1)];
   return map;
 }
 
@@ -56,7 +65,7 @@ function placeFishermen(map: GameMap, fishermen: readonly string[]) {
   for (const id of fishermen) {
     const shops = column.filter((n) => n.kind === 'shop');
     const slot = column.find((n) => n.kind === 'event') ?? column.find((n) => n.kind === 'fight') ?? (shops.length > 1 ? shops[0] : undefined);
-    if (slot) Object.assign(slot, { kind: 'fisherman', fisherman: id, spot: null, creatureType: null, label: null });
+    if (slot) Object.assign(slot, { kind: 'fisherman', fisherman: id, spot: null, label: null });
   }
 }
 
@@ -68,7 +77,6 @@ function startNode(level: LevelDef, next: string[]): MapNode {
     kind: 'start',
     tier: 0,
     spot: null,
-    creatureType: null,
     enemies: null,
     label: null,
     releaseReason: null,
@@ -86,7 +94,6 @@ function handMadeMap(level: LevelDef, levelNodes: NonNullable<LevelDef['nodes']>
     kind: n.kind,
     tier: level.tier,
     spot: n.spot ?? null,
-    creatureType: n.creatureType ?? null,
     enemies: n.enemies ? [...n.enemies] : null,
     label: n.label ?? null,
     releaseReason: n.releaseReason ?? null,
@@ -146,7 +153,6 @@ function generateLevelMap(level: LevelDef, levelIndex: number, data: GameData, h
     kind,
     tier: level.tier,
     spot: null,
-    creatureType: null,
     enemies: null,
     label: null,
     releaseReason: null,
@@ -258,8 +264,7 @@ export function encounterTier(encounter: EncounterDef): number {
 
 /**
  * Encounters a fight node can lead to. Fixed `enemies` win. Otherwise, encounters whose creatures
- * all live at the node's fishing spot (its waters and creature types) and match its `creatureType`,
- * at the node's tier. When that's empty it relaxes, in order: the spot's creature types, then the
+ * all live at the node's fishing spot (its waters and creature types), at the node's tier. When that's empty it relaxes, in order: the spot's creature types, then the
  * tier, then the spot altogether.
  */
 export function encountersFor(node: MapNode, data: GameData): EncounterDef[] {
@@ -269,7 +274,6 @@ export function encountersFor(node: MapNode, data: GameData): EncounterDef[] {
     encounter.enemies.every((id) => {
       const enemy = data.enemies[id];
       const type = enemy?.tags?.[0] ?? '';
-      if (node.creatureType && !enemy?.tags?.includes(node.creatureType)) return false;
       if (!spot || anySpot) return true;
       return spot.waters.includes(enemy?.water ?? '') && (!spotTypes || !spot.types || spot.types.includes(type));
     });

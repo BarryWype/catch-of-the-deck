@@ -69,3 +69,7 @@ Changing the shape of `RunState`, `CombatState` or the profile: bump `SAVE_VERSI
 ## The simulator
 
 `scripts/simulate.ts` plays with a bot. A mechanic the bot doesn't understand skews every balance number: teach `evaluate` about it, as it does for junk cards.
+
+## Grouping creatures for the player
+
+Players only ever see **temperaments** (`behaviors.ts`, named in `companions.ts`). Families (`families.ts`) pick a fight's card rewards and the bait shop aquarium's wants; creature types (`creatureTypes.ts`) feed fishing spots and the Crab Hook. Both stay internal: never put a family or type name in player-facing text. Where a family has to show (a card's crest tooltip, the aquarium's sign), name its temperaments with `temperamentList` (`engine/families.ts`). Quests count temperaments too (`speciesAtHome.temperaments`). The debug panel may still search by family.

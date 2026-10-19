@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, session, systemPreferences } from 'electron';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,5 +69,23 @@ async function createWindow() {
   else win.loadFile(path.join(dirname, '../dist/index.html'));
 }
 
-app.whenReady().then(createWindow);
+/**
+ * The page may only use the camera (to scan a transfer QR) and write to the clipboard (to copy a
+ * transfer code): every other permission, and the microphone, is refused. On macOS the system
+ * asks the player for the camera once (NSCameraUsageDescription).
+ */
+function allowCameraOnly() {
+  const isCamera = (permission, details) => permission === 'media' && !(details?.mediaTypes ?? []).includes('audio');
+  session.defaultSession.setPermissionRequestHandler(async (_contents, permission, callback, details) => {
+    if (permission === 'clipboard-sanitized-write') return callback(true);
+    if (!isCamera(permission, details)) return callback(false);
+    callback(process.platform !== 'darwin' || (await systemPreferences.askForMediaAccess('camera')));
+  });
+  session.defaultSession.setPermissionCheckHandler((_contents, permission, _origin, details) => permission === 'media' && details?.mediaType !== 'audio');
+}
+
+app.whenReady().then(() => {
+  allowCameraOnly();
+  return createWindow();
+});
 app.on('window-all-closed', () => app.quit());

@@ -1,12 +1,13 @@
 import { bondThreshold, MAX_BOND_LEVEL, type HomeCreature } from './bond';
 import { applyAction, checkCombatEnd } from './combat';
 import { SECOND_WIND_ID } from './intents';
-import { buildLevelMap, START_NODE_ID, type MapNode } from './map';
+import { buildLevelMap, START_NODE_ID, STORE_KINDS, type MapNode } from './map';
 import { drawCards } from './piles';
 import { createRun, REWARD_REROLLS_AT_START, SESSION_SLOTS, travelTo, visitFisherman, visitShop, visitTreasure, type RunState } from './run';
 import { CATCH_SIZES, type Catch, type CatchSize } from './sizes';
 import { STATUS_META } from './statuses';
-import type { CombatAction, CombatState, GameData, StatusId } from './types';
+import type { ShopVisit } from './shop';
+import type { CombatAction, CombatState, GameData, StatusId, StoreKind } from './types';
 import { clone } from './util';
 
 /**
@@ -29,7 +30,7 @@ export type DebugStart =
   | { type: 'miniBoss' }
   | { type: 'boss' }
   | { type: 'event'; id: string }
-  | { type: 'shop' }
+  | { type: 'shop'; store?: StoreKind }
   | { type: 'treasure' }
   | { type: 'fisherman'; id: string };
 
@@ -94,21 +95,22 @@ export function scenarioRun(scenario: DebugScenario, data: GameData): RunState {
 export function startScenario(
   scenario: DebugScenario,
   data: GameData,
-): { run: RunState; kind: DebugStartKind; combat?: CombatState; eventId?: string } {
+): { run: RunState; kind: DebugStartKind; combat?: CombatState; eventId?: string; visit?: ShopVisit } {
   const run = scenarioRun(scenario, data);
   const start = scenario.start;
   const nodes = run.map.columns.flat();
   const target =
     start.type === 'miniBoss' || start.type === 'boss' ? nodes.find((n) => n.kind === start.type) : nodes.find((n) => n.column === 1);
   if (!target) throw new Error(`No node for "${start.type}" on level ${scenario.level}.`);
-  const reset: Partial<MapNode> = { spot: null, creatureType: null, enemies: null, label: null };
+  const reset: Partial<MapNode> = { spot: null, enemies: null, label: null };
   if (start.type === 'creature') Object.assign(target, reset, { kind: 'fight', enemies: [start.id] });
   if (start.type === 'encounter') {
     const encounter = data.encounters.find((e) => e.id === start.id);
     if (!encounter) throw new Error(`Unknown encounter "${start.id}"`);
     Object.assign(target, reset, { kind: 'fight', enemies: [...encounter.enemies], label: encounter.name });
   }
-  if (start.type === 'event' || start.type === 'shop' || start.type === 'treasure') Object.assign(target, reset, { kind: start.type });
+  if (start.type === 'event' || start.type === 'treasure') Object.assign(target, reset, { kind: start.type });
+  if (start.type === 'shop') Object.assign(target, reset, { kind: 'shop', store: start.store ?? 'tackle' });
   if (start.type === 'fisherman') Object.assign(target, reset, { kind: 'fisherman', fisherman: start.id });
 
   const before = nodes.find((n) => n.next.includes(target.id))!;
@@ -116,8 +118,10 @@ export function startScenario(
   run.visited = before.id === START_NODE_ID ? [START_NODE_ID] : [START_NODE_ID, before.id];
 
   switch (start.type) {
-    case 'shop':
-      return { run: visitShop(run, target.id), kind: 'shop' };
+    case 'shop': {
+      const visit = visitShop(run, target.id, data);
+      return { run: visit.run, kind: 'shop', visit: visit.visit };
+    }
     case 'fisherman':
       return { run: visitFisherman(run, target.id, data), kind: 'fisherman' };
     case 'treasure': {
@@ -235,7 +239,7 @@ export function applyWithInfiniteEnergy(state: CombatState, action: CombatAction
   return { ...played, player: { ...played.player, energy } };
 }
 
-export type DebugErrorCode = 'json' | 'shape' | 'build' | 'level' | 'number' | 'creature' | 'bond' | 'size' | 'companions' | 'card' | 'hand' | 'start' | 'encounter' | 'event' | 'fisherman';
+export type DebugErrorCode = 'json' | 'shape' | 'build' | 'level' | 'number' | 'creature' | 'bond' | 'size' | 'companions' | 'card' | 'hand' | 'start' | 'encounter' | 'event' | 'fisherman' | 'store';
 
 /** What's wrong with a pasted scenario: the problem, and the field or value at fault. */
 export interface DebugError {
@@ -308,9 +312,11 @@ export function validateScenario(value: unknown, data: GameData): DebugError | n
     case 'fisherman':
       if (typeof start.id !== 'string' || !data.fishermen[start.id]) return fail('fisherman', start.id);
       break;
+    case 'shop':
+      if (start.store !== undefined && !STORE_KINDS.includes(start.store as StoreKind)) return fail('store', start.store);
+      break;
     case 'miniBoss':
     case 'boss':
-    case 'shop':
     case 'treasure':
       break;
     default:

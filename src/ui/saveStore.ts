@@ -1,4 +1,4 @@
-import { rescaleBond, type CatchSize, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
+import { BUCKET_SIZE, rescaleBond, type CatchSize, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
 import { gameData } from './i18n';
 import type { Screen } from './useGame';
 
@@ -8,7 +8,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 export const PROFILE_VERSION = 6;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -124,6 +124,12 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
   if (save.version === 16) save = { ...save, version: 17, run: { ...save.run, fishermen: [] } };
   // v17 runs had shown no bucket quests.
   if (save.version === 17) save = { ...save, version: 18, run: { ...save.run, questsShown: [] } };
+  // v18 runs had one shop, before the three stores: their shop nodes become Tackle shops.
+  if (save.version === 18) {
+    const columns = save.run.map.columns.map((column) => column.map((n) => (n.kind === 'shop' ? { ...n, store: 'tackle' as const } : n)));
+    const run = { ...save.run, map: { columns }, bucketSize: BUCKET_SIZE, boons: [], sentHome: [], luckyLure: false, spareHooks: 0 };
+    save = { ...save, version: 19, run, shopVisit: { ...save.shopVisit, store: 'tackle' } };
+  }
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.
@@ -192,4 +198,104 @@ export function writeProfile(profile: Profile) {
 
 export function clearProfile() {
   enqueue(() => storage.deleteData('profile'));
+}
+
+/**
+ * A transfer code carries both files to another device (see ARCHITECTURE.md → Persistence):
+ * `STF1:` + base64url(deflate(JSON of `TransferContents`)). A QR too small for it shows it in parts,
+ * `STF1:<n>/<total>:<slice of the base64url>`.
+ */
+export const TRANSFER_PREFIX = 'STF1:';
+/** The longest part a QR holds, so phones and webcams still read it easily. */
+export const TRANSFER_PART_LENGTH = 800;
+
+/** What a transfer code holds: `save` is null when no run is in progress. */
+export interface TransferContents {
+  save: SavedGame | null;
+  profile: Profile;
+}
+
+/** Why a code was refused: `transfer.error.<reason>` in the language files. */
+export class TransferError extends Error {
+  constructor(readonly reason: 'prefix' | 'corrupt' | 'newer') {
+    super(`Invalid transfer code (${reason})`);
+  }
+}
+
+async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream) {
+  return new Uint8Array(await new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(stream)).arrayBuffer());
+}
+
+/** Both files as a transfer code. */
+export async function exportTransferCode(): Promise<string> {
+  const contents: TransferContents = { save: await loadSavedGame(), profile: await loadProfile() };
+  return encodeTransfer(contents);
+}
+
+export async function encodeTransfer(contents: TransferContents): Promise<string> {
+  const bytes = await pipe(new TextEncoder().encode(JSON.stringify(contents)), new CompressionStream('deflate'));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return TRANSFER_PREFIX + btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Read a transfer code, upgrading files from older builds; throws a `TransferError` and writes nothing if it can't be used. */
+export async function importTransferCode(code: string): Promise<TransferContents> {
+  code = code.replace(/\s/g, '');
+  if (!code.startsWith(TRANSFER_PREFIX) || /^\d+\/\d+:/.test(code.slice(TRANSFER_PREFIX.length))) throw new TransferError('prefix');
+  let parsed: { save?: SavedGame | null; profile?: Profile };
+  try {
+    const binary = atob(code.slice(TRANSFER_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/'));
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    parsed = JSON.parse(new TextDecoder().decode(await pipe(bytes, new DecompressionStream('deflate'))));
+  } catch {
+    throw new TransferError('corrupt');
+  }
+  const { save, profile } = parsed ?? {};
+  if (typeof profile?.version !== 'number' || (save != null && typeof save.version !== 'number')) throw new TransferError('corrupt');
+  if (profile.version > PROFILE_VERSION || (save && save.version > SAVE_VERSION)) throw new TransferError('newer');
+  try {
+    const upgradedProfile = upgradeProfile(profile);
+    // Like a save on this device, a run too old to resume is dropped.
+    const upgradedSave = save ? upgradeSave(save) : null;
+    const valid =
+      upgradedProfile &&
+      [upgradedProfile.homeAquarium, upgradedProfile.eggs, upgradedProfile.unlockedBuilds, upgradedProfile.fishermenMet].every(Array.isArray) &&
+      (!upgradedSave || typeof upgradedSave.run === 'object');
+    if (!valid) throw new TransferError('corrupt');
+    return { save: upgradedSave, profile: upgradedProfile };
+  } catch {
+    throw new TransferError('corrupt');
+  }
+}
+
+/** The code cut into the parts a QR shows in turn, or the code itself when one QR holds it. */
+export function splitTransferCode(code: string): string[] {
+  const payload = code.slice(TRANSFER_PREFIX.length);
+  if (code.length <= TRANSFER_PART_LENGTH) return [code];
+  const total = Math.ceil(payload.length / TRANSFER_PART_LENGTH);
+  const size = Math.ceil(payload.length / total);
+  return Array.from({ length: total }, (_, i) => `${TRANSFER_PREFIX}${i + 1}/${total}:${payload.slice(i * size, (i + 1) * size)}`);
+}
+
+/**
+ * Add a scanned QR to the parts collected so far (in any order). Returns the parts, the full code
+ * once every part is in, and how many there are; a part from a code of another length starts over.
+ */
+export function collectTransferPart(parts: string[], scanned: string): { parts: string[]; code: string | null; total: number } {
+  const match = /^STF1:(\d+)\/(\d+):(.*)$/.exec(scanned.trim());
+  if (!match) return { parts, code: scanned.trim().startsWith(TRANSFER_PREFIX) ? scanned.trim() : null, total: 1 };
+  const [index, total] = [Number(match[1]), Number(match[2])];
+  if (index < 1 || index > total) return { parts, code: null, total: parts.length };
+  const next = parts.length === total ? [...parts] : Array<string>(total).fill('');
+  next[index - 1] = match[3];
+  const done = next.every((p) => p !== '');
+  return { parts: next, code: done ? TRANSFER_PREFIX + next.join('') : null, total };
+}
+
+/** Replace this device's files with what a transfer code brought. */
+export function applyTransfer({ save, profile }: TransferContents) {
+  writeProfile(profile);
+  if (save) writeSavedGame(save);
+  else clearSavedGame();
 }

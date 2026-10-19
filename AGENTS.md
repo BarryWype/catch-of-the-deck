@@ -4,7 +4,7 @@ Slay the Fish: a deck-building fishing roguelike. A pure TypeScript rules engine
 
 ## Hard rules
 
-- **The user pushes.** Commit only when asked. Leave `git push`, tags, PRs, releases and repository or GitHub settings to the user, and give them the command instead.
+- **Do git command that do changes on a repo only if specifically asked.** Do not take initiative regarding git command that do changes on a repo, ask the user validation, and ask the user if they prefer a pull request instead of a straigh push. Do tag, push, commit, merge, only if asked specifically by the user.
 - **The dev server is the user's.** It runs on port 5190 when they start it. Verify with one-shot commands (`npm run typecheck`, `npm test`, `npm run simulate`); when a check needs the running app and the server is down, ask the user to start it.
 - **Ask first** before anything destructive or hard to undo: deleting files, `git reset --hard`, changing save formats in a way that drops players' saves, changing settings.
 - **Hands off** `.env` files and lockfiles (`npm install` may update the lockfile; editing it by hand is out).

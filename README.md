@@ -45,9 +45,9 @@ Companions in the simulator: `--companions clownfish,blueTang --bond 2` starts e
 
 ## Debug panel
 
-Tick **Show debug panel** in the options: a 🛠 drawer opens on the menu's left edge. Set up a scenario (build, locked or not; age; fights already played; Grit, coins and rerolls; companions with a bond level and size; creatures already in the bucket; the deck, searchable by name or family, and an optional opening hand; the seed) and where it starts: a fight against one creature, an encounter, or the age's mini-boss or boss, or an event, shop, treasure or fisherman of that age. **Quick start** buttons still jump to each age's mini-boss and boss. Ticking **Use this profile** plays with its own unlocked builds, fishermen met and home aquarium (a quest like "a freshwater trophy in your bucket at Silent Silas" is one scenario); otherwise it plays with a copy of yours.
+Tick **Show debug panel** in the options: a 🛠 drawer opens on the menu's left edge. Set up a scenario (build, locked or not; age; fights already played; Grit, coins and rerolls; companions with a bond level and size; creatures already in the bucket; the deck, searchable by name or family, and an optional opening hand; the seed) and where it starts: a fight against one creature, an encounter, or the age's mini-boss or boss, or an event, one of the three stores, a treasure or a fisherman of that age. **Quick start** buttons still jump to each age's mini-boss and boss. Ticking **Use this profile** plays with its own unlocked builds, fishermen met and home aquarium (a quest like "a freshwater trophy in your bucket at Silent Silas" is one scenario); otherwise it plays with a copy of yours.
 
-A scenario plays in a **sandbox**: a red DEBUG badge shows in the top bar, nothing is written to the save or the profile, and **End scenario** (or going back to the menu) brings your real profile back untouched. In a scenario's fights, a 🛠 drawer sets Grit, Hold, Patience and energy (or infinite energy), each creature's Health, Will, statuses and next move, catches a creature now, adds any card to the hand, draws cards and skips to the creatures' turn.
+A scenario plays in a **sandbox**: a red DEBUG badge shows in the top bar, nothing is written to the save or the profile, and **End scenario** (or going back to the menu) brings your real profile back untouched. In a scenario's fights, a 🛠 drawer sets Grit, Hold, Patience and Tension (or no Tension limit), each creature's Health, Will, statuses and next move, catches a creature now, adds any card to the hand, draws cards and skips to the creatures' turn.
 
 Scenarios can be saved by name (in localStorage, on this device), copied as JSON and pasted back. The JSON is a `DebugScenario` (`src/engine/debug.ts`); only `build`, `level` and `start` are required:
 
@@ -69,7 +69,7 @@ Scenarios can be saved by name (in localStorage, on this device), copied as JSON
 }
 ```
 
-`start` is `{ "type": "creature" | "encounter" | "event" | "fisherman", "id": … }` or `{ "type": "miniBoss" | "boss" | "shop" | "treasure" }`. `bond` is a bond level (0–3), `size` one of `small`, `normal`, `large`, `trophy`, and `level` the age (0 = kid). Pasting checks every id and number, and says what's wrong. In a test, `fromScenario(json)` (`tests/fixtures.ts`) gives the run and fight it starts in.
+`start` is `{ "type": "creature" | "encounter" | "event" | "fisherman", "id": … }` or `{ "type": "miniBoss" | "boss" | "treasure" }`, or `{ "type": "shop", "store": "cafe" | "tackle" | "bait" }` (Tackle shop if omitted). `bond` is a bond level (0–3), `size` one of `small`, `normal`, `large`, `trophy`, and `level` the age (0 = kid). Pasting checks every id and number, and says what's wrong. In a test, `fromScenario(json)` (`tests/fixtures.ts`) gives the run and fight it starts in.
 
 ## How to play
 
@@ -85,7 +85,7 @@ You play a young fisherman setting off on their fishing journey from the grandpa
 Every creature has a type (shown under its name, and as the icon of map events).
 
 - A run takes place on a map that you cross from left to right: a starting point, 20 fights and a boss at the end. Column 10 is a harbour of 3–4 nodes: 🛒 shops, plus one 🚪 "finish the session" node, a dead end where you can end the run and take your bucket home. Your position is marked **A**, and the destinations you can reach next are highlighted in yellow. Each event shows a creature type (🐠 small fish, 🦀 crustacean…); the actual creature is drawn from that type when you get there. Everything comes from the run seed. Hover over an event to see its type.
-- You start each turn with 5 cards and 3 energy. Click a card to play it. With several enemies, click the card and then the enemy you want to hit.
+- You start each turn with 5 cards and 0 Tension, which each card raises by its cost, up to 3. Click a card to play it. With several enemies, click the card and then the enemy you want to hit.
 - Each enemy shows its **intent** above its head: 🗡️ attack (with the real damage it will deal), 🛡️ block, 💢 buff, 🌀 debuff. Hover over an intent for details.
 - Click **End Turn** and the enemies carry out the intents they showed.
 - Every creature you beat or wear out goes into your **bucket**, shown below the map (`run.bucket`), with a size (small, normal, large or trophy). It holds 7, companions included: when a catch doesn't fit, you sell something to keep it, or sell the catch. You can sell creatures from it at any time. If you win the run, everything still in the bucket joins your **home aquarium**, which lasts between runs and is shown on the menu and build screens. See ARCHITECTURE.md.
@@ -110,7 +110,7 @@ tests/        Vitest suites for the engine (plus content validation).
 - **Effect primitives** (`effects.ts`): `dealDamage`, `gainBlock`, `applyStatus`, `drawCards`, `gainEnergy`. Cards and enemy moves are both just lists of these primitives.
 - **Damage math** (`damage.ts`): `floor((base + Strength) × 0.75 if Weak × 1.5 if Vulnerable)`, never below 0. Block absorbs damage before HP.
 - **Statuses** (`statuses.ts`): Strength is permanent and can be negative. Vulnerable, Weak and Snared lose 1 stack at the end of their owner's turn.
-- **Map** (`map.ts`, `run.ts`): `generateMap` builds 21 columns, the way Slay the Spire does. The start, the boss and any choke columns (`CHOKE_COLUMNS`) hold a single node; the harbour columns (`SHOP_COLUMNS`) hold 3–4 nodes: shops plus one dead-end "finish the session" node. In between, `MAP_PATHS` paths walk across `MAP_LANES` horizontal lanes, each step staying in its lane or moving one up or down, and never crossing a link already drawn. Nodes exist wherever a path passes and links are the paths' steps, so routes branch and merge naturally, every node is reachable, and paths never cross. Each node gets a creature type found at its depth tier (`creatureType`, `tier`). `travelTo(run, nodeId, data)` moves the player, draws an encounter of that type and tier (`encountersFor`), and starts the fight.
+- **Map** (`map.ts`, `run.ts`): `generateMap` builds 21 columns, the way Slay the Spire does. The start, the boss and any choke columns (`CHOKE_COLUMNS`) hold a single node; the harbour columns (`SHOP_COLUMNS`) hold 3–4 nodes: shops plus one dead-end "finish the session" node. In between, `MAP_PATHS` paths walk across `MAP_LANES` horizontal lanes, each step staying in its lane or moving one up or down, and never crossing a link already drawn. Nodes exist wherever a path passes and links are the paths' steps, so routes branch and merge naturally, every node is reachable, and paths never cross. Each node gets a fishing spot and its depth tier (`spot`, `tier`). `travelTo(run, nodeId, data)` moves the player, draws an encounter from that spot and tier (`encountersFor`), and starts the fight.
 - `npm run typecheck` also compiles the engine with `tsconfig.engine.json`, which has **no DOM types**. A test also checks that engine files import only other engine files and never use `Math.random`.
 
 ### Content (`src/content`)
@@ -139,7 +139,7 @@ Add an entry to `src/content/cards.ts`. You don't need to touch code:
   effects: [
     { type: 'dealDamage', amount: 8, target: 'allEnemies' },
   ],
-  family: 'hunter',           // the creature family that offers it as a reward (src/content/families.ts); none for starter cards
+  family: 'hunter',           // the creature family that offers it as a reward (src/content/families.ts, internal: players see its temperaments); none for starter cards
   // tags: ['damage'],        // optional: what it's about, stored for later
   // art: '🎣',               // optional: placeholder emoji shown on the card
   // exhaust: true,           // optional: remove from the fight after playing
@@ -173,9 +173,7 @@ Effect reference:
 
 `target` can be `'target'` (the default: the chosen enemy, or the player when an enemy acts), `'self'`, `'allEnemies'`, or `'randomEnemy'` (re-rolled for every hit).
 
-A damage `bonus` (`{ against: ['crustacean'] }`) deals 20% more against those creature types. No card uses it for now.
-
-To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), a gear sprite, and the player's `character` art (see Player animations). To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition: species at home (`{ type: 'speciesAtHome', count: 6, creatureTypes: ['crustacean'] }`), or species in the bucket when you meet the fisherman, with any of a `temperament`, a `water` and a minimum `size` (`{ type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
+To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), a gear sprite, and the player's `character` art (see Player animations). To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition: species at home (`{ type: 'speciesAtHome', count: 6, temperaments: ['clawed'] }`), or species in the bucket when you meet the fisherman, with any of a `temperament`, a `water` and a minimum `size` (`{ type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
 
 Card rewards come from the families of the creatures just beaten (see CARD_REWORK.md). Add `build: 'rod'` (or `'foraging'`, `'net'`, `'fly'`) to offer a card only to that build. Add the card's French name to `src/locales/fr-content.ts`. Run `npm test` afterwards: the content suite checks that your data is valid, and that every language names it.
 
@@ -188,7 +186,7 @@ Enemies are the 144 creatures in `src/ui/assets/fishes.png`, plus a few with the
 ```
 
 - `no` is the creature's number in `fish_names.pdf`, which is also its position in the sprite sheet (left to right, top to bottom). The sprite is picked automatically from it.
-- `type` is the creature type, one of those in `src/content/creatureTypes.ts`: `smallFish`, `sportFish`, `bigFish`, `rockFish`, `deepSea`, `crustacean`, `shellfish`, `tentacled` or `critter`. Build cards deal 20% more damage against some types.
+- `type` is the creature type, one of those in `src/content/creatureTypes.ts`: `smallFish`, `sportFish`, `bigFish`, `rockFish`, `deepSea`, `crustacean`, `shellfish`, `tentacled` or `critter`. Internal habitat data (fishing spots, Crab Hook), never shown.
 - `tier` (1–3) sets how deep in the map it appears: the fight columns are split into three equal bands, shallow to deep.
 - `hp` is a `[min, max]` range, rolled each fight.
 - `strength` (optional) is Strength the creature starts every fight with. It is shown on screen and adds to every hit.
@@ -251,6 +249,16 @@ The player uses three strips of 48×48 frames in `src/ui/assets/character/`, nam
 | `<character>_hook.png` | 6 | when the fight is won or the creature gets away; holds the last frame |
 
 `SteamMan`, `GraveRobber` and `Woodcutter` came without a hurt strip: `npm run hurt-sprites` makes one from each idle strip (a red flash, then the rod swung back over the shoulder as in `Fisherman_hurt.png`). It overwrites them, so skip it once one has been drawn by hand.
+
+## Store art
+
+The three stores' scenes (`src/ui/assets/stores/`: `cafe.png`, `tackle-shop.png`, `bait-shop.png`, 240×160 each), their keepers (`<store>-keeper.png`, laid over the scene so they can be tapped), the map nodes (`<store>-node.png`, 40×40) and the life jacket, parcel and scissors icons are generated by a script:
+
+```bash
+npm run store-art
+```
+
+It prints the layout the UI relies on: the shelf boards and item slots, the counter top the keeper stands on, and the Bait shop's tank and sign. `SLOTS`, `COUNTER` (a store with two items or fewer sells from its counter), `KEEPER`, `TANK` and `SIGN` at the top of `src/ui/ShopScreen.vue` repeat them in the same art pixels: keep both in step.
 
 ## Gear
 

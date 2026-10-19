@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { bonusTotal, BUCKET_SIZE, companionEffects, saleValue, type GameData, type RunState } from '../engine';
+import { bonusTotal, companionEffects, saleValue, type GameData, type RunState } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
 import { t } from './i18n';
@@ -25,7 +25,7 @@ const waiting = computed(() => {
 <template>
   <div v-if="waiting" class="bucket-full">
     <header class="head">
-      <h2><GameIcon icon="🪣" /> {{ t('bucketFull.title', { n: run.bucket.length, max: BUCKET_SIZE }) }}</h2>
+      <h2><GameIcon icon="🪣" /> {{ t('bucketFull.title', { n: run.bucket.length, max: run.bucketSize }) }}</h2>
       <p>{{ t('bucketFull.text', { name: waiting.def.name }) }}</p>
     </header>
     <section class="catch" :aria-label="t('bucketFull.newCatch')">
@@ -41,7 +41,7 @@ const waiting = computed(() => {
     <Aquarium
       class="aquarium"
       :creatures="run.bucket"
-      :capacity="BUCKET_SIZE"
+      :capacity="run.bucketSize"
       :companions="run.companions.length"
       :bonds="run.companions.map((c) => c.bond)"
       :data="data"

@@ -44,7 +44,7 @@ describe('playing cards', () => {
     const s2 = play(s1, 'heavy');
     expect(s2).toBe(s1);
     expect(validateAction(s1, { type: 'playCard', cardUid: s1.piles.hand[0].uid, targetId: 'e0' }, testData)).toBe(
-      'Not enough energy.',
+      'Too much tension.',
     );
   });
 
@@ -72,30 +72,7 @@ describe('playing cards', () => {
   });
 });
 
-describe('creature type bonus', () => {
-  it('deals 20% more on every hit against a matching creature type, rounded', () => {
-    const s = play(setup(repeat('hook', 5)), 'hook'); // dummy is a 'fish'
-    expect(s.enemies[0].hp).toBe(100 - 2 * 6);
-  });
-
-  it('does nothing against other types', () => {
-    const s0 = setup(repeat('hook', 5), { enemies: ['cycler'] }); // cycler is a 'shell'
-    const s = play(s0, 'hook');
-    expect(s.enemies[0].hp).toBe(s0.enemies[0].hp - 2 * 5);
-  });
-
-  it('applies after Strength and Vulnerable', () => {
-    let s = setup(['flex', 'bash', 'hook', 'defend', 'defend']);
-    s = play(s, 'flex'); // +2 Strength
-    s = play(s, 'bash'); // (8 + 2) = 10, then Vulnerable
-    expect(s.enemies[0].hp).toBe(90);
-    s = applyAction(s, { type: 'endTurn' }, testData);
-    expect(s.enemies[0].statuses.vulnerable).toBe(1);
-    s = { ...s, piles: { ...s.piles, hand: [{ uid: 'h', defId: 'hook' }] } };
-    s = play(s, 'hook'); // 2 × round(floor((5 + 2) × 1.5) × 1.2) = 2 × 12
-    expect(s.enemies[0].hp).toBe(90 - 24);
-  });
-
+describe('creature types', () => {
   it('enemies carry their tags into the fight', () => {
     expect(setup(['strike']).enemies[0].tags).toEqual(['fish']);
   });

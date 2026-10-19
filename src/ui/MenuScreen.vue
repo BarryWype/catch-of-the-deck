@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import KeywordText from './KeywordText.vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE } from '../engine';
 import { describeQuest, openQuests, questProgress, type CatchSize, type DebugScenario, type Discovery, type GameData, type HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
@@ -12,6 +12,10 @@ import SideDrawer from './SideDrawer.vue';
 import { playTheme, stopTheme, musicVolume, setMusicVolume, musicOn, setMusicOn } from './music';
 import { sfxVolume, setSfxVolume } from './sfx';
 import { language, languages, setLanguage, t } from './i18n';
+import type { TransferContents } from './saveStore';
+
+/** Loaded when opened, with its QR libraries, to keep them out of the main bundle. */
+const TransferScreen = defineAsyncComponent(() => import('./TransferScreen.vue'));
 
 const props = defineProps<{
   canResume: boolean;
@@ -21,6 +25,7 @@ const props = defineProps<{
   unlocked: string[];
   fishermenMet: string[];
   data: GameData;
+  importTransfer: (contents: TransferContents) => boolean;
 }>();
 
 /** Open quests, one line each: who wants what, and how far the home aquarium is (a bucket quest has no progress at home). */
@@ -37,14 +42,13 @@ const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [Deb
 
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
-const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'style', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
+const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
 const GUIDE_NUMBERS = {
   energy: BASE_ENERGY,
   cards: STARTING_HAND_SIZE,
   holdPerPatience: HOLD_PER_PATIENCE,
   maxPatience: MAX_PATIENCE,
   patiencePercent: PATIENCE_ESCAPE_PERCENT,
-  strongPercent: STRONG_BONUS_PERCENT,
   slowPercent: SLOW_PERCENT,
   maxSlowPercent: MAX_SLOW_PERCENT,
   slots: SESSION_SLOTS,
@@ -55,6 +59,8 @@ const GUIDE_NUMBERS = {
 const desktop = window.desktop;
 /** Menu hidden so the whole aquarium can be seen. */
 const viewing = ref(false);
+/** The Transfer save screen, over the menu. */
+const transferring = ref(false);
 /** Confirmation before wiping all progression. */
 const confirmReset = ref<HTMLDialogElement>();
 
@@ -116,6 +122,7 @@ onBeforeUnmount(stopTheme);
         <button v-tip="canResume ? undefined : t('menu.noSave')" :disabled="!canResume" @click="emit('resume')">{{ t('menu.resume') }}</button>
         <button @click="emit('newRun')">{{ t('menu.newRun') }}</button>
         <button class="ghost" @click="viewing = true">{{ t('menu.seeAquarium') }}</button>
+        <button class="ghost" @click="transferring = true">{{ t('transfer.button') }}</button>
         <button class="ghost" @click="openOptions">{{ t('menu.options') }}</button>
         <button v-if="desktop" class="ghost" @click="desktop.quit()">{{ t('menu.exit') }}</button>
       </nav>
@@ -207,6 +214,7 @@ onBeforeUnmount(stopTheme);
         <button autofocus @click="options?.close()">{{ t('options.done') }}</button>
       </footer>
     </dialog>
+    <TransferScreen v-if="transferring" :data="data" :apply="importTransfer" @close="transferring = false" />
     <CreatureBook :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" :biggest="biggestCatch" />
   </section>
 </template>
@@ -230,11 +238,6 @@ onBeforeUnmount(stopTheme);
   gap: 28px;
   padding: 36px 48px;
   border-radius: 20px;
-  /* No backdrop-filter here: it would re-blur the animated aquarium behind the panel every
-     frame, which crawls on a big window (the blur's cost grows with the area). */
-  background: rgb(12 17 26 / 0.88);
-  border: 1px solid rgb(245 215 110 / 0.18);
-  box-shadow: 0 24px 60px rgb(0 0 0 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 .panel h2 {
   margin: 0;
@@ -245,6 +248,7 @@ onBeforeUnmount(stopTheme);
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 3px 10px rgb(245 215 110 / 0.25));
+  text-shadow: 0 3px 10px rgb(245 215 110 / 0.25);
 }
 .buttons { display: flex; flex-direction: column; gap: 12px; width: 240px; }
 .buttons button { padding: 14px; font-size: 1.1rem; }

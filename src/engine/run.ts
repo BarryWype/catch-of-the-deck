@@ -9,7 +9,8 @@ import { rollSize, type Catch } from './sizes';
 import { isAlive } from './effects';
 import { creatureFamilies } from './families';
 import { questsShownTo } from './unlocks';
-import type { BuildDef, CardDef, CombatState, EnemyState, GameData } from './types';
+import type { ShopVisit } from './shop';
+import type { BuildDef, CardDef, CombatState, CompanionEffect, EnemyState, GameData } from './types';
 import { clone } from './util';
 
 /** Everything that persists between fights. */
@@ -66,6 +67,30 @@ export interface RunState {
   fishermen: string[];
   /** Builds whose bucket quest the bucket met when the player met their fisherman (`questsShownTo`). */
   questsShown: string[];
+  /** How many creatures the bucket holds, companions included: `BUCKET_SIZE`, plus any bucket extensions. */
+  bucketSize: number;
+  /** Store effects lasting a few fights (espresso, blessings). */
+  boons: Boon[];
+  /** Creatures posted home with a parcel: they join the home aquarium when the run ends, however it ends. */
+  sentHome: HomeCreature[];
+  /** The next card reward has at least one rare card (a lucky lure). */
+  luckyLure: boolean;
+  /** The next card reward offers this many more cards (spare hooks). */
+  spareHooks: number;
+}
+
+/**
+ * Something bought that lasts the next `fightsLeft` fights: a `bonus` each fight gets, as a
+ * companion's, or `maxHp` added to the run's until it wears off (then Grit is capped to it).
+ * Each fight that ends without losing the run uses one up (`finishCombat`).
+ */
+export interface Boon {
+  fightsLeft: number;
+  bonus?: CompanionEffect;
+  maxHp?: number;
+  /** What gave it, for its icon and text: the store item, and the blessing for a release. */
+  item?: string;
+  blessing?: string;
 }
 
 export const CARD_REWARD_COUNT = 3;
@@ -127,6 +152,11 @@ export function createRun(
     rewardFamilies: [],
     fishermen: [...fishermen],
     questsShown: [],
+    bucketSize: BUCKET_SIZE,
+    boons: [],
+    sentHome: [],
+    luckyLure: false,
+    spareHooks: 0,
   };
   run.map = buildLevelMap(data, 0, run, run.fishermen);
   return run;
@@ -239,7 +269,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
       playerHp: next.hp,
       playerMaxHp: next.maxHp,
       equipment: next.equipment,
-      bonuses: companionEffects(next.companions, data),
+      bonuses: [...companionEffects(next.companions, data), ...next.boons.flatMap((b) => (b.bonus ? [b.bonus] : []))],
       hpPool: Math.ceil((ENCOUNTER_HP_POOL * growth) / 100),
       damage: enemies.length > 1 ? (damage / enemies.length) * (GROUP_DAMAGE_PERCENT / 100) : damage,
       bosses: !!bossDamage,
@@ -284,7 +314,7 @@ export function visitEvent(
 ): { run: RunState; eventId: string; combat?: undefined } | { run: RunState; combat: CombatState; eventId?: undefined } {
   const { next, node } = moveTo(run, nodeId, 'event');
   if (nextFloat(next) < EVENT_FIGHT_CHANCE) {
-    return { run: next, combat: startFight(next, { ...node, kind: 'fight', spot: null, creatureType: null, enemies: null }, data) };
+    return { run: next, combat: startFight(next, { ...node, kind: 'fight', spot: null, enemies: null }, data) };
   }
   const ids = Object.values(data.events)
     .filter((e) => !e.treasure && node.column >= (e.minColumn ?? 0))
@@ -314,9 +344,18 @@ export function visitFisherman(run: RunState, nodeId: string, data: GameData): R
   return shown.length ? { ...next, questsShown: [...next.questsShown, ...shown] } : next;
 }
 
-/** Move to an adjacent shop. */
-export function visitShop(run: RunState, nodeId: string): RunState {
-  return moveTo(run, nodeId, 'shop').next;
+/**
+ * Move to an adjacent shop, and open its store for this visit. The Bait shop draws, on arrival, the
+ * blessing a release gives and the family its keeper's aquarium buys.
+ */
+export function visitShop(run: RunState, nodeId: string, data: GameData): { run: RunState; visit: ShopVisit } {
+  const { next, node } = moveTo(run, nodeId, 'shop');
+  const store = node.store ?? 'tackle';
+  if (store !== 'bait') return { run: next, visit: { store, bought: {} } };
+  const families = Object.keys(data.families);
+  const blessing = data.blessings[nextInt(next, 0, data.blessings.length - 1)]?.id;
+  const family = families[nextInt(next, 0, families.length - 1)];
+  return { run: next, visit: { store, bought: {}, blessing, family } };
 }
 
 /**
@@ -349,10 +388,23 @@ export function finishCombat(run: RunState, combat: CombatState, data: GameData)
   for (const caught of catchesOf(run, combat)) {
     const sale = instantSaleValue(caught.id, run.equipment, data, sellBonus);
     if (sale !== null) next.coins += sale;
-    else if (next.bucket.length < BUCKET_SIZE) next.bucket.push(caught);
+    else if (next.bucket.length < next.bucketSize) next.bucket.push(caught);
     else next.waiting.push(caught);
   }
-  return next;
+  return wearBoons(next);
+}
+
+/** One fight less on every boon; those used up are dropped, and a max Grit boon takes its Grit back off the cap. */
+function wearBoons(run: RunState): RunState {
+  for (const boon of run.boons) {
+    boon.fightsLeft--;
+    if (boon.fightsLeft <= 0 && boon.maxHp) {
+      run.maxHp -= boon.maxHp;
+      run.hp = Math.min(run.hp, run.maxHp);
+    }
+  }
+  run.boons = run.boons.filter((b) => b.fightsLeft > 0);
+  return run;
 }
 
 /** The first waiting catch goes into the bucket, in place of the creature at `slot`, which is sold (`sellCreature`). */
@@ -376,12 +428,24 @@ export function sellCreature(run: RunState, slot: number, data: GameData): RunSt
   const id = run.bucket[slot]?.id;
   if (id === undefined) throw new Error(`Nothing captured at slot ${slot}`);
   const sellBonus = bonusTotal(companionEffects(run.companions, data), 'sellBonus');
-  return {
-    ...clone(run),
-    bucket: run.bucket.filter((_, i) => i !== slot),
-    companions: run.companions.filter((_, i) => i !== slot),
-    coins: run.coins + saleValue(id, sellBonus, data),
-  };
+  return { ...withoutCreature(run, slot), coins: run.coins + saleValue(id, sellBonus, data) };
+}
+
+/** A copy of the run without the bucket's creature at `slot` (and its companion entry, if it's one). */
+export function withoutCreature(run: RunState, slot: number): RunState {
+  if (!run.bucket[slot]) throw new Error(`Nothing captured at slot ${slot}`);
+  return { ...clone(run), bucket: run.bucket.filter((_, i) => i !== slot), companions: run.companions.filter((_, i) => i !== slot) };
+}
+
+/**
+ * The bucket's creature at `slot` as it would live at home: a companion with the bond it gained,
+ * a catch with its own bond (a blessing's) plus `bondOnCapture` equipment's share, capped at full.
+ */
+export function asHomeCreature(run: RunState, slot: number, data: GameData): HomeCreature {
+  if (slot < run.companions.length) return { ...run.companions[slot] };
+  const { id, size, bond = 0 } = run.bucket[slot];
+  const percent = equipmentEffects(run.equipment, data).reduce((sum, e) => (e.type === 'bondOnCapture' ? sum + e.percent : sum), 0);
+  return { id, size, bond: Math.min(bondToFull(id, data), bond + Math.round((bondToFull(id, data) * percent) / 100)) };
 }
 
 /** Split the home aquarium into what stays and the creatures at `slots` (indices), brought for a run. */
@@ -394,17 +458,14 @@ export function takeFromHome(
 }
 
 /**
- * The home aquarium after a successful run (boss beaten, or the session finished at a leave node):
- * everything still in the bucket joins it. Companions come back with the bond they gained on the
- * way; creatures caught on the way start with no bond, or with `bondOnCapture` equipment's share
- * of full bond. A lost or abandoned run never calls this, so its bucket, companions included, is lost.
+ * The home aquarium when a run ends. After a successful run (boss beaten, or the session finished
+ * at a leave node) everything still in the bucket joins it, as `asHomeCreature`; after a lost run
+ * only the creatures wearing a life jacket do. Creatures posted home with a parcel (`sentHome`)
+ * join it either way. An abandoned run never calls this, so its bucket, companions included, is lost.
  */
-export function bringCatchHome(home: readonly HomeCreature[], run: RunState, data: GameData): HomeCreature[] {
-  const percent = equipmentEffects(run.equipment, data).reduce((sum, e) => (e.type === 'bondOnCapture' ? sum + e.percent : sum), 0);
-  const caught = run.bucket
-    .slice(run.companions.length)
-    .map(({ id, size }) => ({ id, size, bond: Math.min(bondToFull(id, data), Math.round((bondToFull(id, data) * percent) / 100)) }));
-  return [...home, ...run.companions.map((c) => ({ ...c })), ...caught];
+export function bringCatchHome(home: readonly HomeCreature[], run: RunState, data: GameData, success = true): HomeCreature[] {
+  const kept = run.bucket.flatMap((c, slot) => (success || c.lifeJacket ? [asHomeCreature(run, slot, data)] : []));
+  return [...home, ...kept, ...run.sentHome.map((c) => ({ ...c }))];
 }
 
 /**
@@ -463,17 +524,21 @@ export function raresUnlocked(run: RunState): boolean {
  * family's when they run short. Each slot is rare with the run's `rarePity` chance: back to
  * `RARE_CHANCE` when a rare card is offered, `RARE_PITY_STEP` higher for every slot that isn't.
  * Before `raresUnlocked`, only normal cards are offered, and the chance doesn't grow. A mini-boss's
- * reward always has at least one rare card: the last slot is rare if none of the others were.
+ * reward always has at least one rare card: the last slot is rare if none of the others were. A
+ * lucky lure does the same for any reward, rares unlocked or not; spare hooks add to `count`.
+ * Both are used up by this roll.
  */
 export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardOptions = {}): { run: RunState; choices: string[] } {
-  const { count = CARD_REWARD_COUNT, exclude = [] } = opts;
+  const { count = CARD_REWARD_COUNT + run.spareHooks, exclude = [] } = opts;
   const next = clone(run);
   const families = [...(opts.families ?? run.rewardFamilies)];
   next.rewardFamilies = families;
+  next.luckyLure = false;
+  next.spareHooks = 0;
   const rares = raresUnlocked(run);
   const miniBoss = rares && findNode(run.map, run.position)?.kind === 'miniBoss';
   const offerable = Object.values(data.cards).filter(
-    (c) => c.family !== undefined && (c.build === undefined || c.build === run.build) && (rares || c.rarity !== 'rare'),
+    (c) => c.family !== undefined && (c.build === undefined || c.build === run.build) && (rares || run.luckyLure || c.rarity !== 'rare'),
   );
   const fresh = offerable.filter((c) => !exclude.includes(c.id));
   const everyFamily = fresh.length >= count ? fresh : offerable;
@@ -483,7 +548,7 @@ export function rollCardRewards(run: RunState, data: GameData, opts: CardRewardO
   for (let slot = 0; slot < count; slot++) {
     const rolled = rares && nextFloat(next) * 100 < next.rarePity ? 'rare' : 'normal';
     const noRareYet = !choices.some((id) => data.cards[id].rarity === 'rare');
-    const rarity = miniBoss && slot === count - 1 && noRareYet ? 'rare' : rolled;
+    const rarity = (miniBoss || run.luckyLure) && slot === count - 1 && noRareYet ? 'rare' : rolled;
     const left = (pool: CardDef[]) => pool.filter((c) => !choices.includes(c.id));
     const candidates = [
       left(theirs).filter((c) => c.rarity === rarity),
@@ -531,7 +596,7 @@ export function rerollReward(run: RunState, data: GameData, offered: readonly st
   const used = companionRerolls(run, data)
     ? { ...run, rewardRerollsUsed: run.rewardRerollsUsed + 1 }
     : { ...run, rewardRerolls: run.rewardRerolls - 1 };
-  return rollCardRewards(used, data, { exclude: offered });
+  return rollCardRewards(used, data, { exclude: offered, count: offered.length });
 }
 
 export function addCardToDeck(run: RunState, cardId: string, data: GameData): RunState {

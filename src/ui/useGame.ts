@@ -52,6 +52,7 @@ import {
   type ShopVisit,
 } from '../engine';
 import {
+  applyTransfer,
   clearProfile,
   clearSavedGame,
   loadProfile,
@@ -60,7 +61,9 @@ import {
   SAVE_VERSION,
   writeProfile,
   writeSavedGame,
+  type Profile,
   type SavedGame,
+  type TransferContents,
 } from './saveStore';
 
 export type Screen = 'menu' | 'build' | 'companions' | 'map' | 'combat' | 'bucketFull' | 'event' | 'fisherman' | 'shop' | 'leave' | 'reward' | 'complete';
@@ -78,8 +81,8 @@ export function useGame(initialSeed: number) {
   const rewardChoices = ref<string[]>([]);
   /** The event being played, on the event screen. */
   const eventId = ref<string | null>(null);
-  /** Purchases during the current shop visit, on the shop screen. */
-  const shopVisit = ref<ShopVisit>({ bought: {} });
+  /** The store being visited, and what was bought there, on the shop screen. */
+  const shopVisit = ref<ShopVisit>({ store: 'tackle', bought: {} });
   /** The run that Resume would pick up, if any. */
   const savedGame = shallowRef<SavedGame | null>(null);
   loadSavedGame().then((save) => (savedGame.value = save));
@@ -94,14 +97,15 @@ export function useGame(initialSeed: number) {
   /** Builds unlocked through fishermen's quests, and the fishermen met (whose quests are open). */
   const unlocked = ref<string[]>([]);
   const fishermenMet = ref<string[]>([]);
-  loadProfile().then((profile) => {
+  function setProfile(profile: Profile) {
     homeAquarium.value = profile.homeAquarium;
     creatureBook.value = profile.creatureBook;
     biggestCatch.value = profile.biggestCatch;
     eggs.value = profile.eggs;
     unlocked.value = profile.unlockedBuilds;
     fishermenMet.value = profile.fishermenMet;
-  });
+  }
+  loadProfile().then(setProfile);
   /** The builds a run can start with. */
   const builds = computed(() => unlockedBuilds(gameData, unlocked.value));
   /** The finish node the player clicked, waiting for them to confirm on the leave screen. */
@@ -176,12 +180,13 @@ export function useGame(initialSeed: number) {
 
   /**
    * Every run end (not an abandoned one): creatures that stayed home bond a little, a successful
-   * run brings its bucket home and unlocks the builds whose quests are now met, then pairs may lay
-   * an egg (so new catches can breed straight away).
+   * run brings its bucket home and unlocks the builds whose quests are now met (a lost one only its
+   * creatures in life jackets, and either brings the parcels posted home), then pairs may lay an
+   * egg (so new catches can breed straight away).
    */
   function endRun(finished: RunState, success: boolean) {
     let home = restAtHome(homeAquarium.value, gameData);
-    if (success) home = bringCatchHome(home, finished, gameData);
+    home = bringCatchHome(home, finished, gameData, success);
     newlyUnlocked.value = success ? newUnlocks(gameData, unlocked.value, fishermenMet.value, home, finished.questsShown) : [];
     unlocked.value = [...unlocked.value, ...newlyUnlocked.value];
     const laid = layEggs(home, finished, gameData);
@@ -259,6 +264,22 @@ export function useGame(initialSeed: number) {
     clearProfile();
   }
 
+  /**
+   * Replace this device's progress with what a transfer code brought, and show it straight away.
+   * Refused (false) while a debug scenario plays: the sandbox must not write the real files.
+   */
+  function importTransfer(contents: TransferContents): boolean {
+    if (debugScenario.value) return false;
+    applyTransfer(contents);
+    run.value = null;
+    combat.value = null;
+    broughtSlots.value = [];
+    savedGame.value = contents.save;
+    setProfile(contents.profile);
+    screen.value = 'menu';
+    return true;
+  }
+
   /** Back to the landing menu; the run stays saved. A debug scenario ends there. */
   function toMenu() {
     if (debugScenario.value) endScenario();
@@ -331,7 +352,7 @@ export function useGame(initialSeed: number) {
     run.value = started.run;
     combat.value = started.combat ?? null;
     eventId.value = started.eventId ?? null;
-    shopVisit.value = { bought: {} };
+    if (started.visit) shopVisit.value = started.visit;
     rewardChoices.value = [];
     if (started.kind === 'fisherman') {
       const id = findNode(started.run.map, started.run.position)?.fisherman;
@@ -368,6 +389,7 @@ export function useGame(initialSeed: number) {
 
   function travel(nodeId: string) {
     if (!run.value) return;
+    if (nodeId === run.value.position) return returnToShop();
     const kind = findNode(run.value.map, nodeId)?.kind;
     if (kind === 'leave') {
       leaveNodeId.value = nodeId;
@@ -375,8 +397,9 @@ export function useGame(initialSeed: number) {
       return;
     }
     if (kind === 'shop') {
-      run.value = visitShop(run.value, nodeId);
-      shopVisit.value = { bought: {} };
+      const visit = visitShop(run.value, nodeId, gameData);
+      run.value = visit.run;
+      shopVisit.value = visit.visit;
       screen.value = 'shop';
       return;
     }
@@ -498,15 +521,30 @@ export function useGame(initialSeed: number) {
     }
   }
 
-  function buy(itemId: string, cardIndex?: number) {
+  /** Buy a store item; `choice` is the deck card or the bucket slot it acts on, if any. */
+  function buy(itemId: string, choice?: number) {
     if (!run.value) return;
-    const result = buyShopItem(run.value, shopVisit.value, itemId, gameData, cardIndex);
+    const result = buyShopItem(run.value, shopVisit.value, itemId, gameData, choice);
     run.value = result.run;
     shopVisit.value = result.visit;
   }
 
   function leaveShop() {
     screen.value = 'map';
+  }
+
+  /**
+   * Still standing on the shop's node (the map was only looked at, or the shop left without moving
+   * on): its visit, with what was bought, can be reopened.
+   */
+  const canReturnToShop = computed(() => {
+    if (!run.value || (screen.value !== 'map' && screen.value !== 'shop')) return false;
+    const node = findNode(run.value.map, run.value.position);
+    return node?.kind === 'shop' && (node.store ?? 'tackle') === shopVisit.value.store;
+  });
+
+  function returnToShop() {
+    if (canReturnToShop.value) screen.value = 'shop';
   }
 
   /** Confirmed: move onto the finish node, which ends the run and brings the bucket home. */
@@ -578,6 +616,8 @@ export function useGame(initialSeed: number) {
     chooseEvent,
     buy,
     leaveShop,
+    canReturnToShop,
+    returnToShop,
     finishSession,
     cancelLeave,
     sell,
@@ -609,5 +649,6 @@ export function useGame(initialSeed: number) {
     resume,
     toMenu,
     resetProgress,
+    importTransfer,
   };
 }

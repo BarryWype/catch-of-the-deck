@@ -53,13 +53,19 @@ function readVolume() {
 }
 let volume = readVolume();
 
+/**
+ * The gain for a volume setting (0–100), for the music and the effects. Ears hear loudness on a log
+ * scale, so the setting is squared: 50 plays 12 dB down, 20 plays 28 dB down.
+ */
+export const gain = (percent: number) => (percent / 100) ** 2;
+
 export function musicVolume() {
   return volume;
 }
 
 export function setMusicVolume(percent: number) {
   volume = Math.max(0, Math.min(100, percent));
-  if (current) current.volume = volume / 100;
+  if (current) current.volume = gain(volume);
   try {
     localStorage.setItem(VOLUME_KEY, String(volume));
   } catch {
@@ -82,7 +88,7 @@ function startAudio(track: keyof typeof TRACKS) {
   const audio = new Audio(TRACKS[track]);
   current = audio;
   audio.loop = true;
-  audio.volume = volume / 100;
+  audio.volume = gain(volume);
   audio.play().catch(() => {
     const resume = () => {
       if (current === audio) audio.play().catch(() => {});

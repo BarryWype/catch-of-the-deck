@@ -12,7 +12,7 @@ import { events } from './events';
 import { families } from './families';
 import { fishermen } from './fishermen';
 import { levels } from './levels';
-import { shop } from './shop';
+import { blessings, shop } from './shop';
 import { spots } from './spots';
 
 export const contentSource: ContentSource = {
@@ -26,6 +26,7 @@ export const contentSource: ContentSource = {
   equipment,
   events,
   shop,
+  blessings,
   companionBonuses,
   families,
   spots,

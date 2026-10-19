@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { isAlive, PLAYER_ID, type Combatant, type FamilyDef, type IntentPreview, type SpriteRef } from '../engine';
+import { isAlive, PLAYER_ID, type Combatant, type IntentPreview, type SpriteRef } from '../engine';
 import type { TipValue } from './tooltip';
 import AnimatedSprite from './AnimatedSprite.vue';
 import HealthBar from './HealthBar.vue';
@@ -24,8 +24,6 @@ const props = withDefaults(
     targetable?: boolean;
     /** Hover text over the creature, e.g. its move set (see CombatView's `creatureTip`). */
     tip?: TipValue;
-    /** The creature's families, shown as icons next to its name (engine: `creatureFamilies`). */
-    families?: FamilyDef[];
     /**
      * Escape bar, for creatures. `pull` is its upcoming move's Pull, before the player's Hold;
      * `after` / `end` its preview (PanicBar).
@@ -42,7 +40,7 @@ const props = withDefaults(
     /** The sprite only: the player's Grit and statuses are in the battlefield's corner panel instead. */
     bare?: boolean;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, families: () => [], tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
@@ -63,20 +61,16 @@ const portraitStyle = computed(() => ({
     <div v-if="intent || escapeBar" class="intent-slot">
       <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
     </div>
-    <!-- Everything about it in one block above the sprite, the bars the same width: its name and
-         families (hover: the family's name), its Will, its health, then its statuses. Compact
-         screens drop the name (it stays in the creature's tip) and keep the family icons. -->
+    <!-- Everything about it in one block above the sprite, the bars the same width: its name, its
+         Will, its health, then its statuses. Compact screens drop the name (it stays in the
+         creature's tip). -->
     <div v-if="!bare" class="hud">
-      <div v-if="combatant.id !== PLAYER_ID" class="name">
-        <span class="name-text">{{ combatant.name }}</span>
-        <span v-for="f in families" :key="f.id" v-tip="f.name" class="family" aria-hidden="true">{{ f.icon }}</span>
-      </div>
+      <div v-if="combatant.id !== PLAYER_ID" class="name">{{ combatant.name }}</div>
       <PanicBar v-if="escapeBar" v-bind="escapeBar" />
       <HealthBar
         :hp="combatant.hp"
         :max-hp="combatant.maxHp"
         :block="combatant.block"
-        :grit="combatant.id === PLAYER_ID"
         :after="healthPreview?.after"
         :end="healthPreview?.end"
         :block-after="healthPreview?.blockAfter"
@@ -155,7 +149,6 @@ const portraitStyle = computed(() => ({
 /* A dark backing, so the bars and text stay readable over the scene behind (seaweed, sand). */
 .combatant:not(:has(.portrait.player)) .hud { padding: 6px 8px; border-radius: 10px; background: rgb(8 14 22 / 0.6); }
 .name { display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; }
-.family { font-size: 0.9rem; cursor: help; }
 .dead { opacity: 0.35; filter: grayscale(1); }
 /* Animated combatants show their capture/defeat animation instead of fading out. */
 .dead.animated { opacity: 1; filter: none; }
@@ -166,7 +159,6 @@ const portraitStyle = computed(() => ({
   .combatant { padding: 4px 6px; gap: 3px; }
   .intent-slot { min-height: 36px; }
   .hud { width: 150px; gap: 3px; }
-  .name-text { display: none; }
-  .name:not(:has(.family)) { display: none; }
+  .name { display: none; }
 }
 </style>

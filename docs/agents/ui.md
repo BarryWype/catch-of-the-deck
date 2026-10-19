@@ -19,7 +19,7 @@ The game runs on desktop (Electron and browser), tablets and phones, with a mous
 ## Verifying
 
 1. Ask the user to start the dev server if `curl localhost:5190` doesn't answer.
-2. Open http://localhost:5190 in the browser pane and check at least phone portrait (375×812), phone landscape (812×375) and desktop; add tablet (768×1024) for layout changes. Done when, at each size:
+2. Open http://localhost:5190 in the browser pane and, before any click, run `localStorage.setItem('slay-the-fish:music-on', 'false')` so the music stays silent (the first click would start it). Don't touch the music toggle unless the task is about music. Then check at least phone portrait (375×812), phone landscape (812×375) and desktop; add tablet (768×1024) for layout changes. Done when, at each size:
    - nothing overflows sideways;
    - the screen fits or scrolls where it should (compare `scrollHeight` with `clientHeight` of `main`);
    - the console shows no errors;

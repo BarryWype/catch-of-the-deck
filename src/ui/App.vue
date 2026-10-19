@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { BUCKET_SIZE, creatureTypeNames, describeCard, findNode, isReleaseFight, justBeatBoss, SESSION_SLOTS, type CardDef } from '../engine';
+import { describeCard, findNode, isReleaseFight, justBeatBoss, SESSION_SLOTS, type CardDef } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
@@ -13,6 +13,7 @@ import CompanionPicker from './CompanionPicker.vue';
 import EggTray from './EggTray.vue';
 import EventScreen from './EventScreen.vue';
 import FishermanScreen from './FishermanScreen.vue';
+import CreatureBook from './CreatureBook.vue';
 import MapView from './MapView.vue';
 import MenuScreen from './MenuScreen.vue';
 import RewardScreen from './RewardScreen.vue';
@@ -33,7 +34,7 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked } = game;
+const { data, seed, run, combat, screen, canReturnToShop, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked } = game;
 
 /**
  * The top bar's title: the act being played, from its level's "age · place" name. It replaces
@@ -74,7 +75,6 @@ const picker = ref<InstanceType<typeof CompanionPicker>>();
 /** The deck dialog (the deck pill in the top bar): every card in it, by type, then by name. */
 const deckDialog = ref<HTMLDialogElement>();
 const TYPE_ORDER: CardDef['type'][] = ['attack', 'defense', 'drain', 'support', 'power', 'junk'];
-const tagNames = computed(() => creatureTypeNames(data));
 const deckCards = computed(() =>
   (run.value?.deck ?? [])
     .map((id) => data.cards[id])
@@ -91,6 +91,7 @@ const deckCards = computed(() =>
       <span v-if="act.place" class="act-place">{{ act.place }}</span>
     </div>
     <div class="run-info">
+      <span v-if="screen === 'combat' && combat" class="stat turn"><b>{{ t('combat.turn', { n: combat.turn }) }}</b></span>
       <!-- In a fight the Grit bar under the fisherman already shows this; skip it there. -->
       <span v-if="screen !== 'combat'" class="stat grit" v-tip="term('grit')">
         <span class="bar" aria-hidden="true"><i :style="{ width: `${Math.round((100 * run.hp) / run.maxHp)}%` }"></i></span>
@@ -101,7 +102,10 @@ const deckCards = computed(() =>
         <b>{{ run.coins }}</b>
       </span>
       <button class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })" @click="deckDialog?.showModal()">🂠 <b>{{ run.deck.length }}</b></button>
-      <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
+      <span class="seed" v-tip="{ title: t('app.seedTitle') }">{{ t('app.seed', { n: seed }) }}</span>
+      <button v-if="canReturnToShop" class="ghost" @click="screen === 'shop' ? game.leaveShop() : game.returnToShop()">
+        {{ screen === 'shop' ? t('app.seeMap') : t('app.backToShop') }}
+      </button>
       <button v-if="debugScenario" class="ghost" @click="game.endScenario">{{ t('debug.end') }}</button>
       <button v-else class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
       <button class="ghost new-run" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
@@ -149,17 +153,19 @@ const deckCards = computed(() =>
       :data="data"
       @resume="game.resume"
       @new-run="askNewRun(newRunFromMenu)"
+      :import-transfer="game.importTransfer"
       @reset="game.resetProgress"
       @play-scenario="game.playScenario"
     />
     <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
       <MapView v-if="screen === 'map'" :run="run" :data="data" @travel="game.travel" />
+      <CreatureBook v-if="screen === 'map'" :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" :biggest="biggestCatch" />
       <ShopScreen v-else class="shop-panel" :run="run" :data="data" :visit="shopVisit" @buy="game.buy" @leave="game.leaveShop" />
       <Aquarium
         class="aquarium"
         :creatures="run.bucket"
-        :capacity="BUCKET_SIZE"
+        :capacity="run.bucketSize"
         :companions="run.companions.length"
         :bonds="run.companions.map((c) => c.bond)"
         :data="data"
@@ -172,6 +178,7 @@ const deckCards = computed(() =>
       v-else-if="screen === 'combat' && combat"
       :state="combat"
       :data="data"
+      :run="run"
       :equipment="run.equipment"
       :new-eggs="newEggs"
       :spot="findNode(run.map, run.position)?.spot ?? undefined"
@@ -219,7 +226,6 @@ const deckCards = computed(() =>
       :data="data"
       :skips="rewardLeft.skips"
       :rerolls="rewardLeft.rerolls"
-      :families="run?.rewardFamilies ?? []"
       :boss="run && justBeatBoss(run) ? { deck: run.deck, canRemove: run.bossRemoval, bucket: run.bucket.length } : null"
       @choose="game.chooseReward"
       @skip="game.skipCardReward"
@@ -259,7 +265,7 @@ const deckCards = computed(() =>
   <dialog ref="deckDialog" class="confirm deck-dialog" @click="$event.target === deckDialog && deckDialog?.close()">
     <h3>{{ t('app.deckTitle', { n: deckCards.length }) }}</h3>
     <div class="deck-cards">
-      <CardView v-for="(card, i) in deckCards" :key="i" :card="card" :description="describeCard(card, { tagNames })" />
+      <CardView v-for="(card, i) in deckCards" :key="i" :card="card" :description="describeCard(card)" />
     </div>
     <footer>
       <button class="ghost" autofocus @click="deckDialog?.close()">{{ t('common.close') }}</button>
@@ -296,7 +302,7 @@ const deckCards = computed(() =>
   padding-bottom: 12px;
 }
 .map-layout .aquarium { flex: 1; }
-.map-layout .shop-panel { flex-shrink: 0; padding-top: 2vh; }
+.map-layout .shop-panel { min-height: 0; padding-top: 2vh; }
 
 /* Choosing companions: a header, then the home aquarium and the session slots. */
 .build-layout {
@@ -333,5 +339,10 @@ const deckCards = computed(() =>
   .companions-head h2 { font-size: 1.1rem; }
   .complete { padding: 6vh 0 16px; text-align: center; }
   .complete h2 { font-size: 1.5rem; }
+}
+/* Short landscape screens: the shop beside the bucket, so its scene keeps the full height. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .map-layout:has(> .shop-panel) { flex-direction: row; }
+  .map-layout .shop-panel { flex: 1; min-width: 0; justify-content: center; padding-top: 0; }
 }
 </style>

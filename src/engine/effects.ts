@@ -10,7 +10,7 @@ import {
   SECOND_WIND_POINTS,
   SPINES_GRIT,
 } from './constants';
-import { applyDamage, calculateDamage, isStrongAgainst, tagsOf } from './damage';
+import { applyDamage, calculateDamage } from './damage';
 import { drawCards } from './piles';
 import { reportEvent } from './report';
 import { nextInt } from './rng';
@@ -140,7 +140,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           const venomBonus = ctx.attack && getStatus(t, 'venom') > 0 ? (state.thisTurn?.venomBonus ?? 0) : 0;
           const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : (ctx.amountScale ?? 1));
           const base = written + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
-          let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses, isStrongAgainst(effect.bonus, tagsOf(t)));
+          let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses);
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
           // Burrow: the player's attacks do less until the creature's next turn.
           if (fromPlayer && getStatus(t, 'burrowed') > 0) amount = Math.floor((amount * (100 - BURROW_PERCENT)) / 100);

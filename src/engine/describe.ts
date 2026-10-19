@@ -1,5 +1,5 @@
-import { calculateDamage, isStrongAgainst } from './damage';
-import { STRONG_BONUS_PERCENT, WIND_UP_PERCENT } from './constants';
+import { calculateDamage } from './damage';
+import { WIND_UP_PERCENT } from './constants';
 import { statusName } from './statuses';
 import { hasText, text } from './text';
 import type { CardDef, Effect, Statuses } from './types';
@@ -9,10 +9,6 @@ export interface DescribeOptions {
   attacker?: Statuses;
   /** If given, single-target damage includes the defender's modifiers (Vulnerable). */
   defender?: Statuses;
-  /** If given, single-target damage includes type bonuses that apply to this defender. */
-  defenderTags?: string[];
-  /** Display names for tags (creature types) in bonus text. */
-  tagNames?: Record<string, string>;
   /** Extra damage per hit from companion bonuses (`bonusDamage`). */
   bonusDamage?: number;
   /** The effects are a creature's move: its damage wears down the player's Grit. */
@@ -25,19 +21,14 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
     case 'dealDamage': {
       const target = effect.target ?? 'target';
       const defender = target === 'target' ? opts.defender : undefined;
-      const strong = isStrongAgainst(effect.bonus, target === 'target' ? opts.defenderTags : undefined);
       const perStacks = effect.perStatus && defender ? effect.perStatus.amount * (defender[effect.perStatus.status] ?? 0) : 0;
-      const real = calculateDamage(effect.amount + perStacks + (opts.bonusDamage ?? 0), opts.attacker, defender, strong);
+      const real = calculateDamage(effect.amount + perStacks + (opts.bonusDamage ?? 0), opts.attacker, defender);
       // The printed amount, then the real one in brackets when modifiers change it.
       const dmg = real === effect.amount ? `${real}` : `${effect.amount} (${real})`;
       const hits = effect.hits ?? 1;
       const times = hits > 1 ? text('describe.times', { n: hits }) : '';
       // Always named, so a bracketed real number never appears without its reason.
-      const extra =
-        (effect.perStatus ? text('describe.perStatus', { n: effect.perStatus.amount, status: statusName(effect.perStatus.status) }) : '') +
-        (effect.bonus
-          ? text('describe.bonus', { percent: STRONG_BONUS_PERCENT, types: effect.bonus.against.map((t) => opts.tagNames?.[t] ?? t).join(', ') })
-          : '');
+      const extra = effect.perStatus ? text('describe.perStatus', { n: effect.perStatus.amount, status: statusName(effect.perStatus.status) }) : '';
       const params = { dmg, times, extra };
       if (effect.fromHold) return text('describe.dealHold', params);
       if (target === 'allEnemies') return text('describe.dealAll', params);
@@ -140,11 +131,6 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
 
 export function describeEffects(effects: Effect[], opts: DescribeOptions = {}): string {
   return effects.map((e) => describeEffect(e, opts)).join(' ');
-}
-
-/** Does any of the card's damage get a type bonus against an enemy with these tags? */
-export function isCardEffectiveAgainst(card: CardDef, tags: readonly string[]): boolean {
-  return card.effects.some((e) => e.type === 'dealDamage' && isStrongAgainst(e.bonus, tags));
 }
 
 /** Card rules text: the explicit `description` override, or generated from effects. */

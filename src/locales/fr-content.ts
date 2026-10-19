@@ -155,18 +155,6 @@ export const frContent: ContentTranslations = {
     medicinalLeech: 'Sangsue médicinale',
   },
 
-  creatureTypes: {
-    smallFish: 'Petit poisson',
-    sportFish: 'Poisson sportif',
-    bigFish: 'Gros poisson',
-    rockFish: 'Poisson de roche',
-    deepSea: 'Grands fonds',
-    crustacean: 'Crustacé',
-    shellfish: 'Coquillage',
-    tentacled: 'Tentaculaire',
-    critter: 'Petite bête',
-  },
-
   moves: {
     'reefFish.nip': 'Mordille le leurre',
     'reefFish.dartAway': 'Fuite à couvert',
@@ -450,8 +438,16 @@ export const frContent: ContentTranslations = {
   },
 
   shop: {
-    heart: 'Thermos de chocolat chaud',
+    cocoa: 'Tasse de cacao',
+    espresso: 'Expresso',
+    lifeJacket: 'Gilet de sauvetage',
+    parcel: 'Colis',
+    luckyLure: 'Leurre porte-bonheur',
+    spareHook: 'Hameçon de rechange',
     removeCard: 'Retirer une carte',
+    bucketExtension: 'Rehausse de seau',
+    blessingRelease: 'Relâcher pour une bénédiction',
+    aquarium: 'Aquarium du patron',
   },
 
   spots: {

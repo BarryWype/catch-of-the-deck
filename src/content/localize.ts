@@ -9,8 +9,6 @@ export interface ContentTranslations {
   character?: { name?: string; home?: string };
   /** Enemy (creature) id → name. */
   creatures?: Record<string, string>;
-  /** Creature type id → name. */
-  creatureTypes?: Record<string, string>;
   /** Move names, keyed `<temperament>.<move id>` for shared move sets (behaviors.ts), or `<creature id>.<move id>` for a creature's own. */
   moves?: Record<string, string>;
   /** Card id → name. */
@@ -54,7 +52,6 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       name: tr.creatures?.[e.id] ?? e.name,
       moves: e.moves.map((m) => ({ ...m, name: tr.moves?.[`${e.id}.${m.id}`] ?? tr.moves?.[`${e.temperament}.${m.id}`] ?? m.name })),
     })),
-    creatureTypes: source.creatureTypes.map((t) => ({ ...t, name: tr.creatureTypes?.[t.id] ?? t.name })),
     cards: source.cards.map((c) => ({ ...c, name: tr.cards?.[c.id] ?? c.name })),
     builds: source.builds.map((b) => {
       const { quest, ...t } = tr.builds?.[b.id] ?? {};
