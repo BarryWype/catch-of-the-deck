@@ -46,11 +46,6 @@ export function buildGameData(source: ContentSource): GameData {
   };
 }
 
-/** Creature type id → display name, for card text (`DescribeOptions.tagNames`). */
-export function creatureTypeNames(data: GameData): Record<string, string> {
-  return Object.fromEntries(Object.values(data.creatureTypes).map((t) => [t.id, t.name]));
-}
-
 /** Returns a list of human-readable problems; empty means the content is valid. */
 export function validateContent(source: ContentSource): string[] {
   const errors: string[] = [];
@@ -74,7 +69,6 @@ export function validateContent(source: ContentSource): string[] {
       if (e.type === 'dealDamage' && e.hits !== undefined && (!Number.isInteger(e.hits) || e.hits < 1)) {
         errors.push(`${where}: "hits" must be a whole number ≥ 1.`);
       }
-      if (e.type === 'dealDamage' && e.bonus) checkTags(`${where} damage bonus`, e.bonus.against);
       if (e.type === 'slowCap' && !(e.amount > 0 && e.amount <= 100)) errors.push(`${where}: "slowCap" needs an amount between 1 and 100 (percent).`);
     }
   };
@@ -286,8 +280,10 @@ export function validateContent(source: ContentSource): string[] {
       if (!source.fishermen.some((f) => f.id === fisherman)) errors.push(`${where}: unknown fisherman "${fisherman}".`);
       if (!(Number.isInteger(quest.count) && quest.count > 0)) errors.push(`${where}: the quest's count must be a whole number > 0.`);
       if (quest.type === 'speciesAtHome') {
-        if (quest.creatureTypes.length === 0) errors.push(`${where}: the quest needs at least one creature type.`);
-        checkTags(`${where} quest`, quest.creatureTypes);
+        if (quest.temperaments.length === 0) errors.push(`${where}: the quest needs at least one temperament.`);
+        for (const id of quest.temperaments) {
+          if (!bonusIds.has(id)) errors.push(`${where} quest: unknown temperament "${id}".`);
+        }
       } else {
         const species = source.enemies.filter(
           (e) => (quest.temperament === undefined || e.temperament === quest.temperament) && (quest.water === undefined || e.water === quest.water),
@@ -387,7 +383,6 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
         for (const id of node.enemies ?? []) if (!enemyIds.has(id)) errors.push(`${at}: unknown enemy "${id}".`);
         if (!node.enemies?.length && !node.spot) errors.push(`${at}: a fight needs a spot or enemies.`);
         if (node.spot && !spotIds.has(node.spot)) errors.push(`${at}: unknown fishing spot "${node.spot}".`);
-        if (node.creatureType && !typeIds.has(node.creatureType)) errors.push(`${at}: unknown creature type "${node.creatureType}".`);
       }
       if (node.kind === 'event' && !hasEvents) errors.push(`${at}: there are no events to meet.`);
       if (node.kind === 'treasure' && !hasTreasures) errors.push(`${at}: there are no treasure events.`);

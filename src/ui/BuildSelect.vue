@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
-import { computed, ref } from 'vue';
-import { creatureTypeNames, describeCard, type BuildDef, type GameData } from '../engine';
+import { ref } from 'vue';
+import { describeCard, type BuildDef, type GameData } from '../engine';
 import CardView from './CardView.vue';
 import { t } from './i18n';
 import SpriteView from './SpriteView.vue';
@@ -9,8 +9,6 @@ import SpriteView from './SpriteView.vue';
 /** The whole screen: the builds a run can start with (the unlocked ones), each with its details and starting items. */
 const props = defineProps<{ builds: BuildDef[]; data: GameData }>();
 const emit = defineEmits<{ choose: [buildId: string, itemId: string | undefined]; back: [] }>();
-
-const tagNames = computed(() => creatureTypeNames(props.data));
 
 /** The starting item picked under each build (its first one until the player picks). */
 const picked = ref<Record<string, string | undefined>>({});
@@ -45,7 +43,7 @@ function deckSummary(build: BuildDef) {
         <h4>{{ t('build.starterDeck', { n: build.starterDeck.length }) }}</h4>
         <div class="deck">
           <div v-for="{ card, count } in deckSummary(build)" :key="card.id" class="deck-card">
-            <CardView :card="card" :description="describeCard(card, { tagNames })" />
+            <CardView :card="card" :description="describeCard(card)" />
             <span class="count">×{{ count }}</span>
           </div>
         </div>

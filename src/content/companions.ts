@@ -7,8 +7,8 @@ import type { BehaviorId } from './behaviors';
  * bond level 2, +1 at level 3, each species counted once); the last entry covers more stars.
  * 3 different species add `fullSchool`. See engine/companions.ts.
  *
- * `description` and `bestBuild` are notes for developers (and future help guides): the game
- * writes the bonus text from `effects`, so keep `description` in sync when changing numbers.
+ * `description` is a note for developers: the game writes the bonus text from `effects`, so keep
+ * it in sync when changing numbers.
  */
 export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
   {
@@ -17,7 +17,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Armored',
     icon: '🐚',
     description: 'Whenever you gain Hold, gain 1 more (2 from 3★, 3 from 6★).',
-    bestBuild: 'foraging',
     effects: [{ type: 'bonusBlock', amount: 1, byStars: [1, 1, 2, 2, 2, 3, 3, 3] }],
     fullSchool: [{ type: 'keepBlock', amount: 2 }],
   },
@@ -27,7 +26,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Clawed',
     icon: '🦀',
     description: 'When you fully block an attack, deal 2 damage back (3 at 2★, 4 from 3★, 5 from 5★, 6 from 7★).',
-    bestBuild: 'foraging',
     effects: [{ type: 'trigger', on: 'fullBlock', effect: { type: 'dealDamage', amount: 2 }, byStars: [2, 3, 4, 4, 5, 5, 6, 6] }],
     fullSchool: [{ type: 'trigger', on: 'combatStart', effect: { type: 'gainBlock', amount: 5 } }],
   },
@@ -37,7 +35,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Jellyfish',
     icon: '🪼',
     description: 'Your first attack each turn applies 1 Venom (2 from 3★, 3 from 6★).',
-    bestBuild: 'any',
     effects: [{ type: 'trigger', on: 'firstAttackEachTurn', effect: { type: 'applyStatus', status: 'venom', amount: 1 }, byStars: [1, 1, 2, 2, 2, 3, 3, 3] }],
     fullSchool: [
       { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'venom', amount: 2, target: 'allEnemies' } },
@@ -49,7 +46,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Venomous',
     icon: '🦔',
     description: 'When an enemy hits you, it gets 1 Venom (2 from 4★, 3 from 7★). With 3 species, it also takes 2 damage.',
-    bestBuild: 'any',
     effects: [{ type: 'trigger', on: 'hitByEnemy', effect: { type: 'applyStatus', status: 'venom', amount: 1 }, byStars: [1, 1, 1, 2, 2, 2, 3, 3] }],
     fullSchool: [{ type: 'trigger', on: 'hitByEnemy', effect: { type: 'dealDamage', amount: 2 } }],
   },
@@ -59,7 +55,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Puffer',
     icon: '🐡',
     description: 'The first time you drop below 50% Grit in a fight, gain 6 Hold (+2 per star, 16 at 6–7★, 18 from 8★).',
-    bestBuild: 'defensive',
     effects: [{ type: 'trigger', on: 'firstBelowHalfHp', effect: { type: 'gainBlock', amount: 6 }, byStars: [6, 8, 10, 12, 14, 16, 16, 18] }],
     fullSchool: [
       { type: 'trigger', on: 'firstBelowHalfHp', effect: { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' } },
@@ -71,7 +66,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Eel',
     icon: '🐍',
     description: 'Skip a card reward once per level (2 from 2★, 3 from 4★, 4 from 7★). With 3 species, also reroll a card reward 3 times per level.',
-    bestBuild: 'spear',
     effects: [{ type: 'rewardSkips', amount: 1, byStars: [1, 2, 2, 3, 3, 3, 4, 4] }],
     fullSchool: [{ type: 'rewardRerolls', amount: 3 }],
   },
@@ -81,7 +75,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Predator',
     icon: '🦈',
     description: '+1 damage on all attacks (2 from 3★, 3 from 6★).',
-    bestBuild: 'spear',
     effects: [{ type: 'bonusDamage', amount: 1, byStars: [1, 1, 2, 2, 2, 3, 3, 3] }],
     fullSchool: [
       { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' } },
@@ -93,7 +86,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Ambusher',
     icon: '👁️',
     description: 'Your first attack each fight deals 50% more damage (100% from 2★, 150% from 4★, 200% from 6★, 250% from 8★).',
-    bestBuild: 'spear',
     effects: [{ type: 'firstAttackDamage', amount: 50, byStars: [50, 100, 100, 150, 150, 200, 200, 250] }],
     fullSchool: [{ type: 'trigger', on: 'firstAttackEachFight', effect: { type: 'applyStatus', status: 'vulnerable', amount: 2 } }],
   },
@@ -103,7 +95,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Fighter',
     icon: '🏋️',
     description: 'Your Drain drains 1 more (2 from 2★, 3 from 4★, 4 from 6★, 5 from 8★).',
-    bestBuild: 'rod',
     effects: [{ type: 'bonusEscapeReduction', amount: 1, byStars: [1, 2, 2, 3, 3, 4, 4, 5] }],
     fullSchool: [
       { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'snared', amount: 1, target: 'allEnemies' } },
@@ -115,7 +106,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Giant',
     icon: '🐋',
     description: '+8 max Grit and creatures’ Will rises 10% slower at 3★ (one giant); +2 max Grit per star and 5% slower per 2★.',
-    bestBuild: 'rod',
     effects: [
       { type: 'bonusMaxHp', amount: 8, byStars: [4, 6, 8, 10, 12, 14, 16, 18] },
       { type: 'slowEscape', amount: 10, byStars: [5, 5, 10, 10, 15, 15, 20, 20] },
@@ -128,7 +118,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Schooling',
     icon: '🐟',
     description: 'Draw 1 extra card on your first and second turns (2 from 4★, 3 from 8★).',
-    bestBuild: 'any',
     effects: [
       { type: 'trigger', on: 'combatStart', effect: { type: 'drawCards', amount: 1 }, byStars: [1, 1, 1, 2, 2, 2, 2, 3] },
       { type: 'trigger', on: 'secondTurnStart', effect: { type: 'drawCards', amount: 1 }, byStars: [1, 1, 1, 2, 2, 2, 2, 3] },
@@ -141,7 +130,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Reef fish',
     icon: '🐠',
     description: 'Recover 1 Grit after each fight (2 from 3★, 3 from 6★).',
-    bestBuild: 'any',
     effects: [{ type: 'healAfterFight', amount: 1, byStars: [1, 1, 2, 2, 2, 3, 3, 3] }],
     fullSchool: [{ type: 'bonusMaxHp', amount: 8 }],
   },
@@ -151,7 +139,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Cephalopod',
     icon: '🐙',
     description: 'At the start of each fight, apply 1 Weak to all enemies (2 from 4★, 3 from 7★).',
-    bestBuild: 'any',
     effects: [
       { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'weak', amount: 1, target: 'allEnemies' }, byStars: [1, 1, 1, 2, 2, 2, 3, 3] },
     ],
@@ -165,7 +152,6 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     temperamentName: 'Bottom dweller',
     icon: '⭐',
     description: '+15% coins from every capture (+5% per star, 50% from 8★).',
-    bestBuild: 'economy',
     effects: [{ type: 'sellBonus', amount: 15, byStars: [15, 20, 25, 30, 35, 40, 45, 50] }],
     fullSchool: [{ type: 'healAfterFight', amount: 2 }],
   },

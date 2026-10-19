@@ -99,3 +99,33 @@ describe('the debug sandbox', () => {
     expect(game.screen.value).toBe('menu');
   });
 });
+
+describe('going back into a shop', () => {
+  it('the map can be looked at from a shop, and the same visit reopened from the header or its node until the player moves on', async () => {
+    const game = useGame(1);
+    await nextTick();
+    game.playScenario({ seed: 5, build: 'rod', level: 0, companions: [], start: { type: 'shop', store: 'cafe' } });
+    expect(game.screen.value).toBe('shop');
+    const visit = game.shopVisit.value;
+    expect(game.canReturnToShop.value).toBe(true);
+
+    game.leaveShop();
+    expect(game.screen.value).toBe('map');
+    expect(game.canReturnToShop.value).toBe(true);
+    game.returnToShop();
+    expect(game.screen.value).toBe('shop');
+    expect(game.shopVisit.value).toBe(visit);
+
+    game.leaveShop();
+    game.travel(game.run.value!.position);
+    expect(game.screen.value).toBe('shop');
+    expect(game.shopVisit.value).toBe(visit);
+
+    game.leaveShop();
+    const { availableDestinations } = await import('../src/engine');
+    const next = availableDestinations(game.run.value!).find((n) => n.kind === 'fight')!;
+    game.travel(next.id);
+    expect(game.canReturnToShop.value).toBe(false);
+    game.endScenario();
+  });
+});

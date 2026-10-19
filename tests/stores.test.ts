@@ -206,12 +206,12 @@ describe('bait shop', () => {
 
   it('the keeper’s aquarium buys one creature of the visit’s family, for twice its price', () => {
     const run = runWith(0, 'dummy', 'shellB');
-    expect(creatureBlocked(item('tank'), run, bait(), 0, data)).toBe('Not the family the keeper is after.');
+    expect(creatureBlocked(item('tank'), run, bait(), 0, data)).toBe('Not a kind the keeper is after.');
     const { run: after, visit } = buyShopItem(run, bait(), 'tank', data, 1);
     expect(ids(after.bucket)).toEqual(['dummy']);
     expect(after.coins).toBe(20);
     expect(visit.sold).toEqual({ id: 'shellB', size: 'normal' });
-    expect(shopItemBlocked(item('tank'), runWith(0, 'dummy'), bait(), data)).toBe('Nothing of that family in your bucket.');
+    expect(shopItemBlocked(item('tank'), runWith(0, 'dummy'), bait(), data)).toBe('Nothing in your bucket the keeper is after.');
     expect(() => buyShopItem(run, bait(), 'tank', data, 0)).toThrow();
   });
 });

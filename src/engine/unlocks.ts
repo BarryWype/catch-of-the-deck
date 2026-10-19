@@ -1,3 +1,4 @@
+import { temperamentList } from './families';
 import { CATCH_SIZES, type CatchSize } from './sizes';
 import { text } from './text';
 import type { BuildDef, GameData, QuestCondition } from './types';
@@ -33,7 +34,7 @@ function counts(quest: QuestCondition, creature: Creatures[number], data: GameDa
   const def = data.enemies[creature.id];
   switch (quest.type) {
     case 'speciesAtHome':
-      return !!def?.tags?.some((tag) => quest.creatureTypes.includes(tag));
+      return !!def?.temperament && quest.temperaments.includes(def.temperament);
     case 'inBucket':
       return (
         !!def &&
@@ -80,11 +81,8 @@ export function newUnlocks(data: GameData, unlocked: readonly string[], met: rea
 /** What a quest asks for, in the player's words. */
 export function describeQuest(quest: QuestCondition, data: GameData): string {
   switch (quest.type) {
-    case 'speciesAtHome': {
-      const types = quest.creatureTypes.map((id) => data.creatureTypes[id]?.name ?? id);
-      const list = types.length > 1 ? `${types.slice(0, -1).join(', ')}${text('quest.or')}${types.at(-1)}` : types.join('');
-      return text('quest.speciesAtHome', { n: quest.count, types: list });
-    }
+    case 'speciesAtHome':
+      return text('quest.speciesAtHome', { n: quest.count, temperaments: temperamentList(quest.temperaments, data, 'or') });
     case 'inBucket': {
       const kind = text('quest.kind', {
         size: quest.size ? text(`quest.size.${quest.size}`) : '',

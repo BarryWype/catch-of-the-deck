@@ -76,7 +76,6 @@ export const en = {
     },
     describe: {
       times: ' {n} times',
-      bonus: ' (+{percent}% vs {types})',
       deal: '{dmg} damage{times}{extra}.',
       dealAll: '{dmg} damage to ALL creatures{times}{extra}.',
       dealRandom: '{dmg} damage to a random creature{extra}.|{dmg} damage{times} to random creatures{extra}.',
@@ -230,9 +229,10 @@ export const en = {
       cardReward: 'Choose a card to add to your deck.',
       notEnoughGrit: 'Not enough {@grit}.',
     },
+    // Joins the last two items of a list.
+    list: { or: ' or ', and: ' and ' },
     quest: {
-      speciesAtHome: '{n} different species of {types} in your home aquarium',
-      or: ' or ',
+      speciesAtHome: '{n} different species of {temperaments} creatures in your home aquarium',
       inBucket: '{n} different {kind} species in your bucket',
       inBucketOne: 'a {kind} creature in your bucket',
       // The order of a bucket quest's filters in "{kind}".
@@ -247,8 +247,8 @@ export const en = {
       notEnoughCoins: 'Not enough coins.',
       noCreature: 'No creature in your bucket for this.',
       hasLifeJacket: 'Already wearing a life jacket.',
-      wrongFamily: 'Not the family the keeper is after.',
-      noneOfFamily: 'Nothing of that family in your bucket.',
+      wrongFamily: 'Not a kind the keeper is after.',
+      noneOfFamily: 'Nothing in your bucket the keeper is after.',
     },
   },
 
@@ -285,6 +285,8 @@ export const en = {
       seedTitle: 'Run seed',
       menu: 'Menu',
       newRun: 'New run',
+      seeMap: 'See the map',
+      backToShop: 'Back to the shop',
     },
     companions: {
       title: 'Who comes along?',
@@ -411,10 +413,6 @@ export const en = {
       keywords: {
         title: 'Drain, Slow, Venom:',
         text: "Drain lowers a creature's {@will} by a flat amount; each stack of Slow makes its {@will} rise {slowPercent}% slower ({maxSlowPercent}% at most, with Patience); Venom deals its charges as damage at the start of its bearer's turn, then loses one.",
-      },
-      style: {
-        title: 'Your fishing style',
-        text: "deals {strongPercent}% more to the creature types it's strong against.",
       },
       aging: {
         title: 'You age',
@@ -598,6 +596,7 @@ export const en = {
     },
     map: {
       shop: 'Shop',
+      reenterShop: 'Click to go back in',
       event: 'Event',
       treasure: 'Treasure',
       headHome: 'Head home',
@@ -628,8 +627,6 @@ export const en = {
       title: 'Choose a card to add to your deck',
       reroll: 'Reroll ({n} left)',
       rerollTip: 'Offer three other cards. You start a run with 1 reroll, and get 1 more for each mini-boss and boss you beat.',
-      families: 'Cards from',
-      anyFamily: 'every family',
       removeCard: 'Remove a card',
       removeTip: 'Beating a boss lets you remove one card from your deck for free, on top of the card reward.',
       removeTitle: 'Choose a card to remove from your deck',
@@ -662,7 +659,7 @@ export const en = {
         extraRewardCard: 'Next card reward offers one more card.',
         bucketSpace: '{n} more slot in your bucket for the rest of the run.',
         release: 'Let a creature from your bucket go, for a blessing: {blessing}',
-        aquariumSale: 'Buy one {family} creature for twice its price.',
+        aquariumSale: 'Buy one {temperaments} creature for twice its price.',
       },
       free: 'Free',
       oncePerVisit: 'Once per visit.',
@@ -672,7 +669,7 @@ export const en = {
       chooseOne: '{item}: the keeper buys just one of these. Which one?',
       cancel: 'Cancel',
       talk: 'Talk to the keeper',
-      aquariumSign: 'Wanted: {family}',
+      aquariumSign: 'Wanted: {temperaments}',
       aquariumTerms: 'price ×2',
       aquariumSold: 'Bought, thanks!',
       aquariumPrice: '🪙 {coins}',
@@ -703,7 +700,7 @@ export const en = {
         },
         bait: {
           1: 'Mind the worms, they bite back. Well, they wriggle.',
-          2: 'Bring me something nice for the tank, I pay double for the right family.',
+          2: 'Bring me something nice for the tank, I pay double for the right kind.',
           3: 'Let one go now and then. The sea remembers, they say.',
         },
       },
@@ -771,8 +768,7 @@ export const en = {
     },
     card: {
       patienceCost: 'Also costs {n} {@patience}',
-      effective: 'Effective!',
-      family: '{family} family: {temperaments}',
+      family: 'Offered by {temperaments} creatures',
       type: {
         attack: 'attack',
         defense: 'defense',

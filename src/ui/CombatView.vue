@@ -3,10 +3,7 @@ import GameIcon from './GameIcon.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import {
   bonusTotal,
-  creatureFamilies,
-  creatureTypeNames,
   describeCard,
-  isCardEffectiveAgainst,
   instantSaleValue,
   isAlive,
   cardCost,
@@ -280,24 +277,14 @@ watch(
   },
 );
 
-const tagNames = computed(() => creatureTypeNames(props.data));
-
 function cardText(card: CardInstance) {
-  // With a single enemy we can show exact numbers (its Vulnerable and type bonus included).
+  // With a single enemy we can show exact numbers (its Vulnerable included).
   const only = livingEnemies.value.length === 1 ? livingEnemies.value[0] : undefined;
   return describeCard(props.data.cards[card.defId], {
     attacker: props.state.player.statuses,
     defender: only?.statuses,
-    defenderTags: only?.tags,
-    tagNames: tagNames.value,
     bonusDamage: bonusTotal(props.state.bonuses, 'bonusDamage'),
   });
-}
-
-/** Glow when the card's type bonus applies to at least one living enemy. */
-function isEffective(card: CardInstance) {
-  const def = props.data.cards[card.defId];
-  return livingEnemies.value.some((e) => isCardEffectiveAgainst(def, e.tags));
 }
 
 /** Copies of played cards flying to their target (or flaring where they were dropped). */
@@ -751,7 +738,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :portrait="data.enemies[enemy.defId].portrait ?? '👹'"
           :sprite="data.enemies[enemy.defId].sprite"
           :frame="(releaseReason ? 6 : 3 + (data.enemies[enemy.defId].tier ?? 2)) - (crowded ? 1 : 0)"
-          :families="creatureFamilies(enemy.defId, data)"
           :tip="drag?.moved ? undefined : creatureTip(enemy)"
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
@@ -804,7 +790,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :playable="isCardPlayable(state, card.uid, data)"
             :cost="cardCost(state, data.cards[card.defId])"
             :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
-            :effective="isEffective(card)"
             :data-card-uid="card.uid"
             :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
             :style="dragStyle(card)"

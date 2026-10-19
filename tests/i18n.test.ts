@@ -73,10 +73,9 @@ describe.each(codes.filter((code) => code !== 'en'))('the %s content', (code) =>
   const tr: ContentTranslations = LANGUAGES[code].content;
   const missing = (ids: string[], table: Record<string, unknown> | undefined) => ids.filter((id) => !table?.[id]);
 
-  it('names every creature, card, type, spot, build, item, companion, event, shop item and level', () => {
+  it('names every creature, card, spot, build, item, companion, event, shop item and level', () => {
     expect(missing(contentSource.enemies.map((e) => e.id), tr.creatures)).toEqual([]);
     expect(missing(contentSource.cards.map((c) => c.id), tr.cards)).toEqual([]);
-    expect(missing(contentSource.creatureTypes.map((t) => t.id), tr.creatureTypes)).toEqual([]);
     expect(missing(contentSource.spots.map((s) => s.id), tr.spots)).toEqual([]);
     expect(missing(contentSource.builds.map((b) => b.id), tr.builds)).toEqual([]);
     expect(missing(contentSource.equipment.map((e) => e.id), tr.equipment)).toEqual([]);

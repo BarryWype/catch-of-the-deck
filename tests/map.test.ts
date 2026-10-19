@@ -139,10 +139,8 @@ describe('encounters at a fishing spot', () => {
     expect(encountersFor({ ...node, tier: 3 }, data).map((e) => e.id)).toEqual(['a', 'deep']);
   });
 
-  it('fixed enemies win, and creatureType narrows the pool', () => {
+  it('fixed enemies win', () => {
     expect(encountersFor({ ...node, enemies: ['gambler'] }, testData)[0].enemies).toEqual(['gambler']);
-    const data = { ...testData, encounters: [...testData.encounters, { id: 'shell', name: 'Shell', enemies: ['cycler'] }] };
-    expect(encountersFor({ ...node, spot: null, creatureType: 'shell' }, data).map((e) => e.id)).toEqual(['shell']);
   });
 });
 

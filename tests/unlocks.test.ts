@@ -28,17 +28,25 @@ vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeIt
 const quest = gameData.builds.foraging.unlock!.quest;
 const need = quest.count;
 /** Species of each kind: those Foraging's quest counts, and the others. */
-const shelled = Object.values(gameData.enemies).filter((e) => e.tags?.some((t) => FORAGING_TARGETS.includes(t as never))).map((e) => e.id);
-const other = Object.values(gameData.enemies).filter((e) => !e.tags?.some((t) => FORAGING_TARGETS.includes(t as never))).map((e) => e.id);
+const isTarget = (temperament: string | undefined) => FORAGING_TARGETS.includes(temperament as never);
+const shelled = Object.values(gameData.enemies).filter((e) => isTarget(e.temperament)).map((e) => e.id);
+const other = Object.values(gameData.enemies).filter((e) => !isTarget(e.temperament)).map((e) => e.id);
 const home = (ids: string[]) => ids.map((id) => homeCreature(id));
 
-describe('quest condition: different species of some creature types at home', () => {
+describe('quest condition: different species of some temperaments at home', () => {
   it('counts different species, not creatures', () => {
-    const q: QuestCondition = { type: 'speciesAtHome', count: 3, creatureTypes: FORAGING_TARGETS };
+    const q: QuestCondition = { type: 'speciesAtHome', count: 3, temperaments: FORAGING_TARGETS };
     expect(questProgress(q, home([shelled[0], shelled[0], shelled[0], shelled[1]]), gameData)).toEqual({ have: 2, need: 3 });
   });
 
-  it('only counts the listed creature types', () => {
+  it('Ned counts armored, clawed and bottom-dweller species, and nothing else', () => {
+    const of = (temperament: string) => Object.values(gameData.enemies).find((e) => e.temperament === temperament)!.id;
+    expect(quest).toMatchObject({ temperaments: ['armored', 'clawed', 'bottomDweller'] });
+    expect(questProgress(quest, home([of('armored'), of('clawed'), of('bottomDweller'), of('predator')]), gameData).have).toBe(3);
+    expect(describeQuest(quest, gameData)).toBe('4 different species of 🐚 Armored, 🦀 Clawed or ⭐ Bottom dweller creatures in your home aquarium');
+  });
+
+  it('only counts the listed temperaments', () => {
     expect(questProgress(quest, home(other.slice(0, 10)), gameData).have).toBe(0);
     expect(questProgress(quest, home([...other.slice(0, 10), shelled[0]]), gameData).have).toBe(1);
   });

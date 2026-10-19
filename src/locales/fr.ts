@@ -71,7 +71,6 @@ export const fr: Messages = {
     },
     describe: {
       times: ' {n} fois',
-      bonus: ' (+{percent} % contre {types})',
       deal: '{dmg} dégâts{times}{extra}.',
       dealAll: '{dmg} dégâts à TOUTES les créatures{times}{extra}.',
       dealRandom: '{dmg} dégâts à une créature au hasard{extra}.|{dmg} dégâts{times} à des créatures au hasard{extra}.',
@@ -225,9 +224,10 @@ export const fr: Messages = {
       cardReward: 'Choisis une carte à ajouter à ton deck.',
       notEnoughGrit: 'Pas assez de {@grit}.',
     },
+    // Relie les deux derniers éléments d’une liste.
+    list: { or: ' ou ', and: ' et ' },
     quest: {
-      speciesAtHome: '{n} espèces différentes parmi : {types}, dans ton aquarium',
-      or: ' ou ',
+      speciesAtHome: '{n} espèces différentes dans ton aquarium, de tempérament {temperaments}',
       inBucket: '{n} espèces différentes ({kind}) dans ton seau',
       inBucketOne: 'une créature {kind} dans ton seau',
       kind: '{temperament} {water} {size}',
@@ -241,8 +241,8 @@ export const fr: Messages = {
       notEnoughCoins: 'Pas assez de pièces.',
       noCreature: 'Aucune créature de ton seau ne convient.',
       hasLifeJacket: 'Porte déjà un gilet de sauvetage.',
-      wrongFamily: 'Pas la famille que cherche le patron.',
-      noneOfFamily: 'Rien de cette famille dans ton seau.',
+      wrongFamily: 'Pas le genre que cherche le patron.',
+      noneOfFamily: 'Rien dans ton seau de ce que cherche le patron.',
     },
   },
 
@@ -273,6 +273,8 @@ export const fr: Messages = {
       seedTitle: 'Graine de la partie',
       menu: 'Menu',
       newRun: 'Nouvelle partie',
+      seeMap: 'Voir la carte',
+      backToShop: 'Retour à la boutique',
     },
     companions: {
       title: 'Qui t’accompagne ?',
@@ -400,10 +402,6 @@ export const fr: Messages = {
       keywords: {
         title: 'Drainer, Lenteur, Venin :',
         text: 'Drainer baisse la {@will} d’une créature d’un montant fixe. Chaque charge de Lenteur la fait monter {slowPercent} % moins vite ({maxSlowPercent} % au plus, avec la {@patience}). Le Venin inflige ses charges en dégâts au début du tour de sa cible, puis en perd une.',
-      },
-      style: {
-        title: 'Ton style de pêche',
-        text: 'inflige {strongPercent} % de dégâts en plus aux types de créatures contre lesquels il est fort.',
       },
       aging: {
         title: 'Tu grandis',
@@ -587,6 +585,7 @@ export const fr: Messages = {
     },
     map: {
       shop: 'Boutique',
+      reenterShop: 'Clique pour y retourner',
       event: 'Événement',
       treasure: 'Trésor',
       headHome: 'Rentrer à la maison',
@@ -617,8 +616,6 @@ export const fr: Messages = {
       title: 'Choisis une carte à ajouter à ton deck',
       reroll: 'Relancer (encore {n})',
       rerollTip: 'Propose trois autres cartes. Tu commences une partie avec 1 relance, et tu en gagnes 1 de plus pour chaque mini-boss et boss battu.',
-      families: 'Cartes de',
-      anyFamily: 'toutes les familles',
       removeCard: 'Retirer une carte',
       removeTip: 'Battre un boss te permet de retirer gratuitement une carte de ton deck, en plus de la récompense.',
       removeTitle: 'Choisis une carte à retirer de ton deck',
@@ -651,7 +648,7 @@ export const fr: Messages = {
         extraRewardCard: 'Prochaine récompense propose une carte de plus.',
         bucketSpace: '{n} emplacement de créatures de plus jusqu’à la fin de la partie.',
         release: 'Relâche une créature de ton seau, pour une bénédiction : {blessing}',
-        aquariumSale: 'Le patron achète une créature {family} de ton seau au double de son prix.',
+        aquariumSale: 'Le patron achète une créature de ton seau, de tempérament {temperaments}, au double de son prix.',
       },
       free: 'Gratuit',
       oncePerVisit: 'Une fois par visite.',
@@ -661,7 +658,7 @@ export const fr: Messages = {
       chooseOne: '{item} : le patron n’en achète qu’une. Laquelle ?',
       cancel: 'Annuler',
       talk: 'Parler au patron',
-      aquariumSign: 'Recherché : {family}',
+      aquariumSign: 'Recherché : {temperaments}',
       aquariumTerms: 'prix ×2',
       aquariumSold: 'Acheté, merci !',
       aquariumPrice: '🪙 {coins}',
@@ -691,7 +688,7 @@ export const fr: Messages = {
         },
         bait: {
           1: 'Attention aux vers, ils mordent. Enfin, ils gigotent.',
-          2: 'Apporte-moi quelque chose de joli pour l’aquarium, je paie double pour la bonne famille.',
+          2: 'Apporte-moi quelque chose de joli pour l’aquarium, je paie double pour le bon genre.',
           3: 'Relâches-en un de temps en temps. La mer s’en souvient, à ce qu’on dit.',
         },
       },
@@ -759,8 +756,7 @@ export const fr: Messages = {
     },
     card: {
       patienceCost: 'Coûte aussi {n} de {@patience}',
-      effective: 'Efficace !',
-      family: 'Famille {family} : {temperaments}',
+      family: 'Offerte par les créatures de tempérament {temperaments}',
       type: {
         attack: 'attaque',
         defense: 'défense',

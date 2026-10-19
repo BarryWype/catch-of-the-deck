@@ -39,11 +39,6 @@ export type Statuses = Partial<Record<StatusId, number>>;
  */
 export type EffectTarget = 'target' | 'self' | 'allEnemies' | 'randomEnemy';
 
-/** Hits deal `STRONG_BONUS_PERCENT` more damage against enemies carrying any of the `against` tags (creature types). */
-export interface DamageBonus {
-  against: string[];
-}
-
 /**
  * What a Power does for the rest of the fight (with its `amount`, added up over copies):
  * - `hardShell`: Hold no longer disappears between turns, nor turns into Patience.
@@ -76,7 +71,7 @@ export interface PerStatus {
 /** The reusable building blocks that every card and enemy move is made of. */
 export type Effect =
   /** `fromHold`: the amount is the player's current Hold instead. */
-  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; bonus?: DamageBonus; perStatus?: PerStatus; fromHold?: boolean }
+  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean }
   /** The player loses this share of their Hold (0.5 = half, rounded down). */
   | { type: 'loseHold'; share: number }
   /** The player loses all their Patience (it isn't spent) and gains `per` Hold for each point lost. */
@@ -215,12 +210,12 @@ export interface BuildUnlock {
 
 /**
  * What a fisherman wants to see:
- * - `speciesAtHome`: `count` different species of these creature types in the home aquarium.
+ * - `speciesAtHome`: `count` different species of these temperaments in the home aquarium.
  * - `inBucket`: `count` different species in the bucket (companions included) when the player
  *   meets him, matching every filter given: a `temperament`, a `water`, a `size` or bigger.
  */
 export type QuestCondition =
-  | { type: 'speciesAtHome'; count: number; creatureTypes: string[] }
+  | { type: 'speciesAtHome'; count: number; temperaments: string[] }
   | { type: 'inBucket'; count: number; temperament?: string; water?: string; size?: CatchSize };
 
 /** An experienced fisherman, met on the map while a build he teaches is still locked. */
@@ -319,13 +314,11 @@ export type CompanionEffect = (
 /**
  * A creature family: temperaments grouped by a shared identity (Venom, Shell, Hunter…). A temperament
  * can belong to several families. Cards name their family, and a creature offers the cards of all
- * its temperament's families (`cardsOfferedBy`).
+ * its temperament's families (`cardsOfferedBy`). Internal only: the player sees temperaments.
  */
 export interface FamilyDef {
   id: string;
   name: string;
-  /** Placeholder art (emoji), shown next to a creature's name. Display-only. */
-  icon?: string;
   /** The creature (an enemy id of this family) shown on its cards' crest. Display-only. */
   emblem: string;
   /** Temperament ids (content/behaviors.ts) in this family. */
@@ -347,8 +340,6 @@ export interface CompanionBonusDef {
   icon?: string;
   /** What the bonus does, for developers. Not shown: the game generates its text from `effects`. */
   description?: string;
-  /** Which playstyle it suits (a build id, or e.g. 'any', 'defensive', 'economy'), for future help guides. Unused for now. */
-  bestBuild?: string;
   /** Scaled by the temperament's stars (`byStars`, see companions.ts). */
   effects: CompanionEffect[];
   /** Added, as written, once `FULL_SCHOOL` species of this temperament are brought. */
@@ -439,14 +430,10 @@ export interface BlessingDef {
     | { type: 'bond'; amount: number };
 }
 
-/** A creature type, used as an enemy tag (e.g. 'crustacean'). */
+/** A creature type, used as an enemy tag (e.g. 'crustacean'): internal habitat data, never shown. */
 export interface CreatureTypeDef {
   id: string;
   name: string;
-  /** Placeholder art (emoji) for map events of this type. Display-only. */
-  icon?: string;
-  /** Terrain patch drawn under map fights of this type. Display-only. */
-  terrain?: SpriteRef;
 }
 
 /**
@@ -554,8 +541,6 @@ export interface LevelNodeDef {
   kind: LevelNodeKind;
   /** Fights: the fishing spot, which picks the creatures (see `encountersFor`). */
   spot?: string;
-  /** Fights: only creatures of this type. */
-  creatureType?: string;
   /** Fights: exactly these creatures, instead of drawing them. Mini-bosses and bosses use it. */
   enemies?: string[];
   /** Name shown on the map, e.g. "Lighthouse Point" for a boss. Display-only. */

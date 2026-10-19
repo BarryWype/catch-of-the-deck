@@ -37,6 +37,9 @@ const nodeSize = computed(() => (touch.value ? 1.3 : 0.9));
 const level = computed(() => props.data.levels[props.run.level]);
 const nodes = computed(() => props.run.map.columns.flat());
 const destinations = computed(() => new Set(availableDestinations(props.run).map((n) => n.id)));
+/** The shop the player stands on can be walked back into, until he moves on. */
+const reopens = (node: MapNode) => node.id === props.run.position && node.kind === 'shop';
+const clickable = (node: MapNode) => destinations.value.has(node.id) || reopens(node);
 const visited = computed(() => new Set(props.run.visited));
 const currentColumn = computed(() => findNode(props.run.map, props.run.position)?.column ?? 0);
 const equipment = computed(() => props.run.equipment.map((id) => props.data.equipment[id]).filter(Boolean));
@@ -92,6 +95,7 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
     case 'shop':
       return {
         title: t(`shop.title.${storeOf(node)}`),
+        hint: reopens(node) ? t('map.reenterShop') : undefined,
         detail: props.data.shop.filter((item) => item.store === storeOf(node)).map((item) => item.name).join(' · '),
       };
     case 'event':
@@ -107,8 +111,7 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
       return { title: `${t(node.kind === 'boss' ? 'map.boss' : 'map.miniBoss')} · ${node.label ?? ''}`, detail: creatureNames(node) };
     default: {
       const spot = node.spot ? props.data.spots[node.spot] : undefined;
-      const type = node.creatureType ? props.data.creatureTypes[node.creatureType]?.name : undefined;
-      const detail = node.enemies ? creatureNames(node) : [node.label && spot?.name, type].filter(Boolean).join(' · ');
+      const detail = node.enemies ? creatureNames(node) : node.label && spot?.name;
       return { title: node.label ?? spot?.name ?? t('map.fight'), detail: detail || undefined };
     }
   }
@@ -202,7 +205,7 @@ function onClickCapture(e: MouseEvent) {
 const showLegend = ref(false);
 
 function choose(node: MapNode) {
-  if (destinations.value.has(node.id)) emit('travel', node.id);
+  if (clickable(node)) emit('travel', node.id);
 }
 </script>
 
@@ -291,10 +294,10 @@ function choose(node: MapNode) {
           v-for="node in nodes"
           :key="node.id"
           class="node"
-          :class="[node.kind, nodeState(node)]"
+          :class="[node.kind, nodeState(node), { reopens: reopens(node) }]"
           :transform="`translate(${node.x} ${node.y}) scale(${nodeSize / scale})`"
-          :role="destinations.has(node.id) ? 'button' : undefined"
-          :tabindex="destinations.has(node.id) ? 0 : undefined"
+          :role="clickable(node) ? 'button' : undefined"
+          :tabindex="clickable(node) ? 0 : undefined"
           v-tip="tooltipFor(node)"
           :aria-label="tooltipFor(node).title"
           @click="choose(node)"
@@ -469,13 +472,13 @@ function choose(node: MapNode) {
 
 .node .ring { fill: none; stroke: var(--highlight); stroke-width: 3; }
 .node.current .ring { stroke: #fff; stroke-width: 4; }
-.node.available { cursor: pointer; }
+.node.available, .node.reopens { cursor: pointer; }
 .node.available .ring { transform-box: fill-box; transform-origin: center; animation: pulse 1.4s ease-in-out infinite; }
-.node.available:focus { outline: none; }
+.node.available:focus, .node.reopens:focus { outline: none; }
 @media (hover: hover) {
-  .node.available:hover .body { stroke: var(--highlight); stroke-width: 3; filter: brightness(1.12); }
-  .node.shop.available:hover .body { fill: #fff; }
-  .node.available:hover .symbol { transform: translateY(-2px); }
+  .node.available:hover .body, .node.reopens:hover .body { stroke: var(--highlight); stroke-width: 3; filter: brightness(1.12); }
+  .node.shop.available:hover .body, .node.reopens:hover .body { fill: #fff; }
+  .node.available:hover .symbol, .node.reopens:hover .symbol { transform: translateY(-2px); }
 }
 .node.visited .body { opacity: 0.6; }
 .node.skipped { opacity: 0.45; }

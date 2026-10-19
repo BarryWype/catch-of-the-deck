@@ -102,7 +102,7 @@ export function startScenario(
   const target =
     start.type === 'miniBoss' || start.type === 'boss' ? nodes.find((n) => n.kind === start.type) : nodes.find((n) => n.column === 1);
   if (!target) throw new Error(`No node for "${start.type}" on level ${scenario.level}.`);
-  const reset: Partial<MapNode> = { spot: null, creatureType: null, enemies: null, label: null };
+  const reset: Partial<MapNode> = { spot: null, enemies: null, label: null };
   if (start.type === 'creature') Object.assign(target, reset, { kind: 'fight', enemies: [start.id] });
   if (start.type === 'encounter') {
     const encounter = data.encounters.find((e) => e.id === start.id);

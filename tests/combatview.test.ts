@@ -59,7 +59,7 @@ describe('CombatView', () => {
     expect(at('class="statuses"')).toBeLessThan(at('class="portrait"'));
   });
 
-  it('shows the Grit globe in the corner panel under Patience, with Tension beside it, not under the player sprite, and the families as icons', async () => {
+  it('shows the Grit globe in the corner panel under Patience, with Tension beside it, not under the player sprite, and no family icons', async () => {
     const html = await renderFight();
     const player = html.slice(html.indexOf('player-anchor'), html.indexOf('data-enemy-id'));
     expect(player).not.toContain('class="healthbar');
@@ -67,10 +67,7 @@ describe('CombatView', () => {
     expect(html.indexOf('class="resources"')).toBeLessThan(html.indexOf('class="patience"'));
     expect(html.indexOf('class="patience"')).toBeLessThan(html.indexOf('class="globe'));
     expect(html.indexOf('class="globe')).toBeLessThan(html.indexOf('class="tension"'));
-    const icons = html.match(/class="family"[^>]*>([^<]*)</g) ?? [];
-    expect(icons).toHaveLength(2);
-    expect(icons.join(' ')).toContain('🏃'); // Swift
-    expect(icons.join(' ')).toContain('🎭'); // Trickster
+    expect(html).not.toContain('class="family"');
   });
 
   it('shows the creature health inside its bar, and says when it escapes', async () => {

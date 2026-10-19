@@ -10,11 +10,11 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
   aquariumPrice,
   creatureBlocked,
-  creatureTypeNames,
   describeCard,
   needsCreature,
   shopItemBlocked,
   storeItems,
+  temperamentList,
   type GameData,
   type RunState,
   type ShopItemDef,
@@ -29,8 +29,6 @@ import { blessingText } from './storeEffects';
 
 const props = defineProps<{ run: RunState; data: GameData; visit: ShopVisit }>();
 const emit = defineEmits<{ buy: [itemId: string, choice?: number]; leave: [] }>();
-
-const tagNames = computed(() => creatureTypeNames(props.data));
 
 /**
  * The store scenes (src/ui/assets/stores, made by scripts/generate-store-art.mjs), 240x160 art
@@ -89,7 +87,8 @@ const spots = computed(() => {
   return used.map((s) => (used.filter((o) => o.y === s.y && side(o) === side(s)).length === 1 ? { ...s, x: SHELF_CENTRE[side(s)] } : s));
 });
 const aquarium = computed(() => items.value.find((i) => i.effect.type === 'aquariumSale'));
-const family = computed(() => (props.visit.family ? props.data.families[props.visit.family] : undefined));
+/** The temperaments of the family the keeper's aquarium buys (families themselves are never shown). */
+const wanted = computed(() => props.data.families[props.visit.family ?? '']?.temperaments ?? []);
 const soldSprite = computed(() => props.visit.sold && props.data.enemies[props.visit.sold.id]?.sprite);
 
 /** The item waiting for the player to pick a card (`removeCard`) or a bucket creature. */
@@ -108,7 +107,7 @@ function effectText(item: ShopItemDef) {
     case 'release':
       return t('shop.effect.release', { blessing: blessingText(props.data.blessings.find((b) => b.id === props.visit.blessing)) });
     case 'aquariumSale':
-      return t('shop.effect.aquariumSale', { family: family.value?.name ?? '' });
+      return t('shop.effect.aquariumSale', { temperaments: temperamentList(wanted.value, props.data, 'or') });
     default:
       return t(`shop.effect.${e.type}`);
   }
@@ -180,7 +179,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', hush));
           v-for="(id, i) in run.deck"
           :key="i"
           :card="data.cards[id]"
-          :description="describeCard(data.cards[id], { tagNames })"
+          :description="describeCard(data.cards[id])"
           @click="onPick(i)"
         />
       </div>
@@ -225,10 +224,10 @@ onUnmounted(() => document.removeEventListener('pointerdown', hush));
             <SpriteView v-if="soldSprite" class="sold" :sprite="soldSprite" :size="48" />
           </button>
           <!-- The sign is blank in the art: what the keeper is after is written here. -->
-          <div class="sign" :style="pct(SIGN)">
+          <div v-tip="visit.sold ? undefined : temperamentList(wanted, data, 'or')" class="sign" :style="pct(SIGN)">
             <template v-if="visit.sold"><b>{{ t('shop.aquariumSold') }}</b></template>
             <template v-else>
-              <b>{{ t('shop.aquariumSign', { family: family?.name ?? '' }) }}</b>
+              <b>{{ t('shop.aquariumSign', { temperaments: wanted.map((id) => data.companionBonuses[id]?.icon ?? '').join('') }) }}</b>
               <small>{{ t('shop.aquariumTerms') }}</small>
             </template>
           </div>

@@ -155,18 +155,6 @@ export const frContent: ContentTranslations = {
     medicinalLeech: 'Sangsue médicinale',
   },
 
-  creatureTypes: {
-    smallFish: 'Petit poisson',
-    sportFish: 'Poisson sportif',
-    bigFish: 'Gros poisson',
-    rockFish: 'Poisson de roche',
-    deepSea: 'Grands fonds',
-    crustacean: 'Crustacé',
-    shellfish: 'Coquillage',
-    tentacled: 'Tentaculaire',
-    critter: 'Petite bête',
-  },
-
   moves: {
     'reefFish.nip': 'Mordille le leurre',
     'reefFish.dartAway': 'Fuite à couvert',

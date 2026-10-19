@@ -36,7 +36,7 @@ function slotShares(families: Set<string>): Record<CardType, number> {
 
 const rows: Record<string, Record<string, string | number>> = {};
 for (const spot of Object.values(data.spots)) {
-  const node: MapNode = { id: 'x', column: 1, x: 0, y: 0, kind: 'fight', tier: 1, spot: spot.id, creatureType: null, enemies: null, label: null, releaseReason: null, next: [] };
+  const node: MapNode = { id: 'x', column: 1, x: 0, y: 0, kind: 'fight', tier: 1, spot: spot.id, enemies: null, label: null, releaseReason: null, next: [] };
   const encounters = encountersFor(node, data).filter((e) => e.enemies.every((id) => data.enemies[id]));
   const total = Object.fromEntries(TYPES.map((t) => [t, 0])) as Record<CardType, number>;
   for (const encounter of encounters) {

@@ -110,7 +110,7 @@ tests/        Vitest suites for the engine (plus content validation).
 - **Effect primitives** (`effects.ts`): `dealDamage`, `gainBlock`, `applyStatus`, `drawCards`, `gainEnergy`. Cards and enemy moves are both just lists of these primitives.
 - **Damage math** (`damage.ts`): `floor((base + Strength) × 0.75 if Weak × 1.5 if Vulnerable)`, never below 0. Block absorbs damage before HP.
 - **Statuses** (`statuses.ts`): Strength is permanent and can be negative. Vulnerable, Weak and Snared lose 1 stack at the end of their owner's turn.
-- **Map** (`map.ts`, `run.ts`): `generateMap` builds 21 columns, the way Slay the Spire does. The start, the boss and any choke columns (`CHOKE_COLUMNS`) hold a single node; the harbour columns (`SHOP_COLUMNS`) hold 3–4 nodes: shops plus one dead-end "finish the session" node. In between, `MAP_PATHS` paths walk across `MAP_LANES` horizontal lanes, each step staying in its lane or moving one up or down, and never crossing a link already drawn. Nodes exist wherever a path passes and links are the paths' steps, so routes branch and merge naturally, every node is reachable, and paths never cross. Each node gets a creature type found at its depth tier (`creatureType`, `tier`). `travelTo(run, nodeId, data)` moves the player, draws an encounter of that type and tier (`encountersFor`), and starts the fight.
+- **Map** (`map.ts`, `run.ts`): `generateMap` builds 21 columns, the way Slay the Spire does. The start, the boss and any choke columns (`CHOKE_COLUMNS`) hold a single node; the harbour columns (`SHOP_COLUMNS`) hold 3–4 nodes: shops plus one dead-end "finish the session" node. In between, `MAP_PATHS` paths walk across `MAP_LANES` horizontal lanes, each step staying in its lane or moving one up or down, and never crossing a link already drawn. Nodes exist wherever a path passes and links are the paths' steps, so routes branch and merge naturally, every node is reachable, and paths never cross. Each node gets a fishing spot and its depth tier (`spot`, `tier`). `travelTo(run, nodeId, data)` moves the player, draws an encounter from that spot and tier (`encountersFor`), and starts the fight.
 - `npm run typecheck` also compiles the engine with `tsconfig.engine.json`, which has **no DOM types**. A test also checks that engine files import only other engine files and never use `Math.random`.
 
 ### Content (`src/content`)
@@ -139,7 +139,7 @@ Add an entry to `src/content/cards.ts`. You don't need to touch code:
   effects: [
     { type: 'dealDamage', amount: 8, target: 'allEnemies' },
   ],
-  family: 'hunter',           // the creature family that offers it as a reward (src/content/families.ts); none for starter cards
+  family: 'hunter',           // the creature family that offers it as a reward (src/content/families.ts, internal: players see its temperaments); none for starter cards
   // tags: ['damage'],        // optional: what it's about, stored for later
   // art: '🎣',               // optional: placeholder emoji shown on the card
   // exhaust: true,           // optional: remove from the fight after playing
@@ -173,9 +173,7 @@ Effect reference:
 
 `target` can be `'target'` (the default: the chosen enemy, or the player when an enemy acts), `'self'`, `'allEnemies'`, or `'randomEnemy'` (re-rolled for every hit).
 
-A damage `bonus` (`{ against: ['crustacean'] }`) deals 20% more against those creature types. No card uses it for now.
-
-To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), a gear sprite, and the player's `character` art (see Player animations). To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition: species at home (`{ type: 'speciesAtHome', count: 6, creatureTypes: ['crustacean'] }`), or species in the bucket when you meet the fisherman, with any of a `temperament`, a `water` and a minimum `size` (`{ type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
+To add or change a **build**, edit `src/content/builds.ts`: a name, a description, the `starterDeck` (card ids), a gear sprite, and the player's `character` art (see Player animations). To lock it behind a quest, give it an `unlock`: a fisherman's id, a quest title and a `quest` condition: species at home (`{ type: 'speciesAtHome', count: 6, temperaments: ['clawed'] }`), or species in the bucket when you meet the fisherman, with any of a `temperament`, a `water` and a minimum `size` (`{ type: 'inBucket', count: 1, water: 'fresh', size: 'trophy' }`). Fishermen live in `src/content/fishermen.ts`: a name, a map icon, a character sprite (`src/ui/assets/character/<sprite>_fish.png`), the level he stands on (one node after its mini-boss) and his greeting. French names: `builds.<id>.quest` and `fishermen` in `src/locales/fr-content.ts`.
 
 Card rewards come from the families of the creatures just beaten (see CARD_REWORK.md). Add `build: 'rod'` (or `'foraging'`, `'net'`, `'fly'`) to offer a card only to that build. Add the card's French name to `src/locales/fr-content.ts`. Run `npm test` afterwards: the content suite checks that your data is valid, and that every language names it.
 
@@ -188,7 +186,7 @@ Enemies are the 144 creatures in `src/ui/assets/fishes.png`, plus a few with the
 ```
 
 - `no` is the creature's number in `fish_names.pdf`, which is also its position in the sprite sheet (left to right, top to bottom). The sprite is picked automatically from it.
-- `type` is the creature type, one of those in `src/content/creatureTypes.ts`: `smallFish`, `sportFish`, `bigFish`, `rockFish`, `deepSea`, `crustacean`, `shellfish`, `tentacled` or `critter`. Build cards deal 20% more damage against some types.
+- `type` is the creature type, one of those in `src/content/creatureTypes.ts`: `smallFish`, `sportFish`, `bigFish`, `rockFish`, `deepSea`, `crustacean`, `shellfish`, `tentacled` or `critter`. Internal habitat data (fishing spots, Crab Hook), never shown.
 - `tier` (1–3) sets how deep in the map it appears: the fight columns are split into three equal bands, shallow to deep.
 - `hp` is a `[min, max]` range, rolled each fight.
 - `strength` (optional) is Strength the creature starts every fight with. It is shown on screen and adds to every hit.

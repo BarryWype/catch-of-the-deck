@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import KeywordText from './KeywordText.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue';
-import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE, STRONG_BONUS_PERCENT } from '../engine';
+import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE } from '../engine';
 import { describeQuest, openQuests, questProgress, type CatchSize, type DebugScenario, type Discovery, type GameData, type HomeCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
@@ -42,14 +42,13 @@ const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [Deb
 
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
-const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'style', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
+const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
 const GUIDE_NUMBERS = {
   energy: BASE_ENERGY,
   cards: STARTING_HAND_SIZE,
   holdPerPatience: HOLD_PER_PATIENCE,
   maxPatience: MAX_PATIENCE,
   patiencePercent: PATIENCE_ESCAPE_PERCENT,
-  strongPercent: STRONG_BONUS_PERCENT,
   slowPercent: SLOW_PERCENT,
   maxSlowPercent: MAX_SLOW_PERCENT,
   slots: SESSION_SLOTS,

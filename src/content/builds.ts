@@ -1,8 +1,8 @@
 import type { BuildDef } from '../engine';
-import type { CreatureType } from './creatureTypes';
+import type { BehaviorId } from './behaviors';
 
-/** The creature types of Old Ned's quest. */
-export const FORAGING_TARGETS: CreatureType[] = ['crustacean', 'shellfish', 'critter'];
+/** The temperaments of Old Ned's quest. */
+export const FORAGING_TARGETS: BehaviorId[] = ['armored', 'clawed', 'bottomDweller'];
 
 /** Different species of FORAGING_TARGETS Old Ned wants in the home aquarium before teaching Foraging. */
 const FORAGING_QUEST_SPECIES = 4;
@@ -41,7 +41,7 @@ export const builds: BuildDef[] = [
     unlock: {
       fisherman: 'oldNed',
       name: 'Shells and claws',
-      quest: { type: 'speciesAtHome', count: FORAGING_QUEST_SPECIES, creatureTypes: FORAGING_TARGETS },
+      quest: { type: 'speciesAtHome', count: FORAGING_QUEST_SPECIES, temperaments: FORAGING_TARGETS },
     },
   },
   {

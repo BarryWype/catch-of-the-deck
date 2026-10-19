@@ -16,9 +16,8 @@ export interface MapNode {
   kind: MapNodeKind;
   /** Creature tier its fight draws from (the level's tier). */
   tier: number;
-  /** Fights: fishing spot id, creature type and fixed creatures (see `encountersFor`); null when not set. */
+  /** Fights: fishing spot id and fixed creatures (see `encountersFor`); null when not set. */
   spot: string | null;
-  creatureType: string | null;
   enemies: string[] | null;
   label: string | null;
   /** Why a mini-boss or boss is let go after the fight (see `isReleaseFight`). */
@@ -66,7 +65,7 @@ function placeFishermen(map: GameMap, fishermen: readonly string[]) {
   for (const id of fishermen) {
     const shops = column.filter((n) => n.kind === 'shop');
     const slot = column.find((n) => n.kind === 'event') ?? column.find((n) => n.kind === 'fight') ?? (shops.length > 1 ? shops[0] : undefined);
-    if (slot) Object.assign(slot, { kind: 'fisherman', fisherman: id, spot: null, creatureType: null, label: null });
+    if (slot) Object.assign(slot, { kind: 'fisherman', fisherman: id, spot: null, label: null });
   }
 }
 
@@ -78,7 +77,6 @@ function startNode(level: LevelDef, next: string[]): MapNode {
     kind: 'start',
     tier: 0,
     spot: null,
-    creatureType: null,
     enemies: null,
     label: null,
     releaseReason: null,
@@ -96,7 +94,6 @@ function handMadeMap(level: LevelDef, levelNodes: NonNullable<LevelDef['nodes']>
     kind: n.kind,
     tier: level.tier,
     spot: n.spot ?? null,
-    creatureType: n.creatureType ?? null,
     enemies: n.enemies ? [...n.enemies] : null,
     label: n.label ?? null,
     releaseReason: n.releaseReason ?? null,
@@ -156,7 +153,6 @@ function generateLevelMap(level: LevelDef, levelIndex: number, data: GameData, h
     kind,
     tier: level.tier,
     spot: null,
-    creatureType: null,
     enemies: null,
     label: null,
     releaseReason: null,
@@ -268,8 +264,7 @@ export function encounterTier(encounter: EncounterDef): number {
 
 /**
  * Encounters a fight node can lead to. Fixed `enemies` win. Otherwise, encounters whose creatures
- * all live at the node's fishing spot (its waters and creature types) and match its `creatureType`,
- * at the node's tier. When that's empty it relaxes, in order: the spot's creature types, then the
+ * all live at the node's fishing spot (its waters and creature types), at the node's tier. When that's empty it relaxes, in order: the spot's creature types, then the
  * tier, then the spot altogether.
  */
 export function encountersFor(node: MapNode, data: GameData): EncounterDef[] {
@@ -279,7 +274,6 @@ export function encountersFor(node: MapNode, data: GameData): EncounterDef[] {
     encounter.enemies.every((id) => {
       const enemy = data.enemies[id];
       const type = enemy?.tags?.[0] ?? '';
-      if (node.creatureType && !enemy?.tags?.includes(node.creatureType)) return false;
       if (!spot || anySpot) return true;
       return spot.waters.includes(enemy?.water ?? '') && (!spotTypes || !spot.types || spot.types.includes(type));
     });

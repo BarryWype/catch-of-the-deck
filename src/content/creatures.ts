@@ -37,7 +37,7 @@ export interface CreatureDef {
   id: string;
   name: string;
   scientific: string;
-  /** Creature type (creatureTypes.ts). Build cards deal bonus damage to some types. */
+  /** Creature type (creatureTypes.ts): internal habitat data, never shown. */
   type: CreatureType;
   water: Water;
   tier: 1 | 2 | 3;

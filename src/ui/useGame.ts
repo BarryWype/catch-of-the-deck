@@ -389,6 +389,7 @@ export function useGame(initialSeed: number) {
 
   function travel(nodeId: string) {
     if (!run.value) return;
+    if (nodeId === run.value.position) return returnToShop();
     const kind = findNode(run.value.map, nodeId)?.kind;
     if (kind === 'leave') {
       leaveNodeId.value = nodeId;
@@ -532,6 +533,20 @@ export function useGame(initialSeed: number) {
     screen.value = 'map';
   }
 
+  /**
+   * Still standing on the shop's node (the map was only looked at, or the shop left without moving
+   * on): its visit, with what was bought, can be reopened.
+   */
+  const canReturnToShop = computed(() => {
+    if (!run.value || (screen.value !== 'map' && screen.value !== 'shop')) return false;
+    const node = findNode(run.value.map, run.value.position);
+    return node?.kind === 'shop' && (node.store ?? 'tackle') === shopVisit.value.store;
+  });
+
+  function returnToShop() {
+    if (canReturnToShop.value) screen.value = 'shop';
+  }
+
   /** Confirmed: move onto the finish node, which ends the run and brings the bucket home. */
   function finishSession() {
     if (!run.value || !leaveNodeId.value) return;
@@ -601,6 +616,8 @@ export function useGame(initialSeed: number) {
     chooseEvent,
     buy,
     leaveShop,
+    canReturnToShop,
+    returnToShop,
     finishSession,
     cancelLeave,
     sell,

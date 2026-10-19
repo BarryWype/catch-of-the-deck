@@ -314,7 +314,7 @@ export function visitEvent(
 ): { run: RunState; eventId: string; combat?: undefined } | { run: RunState; combat: CombatState; eventId?: undefined } {
   const { next, node } = moveTo(run, nodeId, 'event');
   if (nextFloat(next) < EVENT_FIGHT_CHANCE) {
-    return { run: next, combat: startFight(next, { ...node, kind: 'fight', spot: null, creatureType: null, enemies: null }, data) };
+    return { run: next, combat: startFight(next, { ...node, kind: 'fight', spot: null, enemies: null }, data) };
   }
   const ids = Object.values(data.events)
     .filter((e) => !e.treasure && node.column >= (e.minColumn ?? 0))

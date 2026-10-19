@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import KeywordText from './KeywordText.vue';
 import { computed } from 'vue';
-import { bonusEffects, creatureTypeNames, describeCompanionEffect, FULL_SCHOOL, type CatchSize, type Discovery, type GameData } from '../engine';
+import { bonusEffects, describeCompanionEffect, FULL_SCHOOL, type CatchSize, type Discovery, type GameData } from '../engine';
 import { t } from './i18n';
 import SideDrawer from './SideDrawer.vue';
 import SpriteView from './SpriteView.vue';
@@ -22,8 +22,6 @@ const props = defineProps<{
 /** A mark per size on the book's entries. */
 const SIZE_MARK: Record<CatchSize, string> = { small: 'S', normal: 'M', large: 'L', trophy: '🏆' };
 
-const tagNames = computed(() => creatureTypeNames(props.data));
-
 /** Every creature, in sprite-sheet order, with how far the player got with it and how many are at home. */
 const creatures = computed(() => {
   const owned = new Map<string, number>();
@@ -35,7 +33,6 @@ const creatures = computed(() => {
       id: e.id,
       name: e.name,
       sprite: e.sprite!,
-      type: e.tags?.map((t) => tagNames.value[t] ?? t).join(', ') ?? '',
       owned: owned.get(e.id) ?? 0,
       status: props.discovered[e.id],
       biggest: props.biggest[e.id],
@@ -82,7 +79,7 @@ const groups = computed(() =>
           :key="c.id"
           class="creature"
           :class="c.status"
-          v-tip="c.status ? { title: c.name, detail: c.type } : undefined"
+          v-tip="c.status ? c.name : undefined"
         >
           <template v-if="c.status">
             <SpriteView :sprite="c.sprite" :size="64" />

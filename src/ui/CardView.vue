@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { creatureFamilies, describeCard, type CardDef } from '../engine';
+import { creatureFamilies, describeCard, temperamentList, type CardDef } from '../engine';
 import { gameData } from '../content';
 import { t } from './i18n';
 import { iconUrl, TYPE_ICONS } from './icons';
@@ -15,12 +15,10 @@ const props = withDefaults(
     description?: string;
     playable?: boolean;
     selected?: boolean;
-    /** Its type bonus applies to the current target: highlight it. */
-    effective?: boolean;
     /** Its energy cost right now, when a tax changes it (`cardCost`). */
     cost?: number;
   }>(),
-  { description: undefined, playable: true, selected: false, effective: false, cost: undefined },
+  { description: undefined, playable: true, selected: false, cost: undefined },
 );
 
 const shownCost = computed(() => props.cost ?? props.card.cost);
@@ -66,14 +64,8 @@ const artIcon = computed(() => (props.card.art ? iconUrl(props.card.art) : undef
 const familyColour = computed(() => FAMILY_COLOURS[props.card.family ?? ''] ?? (props.card.type === 'junk' ? '#4a4640' : '#39445e'));
 const family = computed(() => (props.card.family ? gameData.families[props.card.family] : undefined));
 const emblem = computed(() => (family.value ? gameData.enemies[family.value.emblem] : undefined));
-const familyTip = computed(
-  () =>
-    family.value &&
-    t('card.family', {
-      family: family.value.name,
-      temperaments: family.value.temperaments.map((id) => gameData.companionBonuses[id]?.temperamentName ?? id).join(', '),
-    }),
-);
+/** The crest names the temperaments that offer the card, never the family (an internal grouping). */
+const familyTip = computed(() => family.value && t('card.family', { temperaments: temperamentList(family.value.temperaments, gameData, 'and') }));
 /** Rules text steps down these font scales until it fits its box. */
 const TEXT_SCALES = [1, 0.9, 0.8, 0.72, 0.65, 0.58];
 const desc = ref<HTMLElement>();
@@ -108,7 +100,7 @@ const parts = computed(() =>
   <button
     type="button"
     class="card"
-    :class="[card.type, `rarity-${card.rarity}`, { unplayable: !playable, selected, effective }]"
+    :class="[card.type, `rarity-${card.rarity}`, { unplayable: !playable, selected }]"
     :style="{ '--family': familyColour }"
     :aria-disabled="!playable"
   >
@@ -137,7 +129,6 @@ const parts = computed(() =>
         </span>
       </span>
     </span>
-    <span v-if="effective" class="effective-badge">{{ t('card.effective') }}</span>
   </button>
 </template>
 
@@ -286,23 +277,6 @@ const parts = computed(() =>
 }
 .desc { flex: 1; min-height: 0; display: grid; place-items: center; color: #d8dde6; font-size: 0.78rem; line-height: 1.15; }
 
-.card.effective { box-shadow: 0 0 0 2px #7be38f, 0 0 16px rgb(123 227 143 / 0.55), 0 4px 10px rgb(0 0 0 / 0.4); }
-.effective-badge {
-  position: absolute;
-  z-index: 4;
-  bottom: -9px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1px 8px;
-  border-radius: 8px;
-  background: #2f8a45;
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
 .real { font-weight: 800; }
 .real.up { color: #7ee08a; }
 .real.down { color: #ff8a80; }
