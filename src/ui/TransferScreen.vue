@@ -76,6 +76,17 @@ async function copy() {
   setTimeout(() => (copied.value = false), 2000);
 }
 
+/** The system share sheet (AirDrop, Messages, Mail…), on devices that have one: how a phone sends its code to a computer without a camera. */
+const canShare = typeof navigator.share === 'function';
+async function share() {
+  try {
+    await navigator.share({ title: t('transfer.title'), text: code.value });
+  } catch (e) {
+    // Closing the sheet isn't a failure; anything else falls back to copying.
+    if ((e as Error).name !== 'AbortError') copy();
+  }
+}
+
 // Receive: the camera, the pasted code, and what they brought.
 const video = ref<HTMLVideoElement>();
 const scanning = ref(false);
@@ -209,7 +220,10 @@ onBeforeUnmount(() => {
         <canvas ref="canvas" class="qr" :aria-label="t('transfer.title')" />
         <p class="hint part">{{ parts.length > 1 ? t('transfer.part', { n: shown + 1, total: parts.length }) : ' ' }}</p>
         <textarea ref="codeBox" class="code" readonly rows="3" :value="code" @focus="($event.target as HTMLTextAreaElement).select()" />
-        <button :disabled="!code" @click="copy">{{ copied ? t('transfer.copied') : t('transfer.copy') }}</button>
+        <div class="actions">
+          <button v-if="canShare" :disabled="!code" @click="share">{{ t('transfer.share') }}</button>
+          <button :class="{ ghost: canShare }" :disabled="!code" @click="copy">{{ copied ? t('transfer.copied') : t('transfer.copy') }}</button>
+        </div>
       </div>
 
       <div v-else class="side">
@@ -269,6 +283,8 @@ header h2 { margin: 0; font-size: 1.4rem; }
 .code { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #2c3a4a; background: #111826; color: var(--text); font: 0.75rem/1.3 ui-monospace, monospace; resize: vertical; word-break: break-all; }
 .paste { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
 .summary { margin: 0; padding-left: 20px; line-height: 1.6; }
+.actions { display: flex; gap: 8px; }
+.actions button { flex: 1; }
 footer { display: flex; justify-content: flex-end; gap: 8px; }
 .error { margin: 0; color: #ff8a80; font-size: 0.9rem; }
 .done { margin: 0; color: var(--highlight); text-align: center; }
