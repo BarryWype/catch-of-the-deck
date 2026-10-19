@@ -6,7 +6,7 @@ const EMOJI: Record<string, string> = {
   '🏠': 'house', '🏡': 'house', '🪣': 'bucket', '📖': 'book', '📘': 'question-mark', '❓': 'question-mark',
   '🪙': 'coin-stack', '💰': 'coin-stack', '📦': 'chest', '🎁': 'chest', '⚡': 'lightning', '🛡️': 'shield2', '⚔️': 'sword',
   '💪': 'muscle', '🪝': 'hook', '💨': 'excape1', '🎣': 'rod1', '🎋': 'rod2', '🔱': 'harpoon', '🧵': 'hook-on-string',
-  '🥅': 'net-green', '☕': 'coffee',
+  '🥅': 'net-green', '☕': 'coffee', '🐌': 'snail',
   '✂️': 'scissors', '✂': 'scissors',
 };
 

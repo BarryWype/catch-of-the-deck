@@ -239,11 +239,6 @@ onBeforeUnmount(stopTheme);
   gap: 28px;
   padding: 36px 48px;
   border-radius: 20px;
-  /* No backdrop-filter here: it would re-blur the animated aquarium behind the panel every
-     frame, which crawls on a big window (the blur's cost grows with the area). */
-  background: rgb(12 17 26 / 0.88);
-  border: 1px solid rgb(245 215 110 / 0.18);
-  box-shadow: 0 24px 60px rgb(0 0 0 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 .panel h2 {
   margin: 0;
@@ -254,6 +249,7 @@ onBeforeUnmount(stopTheme);
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 3px 10px rgb(245 215 110 / 0.25));
+  text-shadow: 0 3px 10px rgb(245 215 110 / 0.25);
 }
 .buttons { display: flex; flex-direction: column; gap: 12px; width: 240px; }
 .buttons button { padding: 14px; font-size: 1.1rem; }

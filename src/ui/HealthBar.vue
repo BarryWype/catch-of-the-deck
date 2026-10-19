@@ -23,7 +23,7 @@ watch(
   <div v-tip="t('bars.healthTip')" class="healthbar" :class="{ blocking: block > 0 }">
     <div class="row">
       <span v-if="block > 0 || (blockAfter ?? 0) > 0" v-tip="t('bars.block', { n: block })" class="block">
-        <GameIcon icon="🛡️" />{{ blockAfter === undefined || blockAfter === block ? block : `${block} → ${blockAfter}` }}
+        <GameIcon icon="snail-shell" />{{ blockAfter === undefined || blockAfter === block ? block : `${block} → ${blockAfter}` }}
       </span>
       <div class="bar">
         <div class="fill" :style="{ transform: `scaleX(${percent / 100})` }" />

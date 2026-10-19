@@ -3,6 +3,8 @@
  * `npm run build` copies them into dist/sfx (scripts/copy-audio.mjs). The volume (0–100) is kept
  * per device like the music's, and set from the options.
  */
+import { gain } from './music';
+
 const VOLUME_KEY = 'slay-the-fish:sfx-volume';
 function readVolume() {
   try {
@@ -30,7 +32,7 @@ export function setSfxVolume(percent: number) {
 /** Plays an effect (a file in src/audio/sfx) once, at the set volume. */
 export function playSfx(file: string) {
   const audio = new Audio(`sfx/${file}`);
-  audio.volume = volume / 100;
+  audio.volume = gain(volume);
   // Before the player's first click or key a browser blocks the sound: that one is lost.
   audio.play().catch(() => {});
 }

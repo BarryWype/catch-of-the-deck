@@ -31,7 +31,7 @@ If Grit reaches 0, you give up: the run is over, and **everything in your bucket
 
 ### Hold
 
-Hold is your grip on the line: your defence. You get it from Defense cards like **Hold Tight** (in every starter deck). It shows as ✊ next to your Grit bar.
+Hold is your grip on the line: your defence. You get it from Defense cards like **Hold Tight** (in every starter deck). It shows as a 🛟 number in your Grit globe, and fills the globe from the top: blue over your Grit, on the same scale.
 
 Hold soaks up **both** kinds of creature moves (see Strike and Pull below), in the order the creatures act. Whatever gets past your Hold lands.
 
@@ -101,7 +101,7 @@ How hard a creature hits depends on the fight, not just on the creature. Each of
 
 So Hold always helps: against a Strike it protects you, against a Pull it keeps the creature on the line. Plan your Hold around what's coming. Some moves also do something extra, like weakening you or making the creature tougher.
 
-The bars show what's coming. The part of your Grit a Strike will take after your Hold is greyed red, and the Will a Pull will add is striped. While you drag or select a card, each bar it changes shows the result too: the Health or Will it takes (after Block, Vulnerable, Weak and every other modifier) is greyed red, and the creatures' moves update to match (drag a Hold card to see how much of the hit it will soak). Random effects only show once they're played.
+The bars show what's coming. The part of your Grit a Strike will take after your Hold is greyed red in the Grit globe, and so is the Hold it will use up, and the Will a Pull will add is striped. While you drag or select a card, each bar it changes shows the result too: the Health or Will it takes (after Block, Vulnerable, Weak and every other modifier) is greyed red, and the creatures' moves update to match (drag a Hold card to see how much of the hit it will soak). Random effects only show once they're played.
 
 ### What a creature's turn can be
 

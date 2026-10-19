@@ -142,7 +142,7 @@ const isPlayerTurn = computed(() => props.state.phase === 'playerTurn');
 const livingEnemies = computed(() => props.state.enemies.filter(isAlive));
 const recentLog = computed(() => props.state.log.slice(-8).reverse());
 /** The fight log can be folded away, leaving only its toggle. */
-const logOpen = ref(true);
+const logOpen = ref(false);
 
 /** The end-of-fight overlay waits a moment so the capture / flee animation can play. */
 const OVERLAY_DELAY_MS = 900;
@@ -718,6 +718,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :block="state.player.block"
             :after="shownState.player.hp"
             :end="turnPreview.player.hp"
+            :block-after="shownState.player.block"
+            :block-end="turnPreview.player.block"
           />
           <div v-tip="t('combat.energy')" class="tension" :aria-label="`${state.player.maxEnergy - state.player.energy}/${state.player.maxEnergy}`">
             <span class="tension-icon" aria-hidden="true"><GameIcon icon="rod3" /></span>
@@ -727,8 +729,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           </div>
         </div>
       </div>
-      <!-- The turn counter, up in the safe area of the battlefield. -->
-      <p class="turn">{{ t('combat.turn', { n: state.turn }) }}</p>
       <!-- The player stands on the bank, above the water line (compact screens stack the flow). -->
       <div class="player-anchor" :class="{ raised: onBank }">
         <CombatantView
@@ -742,17 +742,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           @select="onPlayerClick"
           @animation-done="onAnimationDone(PLAYER_ID)"
         />
-        <!-- His Hold, right beside him, so it's seen where the strikes land. -->
-        <Transition name="hold">
-          <span
-            v-if="state.player.block > 0 || shownState.player.block > 0"
-            :key="state.player.block"
-            v-tip="`${state.player.block} ${term('hold')}`"
-            class="player-hold"
-          >
-            <GameIcon icon="life-buoy" />{{ shownState.player.block === state.player.block ? state.player.block : `${state.player.block} → ${shownState.player.block}` }}
-          </span>
-        </Transition>
       </div>
       <TransitionGroup tag="div" name="leave" class="enemies" :class="{ crowded }">
         <CombatantView
@@ -1029,30 +1018,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 /* He stands on the shore, in the upper left; the shore line is drawn under his feet (measureScene). */
 .player-anchor.raised { position: absolute; left: var(--player-x, 28%); bottom: 46%; transform: translateX(-50%); }
 .player-anchor { position: relative; }
-/* Behind him (he faces the water), at his feet: clear of the log above. */
-.player-hold {
-  position: absolute;
-  right: 66%;
-  bottom: 2%;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 10px 2px 4px;
-  border: 2px solid #0d1a26;
-  border-radius: 12px;
-  background: var(--block);
-  color: #0d1a26;
-  font-size: 1.25rem;
-  font-weight: 800;
-  box-shadow: 0 3px 8px rgb(0 0 0 / 0.4);
-  cursor: help;
-}
-.player-hold .game-icon { width: 28px; height: 28px; }
-/* A short pop each time it changes. */
-.hold-enter-active { transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), opacity 0.2s ease; }
-.hold-leave-active { position: absolute; transition: opacity 0.2s ease; }
-.hold-enter-from { transform: scale(0.4); opacity: 0; }
-.hold-leave-to { opacity: 0; }
 .enemies { display: flex; gap: 24px; }
 .enemies.crowded { gap: 10px; }
 .enemies.crowded :deep(.hud) { width: 170px; }
@@ -1209,19 +1174,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 .resources { position: absolute; bottom: 16px; left: 45px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .player-hud { display: flex; flex-direction: column; gap: 4px; width: 170px; }
 .player-hud:empty { display: none; }
-.turn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 2;
-  margin: 0;
-  padding: 3px 12px;
-  border-radius: 999px;
-  background: rgb(20 24 32 / 0.9);
-  color: var(--text);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
 
 .tension, .patience { display: flex; align-items: center; }
 .grit-row { display: flex; align-items: flex-end; gap: 14px; }
@@ -1267,8 +1219,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   .battlefield.bank { justify-content: flex-end; }
   .player-anchor.raised { bottom: 48%; }
   /* He stands near the left edge here, and the log is hidden: the Hold goes over his head. */
-  .player-hold { right: auto; left: 20%; bottom: 84%; padding: 1px 8px 1px 3px; font-size: 1rem; }
-  .player-hold .game-icon { width: 22px; height: 22px; }
   .enemies { flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
   .log-box { display: none; }
   .resources { left: 16px; }

@@ -79,6 +79,18 @@ describe('CombatView', () => {
     expect(/Escapes in \d+ turns?|Escapes next turn!/.test(html)).toBe(true);
   });
 
+  it('shows Hold in the Grit globe, filling it from the top, not beside the player', async () => {
+    const html = await renderFight(5);
+    const globe = html.slice(html.indexOf('class="globe'), html.indexOf('class="tension"'));
+    expect(globe).toMatch(/class="hold" style="height:6.25%;"/); // 5 Hold of 80 max Grit
+    expect(globe).toMatch(/class="hold-value"[^>]*>.*5/s);
+    expect(html).not.toContain('player-hold');
+    // Its 6 Strike takes all 5 Hold (from the Hold's lower edge up), then 1 Grit, drawn right under the Hold.
+    expect(globe).toMatch(/class="[^"]*loss[^"]*" style="top:0%;height:6.25%;"/);
+    expect(globe).toMatch(/class="grit-preview" style="transform:translateY\(6.25%\);"/);
+    expect(globe).toMatch(/class="[^"]*loss[^"]*" style="bottom:98.75%;height:1.25%;"/);
+  });
+
   it('shows the intent: a Strike icon and its damage before Hold (the Grit bar shows what gets through)', async () => {
     const html = await renderFight(5);
     expect(html).toContain('Nip at the Lure');
@@ -101,9 +113,9 @@ describe('CombatView', () => {
     expect(html).toContain('width:192px');
   });
 
-  it('shows the turn counter', async () => {
+  it('leaves the turn counter to the top bar', async () => {
     const html = await renderFight();
-    expect(html).toContain('Turn 1');
+    expect(html).not.toContain('class="turn"');
   });
 
   it('goes compact: smaller sprite frames, the player still on the bank against one creature', async () => {

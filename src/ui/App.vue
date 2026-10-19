@@ -91,6 +91,7 @@ const deckCards = computed(() =>
       <span v-if="act.place" class="act-place">{{ act.place }}</span>
     </div>
     <div class="run-info">
+      <span v-if="screen === 'combat' && combat" class="stat turn"><b>{{ t('combat.turn', { n: combat.turn }) }}</b></span>
       <!-- In a fight the Grit bar under the fisherman already shows this; skip it there. -->
       <span v-if="screen !== 'combat'" class="stat grit" v-tip="term('grit')">
         <span class="bar" aria-hidden="true"><i :style="{ width: `${Math.round((100 * run.hp) / run.maxHp)}%` }"></i></span>
