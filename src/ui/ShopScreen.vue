@@ -6,7 +6,7 @@ import tackleUrl from './assets/stores/tackle-shop.png';
 import tackleKeeperUrl from './assets/stores/tackle-keeper.png';
 import baitUrl from './assets/stores/bait-shop.png';
 import baitKeeperUrl from './assets/stores/bait-keeper.png';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
   aquariumPrice,
   creatureBlocked,
@@ -61,6 +61,8 @@ const COUNTER = [
 const KEEPER = { x: 105, y: 72, w: 30, h: 46 };
 const TANK = { x: 172, y: 86, w: 64, h: 33 };
 const SIGN = { x: 178, y: 126, w: 52, h: 24 };
+/** The way out, centred on the counter front, left of the Bait shop's sign. */
+const EXIT = { x: 120, y: 140 };
 const SCENES: Record<StoreKind, { art: string; keeper: string }> = {
   cafe: { art: cafeUrl, keeper: cafeKeeperUrl },
   tackle: { art: tackleUrl, keeper: tackleKeeperUrl },
@@ -157,12 +159,19 @@ const said = ref(-1);
 function talk() {
   said.value = (said.value + 1) % lines.value.length;
 }
+/** A tap anywhere but the bubble or the keeper (who says the next line) closes the bubble. */
+const bubble = ref<HTMLElement | null>(null);
+const keeper = ref<HTMLElement | null>(null);
+function hush(e: PointerEvent) {
+  const target = e.target as Node;
+  if (said.value >= 0 && !bubble.value?.contains(target) && !keeper.value?.contains(target)) said.value = -1;
+}
+onMounted(() => document.addEventListener('pointerdown', hush));
+onUnmounted(() => document.removeEventListener('pointerdown', hush));
 </script>
 
 <template>
-  <section class="shop">
-    <h2>{{ t(`shop.title.${visit.store}`) }}</h2>
-    <p class="wallet">{{ t('shop.wallet', { coins: run.coins, grit: run.hp, max: run.maxHp }) }}</p>
+  <section class="shop" :aria-label="t(`shop.title.${visit.store}`)">
 
     <template v-if="picking?.effect.type === 'removeCard'">
       <p>{{ t('shop.chooseRemove', { coins: picking.price }) }}</p>
@@ -198,10 +207,10 @@ function talk() {
       <div class="scene">
         <img class="art" :src="SCENES[visit.store].art" alt="" />
 
-        <button type="button" class="keeper" :style="pct(KEEPER)" :aria-label="t('shop.talk')" @click="talk">
+        <button ref="keeper" type="button" class="keeper" :style="pct(KEEPER)" :aria-label="t('shop.talk')" @click="talk">
           <img :src="SCENES[visit.store].keeper" alt="" />
         </button>
-        <p v-if="said >= 0" class="bubble" role="status" @click="talk">{{ lines[said] }}</p>
+        <p v-if="said >= 0" ref="bubble" class="bubble" role="status" @click="talk">{{ lines[said] }}</p>
 
         <template v-if="aquarium">
           <button
@@ -245,30 +254,46 @@ function talk() {
           </span>
           <span class="shadow" aria-hidden="true" />
         </button>
+
+        <button type="button" class="ghost exit" :style="pct(EXIT)" @click="emit('leave')"><GameIcon icon="rod1" /> {{ t('shop.leave') }}</button>
       </div>
-      <button class="ghost" @click="emit('leave')">{{ t('shop.leave') }}</button>
     </template>
   </section>
 </template>
 
 <style scoped>
-.shop { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 4vh; text-align: center; }
-.shop h2 { margin: 0; }
-.wallet { margin: 0 0 4px; color: var(--muted); }
+.shop { container-type: inline-size; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 4vh; text-align: center; }
 .effect { margin: 0; max-width: 520px; color: var(--muted); font-size: 0.85rem; }
 
-/* The store scene, with its keeper over the counter and the items standing on the shelves. */
-.scene { position: relative; width: min(92vw, 640px); aspect-ratio: 3 / 2; }
-.art { display: block; width: 100%; image-rendering: pixelated; }
+/*
+ * The store scene, with its keeper over the counter and the items standing on the shelves. Its
+ * height is what the shop has left beside or above the bucket, at most the height its full width
+ * (the shop's, up to 640px) needs; the width follows.
+ */
+.scene { position: relative; flex: 0 1 calc(min(100cqw, 640px) / 1.5); min-height: 0; aspect-ratio: 3 / 2; }
+.art { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .keeper {
   position: absolute;
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: none;
+  box-shadow: none;
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 .keeper img { display: block; width: 100%; image-rendering: pixelated; }
+.exit {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  background: rgb(22 30 46 / 0.85);
+  color: var(--text);
+}
 @media (hover: hover) {
   .keeper:hover { transform: translateY(-2px); filter: brightness(1.08); }
 }
@@ -414,6 +439,7 @@ function talk() {
   .slot .item-icon { font-size: 1.5rem; }
   .slot .shadow { width: 1.5rem; height: 4px; }
   .bubble { font-size: 0.72rem; padding: 6px 8px; width: 80%; }
+  .exit { gap: 4px; padding: 3px 8px; font-size: 0.75rem; }
   .sign b { font-size: 0.52rem; }
   .sign small { font-size: 0.46rem; }
 }

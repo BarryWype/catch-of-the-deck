@@ -316,6 +316,7 @@ function choose(node: MapNode) {
               <circle class="core" r="8" />
             </template>
             <template v-else-if="node.kind === 'shop'">
+              <circle class="body" r="23" />
               <image class="symbol store-art" :href="STORE_NODES[storeOf(node)]" x="-20" y="-20" width="40" height="40" />
             </template>
             <template v-else>
@@ -447,6 +448,7 @@ function choose(node: MapNode) {
 .node.leave .body { fill: #fff; stroke: #2d8a73; stroke-width: 2.5; }
 .node.fisherman .body { fill: #fff; stroke: var(--highlight); stroke-width: 2.5; }
 .node .symbol { image-rendering: pixelated; pointer-events: none; }
+.node.shop .body { fill: rgb(255 255 255 / 0.85); stroke: #2e2d27; stroke-width: 1.8; }
 .node.visited .store-art { opacity: 0.6; }
 .node.miniBoss .body { fill: #c4531c; }
 .node.boss .body { fill: #c4531c; stroke-width: 3; }
@@ -470,6 +472,11 @@ function choose(node: MapNode) {
 .node.available { cursor: pointer; }
 .node.available .ring { transform-box: fill-box; transform-origin: center; animation: pulse 1.4s ease-in-out infinite; }
 .node.available:focus { outline: none; }
+@media (hover: hover) {
+  .node.available:hover .body { stroke: var(--highlight); stroke-width: 3; filter: brightness(1.12); }
+  .node.shop.available:hover .body { fill: #fff; }
+  .node.available:hover .symbol { transform: translateY(-2px); }
+}
 .node.visited .body { opacity: 0.6; }
 .node.skipped { opacity: 0.45; }
 

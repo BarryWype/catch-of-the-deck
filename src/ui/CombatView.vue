@@ -35,7 +35,7 @@ import { t, term, type TextKey } from './i18n';
 import CombatantView from './CombatantView.vue';
 import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
-import HealthBar from './HealthBar.vue';
+import GritGlobe from './GritGlobe.vue';
 import StatusList from './StatusList.vue';
 import PowerList from './PowerList.vue';
 import { playTheme, stopTheme } from './music';
@@ -70,6 +70,21 @@ const props = defineProps<{
 const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; menu: [] }>();
 
 const PATIENCE_TIP = t('combat.patienceTip', { hold: HOLD_PER_PATIENCE, percent: PATIENCE_ESCAPE_PERCENT, max: MAX_PATIENCE });
+
+/**
+ * Tension, shown to the player in place of the engine's energy: it starts the turn empty and each
+ * energy point spent fills one cell, from the bottom. One cell per point (more than the maximum when
+ * cards add some), shaded green to orange up the bar as one gradient.
+ */
+const tensionCells = computed(() => {
+  const { energy, maxEnergy } = props.state.player;
+  const count = Math.max(energy, maxEnergy);
+  const hue = (i: number) => 115 - (90 * i) / count;
+  return Array.from({ length: count }, (_, i) => ({
+    full: i < count - energy,
+    color: `linear-gradient(0deg, hsl(${hue(i)} 85% 52%), hsl(${hue(i + 1)} 85% 52%))`,
+  }));
+});
 
 /** The creatures let go after a mini-boss or boss fight, named once each. */
 const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => e.name))].join(t('combat.and')));
@@ -681,34 +696,34 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :y2="shore?.y1 ?? '15%'"
         />
       </svg>
-      <!-- The player's corner panel, under his character: his Grit, Hold and statuses (he stands on
-           the bank with nothing under his feet), then his Energy and Patience. -->
+      <!-- The player's corner panel, under his character: his statuses (he stands on the bank with
+           nothing under his feet), his Patience, then his Grit with his Tension beside it. -->
       <div class="resources">
         <div class="player-hud">
-          <HealthBar
+          <StatusList :statuses="state.player.statuses" />
+          <PowerList :state="state" :data="data" :run="run" />
+        </div>
+        <div
+          v-tip="{ title: term('patience'), body: PATIENCE_TIP }"
+          class="patience"
+          :aria-label="`${state.player.patience}/${MAX_PATIENCE}`"
+          tabindex="0"
+        >
+          <span v-for="n in MAX_PATIENCE" :key="n" :class="{ spent: n > state.player.patience }" aria-hidden="true"><GameIcon icon="hourglass" /></span>
+        </div>
+        <div class="grit-row">
+          <GritGlobe
             :hp="state.player.hp"
             :max-hp="state.player.maxHp"
             :block="state.player.block"
             :after="shownState.player.hp"
             :end="turnPreview.player.hp"
-            grit
           />
-          <StatusList :statuses="state.player.statuses" />
-          <PowerList :state="state" :data="data" :run="run" />
-        </div>
-        <div class="orbs">
-          <div v-tip="t('combat.energy')" class="energy">
-            <span class="energy-icon" aria-hidden="true"><GameIcon icon="⚡" /></span>
-            <span class="energy-count">{{ state.player.energy }}/{{ state.player.maxEnergy }}</span>
-          </div>
-          <div
-            v-tip="{ title: term('patience'), body: PATIENCE_TIP }"
-            class="patience"
-            :class="{ empty: !state.player.patience }"
-            tabindex="0"
-          >
-            <span class="patience-icon" aria-hidden="true"><GameIcon icon="coffee" /></span>
-            <span class="patience-count">{{ state.player.patience }}/{{ MAX_PATIENCE }}</span>
+          <div v-tip="t('combat.energy')" class="tension" :aria-label="`${state.player.maxEnergy - state.player.energy}/${state.player.maxEnergy}`">
+            <span class="tension-icon" aria-hidden="true"><GameIcon icon="rod3" /></span>
+            <span class="tension-bar">
+              <i v-for="(cell, i) in tensionCells" :key="i" :class="{ empty: !cell.full }" :style="{ backgroundImage: cell.color }" />
+            </span>
           </div>
         </div>
       </div>
@@ -1189,12 +1204,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   .slot { transition: none; }
 }
 
-/* The player's two resource counters, at home on the battlefield: a glowing disc each, so they
-   read as a pair (the tooltip tells them apart). */
-/* Every HUD piece keeps at least 16px inside the battlefield's edges, so nothing is clipped. */
-.resources { position: absolute; bottom: 16px; left: 16px; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+/* The player's resources, at home on the battlefield: Patience as a stack of hourglasses, Grit as a
+   globe (GritGlobe) with Tension beside it as an upright pixel bar of cells. */
+.resources { position: absolute; bottom: 16px; left: 45px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .player-hud { display: flex; flex-direction: column; gap: 4px; width: 170px; }
-.orbs { display: flex; gap: 10px; }
+.player-hud:empty { display: none; }
 .turn {
   position: absolute;
   top: 16px;
@@ -1209,42 +1223,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   font-weight: 700;
 }
 
-.energy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffe08a, var(--energy) 60%, #a5741b);
-  color: #1b1d24;
-  font-weight: 800;
-  box-shadow: 0 0 16px rgb(242 182 66 / 0.45);
+.tension, .patience { display: flex; align-items: center; }
+.grit-row { display: flex; align-items: flex-end; gap: 14px; }
+.tension { flex-direction: column-reverse; gap: 6px; }
+.tension-icon .game-icon { display: block; width: 28px; height: 28px; }
+/* Cells stacked from the bottom in a black frame, each with a light top band and a dark bottom band: pixel shading. */
+.tension-bar { display: flex; flex-direction: column-reverse; gap: 3px; padding: 3px; background: #0d0f14; box-shadow: 0 0 0 2px #4a5060, 0 0 0 4px #0d0f14; }
+.tension-bar i {
+  width: 20px;
+  height: 27px;
+  box-shadow: inset 0 4px 0 rgb(255 255 255 / 0.35), inset 0 -4px 0 rgb(0 0 0 / 0.3);
+  transition: filter 0.2s ease, opacity 0.2s ease;
 }
-.energy-icon { font-size: 2rem; }
-/* Flush against its counter: the icon and the count share line-height 1. */
-.energy-icon, .energy-count { line-height: 1; }
-.energy-count { font-size: 1.1rem; }
+.tension-bar i.empty { filter: grayscale(1) brightness(0.35); opacity: 0.7; }
 .pile { font-size: 0.85rem; color: var(--muted); }
-.patience {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #cfeaff, #6fb7e3 60%, #2a5f8a);
-  color: #12283c;
-  cursor: help;
-  box-shadow: 0 0 16px rgb(111 183 227 / 0.45);
-}
-.patience-icon { font-size: 2rem; }
-.patience-icon, .patience-count { line-height: 1; }
-.patience-count { font-size: 1.1rem; font-weight: 800; }
-.patience.empty { opacity: 0.55; }
+/* The hourglasses overlap a little, like a stack; spent ones fade to grey. */
+.patience { cursor: help; width: 100%; display: flex; justify-content: space-around; }
+.patience .game-icon { display: block; width: 30px; height: 30px; filter: drop-shadow(0 2px 0 #0d0f14); }
+.patience span + span { margin-left: -8px; }
+.patience .spent { filter: grayscale(1) brightness(0.6); opacity: 0.35; }
 .patience:focus { outline: none; }
 .patience:focus-visible { outline: 2px solid var(--highlight); }
 .end-turn { padding: 12px 18px; font-size: 1rem; }
@@ -1274,6 +1271,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   .player-hold .game-icon { width: 22px; height: 22px; }
   .enemies { flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
   .log-box { display: none; }
+  .resources { left: 16px; }
   /* Wrapped combatants take the bottom corners, so the panel goes top left (the log is gone);
      with the fisherman up on the bank, the bottom left is free and it stays there. */
   .battlefield:not(.bank) .resources { top: 16px; bottom: auto; }
@@ -1314,12 +1312,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     white-space: nowrap;
     font-size: 0.8rem;
   }
-  .energy { width: 48px; height: 48px; }
-  .energy-icon { font-size: 1.6rem; }
-  .energy-count { font-size: 0.9rem; }
-  .patience { width: 48px; height: 48px; }
-  .patience-icon { font-size: 1.6rem; }
-  .patience-count { font-size: 0.9rem; }
+  .tension-icon .game-icon { width: 20px; height: 20px; }
+  .tension-bar i { width: 20px; height: 14px; box-shadow: inset 0 3px 0 rgb(255 255 255 / 0.35), inset 0 -3px 0 rgb(0 0 0 / 0.3); }
+  .patience .game-icon { width: 22px; height: 22px; }
+  .patience span + span { margin-left: -6px; }
   .end-turn { padding: 10px 14px; }
   .pile { font-size: 0.75rem; }
   .panel { padding: 20px 22px; margin: 0 12px; }

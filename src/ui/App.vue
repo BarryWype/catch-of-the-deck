@@ -101,7 +101,7 @@ const deckCards = computed(() =>
         <b>{{ run.coins }}</b>
       </span>
       <button class="stat deck" v-tip="t('app.deckTip', { n: run.deck.length })" @click="deckDialog?.showModal()">🂠 <b>{{ run.deck.length }}</b></button>
-      <span class="seed" v-tip="{ title: t('app.seedTitle'), detail: t('app.seedDetail') }">{{ t('app.seed', { n: seed }) }}</span>
+      <span class="seed" v-tip="{ title: t('app.seedTitle') }">{{ t('app.seed', { n: seed }) }}</span>
       <button v-if="debugScenario" class="ghost" @click="game.endScenario">{{ t('debug.end') }}</button>
       <button v-else class="ghost" @click="game.toMenu">{{ t('app.menu') }}</button>
       <button class="ghost new-run" @click="askNewRun(newRun)">{{ t('app.newRun') }}</button>
@@ -298,7 +298,7 @@ const deckCards = computed(() =>
   padding-bottom: 12px;
 }
 .map-layout .aquarium { flex: 1; }
-.map-layout .shop-panel { flex-shrink: 0; padding-top: 2vh; }
+.map-layout .shop-panel { min-height: 0; padding-top: 2vh; }
 
 /* Choosing companions: a header, then the home aquarium and the session slots. */
 .build-layout {
@@ -335,5 +335,10 @@ const deckCards = computed(() =>
   .companions-head h2 { font-size: 1.1rem; }
   .complete { padding: 6vh 0 16px; text-align: center; }
   .complete h2 { font-size: 1.5rem; }
+}
+/* Short landscape screens: the shop beside the bucket, so its scene keeps the full height. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .map-layout:has(> .shop-panel) { flex-direction: row; }
+  .map-layout .shop-panel { flex: 1; min-width: 0; justify-content: center; padding-top: 0; }
 }
 </style>

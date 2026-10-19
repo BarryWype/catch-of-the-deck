@@ -10,7 +10,7 @@ Before each run you pick a **fishing style**, which sets your starter deck (see 
 
 ## A fight in one minute
 
-Each turn you get **3 energy** and draw **5 cards**. Cards cost energy to play. When you're done, click **End Turn**: the creatures then act, and a new turn starts.
+Each turn your **Tension** starts at 0, you can build it up to **3**, and you draw **5 cards**. Each card adds its cost to your Tension; once it's full, only free cards can be played. When you're done, click **End Turn**: the creatures then act, and a new turn starts.
 
 You win a fight by catching every creature. A creature is caught when **either**:
 
@@ -51,16 +51,16 @@ There are five kinds of card:
 
 Cards whose effect waits or wears off (Coiled, Toxic Coating, effects "at the start of your next turn"…) show a blue icon there too until it's used up, with its number or the turns left.
 
-Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (☕) on top of energy.
+Attack and Drain cards count as **attacks** (for "if you haven't played an attack this turn"). Drag them onto the creature you want; the others are dragged anywhere on the battlefield, and the ones that affect a creature pick one at random. Some cards also cost **Patience** (☕) on top of Tension.
 
 ### Patience
 
 Patience is what you earn by waiting calmly instead of rushing. You get Patience points at the end of each turn:
 
-- **1 point per energy you didn't spend**, and
+- **1 point per Tension you didn't build up**, and
 - **1 point for every 3 Hold left over** after the creatures have acted (the Hold you didn't need).
 
-You can have up to **5** points, and they last for the whole fight. Each point makes every creature's Will rise **10% slower**, so 5 points halve it (on top of any Slow). Some cards also cost Patience to play, on top of energy (shown as ☕ on the card).
+You can have up to **5** points, and they last for the whole fight. Each point makes every creature's Will rise **10% slower**, so 5 points halve it (on top of any Slow). Some cards also cost Patience to play, on top of Tension (shown as ☕ on the card).
 
 ## The creatures' side
 
@@ -121,8 +121,8 @@ The icon above a creature tells you what kind of move is coming:
 |---|---|
 | **Ink** 🦑 | Its next move is hidden ("?"). Never right before a Wind-up, so a heavy move is always announced. |
 | **Pebble in the Boot** 🗑️ | A junk card in your discard pile: it can't be played. |
-| **Slimy Seaweed** 🗑️ | Junk: costs 1 energy to get rid of (for this fight). Still in your hand at the end of your turn? Lose 2 Grit. |
-| **Tangled Line** 🗑️ | Junk: costs 1 energy to get rid of. While it's in your hand, your Hold cards give 1 less. |
+| **Slimy Seaweed** 🗑️ | Junk: costs 1 Tension to get rid of (for this fight). Still in your hand at the end of your turn? Lose 2 Grit. |
+| **Tangled Line** 🗑️ | Junk: costs 1 Tension to get rid of. While it's in your hand, your Hold cards give 1 less. |
 | **Tangled** 🪢 | Next turn, your Drain cards cost 1 more. |
 | **Numb Fingers** 🥶 | Next turn, your Attack cards cost 1 more. |
 | **Pinched Hand** 🤏 | Next turn, your Hold cards give 2 less. |
@@ -171,8 +171,8 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 - **Fishing styles:** your fishing style sets your starter deck. You start with **Rod fishing** only (4 Tug, 4 Hold Tight, Steady Hand, Reel In), and can learn three more from fishermen you meet on the way: Foraging, Net fishing and Fly fishing. Once you have more than one, you pick before each run; with one, the choice is skipped.
 - **Foraging** is the patient way, for bigger catches: you drain a creature's Will instead of wearing down its Health, and a creature caught by its Will comes out bigger. Its deck: 4 Reel In, 4 Hold Tight, Play the Line and Slack Line.
 - **Old Ned**, an experienced fisherman, teaches it. As a Kid, while you haven't learnt Foraging, he stands one step after the mini-boss (it leads straight to him). Talk to him to open his quest: he wants to see **4 different species of crustaceans, shellfish or critters in your home aquarium**. He says how many you have so far, counting your bucket, and tells you when you already have them all.
-- **Net fishing** hits every creature at once, at its best in group fights. Its deck: 3 Tug, 2 Reel In, 3 Hold Tight, **Throw the Net** (1 energy: 3 damage to every creature) and **Draw the Net** (1 energy: Drain 3 on every creature). **Gus the Netmaker** teaches it, one step after the Adult mini-boss: he wants to see **3 different species of schooling fish in your bucket**.
-- **Fly fishing** is about Patience: save it to slow the Will, then spend it on one perfect cast. Its deck: 3 Tug, 2 Reel In, 3 Hold Tight, **Wait for the Rise** (1 energy: gain 2 Patience) and **Perfect Cast** (no energy but 3 Patience: 6 damage and Drain 6). **Silent Silas** teaches it, one step after the Elder mini-boss: he wants to see **a trophy-size freshwater creature in your bucket**.
+- **Net fishing** hits every creature at once, at its best in group fights. Its deck: 3 Tug, 2 Reel In, 3 Hold Tight, **Throw the Net** (1 Tension: 3 damage to every creature) and **Draw the Net** (1 Tension: Drain 3 on every creature). **Gus the Netmaker** teaches it, one step after the Adult mini-boss: he wants to see **3 different species of schooling fish in your bucket**.
+- **Fly fishing** is about Patience: save it to slow the Will, then spend it on one perfect cast. Its deck: 3 Tug, 2 Reel In, 3 Hold Tight, **Wait for the Rise** (1 Tension: gain 2 Patience) and **Perfect Cast** (no Tension but 3 Patience: 6 damage and Drain 6). **Silent Silas** teaches it, one step after the Elder mini-boss: he wants to see **a trophy-size freshwater creature in your bucket**.
 - **Bucket quests** (Gus and Silas) count everything in your bucket when you meet him, the companions you brought included. He tells you if you have it; once he has seen it, losing the creatures later in the run doesn't undo it. If you don't have it yet, bring it next time you pass him.
 - **Learning a style:** it unlocks when a run **ends well** (heading home, ending the run after a boss, or beating the last boss) with its quest met: for Old Ned, by your home aquarium once the bucket has joined it; for Gus and Silas, by showing them your bucket during that run. Meeting a fisherman is enough to open his quest, even if that run then goes badly; a run where your Grit runs out never unlocks anything. The end screen says when you've learnt a style, and from then on its fisherman no longer appears.
 - **Open quests** show on the home menu, with your progress at home for Old Ned's (e.g. "3/4").

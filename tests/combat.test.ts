@@ -44,7 +44,7 @@ describe('playing cards', () => {
     const s2 = play(s1, 'heavy');
     expect(s2).toBe(s1);
     expect(validateAction(s1, { type: 'playCard', cardUid: s1.piles.hand[0].uid, targetId: 'e0' }, testData)).toBe(
-      'Not enough energy.',
+      'Too much tension.',
     );
   });
 

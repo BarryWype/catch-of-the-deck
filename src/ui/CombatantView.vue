@@ -75,7 +75,6 @@ const portraitStyle = computed(() => ({
         :hp="combatant.hp"
         :max-hp="combatant.maxHp"
         :block="combatant.block"
-        :grit="combatant.id === PLAYER_ID"
         :after="healthPreview?.after"
         :end="healthPreview?.end"
         :block-after="healthPreview?.blockAfter"

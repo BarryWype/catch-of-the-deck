@@ -257,14 +257,11 @@ const plants = [
 
 <template>
   <section class="aquarium" :aria-label="title ?? t('aquarium.default')">
-    <header class="label">
-      <span><GameIcon :icon="icon" /> {{ title ?? t('aquarium.default') }}</span>
+    
+    <div ref="tank" class="tank">
       <span class="count" :class="{ full: capacity !== undefined && creatures.length >= capacity }">
         {{ capacity === undefined ? t('aquarium.count', { n: creatures.length }) : t('aquarium.countOf', { n: creatures.length, max: capacity }) }}
       </span>
-    </header>
-
-    <div ref="tank" class="tank">
       <div class="surface" />
       <div class="rays" />
       <PixelBubbles />
@@ -348,7 +345,8 @@ const plants = [
 <style scoped>
 .aquarium { display: flex; flex-direction: column; gap: 6px; min-height: 220px; }
 .label { display: flex; justify-content: space-between; font-weight: 700; padding: 0 4px; }
-.count { color: var(--muted); font-weight: 500; }
+.count { color: var(--muted); font-weight: 500; text-shadow: 2px 0 0 #2e1c2c, -2px 0 0 #2e1c2c, 0 2px 0 #2e1c2c, 0 -2px 0 #2e1c2c, 2px 2px 0 #2e1c2c, -2px 2px 0 #2e1c2c, 2px -2px 0 #2e1c2c, -2px -2px 0 #2e1c2c, 0 3px 6px rgb(0 0 0 / 0.8); position: absolute;
+  right: 10px; }
 .count.full { color: #f0a050; font-weight: 700; }
 
 .tank {

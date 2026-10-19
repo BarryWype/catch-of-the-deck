@@ -15,7 +15,7 @@ Tracker for the stores rework: the single shop becomes three stores (Cafe, Tackl
 | Store | Item | Price | Limit | Effect |
 |---|---|---|---|---|
 | Cafe | Cocoa cup | 15 | none | +15 Grit (not above max) |
-| Cafe | Espresso | 20 | 1 | +20 max Grit and +20 Grit now; after the 5th fight max Grit drops back and Grit is capped **(user)** |
+| Cafe | Espresso | 20 | 1 | +20 max Grit for 5 fights **(user)** |
 | Tackle | Life jacket | 20 | 1 | One chosen bucket creature joins the home aquarium even if the run is lost; it stays in the bucket meanwhile **(user)** |
 | Tackle | Parcel | 15 | 1 | One chosen bucket creature goes straight to the home aquarium |
 | Tackle | Remove a card | 20 | 1 | Remove a chosen card from the deck (kept from the old shop) **(user)** |

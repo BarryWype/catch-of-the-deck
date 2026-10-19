@@ -90,7 +90,7 @@ menu ──New run──▶ build ──▶ companions ──Set off──▶ ma
 ## Combat and the Will bar
 
 - **Turns:**
-  - **Start of the turn:** **Venom** hits (its charges as damage, ignoring Block, then one charge less; `tickVenom`), block resets, energy refills and you draw 5 cards.
+  - **Start of the turn:** **Venom** hits (its charges as damage, ignoring Block, then one charge less; `tickVenom`), block resets, energy refills (the UI shows it inverted, as **Tension**, empty at the start of the turn and filled by the cards' costs) and you draw 5 cards.
   - **End of the turn:** the hand is discarded and durations tick down. Each creature then takes its Venom (if that wears it out, it's caught before acting), acts on its shown intent, and its escape bar rises.
   - **Win/lose check:** after every effect.
 - **Grit** (`terms.grit`): the player's HP is shown as **Grit**, the will to keep fishing, in its own orange bar. It works like HP (`hp`, `maxHp` in the code): creatures' Strikes wear it down, and the fight is lost when it runs out.
