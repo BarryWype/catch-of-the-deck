@@ -300,6 +300,7 @@ export const en = {
       default: 'Aquarium',
       count: '{n} caught',
       countOf: '{n}/{max}',
+      listTip: 'Show them as a list',
       stars: '{n}★',
       bond: 'Bond level {level} · {points}/{full}',
       bondFull: 'Bond level {level} (fully bonded) · {points}/{full}',

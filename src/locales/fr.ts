@@ -288,6 +288,7 @@ export const fr: Messages = {
       default: 'Aquarium',
       count: '{n} pêchée|{n} pêchées',
       countOf: '{n}/{max}',
+      listTip: 'Les voir en liste',
       stars: '{n}★',
       bond: 'Lien niveau {level} · {points}/{full}',
       bondFull: 'Lien niveau {level} (lien complet) · {points}/{full}',
