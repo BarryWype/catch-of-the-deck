@@ -64,10 +64,11 @@ const portraitStyle = computed(() => ({
       <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
     </div>
     <!-- Everything about it in one block above the sprite, the bars the same width: its name and
-         families (hover: the family's name), its Will, its health, then its statuses. -->
+         families (hover: the family's name), its Will, its health, then its statuses. Compact
+         screens drop the name (it stays in the creature's tip) and keep the family icons. -->
     <div v-if="!bare" class="hud">
       <div v-if="combatant.id !== PLAYER_ID" class="name">
-        {{ combatant.name }}
+        <span class="name-text">{{ combatant.name }}</span>
         <span v-for="f in families" :key="f.id" v-tip="f.name" class="family" aria-hidden="true">{{ f.icon }}</span>
       </div>
       <PanicBar v-if="escapeBar" v-bind="escapeBar" />
@@ -165,5 +166,7 @@ const portraitStyle = computed(() => ({
   .combatant { padding: 4px 6px; gap: 3px; }
   .intent-slot { min-height: 36px; }
   .hud { width: 150px; gap: 3px; }
+  .name-text { display: none; }
+  .name:not(:has(.family)) { display: none; }
 }
 </style>
