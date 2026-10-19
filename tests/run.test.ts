@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   addCardToDeck,
   applyEventChoice,
-  buyShopItem,
   EVENT_FIGHT_CHANCE,
   eventChoiceBlocked,
   escapeRateReduction,
@@ -29,11 +28,9 @@ import {
   justBeatBoss,
   removeCardAfterBoss,
   sellCreature,
-  shopItemBlocked,
   travelTo,
   visitEvent,
   visitLeave,
-  visitShop,
   type RunState,
 } from '../src/engine';
 import { play, repeat, setup, testData, withNodeKind, homeCreature, caught, ids } from './fixtures';
@@ -464,42 +461,6 @@ describe('events', () => {
     const run = { ...createRun(5, data, 'basic'), hp: 5 };
     expect(eventChoiceBlocked(data.events.spot.choices[2], run)).toBe('Not enough Grit.');
     expect(() => applyEventChoice(run, 'spot', 2, data)).toThrow();
-  });
-});
-
-describe('shop', () => {
-  const data = {
-    ...testData,
-    shop: [
-      { id: 'heart', name: 'Heart', price: 10, effect: { type: 'heal' as const, amount: 30 } },
-      { id: 'cut', name: 'Cut', price: 20, effect: { type: 'removeCard' as const }, limit: 1 },
-    ],
-  };
-  const [heart, cut] = data.shop;
-
-  it('only a shop can be visited as one', () => {
-    const run = withNodeKind(createRun(5, data, 'basic'), '1a', 'shop');
-    expect(visitShop(run, '1a').position).toBe('1a');
-    expect(() => visitShop(run, '1b')).toThrow();
-    expect(() => travelTo(run, '1a', data)).toThrow();
-  });
-
-  it('a heart costs coins and heals up to max HP, as often as you can pay', () => {
-    const run = { ...createRun(5, data, 'basic'), hp: 40, coins: 25 };
-    let { run: after, visit } = buyShopItem(run, { bought: {} }, 'heart', data);
-    expect(after).toMatchObject({ hp: 70, coins: 15 });
-    ({ run: after, visit } = buyShopItem(after, visit, 'heart', data));
-    expect(after).toMatchObject({ hp: 80, coins: 5 });
-    expect(shopItemBlocked(heart, after, visit)).toBe('Already at full Grit.');
-    expect(shopItemBlocked(heart, { ...after, hp: 50 }, visit)).toBe('Not enough coins.');
-  });
-
-  it('removing a card takes the chosen one, once per visit', () => {
-    const run = { ...createRun(5, data, 'basic'), coins: 50 };
-    const { run: after, visit } = buyShopItem(run, { bought: {} }, 'cut', data, 0);
-    expect(after).toMatchObject({ deck: ['defend'], coins: 30 });
-    expect(shopItemBlocked(cut, { ...after, deck: ['a', 'b'] }, visit)).toBe('Sold out.');
-    expect(() => buyShopItem(run, { bought: {} }, 'cut', data)).toThrow();
   });
 });
 

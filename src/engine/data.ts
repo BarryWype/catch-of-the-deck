@@ -1,4 +1,5 @@
-import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef } from './types';
+import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef } from './types';
+import { STORE_KINDS } from './map';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
 export interface ContentSource {
@@ -12,6 +13,7 @@ export interface ContentSource {
   equipment: EquipmentDef[];
   events: EventDef[];
   shop: ShopItemDef[];
+  blessings: BlessingDef[];
   companionBonuses: CompanionBonusDef[];
   families: FamilyDef[];
   spots: SpotDef[];
@@ -35,6 +37,7 @@ export function buildGameData(source: ContentSource): GameData {
     equipment: Object.fromEntries(source.equipment.map((e) => [e.id, e])),
     events: Object.fromEntries(source.events.map((e) => [e.id, e])),
     shop: source.shop,
+    blessings: source.blessings,
     companionBonuses: Object.fromEntries(source.companionBonuses.map((b) => [b.id, b])),
     families: Object.fromEntries(source.families.map((f) => [f.id, f])),
     spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
@@ -208,6 +211,15 @@ export function validateContent(source: ContentSource): string[] {
   for (const item of source.shop) {
     checkDuplicate(shopIds, item.id, 'shop item');
     if (!(Number.isInteger(item.price) && item.price >= 0)) errors.push(`Shop item "${item.id}": price must be a whole number ≥ 0.`);
+    if (!STORE_KINDS.includes(item.store)) errors.push(`Shop item "${item.id}": unknown store "${item.store}".`);
+    if (item.effect.type === 'release' && !source.blessings.length) errors.push(`Shop item "${item.id}": a release needs blessings to give.`);
+  }
+  const blessingIds = new Set<string>();
+  for (const blessing of source.blessings) {
+    checkDuplicate(blessingIds, blessing.id, 'blessing');
+    if (blessing.effect.type === 'bonus' && !(Number.isInteger(blessing.effect.fights) && blessing.effect.fights > 0))
+      errors.push(`Blessing "${blessing.id}": fights must be a whole number > 0.`);
+    if (blessing.effect.type === 'bonus' && blessing.effect.bonus.type === 'trigger') checkEffects(`Blessing "${blessing.id}"`, [blessing.effect.bonus.effect]);
   }
 
   const bonusIds = new Set<string>();
@@ -311,6 +323,7 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
   if (source.levels.length === 0) errors.push('There must be at least one level.');
   const hasEvents = source.events.some((e) => !e.treasure);
   const hasTreasures = source.events.some((e) => e.treasure);
+  const storesStocked = STORE_KINDS.every((kind) => source.shop.some((item) => item.store === kind));
 
   const placeIds = new Set<string>();
   for (const place of source.coast.places) {
@@ -332,7 +345,7 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
       for (const fight of [level.miniBoss, level.boss]) {
         for (const id of fight?.enemies ?? []) if (!enemyIds.has(id)) errors.push(`${where}: unknown enemy "${id}".`);
       }
-      if (!hasEvents || !hasTreasures || !source.shop.length) errors.push(`${where}: generated maps need events, treasure events and a shop.`);
+      if (!hasEvents || !hasTreasures || !storesStocked) errors.push(`${where}: generated maps need events, treasure events and something in every store.`);
       continue;
     }
     const nodes = level.nodes;
@@ -378,7 +391,7 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
       }
       if (node.kind === 'event' && !hasEvents) errors.push(`${at}: there are no events to meet.`);
       if (node.kind === 'treasure' && !hasTreasures) errors.push(`${at}: there are no treasure events.`);
-      if (node.kind === 'shop' && !source.shop.length) errors.push(`${at}: the shop has nothing to sell.`);
+      if (node.kind === 'shop' && !storesStocked) errors.push(`${at}: every store needs something to sell.`);
     }
 
     // Everything must be reachable from the start, which leads to the first column.

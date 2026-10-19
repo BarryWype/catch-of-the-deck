@@ -1,4 +1,4 @@
-import { rescaleBond, type CatchSize, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
+import { BUCKET_SIZE, rescaleBond, type CatchSize, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
 import { gameData } from './i18n';
 import type { Screen } from './useGame';
 
@@ -8,7 +8,7 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 export const PROFILE_VERSION = 6;
 
 /** Everything needed to pick a run up exactly where it was left. */
@@ -124,6 +124,12 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
   if (save.version === 16) save = { ...save, version: 17, run: { ...save.run, fishermen: [] } };
   // v17 runs had shown no bucket quests.
   if (save.version === 17) save = { ...save, version: 18, run: { ...save.run, questsShown: [] } };
+  // v18 runs had one shop, before the three stores: their shop nodes become Tackle shops.
+  if (save.version === 18) {
+    const columns = save.run.map.columns.map((column) => column.map((n) => (n.kind === 'shop' ? { ...n, store: 'tackle' as const } : n)));
+    const run = { ...save.run, map: { columns }, bucketSize: BUCKET_SIZE, boons: [], sentHome: [], luckyLure: false, spareHooks: 0 };
+    save = { ...save, version: 19, run, shopVisit: { ...save.shopVisit, store: 'tackle' } };
+  }
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.

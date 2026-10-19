@@ -5,6 +5,7 @@ import {
   MAX_BOND_LEVEL,
   parseScenario,
   SESSION_SLOTS,
+  STORE_KINDS,
   validateScenario,
   type Catch,
   type DebugCreature,
@@ -40,6 +41,7 @@ const startIds = computed(() => {
   if (type === 'encounter') return encounters.value.map((e) => ({ id: e.id, name: `${e.name} (${e.enemies.length})` }));
   if (type === 'event') return events.value;
   if (type === 'fisherman') return fishermen.value;
+  if (type === 'shop') return STORE_KINDS.map((id) => ({ id, name: t(`shop.title.${id}`) }));
   return [];
 });
 
@@ -79,7 +81,13 @@ function resetDeck() {
 
 function scenario(): DebugScenario {
   const type = startType.value;
-  const start = (['creature', 'encounter', 'event', 'fisherman'].includes(type) ? { type, id: startId.value } : { type }) as DebugStart;
+  const start = (
+    type === 'shop'
+      ? { type, store: startId.value }
+      : ['creature', 'encounter', 'event', 'fisherman'].includes(type)
+        ? { type, id: startId.value }
+        : { type }
+  ) as DebugStart;
   return {
     seed: draft.seed,
     build: draft.build,
@@ -117,7 +125,7 @@ function load(s: DebugScenario) {
     home: (s.profile?.home ?? []).map((c) => ({ ...c })),
   });
   startType.value = s.start.type;
-  startId.value = 'id' in s.start ? s.start.id : '';
+  startId.value = 'id' in s.start ? s.start.id : 'store' in s.start ? (s.start.store ?? 'tackle') : '';
 }
 
 const error = ref<DebugError | null>(null);

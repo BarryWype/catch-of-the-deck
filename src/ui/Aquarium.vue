@@ -7,6 +7,7 @@ import AnimatedSprite from './AnimatedSprite.vue';
 import { t } from './i18n';
 import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
+import { HOLD_ICON } from './icons';
 import { animatedSheetFor, creatureClip } from './sprites';
 
 const props = withDefaults(
@@ -182,7 +183,7 @@ onBeforeUnmount(() => {
 
 const residents = computed(() => {
   const copies = new Map<string, number>();
-  return props.creatures.map(({ id, size }, slot) => {
+  return props.creatures.map(({ id, size, lifeJacket }, slot) => {
     const def = props.data.enemies[id];
     const points = props.bonds?.[slot];
     const habitat = def?.habitat ?? 'swim';
@@ -202,6 +203,7 @@ const residents = computed(() => {
       bonus: def?.temperament ? props.data.companionBonuses[def.temperament] : undefined,
       angry: props.companions !== undefined && slot >= props.companions,
       bond: bondOf(id, points),
+      lifeJacket: !!lifeJacket,
       size,
       stars: points === undefined ? undefined : companionStars({ id, bond: points, size }, props.data),
     };
@@ -225,6 +227,7 @@ function residentTip(r: Resident) {
     r.stars ? t('aquarium.stars', { n: r.stars }) : '',
     props.interactive && props.action === 'sell' ? t('aquarium.sellsFor', { coins: r.sellValue }) : '',
     r.angry ? t('aquarium.angry') : '',
+    r.lifeJacket ? t('shop.lifeJacket') : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -300,6 +303,7 @@ const plants = [
             <span v-else class="emoji">{{ r.portrait }}</span>
           </div>
           <!-- Outside .bob, which mirrors the sprite, so the badges read the right way. -->
+          <span v-if="r.lifeJacket" class="jacket" aria-hidden="true"><GameIcon :icon="HOLD_ICON" /></span>
           <span v-if="r.angry" class="angry" aria-hidden="true">💢</span>
           <span v-else-if="r.bond?.level" class="bond" :class="{ full: r.bond.level === MAX_BOND_LEVEL }" aria-hidden="true">
             ♥{{ r.bond.level }}
@@ -464,6 +468,8 @@ const plants = [
 .sell-panel .size { color: var(--muted); font-size: 0.75rem; }
 .sell-panel .stars { color: #f2c94c; }
 .angry { position: absolute; top: -4px; right: 18px; font-size: 1rem; pointer-events: none; }
+/* The life jacket's buoy, on the other side from the mood and bond marks. */
+.jacket { position: absolute; top: -4px; left: 14px; font-size: 1rem; pointer-events: none; }
 .sell-panel .blocked { color: var(--muted); font-size: 0.75rem; }
 .sell-panel .actions { display: flex; gap: 6px; margin-top: 4px; }
 

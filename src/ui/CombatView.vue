@@ -27,6 +27,7 @@ import {
   type CombatState,
   type EnemyState,
   type GameData,
+  type RunState,
 } from '../engine';
 import CardView from './CardView.vue';
 import KeywordText from './KeywordText.vue';
@@ -56,6 +57,8 @@ import {
 const props = defineProps<{
   state: CombatState;
   data: GameData;
+  /** The run around the fight: its store effects show with the powers. */
+  run?: RunState;
   equipment: string[];
   newEggs: number;
   releaseReason: string | null;
@@ -691,7 +694,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             grit
           />
           <StatusList :statuses="state.player.statuses" />
-          <PowerList :state="state" :data="data" />
+          <PowerList :state="state" :data="data" :run="run" />
         </div>
         <div class="orbs">
           <div v-tip="t('combat.energy')" class="energy">

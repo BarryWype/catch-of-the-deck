@@ -450,8 +450,16 @@ export const frContent: ContentTranslations = {
   },
 
   shop: {
-    heart: 'Thermos de chocolat chaud',
+    cocoa: 'Tasse de cacao',
+    espresso: 'Expresso',
+    lifeJacket: 'Gilet de sauvetage',
+    parcel: 'Colis',
+    luckyLure: 'Leurre porte-bonheur',
+    spareHook: 'Hameçon de rechange',
     removeCard: 'Retirer une carte',
+    bucketExtension: 'Rehausse de seau',
+    blessingRelease: 'Relâcher pour une bénédiction',
+    aquarium: 'Aquarium du patron',
   },
 
   spots: {

@@ -89,6 +89,7 @@ export const testData = buildGameData({
   fishermen: [],
   events: [],
   shop: [],
+  blessings: [],
   equipment: [
     { id: 'reel', name: 'Reel', description: '', effects: [{ type: 'slowEscape', percent: 20 }] },
     { id: 'spear', name: 'Spear', description: '', effects: [{ type: 'sellOnCapture', bonusPercent: 20 }] },

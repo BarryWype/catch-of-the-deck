@@ -158,6 +158,7 @@ describe('content validation', () => {
     creatureTypes: [{ id: 't', name: 'T' }],
     equipment: [],
     events: [],
+    blessings: [],
     shop: [],
     companionBonuses: [],
     families: [],

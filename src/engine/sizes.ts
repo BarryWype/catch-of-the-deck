@@ -9,6 +9,10 @@ export type CatchSize = 'small' | 'normal' | 'large' | 'trophy';
 export interface Catch {
   id: string;
   size: CatchSize;
+  /** Bond points it will arrive home with (a Bait shop blessing); companions keep theirs in `RunState.companions`. */
+  bond?: number;
+  /** Wears a life jacket: it reaches the home aquarium even if the run is lost. */
+  lifeJacket?: boolean;
 }
 
 /** Smallest first. */

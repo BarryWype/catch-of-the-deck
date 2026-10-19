@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { BUCKET_SIZE, creatureTypeNames, describeCard, findNode, isReleaseFight, justBeatBoss, SESSION_SLOTS, type CardDef } from '../engine';
+import { creatureTypeNames, describeCard, findNode, isReleaseFight, justBeatBoss, SESSION_SLOTS, type CardDef } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
@@ -159,7 +159,7 @@ const deckCards = computed(() =>
       <Aquarium
         class="aquarium"
         :creatures="run.bucket"
-        :capacity="BUCKET_SIZE"
+        :capacity="run.bucketSize"
         :companions="run.companions.length"
         :bonds="run.companions.map((c) => c.bond)"
         :data="data"
@@ -172,6 +172,7 @@ const deckCards = computed(() =>
       v-else-if="screen === 'combat' && combat"
       :state="combat"
       :data="data"
+      :run="run"
       :equipment="run.equipment"
       :new-eggs="newEggs"
       :spot="findNode(run.map, run.position)?.spot ?? undefined"

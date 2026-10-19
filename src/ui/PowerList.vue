@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed } from 'vue';
-import { describeEffect, powerCount, powerTotal, type CardDef, type CombatState, type Effect, type GameData, type PowerId } from '../engine';
+import { describeEffect, powerCount, powerTotal, type CardDef, type CombatState, type Effect, type GameData, type PowerId, type RunState } from '../engine';
 import { t } from './i18n';
+import { storeEffectChips } from './storeEffects';
 
-const props = defineProps<{ state: CombatState; data: GameData }>();
+/** `run`: also show what was bought in stores and still works (boons, lure, spare hooks). */
+const props = defineProps<{ state: CombatState; data: GameData; run?: RunState }>();
+
+const bought = computed(() => (props.run ? storeEffectChips(props.run, props.data) : []));
 
 /** Powers without a fitting icon show their card's art. */
 const ICONS: Partial<Record<PowerId, string>> = { hardShell: 'golden-shell', stingsAndSpines: 'thorn', envenomedHooks: 'hook', pushTheLimits: 'trap2',
@@ -60,11 +64,14 @@ const temporary = computed(() => {
 </script>
 
 <template>
-  <div v-if="entries.length || temporary.length" class="powers">
+  <div v-if="entries.length || temporary.length || bought.length" class="powers">
     <span v-for="p in entries" :key="p.power" class="power" v-tip="{ title: p.title, body: p.body }" tabindex="0">
       <GameIcon :icon="p.icon" /><b v-if="p.count > 1">{{ p.count }}</b>
     </span>
     <span v-for="(b, i) in temporary" :key="i" class="power temporary" v-tip="{ title: b.title, body: b.body }" tabindex="0">
+      <GameIcon :icon="b.icon" /><b v-if="b.badge">{{ b.badge }}</b>
+    </span>
+    <span v-for="b in bought" :key="b.key" class="power bought" v-tip="{ title: b.title, body: b.body }" tabindex="0">
       <GameIcon :icon="b.icon" /><b v-if="b.badge">{{ b.badge }}</b>
     </span>
   </div>
@@ -84,4 +91,5 @@ const temporary = computed(() => {
   cursor: help;
 }
 .temporary { background: #173a4a; box-shadow: inset 0 0 0 1px #3aa4c9; }
+.bought { background: #1f3a24; box-shadow: inset 0 0 0 1px #5aa45f; }
 </style>

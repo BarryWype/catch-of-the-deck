@@ -34,7 +34,7 @@ describe('saves from before stars, sizes and the bucket limit', () => {
   it('run save v13: bucket entries get a normal size, companions the new bond scale, nothing waits', () => {
     const old = {
       version: 13,
-      run: { bucket: ['clownfish', 'blueTang'], companions: [{ id: 'clownfish', bond: 50 }] },
+      run: { map: { columns: [] }, bucket: ['clownfish', 'blueTang'], companions: [{ id: 'clownfish', bond: 50 }] },
       combat: null,
     };
     const save = upgradeSave(old as never)!;
@@ -48,27 +48,37 @@ describe('saves from before stars, sizes and the bucket limit', () => {
   });
 
   it('run save v14: the run gets the reroll every run starts with', () => {
-    const save = upgradeSave({ version: 14, run: { bucket: [] }, combat: null } as never)!;
+    const save = upgradeSave({ version: 14, run: { map: { columns: [] }, bucket: [] }, combat: null } as never)!;
     expect(save.version).toBe(SAVE_VERSION);
     expect(save.run.rewardRerolls).toBe(1);
   });
 
   it('run save v15: no card removal on offer', () => {
-    const save = upgradeSave({ version: 15, run: { bucket: [] }, combat: null } as never)!;
+    const save = upgradeSave({ version: 15, run: { map: { columns: [] }, bucket: [] }, combat: null } as never)!;
     expect(save.version).toBe(SAVE_VERSION);
     expect(save.run.bossRemoval).toBe(false);
   });
 
   it('run save v16: no fishermen on the map', () => {
-    const save = upgradeSave({ version: 16, run: { bucket: [] }, combat: null } as never)!;
+    const save = upgradeSave({ version: 16, run: { map: { columns: [] }, bucket: [] }, combat: null } as never)!;
     expect(save.version).toBe(SAVE_VERSION);
     expect(save.run.fishermen).toEqual([]);
   });
 
   it('run save v17: no bucket quest shown yet', () => {
-    const save = upgradeSave({ version: 17, run: { bucket: [], fishermen: [] }, combat: null } as never)!;
+    const save = upgradeSave({ version: 17, run: { map: { columns: [] }, bucket: [], fishermen: [] }, combat: null } as never)!;
     expect(save.version).toBe(SAVE_VERSION);
     expect(save.run.questsShown).toEqual([]);
+  });
+
+  it('run save v18: shop nodes become Tackle shops, the visit too, with no store effects yet', () => {
+    const shopNode = { id: 's', kind: 'shop' };
+    const old = { version: 18, run: { map: { columns: [[shopNode, { id: 'f', kind: 'fight' }]] }, bucket: [] }, shopVisit: { bought: { heart: 1 } }, combat: null };
+    const save = upgradeSave(old as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run.map.columns[0]).toEqual([{ ...shopNode, store: 'tackle' }, { id: 'f', kind: 'fight' }]);
+    expect(save.shopVisit).toEqual({ store: 'tackle', bought: { heart: 1 } });
+    expect(save.run).toMatchObject({ bucketSize: 7, boons: [], sentHome: [], luckyLure: false, spareHooks: 0 });
   });
 
   it('profile v5: keeps everything, with only the default builds unlocked and no fisherman met', () => {

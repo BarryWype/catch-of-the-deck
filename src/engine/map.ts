@@ -1,5 +1,5 @@
 import { nextFloat, nextInt, shuffleInPlace, type RngHolder } from './rng';
-import type { EncounterDef, GameData, LevelDef, LevelNodeKind } from './types';
+import type { EncounterDef, GameData, LevelDef, LevelNodeKind, StoreKind } from './types';
 
 /** The node every level's map starts on (the grandparents' house). */
 export const START_NODE_ID = 'start';
@@ -25,6 +25,8 @@ export interface MapNode {
   releaseReason: string | null;
   /** Fisherman nodes: who stands there (`FishermanDef`). */
   fisherman?: string;
+  /** Shop nodes: which store it is (`assignStores`). */
+  store?: StoreKind;
   /** Ids of the nodes reachable from here. */
   next: string[];
 }
@@ -40,9 +42,17 @@ export interface GameMap {
  */
 export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHolder, fishermen: readonly string[] = []): GameMap {
   const level = data.levels[levelIndex];
-  if (level.nodes) return handMadeMap(level, level.nodes);
+  if (level.nodes) return assignStores(handMadeMap(level, level.nodes), holder);
   const map = generateLevelMap(level, levelIndex, data, holder);
   placeFishermen(map, fishermen.filter((id) => data.fishermen[id]?.level === level.id));
+  return assignStores(map, holder);
+}
+
+export const STORE_KINDS: readonly StoreKind[] = ['cafe', 'tackle', 'bait'];
+
+/** Every shop node becomes one of the stores, each as likely, drawn last so the rest of the map doesn't depend on it. */
+function assignStores(map: GameMap, holder: RngHolder): GameMap {
+  for (const node of map.columns.flat()) if (node.kind === 'shop') node.store = STORE_KINDS[nextInt(holder, 0, STORE_KINDS.length - 1)];
   return map;
 }
 
