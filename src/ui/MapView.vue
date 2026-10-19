@@ -1,20 +1,26 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { iconUrl } from './icons';
+import { storeEffectChips } from './storeEffects';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   activeBonuses,
   availableDestinations,
   describeCompanionEffect,
   findNode,
+  STORE_KINDS,
   type GameData,
   type MapNode,
   type RunState,
+  type StoreKind,
 } from '../engine';
 import { t } from './i18n';
 import { playTheme, stopTheme } from './music';
 import { TOUCH_QUERY, useMedia } from './useScreen';
 import mapUrl from './assets/coast/map.png';
+import cafeNodeUrl from './assets/stores/cafe-node.png';
+import tackleNodeUrl from './assets/stores/tackle-node.png';
+import baitNodeUrl from './assets/stores/bait-node.png';
 
 const props = defineProps<{ run: RunState; data: GameData }>();
 const emit = defineEmits<{ travel: [nodeId: string] }>();
@@ -34,6 +40,8 @@ const destinations = computed(() => new Set(availableDestinations(props.run).map
 const visited = computed(() => new Set(props.run.visited));
 const currentColumn = computed(() => findNode(props.run.map, props.run.position)?.column ?? 0);
 const equipment = computed(() => props.run.equipment.map((id) => props.data.equipment[id]).filter(Boolean));
+/** What was bought in stores and still works (`storeEffectChips`), after the companion bonuses. */
+const bought = computed(() => storeEffectChips(props.run, props.data));
 /** Companion bonuses from the creatures brought along, shown next to the equipment. */
 const bonuses = computed(() =>
   activeBonuses(props.run.companions, props.data).map((b) => ({ ...b, text: b.effects.map(describeCompanionEffect) })),
@@ -64,7 +72,11 @@ function nodeState(node: MapNode) {
   return node.column < currentColumn.value ? 'skipped' : 'locked';
 }
 
-const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: 'question-mark', shop: 'coin-stack', treasure: 'chest', leave: 'house' };
+const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: 'question-mark', treasure: 'chest', leave: 'house' };
+
+/** A shop node shows its store's front (assets/stores/<store>-node.png, drawn 1:1). */
+const STORE_NODES: Record<StoreKind, string> = { cafe: cafeNodeUrl, tackle: tackleNodeUrl, bait: baitNodeUrl };
+const storeOf = (node: MapNode): StoreKind => node.store ?? 'tackle';
 
 const hasFisherman = computed(() => props.run.map.columns.some((column) => column.some((n) => n.kind === 'fisherman')));
 
@@ -78,7 +90,10 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
     case 'start':
       return { title: props.data.character.home.name };
     case 'shop':
-      return { title: t('map.shop') };
+      return {
+        title: t(`shop.title.${storeOf(node)}`),
+        detail: props.data.shop.filter((item) => item.store === storeOf(node)).map((item) => item.name).join(' · '),
+      };
     case 'event':
       return { title: t('map.event') };
     case 'treasure':
@@ -193,7 +208,7 @@ function choose(node: MapNode) {
 
 <template>
   <section ref="root" class="map-screen">
-    <ul v-if="equipment.length || bonuses.length" class="equipment" :aria-label="t('map.equipment')">
+    <ul v-if="equipment.length || bonuses.length || bought.length" class="equipment" :aria-label="t('map.equipment')">
       <li
         v-for="item in equipment"
         :key="item.id"
@@ -215,6 +230,10 @@ function choose(node: MapNode) {
         <span class="icon">{{ b.def.icon ?? '🐟' }}</span>
         <b class="stars" aria-hidden="true">★{{ b.stars }}</b>
       </li>
+      <li v-for="b in bought" :key="b.key" v-tip="{ title: b.title, body: b.body }" class="item bought" tabindex="0" :aria-label="b.title">
+        <span class="icon"><GameIcon :icon="b.icon" /></span>
+        <b v-if="b.badge" class="stars" aria-hidden="true">{{ b.badge }}</b>
+      </li>
     </ul>
 
     <p class="level-name">{{ level?.name }}</p>
@@ -226,7 +245,7 @@ function choose(node: MapNode) {
         <span class="swatch" :style="{ background: spot.color }" /><b>{{ spot.id }}</b> {{ spot.name }}
       </li>
       <li><span class="sym">?</span> {{ t('map.event') }}</li>
-      <li><span class="sym">$</span> {{ t('map.shop') }}</li>
+      <li v-for="store in STORE_KINDS" :key="store"><img class="sym-art" :src="STORE_NODES[store]" alt=""> {{ t(`shop.title.${store}`) }}</li>
       <li><span class="sym">T</span> {{ t('map.treasure') }}</li>
       <li><span class="sym leave">⌂</span> {{ t('map.headHomeLegend') }}</li>
       <li v-if="hasFisherman"><span class="sym fisherman">F</span> {{ t('map.fisherman') }}</li>
@@ -282,7 +301,7 @@ function choose(node: MapNode) {
           @keydown.enter="choose(node)"
         >
           <!-- Highlight ring: where you are, or where you can go. -->
-          <circle v-if="nodeState(node) === 'current' || nodeState(node) === 'available'" class="ring" :r="node.kind === 'boss' ? 26 : 19" />
+          <circle v-if="nodeState(node) === 'current' || nodeState(node) === 'available'" class="ring" :r="node.kind === 'boss' || node.kind === 'shop' ? 26 : 19" />
           <circle v-if="node.kind === 'start'" class="hit" r="26" />
           <template v-else>
             <!-- A finger-sized target around small nodes, in addition to their body. -->
@@ -295,6 +314,9 @@ function choose(node: MapNode) {
             <template v-else-if="node.kind === 'boss'">
               <circle class="body" r="18" />
               <circle class="core" r="8" />
+            </template>
+            <template v-else-if="node.kind === 'shop'">
+              <image class="symbol store-art" :href="STORE_NODES[storeOf(node)]" x="-20" y="-20" width="40" height="40" />
             </template>
             <template v-else>
               <circle class="body" :r="RADIUS - 1" />
@@ -319,8 +341,10 @@ function choose(node: MapNode) {
 .equipment { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .item { position: relative; }
 .companion .icon { border-color: #2f5a3a; }
+.bought .icon { border-color: #5aa45f; }
 .companion { position: relative; }
-.companion .stars {
+.companion .stars,
+.bought .stars {
   position: absolute;
   right: -4px;
   bottom: -4px;
@@ -331,6 +355,7 @@ function choose(node: MapNode) {
   font-size: 0.65rem;
   line-height: 1.4;
 }
+.bought .stars { color: #bfe8a8; }
 .item .icon {
   display: grid;
   place-items: center;
@@ -400,6 +425,7 @@ function choose(node: MapNode) {
 }
 .sym.leave { border-color: #2d8a73; color: #2d8a73; }
 .sym.fisherman { border-color: var(--highlight); }
+.sym-art { flex: none; width: 18px; height: 18px; image-rendering: pixelated; }
 .sym.diamond { width: 11px; height: 11px; margin: 0 2px; border: 2px solid #fff; border-radius: 0; background: #c4531c; transform: rotate(45deg); }
 .sym.boss { border: 3px solid #c4531c; background: #fff; }
 
@@ -417,11 +443,11 @@ function choose(node: MapNode) {
 .node .body { stroke: #fff; stroke-width: 2; }
 .node .code { font-size: 9.5px; font-weight: 600; fill: #fff; pointer-events: none; }
 .node.event .body,
-.node.shop .body,
 .node.treasure .body { fill: #fff; stroke: #2e2d27; stroke-width: 1.8; }
 .node.leave .body { fill: #fff; stroke: #2d8a73; stroke-width: 2.5; }
 .node.fisherman .body { fill: #fff; stroke: var(--highlight); stroke-width: 2.5; }
 .node .symbol { image-rendering: pixelated; pointer-events: none; }
+.node.visited .store-art { opacity: 0.6; }
 .node.miniBoss .body { fill: #c4531c; }
 .node.boss .body { fill: #c4531c; stroke-width: 3; }
 .node.boss .core { fill: #fff; }

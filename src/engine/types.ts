@@ -384,16 +384,59 @@ export interface EventDef {
   choices: EventChoice[];
 }
 
-/** Something for sale in a shop. */
+/** The three kinds of store a shop node can be (`MapNode.store`). */
+export type StoreKind = 'cafe' | 'tackle' | 'bait';
+
+/**
+ * What a store item does. `lifeJacket`, `sendHome`, `release` and `aquariumSale` act on a bucket
+ * creature the player picks, `removeCard` on a deck card (see shop.ts).
+ */
+export type ShopEffect =
+  /** Grit back, never above max. */
+  | { type: 'heal'; amount: number }
+  | { type: 'removeCard' }
+  /** Max Grit and Grit both rise by `amount` now; after `fights` fights, max Grit drops back (a `Boon`). */
+  | { type: 'maxHpForFights'; amount: number; fights: number }
+  /** The creature reaches the home aquarium even if the run is lost. */
+  | { type: 'lifeJacket' }
+  /** The creature leaves the bucket for the home aquarium, which it joins when the run ends, however it ends. */
+  | { type: 'sendHome' }
+  /** The next card reward has at least one rare card, even before rares are unlocked. */
+  | { type: 'rareReward' }
+  /** The next card reward offers one more card. */
+  | { type: 'extraRewardCard' }
+  /** The bucket holds this many more creatures for the rest of the run. */
+  | { type: 'bucketSpace'; amount: number }
+  /** The creature is let go (no coins) for the visit's blessing (`ShopVisit.blessing`). */
+  | { type: 'release' }
+  /** The creature, of the visit's family (`ShopVisit.family`), sells for `percent` of its sale value. */
+  | { type: 'aquariumSale'; percent: number };
+
+/** Something for sale in a store. */
 export interface ShopItemDef {
   id: string;
   name: string;
-  /** Placeholder art (emoji). Display-only. */
+  /** Which store sells it, on every visit. */
+  store: StoreKind;
+  /** Placeholder art (emoji or an icon name). Display-only. */
   icon?: string;
   price: number;
-  effect: { type: 'heal'; amount: number } | { type: 'removeCard' };
+  effect: ShopEffect;
   /** How many times it can be bought per shop visit. Unlimited if omitted. */
   limit?: number;
+}
+
+/** What releasing a creature at the Bait shop gives: one is drawn per visit. Its text is `store.blessing.<id>`. */
+export interface BlessingDef {
+  id: string;
+  /** An icon file name (ui/assets/icons), shown while it lasts. Display-only. */
+  icon?: string;
+  effect:
+    /** A combat bonus, as a companion's, for the next `fights` fights (a `Boon`). */
+    | { type: 'bonus'; bonus: CompanionEffect; fights: number }
+    | { type: 'heal'; amount: number }
+    /** Bond points for every creature in the bucket: companions now, caught ones when they reach home. */
+    | { type: 'bond'; amount: number };
 }
 
 /** A creature type, used as an enemy tag (e.g. 'crustacean'). */
@@ -614,6 +657,7 @@ export interface GameData {
   equipment: Record<string, EquipmentDef>;
   events: Record<string, EventDef>;
   shop: ShopItemDef[];
+  blessings: BlessingDef[];
   /** Keyed by temperament id. */
   companionBonuses: Record<string, CompanionBonusDef>;
   families: Record<string, FamilyDef>;

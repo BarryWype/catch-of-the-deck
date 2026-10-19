@@ -25,7 +25,7 @@ You lose the whole run if your **Grit** runs out.
 
 ### Grit
 
-Grit is your will to keep fishing: your health, in effect. You start with **60**. Creatures' **Strikes** wear it down. It carries over from fight to fight, so a draining fight early on makes the next ones harder. Some events, the shop and a few companions let you recover Grit.
+Grit is your will to keep fishing: your health, in effect. You start with **60**. Creatures' **Strikes** wear it down. It carries over from fight to fight, so a draining fight early on makes the next ones harder. Some events, the Cafe, the Bait shop's blessings and a few companions let you recover Grit.
 
 If Grit reaches 0, you give up: the run is over, and **everything in your bucket is lost**, including the creatures you brought from home.
 
@@ -181,7 +181,10 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 - **Card rewards:** after a win, pick one of three cards to add to your deck. They come from the **families** of the creatures you just beat (Venom, Shell, Hunter…), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). The mini-boss's own reward always has at least one rare card. You have to take one, but you can **reroll** for three other cards: you start a run with 1 reroll and get 1 more for every mini-boss and boss you beat, and unused ones carry over. The screen shows which families the cards come from, and each card's family above it. Eel companions can let you skip a few times per age, and with 3 species add a few rerolls per age (used first, since they don't carry over).
 - **Events** (?): something happens: a choice, a find, sometimes a surprise fight.
-- **Shops** ($): spend coins on a thermos of hot chocolate (recovers Grit) or on removing a card from your deck. Sell creatures from your bucket to afford them. A few of them stand where an event might have been on the map.
+- **Stores**: every shop on the map is one of three stores, each with its own front on the map. Sell creatures from your bucket to afford things. A few stand where an event might have been. Tap the keeper for a chat.
+  - **Cafe**: a cocoa cup (15 coins, +15 Grit, as many as you like) and one espresso (20 coins: +20 max Grit and +20 Grit for the next 5 fights; then max Grit drops back). The keeper knows every fisherman on the coast, and hints at where to find the next one with a build to teach.
+  - **Tackle shop**: a life jacket (20: one creature of your choice comes home even if the run is lost), a parcel (15: post one creature home now, freeing its spot), a lucky lure (40: your next card reward has a rare card, even early on), spare hooks (10 each: one more card in your next reward, they add up) and removing a card from your deck (20). One of each per visit, spare hooks aside.
+  - **Bait shop**: a bucket extension (20: 3 more spots for the rest of the run), and two deals around the keeper's tank. **Release** a creature for the visit's blessing (+1 damage for 5 fights, +2 Drain for 4 fights, creatures start 5 fights with 2 Vulnerable, start 5 fights with 5 Hold, +30 bond for your whole bucket, or +20 Grit). The **aquarium** buys one creature of the family on its sign for twice its price.
 - **Treasure** (T): a free find before the boss.
 
 ## Your bucket

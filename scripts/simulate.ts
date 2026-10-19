@@ -25,7 +25,7 @@
  * The bot (`playTurn`) plays one card at a time: it tries each playable card on each target and
  * keeps the one that leaves the fight in the best shape (`evaluate`), until nothing helps. On the
  * map it takes a random path (never heading home early), picks a random card reward and event
- * choice, and buys Grit in shops when it's under half. It's a decent player, not a great one.
+ * choice, and buys Grit at the Cafe when it's under half. It's a decent player, not a great one.
  */
 import { BOND_BY_TIER } from '../src/content/creatures';
 import { gameData as data } from '../src/content';
@@ -69,6 +69,8 @@ import {
   sellCreature,
   setText,
   shopItemBlocked,
+  storeItems,
+  type ShopVisit,
   fishermenToMeet,
   newUnlocks,
   questProgress,
@@ -354,13 +356,14 @@ function playRun(
     let eventId: string | undefined;
 
     if (node.kind === 'shop') {
-      run = visitShop(run, node.id);
-      const heal = data.shop.find((i) => i.effect.type === 'heal');
-      let visit = { bought: {} as Record<string, number> };
+      let visit: ShopVisit;
+      ({ run, visit } = visitShop(run, node.id, data));
+      // Only the Cafe sells Grit; the bot ignores the other items.
+      const heal = storeItems(visit, data).find((i) => i.effect.type === 'heal');
       if (heal && run.hp * 2 < run.maxHp) {
         // Sell catches (not companions) until the Grit is affordable.
         while (run.coins < heal.price && run.bucket.length > run.companions.length) run = sellCreature(run, run.companions.length, data);
-        while (!shopItemBlocked(heal, run, visit) && run.hp * 2 < run.maxHp) ({ run, visit } = buyShopItem(run, visit, heal.id, data));
+        while (!shopItemBlocked(heal, run, visit, data) && run.hp * 2 < run.maxHp) ({ run, visit } = buyShopItem(run, visit, heal.id, data));
       }
       continue;
     }

@@ -7,6 +7,7 @@ const EMOJI: Record<string, string> = {
   '🪙': 'coin-stack', '💰': 'coin-stack', '📦': 'chest', '🎁': 'chest', '⚡': 'lightning', '🛡️': 'shield2', '⚔️': 'sword',
   '💪': 'muscle', '🪝': 'hook', '💨': 'excape1', '🎣': 'rod1', '🎋': 'rod2', '🔱': 'harpoon', '🧵': 'hook-on-string',
   '🥅': 'net-green', '☕': 'coffee',
+  '✂️': 'scissors', '✂': 'scissors',
 };
 
 /** Hold's icon, shared by the keyword and the defense card type. */

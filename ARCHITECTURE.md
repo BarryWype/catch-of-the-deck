@@ -67,10 +67,15 @@ menu ──New run──▶ build ──▶ companions ──Set off──▶ ma
   - **On arrival:** `visitEvent` either starts a surprise fight against any creature of the level's tier (`EVENT_FIGHT_CHANCE`, 10%) or draws one of the events allowed at that column (`minColumn`).
   - **Treasure nodes** (`visitTreasure`) draw among the events marked `treasure` instead, which never come up as ordinary events.
   - **Choices:** each choice is a list of `EventEffect`s, applied by `applyEventChoice` (`engine/events.ts`).
-- **Shop:**
-  - **Visiting:** `visitShop`, then `buyShopItem` with a `ShopVisit` that tracks purchases for that visit (`engine/shop.ts`).
-  - **Limits:** items can have a per-visit `limit`.
-  - **Paying:** the bucket stays in view under the shop, so creatures can be sold there to afford things.
+- **Stores** (STORES.md has the design and the item list):
+  - **Which store:** `buildLevelMap` gives every shop node a `MapNode.store` (`cafe`, `tackle` or `bait`, `STORE_KINDS`), each as likely, drawn after the rest of the map so the layout doesn't depend on it.
+  - **Visiting:** `visitShop` moves there and opens a `ShopVisit`: the store, the purchases so far and, for the Bait shop, the blessing a release gives and the family its aquarium buys, both drawn on arrival from the run's RNG. `storeItems` lists what the store sells; `buyShopItem` buys one (`engine/shop.ts`).
+  - **Items:** each `ShopItemDef` has a `store`, a price, an optional per-visit `limit` and a `ShopEffect`. Effects that act on a bucket creature (`needsCreature`) take its slot; `creatureBlocked` says which creatures can be picked. `removeCard` takes a deck index.
+  - **Lasting effects:** `RunState.boons` holds what lasts a few fights: a combat `bonus` (a `CompanionEffect`, added to the fight's bonuses in `startFight`, so blessings reuse companion bonuses and triggers) or `maxHp` (the espresso). `finishCombat` wears one fight off each and takes an expired `maxHp` back off the cap.
+  - **Other run state:** `bucketSize` (the bucket extension), `luckyLure` and `spareHooks` (used up by the next `rollCardRewards`; a reroll keeps the reward's size), `sentHome` (parcels) and `Catch.lifeJacket` / `Catch.bond` on bucket entries. `bringCatchHome(home, run, data, success)` brings the whole bucket on a success, only life-jacketed creatures otherwise, and the parcels either way.
+  - **Keepers:** tapping one cycles `store.chat.<store>.*`; the Cafe keeper's every other line is `store.hint.<fisherman>` for `RunState.fishermen[0]`, the next locked build's fisherman (or `none`).
+  - **Showing them:** `storeEffectChips` (`ui/storeEffects.ts`) turns boons, the lucky lure and spare hooks into green chips, with fights left or the hook count as a badge: beside the equipment on the map, and with the powers in a fight (`PowerList`'s `run`). A creature with a life jacket wears Hold's buoy in the bucket.
+  - **Paying:** the bucket stays in view under the store, so creatures can be sold there to afford things.
 - **Head home** (the `leave` node after each mini-boss):
   - **Confirming:** clicking the ⌂ node opens a confirmation without moving (`leaveNodeId` in `useGame.ts`). **Go back** returns to the map; that prompt is never saved, so a resume lands on the map.
   - **Finish:** `visitLeave` moves onto the node and the run ends as a success, so the bucket comes home.
@@ -127,7 +132,7 @@ There are two separate collections of creatures. They never share creatures, exc
 | What | The creatures caught during the current run | The creatures brought back from won runs |
 | Where in code | `RunState.bucket`: one `Catch` `{ id, size }` per creature, at most `BUCKET_SIZE` (7), companions included | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, size, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
-| Shown | Below the map and the shop, and on the bucket-full screen (🪣 Bucket, with an "n/7" count) | Menu background, companions screen (🏠 Home aquarium) |
+| Shown | Below the map and the shop, and on the bucket-full screen (🪣 Bucket, with an "n/7" count, more with a bucket extension) | Menu background, companions screen (🏠 Home aquarium) |
 | Interactive | Yes: click a creature to see its size and sell it for coins (on the bucket-full screen: sell it to keep the waiting catch) | On the companions screen only: click a creature to bring it for the session |
 
 **Lifecycle:**
@@ -260,7 +265,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 - **Animated creature sheets** (`assets/creatures/NNN.png`, 6 frames × 4 rows: idle, attack, capture, flee) come from `scripts/generate-creature-sprites.mjs`.
 - **The coast map** (`assets/coast/map.png`, 1300×450: land, then a shoreline around y 196 with bays, two headlands, a tidal island and a lagoon behind a sand spit, the shallows, then the open sea from about y 300) is the background of every level's map, each age showing it down to its `height`. `scripts/draw-coast.mjs` (`npm run coast`) draws it with every place on it, and prints the places for `content/coast.ts`. The older hand-drawn art in `assets/map` (and `scripts/draw-sea.mjs`) is no longer used. `MapView.vue` draws on top of it:
   - **Links:** the links between nodes.
-  - **Nodes:** fights in their spot's colour with its code, ? / $ / T for events, shops and treasure, ⌂ for heading home, a diamond for the mini-boss and a ring for the boss.
+  - **Nodes:** fights in their spot's colour with its code, ? / T for events and treasure, each store's front (`assets/stores/<store>-node.png`) for shops, ⌂ for heading home, a diamond for the mini-boss and a ring for the boss.
   - **Legend:** a **Legend** button shows it, built from the spots.
   - **Zoom:** the map shows the whole width and the level's `height`. It takes 60% of the screen's height under the top bar (the bucket gets the rest), at least 300px, and scrolls sideways when wider than the screen, so Kid is zoomed in on the shore and the map zooms out as the ages go out to sea. Node markers keep their size on screen.
 - **Map terrain patches** (`assets/terrain.png`, from `scripts/generate-map-terrain.mjs`) were drawn under fights on the old generated map, and `assets/coast.svg` was the hand-made levels' background. Nothing uses them now; `terrain` in `content/creatureTypes.ts` is kept for later.
@@ -286,7 +291,7 @@ Every word the player reads comes from a language file in `src/locales/`, so the
 | `EVENT_FIGHT_CHANCE`, `CARD_REWARD_COUNT` | `engine/run.ts` | Surprise fights in events, card choices after a win |
 | `STARTING_HAND_SIZE`, `BASE_ENERGY`, `VULNERABLE_MULTIPLIER`, `WEAK_MULTIPLIER`, `STRONG_BONUS_PERCENT` | `engine/constants.ts` | Combat basics, and the extra damage of cards against their build's creature types |
 | `sellValue`, `escapeAt`, `escapeStart`, `escapeRate`, `temperament`, `tier`, `water` | `content/creatures.ts` | Per-creature balance, and where it lives |
-| Item prices and limits | `content/shop.ts` | Shop |
+| Item prices, limits and effects; blessings | `content/shop.ts` | Stores |
 | `startingItems`, `level` per build; item effects | `content/builds.ts`, `content/equipment.ts` | Which builds start a run, and the items to pick from (none for now) |
 | Temperament bonuses (`byStars`), `FULL_SCHOOL`, `SESSION_SLOTS` | `content/companions.ts`, `engine/companions.ts`, `engine/run.ts` | What brought creatures give, and how it scales with stars |
 | `BOND_BY_TIER`, `bondToFull`, `bondPerFight`, `BOND_AT_HOME`, `BOND_LEVELS` | `content/creatures.ts`, `engine/bond.ts` | How fast creatures bond with the player |
