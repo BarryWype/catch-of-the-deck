@@ -237,12 +237,15 @@ function residentTip(r: Resident) {
 const selectedKey = ref<string | null>(null);
 const selected = computed(() => residents.value.find((r) => r.key === selectedKey.value));
 
-function act() {
-  if (!selected.value) return;
-  if (props.action === 'sell') emit('sell', selected.value.slot);
-  else emit('bring', selected.value.slot);
+function act(r: Resident | undefined = selected.value) {
+  if (!r) return;
+  if (props.action === 'sell') emit('sell', r.slot);
+  else emit('bring', r.slot);
   selectedKey.value = null;
 }
+
+/** The same creatures as a list, easier to pick from than a crowded tank. Stays open between actions. */
+const list = ref<HTMLDialogElement>();
 
 // Decoration: seaweed from objects.png (1 green algae, 2 red algae, 3 seaweed). `flip` mirrors the
 // sprite so they don't all lean the same way. Bubbles: PixelBubbles.
@@ -257,11 +260,17 @@ const plants = [
 
 <template>
   <section class="aquarium" :aria-label="title ?? t('aquarium.default')">
-    
     <div ref="tank" class="tank">
-      <span class="count" :class="{ full: capacity !== undefined && creatures.length >= capacity }">
+      <component
+        :is="interactive && creatures.length ? 'button' : 'span'"
+        class="count"
+        :class="{ full: capacity !== undefined && creatures.length >= capacity }"
+        v-tip="interactive && creatures.length ? t('aquarium.listTip') : undefined"
+        @click="interactive && creatures.length && list?.showModal()"
+      >
+        <span v-if="interactive && creatures.length" aria-hidden="true">☰ </span>
         {{ capacity === undefined ? t('aquarium.count', { n: creatures.length }) : t('aquarium.countOf', { n: creatures.length, max: capacity }) }}
-      </span>
+      </component>
       <div class="surface" />
       <div class="rays" />
       <PixelBubbles />
@@ -319,7 +328,7 @@ const plants = [
           </span>
           <span class="sell-value"><GameIcon icon="🪙" /> {{ selected.sellValue }}</span>
           <div class="actions">
-            <button @click="act">{{ sellLabel ?? t('aquarium.sell') }}</button>
+            <button @click="act()">{{ sellLabel ?? t('aquarium.sell') }}</button>
             <button class="ghost" @click="selectedKey = null">{{ t('aquarium.keep') }}</button>
           </div>
         </template>
@@ -329,7 +338,7 @@ const plants = [
             <p v-for="(effect, i) in selected.bonus.effects" :key="i"><KeywordText :text="describeCompanionEffect(effect)" /></p>
           </div>
           <div class="actions">
-            <button v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act">{{ t('aquarium.bring') }}</button>
+            <button v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act()">{{ t('aquarium.bring') }}</button>
             <button class="ghost" @click="selectedKey = null">{{ t('common.cancel') }}</button>
           </div>
           <span v-if="bringBlocked" class="blocked">{{ bringBlocked }}</span>
@@ -339,6 +348,35 @@ const plants = [
       <p v-if="!creatures.length" class="empty">{{ t('aquarium.empty') }}</p>
       <div class="glare" />
     </div>
+
+    <dialog v-if="interactive" ref="list" class="confirm list" :aria-label="title ?? t('aquarium.default')" @click="$event.target === list && list?.close()">
+      <h3><GameIcon :icon="icon" /> {{ title ?? t('aquarium.default') }}</h3>
+      <ul class="rows">
+        <li v-for="r in residents" :key="r.key">
+          <SpriteView v-if="r.sprite" :sprite="r.sprite" :size="40" />
+          <span v-else class="row-emoji">{{ r.portrait }}</span>
+          <span class="row-about">
+            <strong>
+              {{ r.name }}
+              <span v-if="r.lifeJacket" v-tip="t('shop.lifeJacket')"><GameIcon :icon="HOLD_ICON" /></span>
+              <span v-if="r.angry" v-tip="t('aquarium.angryMood')">💢</span>
+              <span v-else-if="r.bond?.level" class="bond-text" v-tip="r.bond.text">♥{{ r.bond.level }}</span>
+            </strong>
+            <span class="size">
+              {{ t(`size.${r.size}`) }}
+              <span v-if="r.stars" class="stars">{{ t('aquarium.stars', { n: r.stars }) }}</span>
+              <span v-if="companions !== undefined && !r.angry && r.bonus">{{ r.bonus.icon }} {{ r.bonus.name }}</span>
+            </span>
+          </span>
+          <button v-if="action === 'sell'" @click="act(r)">{{ sellLabel ?? t('aquarium.sell') }} <GameIcon icon="🪙" /> {{ r.sellValue }}</button>
+          <button v-else v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act(r)">{{ t('aquarium.bring') }}</button>
+        </li>
+      </ul>
+      <p v-if="!creatures.length">{{ t('aquarium.empty') }}</p>
+      <footer>
+        <button class="ghost" autofocus @click="list?.close()">{{ t('common.close') }}</button>
+      </footer>
+    </dialog>
   </section>
 </template>
 
@@ -348,6 +386,21 @@ const plants = [
 .count { color: var(--muted); font-weight: 500; text-shadow: 2px 0 0 #2e1c2c, -2px 0 0 #2e1c2c, 0 2px 0 #2e1c2c, 0 -2px 0 #2e1c2c, 2px 2px 0 #2e1c2c, -2px 2px 0 #2e1c2c, 2px -2px 0 #2e1c2c, -2px -2px 0 #2e1c2c, 0 3px 6px rgb(0 0 0 / 0.8); position: absolute;
   right: 10px; }
 .count.full { color: #f0a050; font-weight: 700; }
+button.count { z-index: 6; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: rgb(255 255 255 / 0.05); }
+@media (hover: hover) {
+  button.count:hover { background: rgb(255 255 255 / 0.12); }
+}
+
+.list { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.list[open] { display: flex; flex-direction: column; }
+.rows { display: flex; flex-direction: column; gap: 6px; min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.rows li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid #2c3a4a; border-radius: 10px; background: linear-gradient(180deg, #1f3448, #17283a); }
+.row-emoji { width: 40px; font-size: 1.8rem; text-align: center; }
+.row-about { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.25; }
+.row-about .size { display: flex; flex-wrap: wrap; gap: 0 6px; color: var(--muted); font-size: 0.75rem; }
+.rows .stars { color: #f2c94c; }
+.rows .bond-text { color: #f08bb0; }
+.rows button { flex: none; white-space: nowrap; }
 
 .tank {
   --size: 96px;
