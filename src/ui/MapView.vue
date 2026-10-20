@@ -241,7 +241,6 @@ function choose(node: MapNode) {
       </li>
     </ul>
 
-    <p class="level-name">{{ level?.name }}</p>
     <button class="legend-toggle" :aria-expanded="showLegend" @click="showLegend = !showLegend">
       {{ showLegend ? t('map.hideLegend') : t('map.legend') }}
     </button>
@@ -340,7 +339,7 @@ function choose(node: MapNode) {
 </template>
 
 <style scoped>
-/* Hugs the map, so the overlays (equipment, level name, legend) sit on it. */
+/* Hugs the map, so the overlays (equipment, legend) sit on it. */
 .map-screen { position: relative; flex-shrink: 0; width: fit-content; max-width: 100%; margin-inline: auto; }
 
 /* Equipment sits over the map's top-left corner and doesn't scroll with it. */
@@ -377,24 +376,6 @@ function choose(node: MapNode) {
 .item:focus-visible .icon { border-color: var(--highlight); }
 .item:focus { outline: none; }
 
-.level-name {
-  position: absolute;
-  white-space: nowrap;
-  top: 10px;
-  left: 50%;
-  z-index: 2;
-  margin: 0;
-  padding: 4px 14px;
-  border-radius: 999px;
-  border: 1px solid rgb(245 215 110 / 0.16);
-  transform: translateX(-50%);
-  background: rgb(14 20 32 / 0.82);
-  color: var(--highlight);
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  pointer-events: none;
-}
 .legend-toggle { position: absolute; top: 10px; right: 10px; z-index: 2; padding: 6px 12px; font-size: 0.8rem; }
 .legend {
   position: absolute;
@@ -484,11 +465,6 @@ function choose(node: MapNode) {
 }
 .node.visited .body { opacity: 0.6; }
 .node.skipped { opacity: 0.45; }
-
-/* Narrow screens: the level name goes under the equipment and legend buttons. */
-@media (max-width: 700px) {
-  .level-name { top: 56px; font-size: 0.85rem; }
-}
 
 @keyframes pulse {
   50% { transform: scale(1.15); opacity: 0.6; }
