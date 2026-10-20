@@ -10,6 +10,9 @@
  *
  * `--log 3` prints the fight log of run 3's fights, to check how the bot plays.
  *
+ * `--trace` also writes <name>-trace.csv: one row per map node, once it's resolved (the run's
+ * state then, and the fights so far). A run's rows stop where it ends.
+ *
  * Companions: `--companions clownfish,blueTang --bond 2` starts every run with those creatures
  * brought from home, at that bond level (0–3). `--lineups` plays the same seeds with no
  * companions, then with standard lineups of each temperament, and ranks them (<name>-lineups.csv).
@@ -84,6 +87,7 @@ import {
   type CatchSize,
   type CombatState,
   type HomeCreature,
+  type MapNode,
   type RunState,
   type StatusId,
 } from '../src/engine';
@@ -104,6 +108,7 @@ const LOG_SEED = Number(arg('log', '0'));
 const COMPANIONS = arg('companions', '').split(',').filter(Boolean);
 const BOND = Number(arg('bond', '0'));
 const LINEUPS = args.includes('--lineups');
+const TRACE = args.includes('--trace');
 const CAMPAIGN = Number(arg('campaign', '0'));
 const BUILD = arg('build', startingBuilds(data)[0].id);
 if (!data.builds[BUILD]) throw new Error(`Unknown build "${BUILD}"`);
@@ -307,6 +312,41 @@ function makeRoom(run: RunState): RunState {
   return run;
 }
 
+const traceRows: object[] = [];
+
+/** A `--trace` row: the run once a map node of `level` is resolved, and its fights so far. */
+function traceRow(run: RunState, step: number, level: string, node: MapNode, enemies: string[], fights: FightRecord[], brought: readonly HomeCreature[]) {
+  const mine = fights.filter((f) => f.seed === run.seed);
+  const last = mine[mine.length - 1];
+  return {
+    schema_version: 1,
+    seed: run.seed,
+    start_build: run.build,
+    companions: brought.map((c) => c.id),
+    step,
+    level,
+    column: node.column,
+    node_kind: node.kind,
+    store_kind: node.store ?? '',
+    enemies,
+    alive: run.hp > 0 ? 1 : 0,
+    grit: run.hp,
+    max_grit: run.maxHp,
+    coins: run.coins,
+    deck_size: run.deck.length,
+    bucket_n: run.bucket.length,
+    bucket_value: run.bucket.reduce((sum, c) => sum + saleValue(c.id, 0, data), 0),
+    fights_started: run.fights,
+    fights_won: mine.filter((f) => f.result === 'won').length,
+    grit_lost_last: last?.gritLost ?? 0,
+    turns_last: last?.turns ?? 0,
+    escapes_cum: mine.reduce((sum, f) => sum + f.escaped, 0),
+    caught_cum: mine.reduce((sum, f) => sum + f.caughtByHealth + f.caughtByWill, 0),
+    equipment_n: run.equipment.length,
+    waiting_n: run.waiting.length,
+  };
+}
+
 /**
  * One run, with `brought` companions. With `headHome` (the campaign), the bot takes a leave node
  * when it's under half Grit. `fishermen` stand on the maps; the ones it meets go in `met`.
@@ -355,6 +395,9 @@ function playRun(
     let combat: CombatState | undefined;
     let kind: FightRecord['kind'] = node.kind === 'miniBoss' || node.kind === 'boss' ? node.kind : 'fight';
     let eventId: string | undefined;
+    // Each loop resolves one node, so `steps` numbers the trace rows.
+    const level = data.levels[run.level].id;
+    const traced = (enemies: string[] = []) => TRACE && traceRows.push(traceRow(run, steps, level, node, enemies, fights, brought));
 
     if (node.kind === 'shop') {
       let visit: ShopVisit;
@@ -366,11 +409,13 @@ function playRun(
         while (run.coins < heal.price && run.bucket.length > run.companions.length) run = sellCreature(run, run.companions.length, data);
         while (!shopItemBlocked(heal, run, visit, data) && run.hp * 2 < run.maxHp) ({ run, visit } = buyShopItem(run, visit, heal.id, data));
       }
+      traced();
       continue;
     }
     if (node.kind === 'fisherman') {
       run = visitFisherman(run, node.id, data);
       if (node.fisherman && !met.includes(node.fisherman)) met.push(node.fisherman);
+      traced();
       continue;
     }
     if (node.kind === 'treasure') ({ run, eventId } = visitTreasure(run, node.id, data));
@@ -385,26 +430,38 @@ function playRun(
       const choices = data.events[eventId].choices.map((c, i) => ({ c, i })).filter(({ c }) => !eventChoiceBlocked(c, run));
       const result = applyEventChoice(run, eventId, choices[pick(choices.length)].i, data);
       run = result.cardReward ? pickReward(result.run, [], pick) : result.run;
+      traced();
       continue;
     }
-    if (!combat) continue;
+    if (!combat) {
+      traced();
+      continue;
+    }
 
     const played = fight(run, combat, kind, run.fights);
     played.record.sizes = catchesOf(run, played.combat).map((c) => c.size);
     fights.push(played.record);
     if (seed === LOG_SEED) console.log(`\n--- Fight #${played.record.index} (${played.record.kind}): ${played.record.result}\n${played.combat.log.join('\n')}`);
-    if (played.record.result === 'stalled') return end('stalled');
+    if (played.record.result === 'stalled') {
+      traced(played.record.enemies);
+      return end('stalled');
+    }
     run = makeRoom(finishCombat(run, played.combat, data));
+    if (played.combat.phase !== 'won') traced(played.record.enemies);
     if (played.combat.phase === 'lost') return end('died');
     if (played.combat.phase === 'fled') {
       if (isMapComplete(run)) return end('bossEscaped');
       continue;
     }
     if (isMapComplete(run)) {
-      if (isLastLevel(run, data)) return end('won');
+      if (isLastLevel(run, data)) {
+        traced(played.record.enemies);
+        return end('won');
+      }
       run = enterNextLevel(run, data);
     }
     run = pickReward(run, fightFamilies(played.combat, data), pick);
+    traced(played.record.enemies);
   }
   return end('stalled');
 }
@@ -730,4 +787,8 @@ if (CAMPAIGN) {
   writeFileSync(`${base}-runs.csv`, toCsv(runs));
   writeFileSync(`${base}-fights.csv`, toCsv(fights));
   console.log(`Every run written to ${base}-runs.csv, every fight to ${base}-fights.csv`);
+  if (TRACE) {
+    writeFileSync(`${base}-trace.csv`, toCsv(traceRows));
+    console.log(`Every map node written to ${base}-trace.csv`);
+  }
 }
