@@ -473,6 +473,8 @@ button.count { z-index: 6; padding: 0 8px; border: 1px solid var(--line); border
      `inline-size`, so they can rise a whole tank height. The tank's height never depends on its
      contents (everything inside is absolutely positioned). */
   container-type: size;
+  /* Its layers (badges, glare, the sell panel) stack among themselves, under the side drawers. */
+  isolation: isolate;
   border: 6px solid #5c6b78;
   border-top-width: 10px;
   border-radius: 10px 10px 14px 14px;

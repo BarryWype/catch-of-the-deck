@@ -65,8 +65,10 @@ defineExpose({ close: () => (open.value = false) });
 </template>
 
 <style scoped>
+/* Fixed to the window: a closed drawer waits past its edge, and as an absolute box it would widen
+   a page that has no clipping container (the map) and let it scroll sideways. */
 .tab {
-  position: absolute;
+  position: fixed;
   z-index: 2;
   transform: translateY(-50%);
   padding: 12px 10px;
@@ -76,7 +78,7 @@ defineExpose({ close: () => (open.value = false) });
 .tab.right { right: 0; border-radius: 12px 0 0 12px; }
 .tab.left { left: 0; border-radius: 0 12px 12px 0; }
 .scrim {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 3;
   background: rgb(5 8 12 / 0.55);
@@ -86,7 +88,7 @@ defineExpose({ close: () => (open.value = false) });
 }
 .scrim.open { opacity: 1; pointer-events: auto; }
 .drawer {
-  position: absolute;
+  position: fixed;
   top: 0;
   bottom: 0;
   z-index: 4;
