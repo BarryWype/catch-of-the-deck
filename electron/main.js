@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, session, systemPreferences } from 'electron';
+import { cpSync, existsSync, writeFileSync } from 'node:fs';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,7 +7,20 @@ import { fileURLToPath } from 'node:url';
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * The game's data files, in the app's data folder (e.g. ~/Library/Application Support/Slay the Fish
+ * The game was called Slay the Fish, and its data folder was named after it. Before the window
+ * opens any storage, the old folder is copied into the new one, once (a marker file remembers it, so
+ * resetting progression can't bring the old data back): the game files, settings and the page's
+ * localStorage (renamed by src/ui/renameStorage.ts).
+ */
+const oldDataFolder = path.join(app.getPath('appData'), 'Slay the Fish');
+const copiedMarker = path.join(app.getPath('userData'), 'copied-from-slay-the-fish');
+if (existsSync(oldDataFolder) && !existsSync(copiedMarker)) {
+  cpSync(oldDataFolder, app.getPath('userData'), { recursive: true });
+  writeFileSync(copiedMarker, '');
+}
+
+/**
+ * The game's data files, in the app's data folder (e.g. ~/Library/Application Support/Catch of the Deck
  * on macOS): `save` is the run in progress, `profile` what lasts between runs (the home aquarium).
  * Only these names are accepted, so the page can't touch any other file.
  */
@@ -57,7 +71,7 @@ async function createWindow() {
     // Only ever pass `true`: on macOS, `fullscreen: false` disables fullscreen for the window.
     ...(settings.fullscreen ? { fullscreen: true } : {}),
     autoHideMenuBar: true,
-    title: 'Slay the Fish',
+    title: 'Catch of the Deck',
     webPreferences: { preload: path.join(dirname, 'preload.cjs') },
   });
   // Remembered however fullscreen was toggled: the options, the OS button or a shortcut.

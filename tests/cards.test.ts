@@ -499,3 +499,163 @@ describe('attack cards from the Flashy, Patient and Endurance families', () => {
     expect(clean.enemies[0].hp).toBe(s0.enemies[0].hp);
   });
 });
+
+describe('Kid reward cards: rhythm, thresholds and Tension', () => {
+  /** Tension is `maxEnergy − energy`. */
+  const atTension = (s: CombatState, tension: number): CombatState => ({ ...s, player: { ...s.player, energy: s.player.maxEnergy - tension } });
+  const hp = (s: CombatState) => s.enemies[0].hp;
+  const will = (s: CombatState) => s.enemies[0].escape;
+
+  it('Give and Take: 4 damage, 8 right after a Drain card; nothing played yet counts as no', () => {
+    const s0 = fight(['giveAndTake', 'reelIn', 'tug', 'tug', 'tug']);
+    expect(hp(s0) - hp(playCard(s0, 'giveAndTake'))).toBe(4);
+    const drained = playCard(s0, 'reelIn');
+    expect(hp(drained) - hp(playCard(drained, 'giveAndTake'))).toBe(8);
+    // Only the card just before counts.
+    const tugged = playCard(drained, 'tug');
+    expect(hp(tugged) - hp(playCard(tugged, 'giveAndTake'))).toBe(4);
+  });
+
+  it('Ease Off: Drain 4, 8 right after an Attack card (a Drain card is not one)', () => {
+    const s0 = fight(['easeOff', 'tug', 'reelIn', 'tug', 'tug']);
+    expect(will(s0) - will(playCard(s0, 'easeOff'))).toBe(4);
+    const tugged = playCard(s0, 'tug');
+    expect(will(tugged) - will(playCard(tugged, 'easeOff'))).toBe(8);
+    const drained = playCard(s0, 'reelIn');
+    expect(will(drained) - will(playCard(drained, 'easeOff'))).toBe(4);
+  });
+
+  it('Give Line: 5 Hold, 8 right after an Attack card; a new turn forgets the last card', () => {
+    const s0 = fight(['giveLine', 'tug', 'tug', 'tug', 'tug']);
+    expect(playCard(s0, 'giveLine').player.block).toBe(5);
+    const tugged = playCard(s0, 'tug');
+    expect(playCard(tugged, 'giveLine').player.block).toBe(8);
+    expect(applyAction(tugged, { type: 'endTurn' }, gameData).thisTurn?.lastCard).toBeUndefined();
+  });
+
+  it('Tired Fish: Drain 5, doubled under half Health', () => {
+    const s0 = fight(['tiredFish']);
+    expect(will(s0) - will(playCard(s0, 'tiredFish'))).toBe(5);
+    const half: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], hp: s0.enemies[0].maxHp / 2 }] };
+    expect(will(half) - will(playCard(half, 'tiredFish'))).toBe(5);
+    const under: CombatState = { ...s0, enemies: [{ ...s0.enemies[0], hp: s0.enemies[0].maxHp / 2 - 1 }] };
+    expect(will(under) - will(playCard(under, 'tiredFish'))).toBe(10);
+  });
+
+  it('No Fight Left: 5 damage, doubled when the Will bar is under a third full', () => {
+    const s0 = fight(['noFightLeft']);
+    const at = (escape: number): CombatState => ({ ...s0, enemies: [{ ...s0.enemies[0], escape }] });
+    const third = s0.enemies[0].escapeAt / 3;
+    expect(hp(s0) - hp(playCard(s0, 'noFightLeft'))).toBe(5);
+    expect(hp(at(Math.ceil(third))) - hp(playCard(at(Math.ceil(third)), 'noFightLeft'))).toBe(5);
+    expect(hp(at(Math.floor(third))) - hp(playCard(at(Math.floor(third)), 'noFightLeft'))).toBe(10);
+  });
+
+  it('Taut Line: 3 damage per Tension before it, 0 at no Tension and 9 at full', () => {
+    const s0 = fight(['tautLine']);
+    expect(hp(playCard(s0, 'tautLine'))).toBe(hp(s0));
+    expect(hp(s0) - hp(playCard(atTension(s0, 2), 'tautLine'))).toBe(6);
+    expect(hp(s0) - hp(playCard(atTension(s0, 3), 'tautLine'))).toBe(9);
+  });
+
+  it('Read the Line: 6 Hold at 0 Tension, Drain 6 at 1, 6 damage at 2', () => {
+    const s0 = fight(['readTheLine']);
+    const hold = playCard(s0, 'readTheLine');
+    expect([hold.player.block, hp(hold), will(hold)]).toEqual([6, hp(s0), will(s0)]);
+    const drain = playCard(atTension(s0, 1), 'readTheLine');
+    expect([drain.player.block, hp(drain), will(s0) - will(drain)]).toEqual([0, hp(s0), 6]);
+    const damage = playCard(atTension(s0, 2), 'readTheLine');
+    expect([damage.player.block, hp(s0) - hp(damage), will(damage)]).toEqual([0, 6, will(s0)]);
+  });
+
+  it('Lean Back: Drains as much as your Hold, then you lose it all; nothing with no Hold', () => {
+    const s0 = fight(['leanBack']);
+    const held: CombatState = { ...s0, player: { ...s0.player, block: 9 } };
+    const s = playCard(held, 'leanBack');
+    expect([will(s0) - will(s), s.player.block]).toEqual([9, 0]);
+    const none = playCard(s0, 'leanBack');
+    expect([will(none), none.player.block]).toEqual([will(s0), 0]);
+  });
+
+  it('Steady Footing: 12 Hold for 2 Tension', () => {
+    const s = playCard(fight(['steadyFooting']), 'steadyFooting');
+    expect([s.player.block, s.player.maxEnergy - s.player.energy]).toEqual([12, 2]);
+  });
+
+  it('At the Limit: at full Tension, 6 Hold and Drain 4 on a random creature; otherwise nothing', () => {
+    const s0 = fight(['atTheLimit'], ['clownfish', 'guppy']);
+    const full = playCard(atTension(s0, 3), 'atTheLimit');
+    expect(full.player.block).toBe(6);
+    expect(s0.enemies.map((e, i) => e.escape - full.enemies[i].escape).sort()).toEqual([0, 4]);
+    const almost = playCard(atTension(s0, 2), 'atTheLimit');
+    expect(almost.player.block).toBe(0);
+    expect(almost.enemies.map((e) => e.escape)).toEqual(s0.enemies.map((e) => e.escape));
+  });
+
+  it('Slack Water: Drain 8 at 0 Tension, 2 otherwise', () => {
+    const s0 = fight(['slackWater']);
+    expect(will(s0) - will(playCard(s0, 'slackWater'))).toBe(8);
+    expect(will(s0) - will(playCard(atTension(s0, 1), 'slackWater'))).toBe(2);
+  });
+
+  it('Breathe Out: 2 Patience, Tension 2 lower but never below 0, 1 card; released Tension becomes Patience', () => {
+    const s0 = fight(['breatheOut', 'tug', 'tug', 'tug', 'tug', 'tug', 'tug']);
+    const calm: CombatState = { ...s0, player: { ...s0.player, patience: 2 } };
+    const s = playCard(atTension(calm, 3), 'breatheOut');
+    expect([s.player.maxEnergy - s.player.energy, s.player.patience, s.piles.hand.length]).toEqual([1, 0, 5]);
+    expect(playCard(atTension(calm, 1), 'breatheOut').player.energy).toBe(s0.player.maxEnergy);
+    const quiet: CombatState = { ...s, enemies: s.enemies.map((e) => ({ ...e, intent: null })) };
+    expect(applyAction(quiet, { type: 'endTurn' }, gameData).player.patience).toBe(2);
+  });
+
+  describe('Check the Bait', () => {
+    /** Check the Bait in hand, with these draw (top last) and discard piles. */
+    const withPiles = (draw: string[], discard: string[] = []): CombatState => {
+      const s = structuredClone(fight(['checkTheBait', 'tug', 'tug', 'tug', 'tug']));
+      s.piles.draw = draw.map((defId, i) => ({ uid: `d${i}`, defId }));
+      s.piles.discard = discard.map((defId, i) => ({ uid: `x${i}`, defId }));
+      return s;
+    };
+    const pick = (s: CombatState, cardUid: string) => applyAction(s, { type: 'pickCard', cardUid }, gameData);
+
+    it('shows the top 3; the picked one goes to hand, the others stay on top in order', () => {
+      const s = playCard(withPiles(['reelIn', 'tickle', 'tug', 'holdTight', 'cheapShot']), 'checkTheBait');
+      expect(s.pick).toEqual(['d4', 'd3', 'd2']);
+      const picked = pick(s, 'd3');
+      expect(picked.pick).toBeUndefined();
+      expect(picked.piles.hand.map((c) => c.uid)).toContain('d3');
+      expect(picked.piles.draw.map((c) => c.uid)).toEqual(['d0', 'd1', 'd2', 'd4']);
+    });
+
+    it('nothing else can happen until a card is picked, and only a shown card can be picked', () => {
+      const s = playCard(withPiles(['reelIn', 'tickle', 'tug', 'holdTight']), 'checkTheBait');
+      expect(applyAction(s, { type: 'endTurn' }, gameData)).toBe(s);
+      expect(applyAction(s, { type: 'playCard', cardUid: s.piles.hand[0].uid, targetId: 'e0' }, gameData)).toBe(s);
+      expect(pick(s, 'd0')).toBe(s);
+      const plain = fight(['tug']);
+      expect(pick(plain, 'c0')).toBe(plain);
+    });
+
+    it('with fewer than 3 cards left, the discard pile is shuffled in under them first, as drawing does', () => {
+      const s = playCard(withPiles(['tickle'], ['reelIn', 'tug', 'holdTight']), 'checkTheBait');
+      expect(s.pick?.[0]).toBe('d0');
+      expect(s.pick).toHaveLength(3);
+      expect(s.piles.draw).toHaveLength(4);
+      expect(s.piles.discard.map((c) => c.defId)).toEqual(['checkTheBait']);
+    });
+
+    it('a single card left goes straight to hand; none does nothing', () => {
+      const one = playCard(withPiles(['tickle']), 'checkTheBait');
+      expect(one.pick).toBeUndefined();
+      expect(one.piles.hand.map((c) => c.uid)).toContain('d0');
+      expect(playCard(withPiles([]), 'checkTheBait').pick).toBeUndefined();
+    });
+  });
+
+  it('Coiled doubles Taut Line per Tension, and both branches of a condition', () => {
+    const s0 = fight(['coiled', 'tautLine', 'giveAndTake', 'tug', 'tug']);
+    const coiled = playCard(s0, 'coiled');
+    expect(hp(coiled) - hp(playCard(coiled, 'tautLine'))).toBe(6);
+    expect(hp(coiled) - hp(playCard(coiled, 'giveAndTake'))).toBe(8);
+  });
+});

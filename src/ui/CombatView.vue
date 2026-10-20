@@ -296,6 +296,9 @@ function cardText(card: CardInstance) {
   });
 }
 
+/** The cards Check the Bait shows (`pickFromDraw`), top of the draw pile first: one is tapped into the hand. */
+const pickCards = computed(() => (props.state.pick ?? []).flatMap((uid) => props.state.piles.draw.filter((c) => c.uid === uid)));
+
 /** Copies of played cards flying to their target (or flaring where they were dropped). */
 const playedCards = ref<{ key: number; defId: string; text: string; rect: DOMRect; dx: number; dy: number; aimed: boolean }[]>([]);
 let playedKey = 0;
@@ -863,6 +866,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </footer>
     </dialog>
 
+    <div v-if="pickCards.length && isPlayerTurn" class="overlay pick" role="dialog" :aria-label="t('combat.pickTitle')">
+      <div class="panel">
+        <h3>{{ t('combat.pickTitle') }}</h3>
+        <div class="pick-cards">
+          <CardView
+            v-for="card in pickCards"
+            :key="card.uid"
+            :card="data.cards[card.defId]"
+            :description="cardText(card)"
+            :cost="cardCost(state, data.cards[card.defId])"
+            :data-pick-uid="card.uid"
+            @click="emit('action', { type: 'pickCard', cardUid: card.uid })"
+          />
+        </div>
+        <p class="pick-hint">{{ t('combat.pickHint') }}</p>
+      </div>
+    </div>
+
     <!-- The debug scenario's in-fight tools (DebugCombatTools), from App. -->
     <slot name="debug" />
     <div v-if="state.phase !== 'playerTurn' && overlayVisible" class="overlay">
@@ -1235,6 +1256,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 }
 .panel { padding: 28px 40px; border-radius: 16px; background: var(--panel-soft); border: 1px solid var(--line); box-shadow: 0 18px 50px rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); text-align: center; }
 .panel h2 { margin: 0 0 8px; font-size: 2rem; }
+/* Check the Bait's choice: above the hand and its flying cards, the shown cards side by side. */
+.overlay.pick { z-index: 20; }
+.pick h3 { margin: 0 0 14px; }
+.pick-cards { display: flex; justify-content: center; gap: 12px; }
+.pick-hint { margin: 14px 0 0; color: var(--muted); font-size: 0.85rem; }
 
 /* Small screens (COMPACT_QUERY): creatures wrap, the counters and End Turn go in a row above the
    hand, and the hand scrolls sideways (a sideways swipe scrolls, an upward drag still plays). The
@@ -1297,6 +1323,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   .pile { font-size: 0.75rem; }
   .panel { padding: 20px 22px; margin: 0 12px; }
   .panel h2 { font-size: 1.5rem; }
+  .pick .panel { padding: 14px 10px; margin: 0 8px; }
+  .pick-cards { gap: 6px; }
+}
+/* Three cards side by side still fit a narrow phone. */
+@media (max-width: 420px) {
+  .pick-cards :deep(.card) { zoom: 0.8; }
 }
 
 /* A phone lying flat: too short to stack them, so the battlefield on the left, the counters and

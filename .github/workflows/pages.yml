@@ -1,4 +1,4 @@
-# Publishes the browser version to GitHub Pages (https://barrywype.github.io/slay-the-fish/)
+# Publishes the browser version to GitHub Pages (https://barrywype.github.io/catch-of-the-deck/)
 # with every version tag, alongside the desktop release (release.yml). It can also be run by
 # hand from the Actions tab. Needs Settings → Pages → Source set to "GitHub Actions".
 name: Pages

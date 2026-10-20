@@ -59,15 +59,15 @@ beforeEach(() => {
 
 describe('transfer codes', () => {
   it("export → import gives back this device's save and profile", async () => {
-    files.set('slay-the-fish:profile', JSON.stringify(profile));
-    files.set('slay-the-fish:save', JSON.stringify(save));
+    files.set('catch-of-the-deck:profile', JSON.stringify(profile));
+    files.set('catch-of-the-deck:save', JSON.stringify(save));
     const code = await exportTransferCode();
     expect(code).toMatch(/^STF1:[\w-]+$/);
     expect(await importTransferCode(code)).toEqual({ save, profile });
   });
 
   it('a code with no run in progress carries a null save', async () => {
-    files.set('slay-the-fish:profile', JSON.stringify(profile));
+    files.set('catch-of-the-deck:profile', JSON.stringify(profile));
     expect((await importTransferCode(await exportTransferCode())).save).toBeNull();
   });
 
@@ -107,12 +107,12 @@ describe('transfer codes', () => {
   });
 
   it('applying writes both files, and deletes the save when the code has none', async () => {
-    files.set('slay-the-fish:save', JSON.stringify(save));
+    files.set('catch-of-the-deck:save', JSON.stringify(save));
     applyTransfer({ save: null, profile });
-    await vi.waitFor(() => expect(files.has('slay-the-fish:save')).toBe(false));
-    expect(JSON.parse(files.get('slay-the-fish:profile')!)).toEqual(profile);
+    await vi.waitFor(() => expect(files.has('catch-of-the-deck:save')).toBe(false));
+    expect(JSON.parse(files.get('catch-of-the-deck:profile')!)).toEqual(profile);
     applyTransfer({ save: save as never, profile });
-    await vi.waitFor(() => expect(JSON.parse(files.get('slay-the-fish:save')!)).toEqual(save));
+    await vi.waitFor(() => expect(JSON.parse(files.get('catch-of-the-deck:save')!)).toEqual(save));
   });
 
   it('a long code is split into parts, read back in any order', async () => {

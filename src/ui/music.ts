@@ -20,7 +20,7 @@ let theme: keyof typeof TRACKS | undefined;
 let current: HTMLAudioElement | undefined;
 
 /** Whether the music plays, kept per device like the volume; off until the player turns it on. */
-const ON_KEY = 'slay-the-fish:music-on';
+const ON_KEY = 'catch-of-the-deck:music-on';
 function readOn() {
   try {
     return localStorage.getItem(ON_KEY) === 'true';
@@ -42,7 +42,7 @@ export function setMusicOn(on: boolean) {
 }
 
 /** The music volume, 0–100, kept per device (like the debug panel) and set from the options. */
-const VOLUME_KEY = 'slay-the-fish:music-volume';
+const VOLUME_KEY = 'catch-of-the-deck:music-volume';
 function readVolume() {
   try {
     const raw = localStorage.getItem(VOLUME_KEY);

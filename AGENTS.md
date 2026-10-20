@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Slay the Fish: a deck-building fishing roguelike. A pure TypeScript rules engine (`src/engine`), game data (`src/content`), a Vue 3 UI (`src/ui`), English and French text (`src/locales`), Vitest tests, an Electron desktop build and a GitHub Pages web build. How it fits together: ARCHITECTURE.md. The rules as a player sees them: GAME_MECHANICS.md.
+Catch of the Deck: a deck-building fishing roguelike. A pure TypeScript rules engine (`src/engine`), game data (`src/content`), a Vue 3 UI (`src/ui`), English and French text (`src/locales`), Vitest tests, an Electron desktop build and a GitHub Pages web build. How it fits together: ARCHITECTURE.md. The rules as a player sees them: GAME_MECHANICS.md.
 
 ## Hard rules
 

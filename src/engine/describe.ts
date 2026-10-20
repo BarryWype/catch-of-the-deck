@@ -30,6 +30,7 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       // Always named, so a bracketed real number never appears without its reason.
       const extra = effect.perStatus ? text('describe.perStatus', { n: effect.perStatus.amount, status: statusName(effect.perStatus.status) }) : '';
       const params = { dmg, times, extra };
+      if (effect.perTension && !effect.amount) return text('describe.dealPerTension', { n: effect.perTension });
       if (effect.fromHold) return text('describe.dealHold', params);
       if (target === 'allEnemies') return text('describe.dealAll', params);
       if (target === 'randomEnemy') return text('describe.dealRandom', params);
@@ -62,11 +63,14 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       return text('describe.draw', { n: effect.amount });
     case 'gainEnergy':
       return text('describe.energy', { n: effect.amount });
+    case 'pickFromDraw':
+      return text('describe.pickFromDraw', { n: effect.look });
     case 'slowCap':
       return text('describe.slowCap', { n: effect.amount });
     case 'gainPatience':
       return text('describe.gainPatience', { n: effect.amount });
     case 'loseHold':
+      if (effect.share === 1) return text('describe.loseAllHold');
       return text(effect.share === 0.5 ? 'describe.loseHalfHold' : 'describe.loseHold', { n: Math.round(effect.share * 100) });
     case 'patienceToHold':
       return text('describe.patienceToHold', { n: effect.per });
@@ -90,6 +94,22 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
       const then = text('describe.ifNoAttack', { rules: lower(describeEffects(effect.then, opts)) });
       return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
+    }
+    case 'ifLastCard':
+      return describeIf('describe.ifLastCard', { type: text(`describe.cardType.${effect.cardType}`) }, effect, opts);
+    case 'ifBelow':
+      return describeIf(`describe.ifBelow.${effect.bar}`, { part: text(`describe.part.${effect.part}`) }, effect, opts);
+    case 'ifTension':
+      return effect.tension === 'full'
+        ? describeIf('describe.ifTensionFull', {}, effect, opts)
+        : describeIf('describe.ifTension', { n: effect.tension }, effect, opts);
+    case 'byTension': {
+      const last = effect.effects.length - 1;
+      const options = effect.effects.map((list, i) => {
+        const rules = describeEffects(list, opts).replace(/\.$/, '');
+        return text(i === last ? 'describe.byTension.orMore' : 'describe.byTension.option', { n: i, rules: rules.charAt(0).toLowerCase() + rules.slice(1) });
+      });
+      return text('describe.byTension.text', { options: options.join('; ') });
     }
     case 'coil':
       return text('describe.coil');
@@ -118,6 +138,7 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
     case 'healPercent':
       return text('describe.healPercent', { n: effect.percent });
     case 'changeEscape':
+      if (effect.fromHold) return text('describe.drainHold');
       if (effect.perStatus && effect.amount === 0) {
         return text('describe.drainPer', { n: Math.abs(effect.perStatus.amount), status: statusName(effect.perStatus.status) });
       }
@@ -129,6 +150,13 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
         max: effect.max ?? 0,
       });
   }
+}
+
+/** A condition's text (`key`, with its `then` rules as `{rules}`), then "Otherwise:" and its `else` rules. */
+function describeIf(key: string, params: Record<string, string | number>, effect: { then: Effect[]; else?: Effect[] }, opts: DescribeOptions): string {
+  const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+  const then = text(key, { ...params, rules: lower(describeEffects(effect.then, opts)) });
+  return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
 }
 
 export function describeEffects(effects: Effect[], opts: DescribeOptions = {}): string {

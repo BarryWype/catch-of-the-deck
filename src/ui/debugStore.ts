@@ -6,8 +6,8 @@ import type { DebugScenario } from '../engine';
  * whether the debug panel shows ("Show debug panel" in the options) and the named scenarios saved
  * from it. Neither is part of the save or the profile.
  */
-const PANEL_KEY = 'slay-the-fish:debug-panel';
-const SCENARIOS_KEY = 'slay-the-fish:debug-scenarios';
+const PANEL_KEY = 'catch-of-the-deck:debug-panel';
+const SCENARIOS_KEY = 'catch-of-the-deck:debug-scenarios';
 
 function read(key: string): string | null {
   try {

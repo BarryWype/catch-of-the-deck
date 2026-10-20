@@ -5,7 +5,7 @@
  */
 import { gain } from './music';
 
-const VOLUME_KEY = 'slay-the-fish:sfx-volume';
+const VOLUME_KEY = 'catch-of-the-deck:sfx-volume';
 function readVolume() {
   try {
     const raw = localStorage.getItem(VOLUME_KEY);

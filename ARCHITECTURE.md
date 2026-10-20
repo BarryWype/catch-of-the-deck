@@ -1,6 +1,6 @@
 # Architecture
 
-How Slay the Fish is put together, and the rules the code relies on. Read this before changing game state, saving, or anything that crosses layers. The README covers how to run the game and how to add content.
+How Catch of the Deck is put together, and the rules the code relies on. Read this before changing game state, saving, or anything that crosses layers. The README covers how to run the game and how to add content.
 
 ## Layers
 
@@ -114,6 +114,7 @@ menu ──New run──▶ build ──▶ companions ──Set off──▶ ma
   - **Energy:** each energy point left unused at the end of a turn gives one, slowing that same turn's rise.
   - **Hold:** after the creatures act, every `HOLD_PER_PATIENCE` (3) Hold left over (beyond what companion bonuses keep for next turn) is spent for one.
   - **Effect:** each point slows every creature's rise by `PATIENCE_ESCAPE_PERCENT` (10%) of its `escapeRate`, rounded up (`escapeRise`), so at most by half. A card's `patienceCost` must be paid in Patience on top of its energy cost, and spends it.
+- **Picking a card** (`pickFromDraw`, Check the Bait): the shown cards stay on top of the draw pile and their uids go in `CombatState.pick`; until a `pickCard` action puts one in hand, every other action is refused (`validateAction`), and CombatView shows them in a pick overlay.
 - **Capture:** a creature at 0 HP **or** with its bar pushed to 0 is out of the fight and captured (`isAlive`).
 - **Card effects on the bar** (keywords in card text):
   - **Drain** (`changeEscape` with a negative amount): lowers the bar by a flat amount. Positive amounts raise it.
@@ -218,7 +219,7 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 | `save.json` | `SavedGame`: version, seed, screen, run, combat, pending card rewards, open event, shop visit | After every state change (a watcher in `useGame.ts`) | When the run is lost or completed, or by **Reset progression** |
 | `profile.json` | `Profile`: version, home aquarium, eggs, creature book, biggest catches, unlocked builds, fishermen met | When a successful run brings its bucket home, when an egg is laid or hatched, when a creature is first seen or captured, and when a fisherman is met | Only by **Reset progression** |
 
-- **Where:** in the desktop app, in the app's data folder (`app.getPath('userData')`, e.g. `~/Library/Application Support/Slay the Fish`). In a browser, localStorage under `slay-the-fish:save` and `slay-the-fish:profile`.
+- **Where:** in the desktop app, in the app's data folder (`app.getPath('userData')`, e.g. `~/Library/Application Support/Catch of the Deck`). In a browser, localStorage under `catch-of-the-deck:save` and `catch-of-the-deck:profile`.
 - **Desktop bridge:** `electron/preload.cjs` exposes `window.desktop.readData / writeData / deleteData(name)` and `quit()`. `electron/main.js` only accepts the names in `DATA_FILES`, so the page can't touch any other file.
 - **Safe writes:** a file is written to `name.json.tmp`, then renamed over the real one, so a crash mid-write can't corrupt it. Writes are queued one after another, so an older write can never land after a newer one.
 - **Versions** (`SAVE_VERSION`, currently 14, and `PROFILE_VERSION`, currently 5). When a saved shape changes:
@@ -240,9 +241,9 @@ All saving lives in `ui/saveStore.ts`. There are two files, each with its own ve
 
 - **Development:** `npm run electron:dev` opens the game in Electron against the running Vite dev server.
 - **Build:** `npm run electron:build` runs the typecheck, builds the game, then packages it into `release/`. macOS builds are ad-hoc signed (`"identity": "-"`, hardened runtime off) until there's a certificate: unsigned, a downloaded app is reported as "damaged" and can't be opened at all; ad-hoc signed, macOS only warns about an unidentified developer.
-- **Artifacts** have fixed names, so the README's "latest" download links never change: `slay-the-fish-mac-arm64.dmg`, `slay-the-fish-windows.exe`, `slay-the-fish-linux.AppImage`.
+- **Artifacts** have fixed names, so the README's "latest" download links never change: `catch-of-the-deck-mac-arm64.dmg`, `catch-of-the-deck-windows.exe`, `catch-of-the-deck-linux.AppImage`.
 - **Release:** pushing a `v*` tag runs `.github/workflows/release.yml`. It builds and tests on macOS, Windows and Linux, then publishes a GitHub Release with the three installers. The tag should match `"version"` in `package.json`.
-- **Web version:** the same tag also runs `.github/workflows/pages.yml`, which tests, builds (`npm run build`, relative paths so it works under `/slay-the-fish/`) and publishes `dist/` to GitHub Pages. It can be run by hand from the Actions tab. In the browser, saves live in localStorage, per browser.
+- **Web version:** the same tag also runs `.github/workflows/pages.yml`, which tests, builds (`npm run build`, relative paths so it works under `/catch-of-the-deck/`) and publishes `dist/` to GitHub Pages. It can be run by hand from the Actions tab. In the browser, saves live in localStorage, per browser.
 - **Loading from disk:** `vite.config.ts` uses `base: './'` so the built page loads its assets with relative paths from disk.
 
 ## Languages

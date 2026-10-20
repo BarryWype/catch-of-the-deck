@@ -16,7 +16,7 @@ export const families: Array<FamilyDef & { temperaments: BehaviorId[] }> = [
   { id: 'hunter', emblem: 'shortfinMakoShark', name: 'Hunter', temperaments: ['predator', 'ambusher', 'eel'], identity: 'Heavy attacks, finishers', focus: 'health bar' },
   { id: 'endurance', emblem: 'sockeyeSalmon', name: 'Endurance', temperaments: ['predator', 'fighter', 'giant'], identity: 'Tiring: Drain, stop the escape', focus: 'Will bar' },
   { id: 'patient', emblem: 'greenSeaTurtle', name: 'Patient', temperaments: ['armored', 'fighter', 'giant', 'bottomDweller'], identity: 'Generate and spend Patience', focus: 'patience' },
-  { id: 'trickster', emblem: 'commonOctopus', name: 'Trickster', temperaments: ['schooling', 'cephalopod', 'puffer'], identity: 'Control: debuffs and trade-offs', focus: 'support' },
+  { id: 'trickster', emblem: 'commonOctopus', name: 'Trickster', temperaments: ['schooling', 'cephalopod', 'puffer'], identity: 'Control, trade-offs and rhythm', focus: 'support' },
   { id: 'flashy', emblem: 'clownfish', name: 'Flashy', temperaments: ['reefFish', 'puffer'], identity: "Dazzle: change or weaken the creature's next move", focus: 'support' },
   { id: 'camo', emblem: 'hairyFrogfish', name: 'Camo', temperaments: ['clawed', 'cephalopod', 'venomous', 'ambusher'], identity: 'Quiet turns, ambush', focus: 'hold and burst' },
   { id: 'slimy', emblem: 'seaCucumber', name: 'Slimy', temperaments: ['jellyfish', 'eel', 'bottomDweller'], identity: 'Slow, protection against Pulls', focus: 'Will bar' },

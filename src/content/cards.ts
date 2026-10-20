@@ -63,6 +63,11 @@ export const cards: CardDef[] = [
     id: 'shellUp', name: 'Shell Up', art: '🐚', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'shell', tags: ['hold'],
     effects: [{ type: 'gainBlock', amount: 6 }, { type: 'keepHold' }],
   },
+  { id: 'steadyFooting', name: 'Steady Footing', art: '🥾', type: 'defense', rarity: 'normal', cost: 2, target: 'none', family: 'shell', tags: ['hold'], effects: [{ type: 'gainBlock', amount: 12 }] },
+  {
+    id: 'atTheLimit', name: 'At the Limit', art: '🧗', type: 'defense', rarity: 'normal', cost: 0, target: 'none', family: 'shell', tags: ['hold', 'drain', 'tension', 'conditional'],
+    effects: [{ type: 'ifTension', tension: 'full', then: [{ type: 'gainBlock', amount: 6 }, { type: 'changeEscape', amount: -4, target: 'randomEnemy' }] }],
+  },
 
   // --- Venom ----------------------------------------------------------------------
   {
@@ -117,6 +122,14 @@ export const cards: CardDef[] = [
     id: 'savageBite', name: 'Savage Bite', art: '🦈', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'hunter', tags: ['damage', 'tradeoff'],
     effects: [{ type: 'dealDamage', amount: 10 }, { type: 'changeEscape', amount: 6 }],
   },
+  {
+    id: 'noFightLeft', name: 'No Fight Left', art: '🏳️', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'hunter', tags: ['damage', 'conditional'],
+    effects: [{ type: 'ifBelow', bar: 'will', part: 3, then: [{ type: 'dealDamage', amount: 10 }], else: [{ type: 'dealDamage', amount: 5 }] }],
+  },
+  {
+    id: 'tautLine', name: 'Taut Line', art: '🪢', type: 'attack', rarity: 'normal', cost: 0, target: 'enemy', family: 'hunter', tags: ['damage', 'tension'],
+    effects: [{ type: 'dealDamage', amount: 0, perTension: 3 }],
+  },
 
   // --- Swift ----------------------------------------------------------------------
   {
@@ -147,6 +160,7 @@ export const cards: CardDef[] = [
     id: 'safetyInNumbers', name: 'Safety in Numbers', art: '🐡', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'swift', tags: ['hold', 'draw'],
     effects: [{ type: 'gainBlock', amount: 4 }, { type: 'drawCards', amount: 2 }],
   },
+  { id: 'checkTheBait', name: 'Check the Bait', art: '🔍', type: 'support', rarity: 'normal', cost: 0, target: 'none', family: 'swift', tags: ['draw'], effects: [{ type: 'pickFromDraw', look: 3 }] },
 
   // --- Endurance ------------------------------------------------------------------
   {
@@ -182,6 +196,10 @@ export const cards: CardDef[] = [
       { type: 'ifStatus', status: 'slow', then: [{ type: 'changeEscape', amount: -12 }], else: [{ type: 'changeEscape', amount: -8 }] },
     ],
   },
+  {
+    id: 'tiredFish', name: 'Tired Fish', art: '😩', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'endurance', tags: ['drain', 'conditional'],
+    effects: [{ type: 'ifBelow', bar: 'health', part: 2, then: [{ type: 'changeEscape', amount: -10 }], else: [{ type: 'changeEscape', amount: -5 }] }],
+  },
 
   // --- Patient --------------------------------------------------------------------
   {
@@ -212,6 +230,14 @@ export const cards: CardDef[] = [
   {
     id: 'bePrepared', name: 'Be Prepared', art: '🎒', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'patient', tags: ['hold', 'patience'],
     effects: [{ type: 'patienceToHold', per: 4 }],
+  },
+  {
+    id: 'slackWater', name: 'Slack Water', art: '🏞️', type: 'drain', rarity: 'normal', cost: 0, target: 'enemy', family: 'patient', tags: ['drain', 'tension', 'conditional'],
+    effects: [{ type: 'ifTension', tension: 0, then: [{ type: 'changeEscape', amount: -8 }], else: [{ type: 'changeEscape', amount: -2 }] }],
+  },
+  {
+    id: 'breatheOut', name: 'Breathe Out', art: '😮‍💨', type: 'support', rarity: 'rare', cost: 0, patienceCost: 2, target: 'none', family: 'patient', tags: ['tension', 'draw', 'patience'],
+    effects: [{ type: 'gainEnergy', amount: 2 }, { type: 'drawCards', amount: 1 }],
   },
 
   // --- Trickster ------------------------------------------------------------------
@@ -244,6 +270,18 @@ export const cards: CardDef[] = [
   {
     id: 'cheapShot', name: 'Cheap Shot', art: '👊', type: 'attack', rarity: 'normal', cost: 0, target: 'enemy', family: 'trickster', tags: ['damage', 'tradeoff'],
     effects: [{ type: 'dealDamage', amount: 5 }, { type: 'changeEscape', amount: 5 }],
+  },
+  {
+    id: 'giveAndTake', name: 'Give and Take', art: '🤝', type: 'attack', rarity: 'normal', cost: 1, target: 'enemy', family: 'trickster', tags: ['damage', 'rhythm', 'conditional'],
+    effects: [{ type: 'ifLastCard', cardType: 'drain', then: [{ type: 'dealDamage', amount: 8 }], else: [{ type: 'dealDamage', amount: 4 }] }],
+  },
+  {
+    id: 'easeOff', name: 'Ease Off', art: '🍃', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'trickster', tags: ['drain', 'rhythm', 'conditional'],
+    effects: [{ type: 'ifLastCard', cardType: 'attack', then: [{ type: 'changeEscape', amount: -8 }], else: [{ type: 'changeEscape', amount: -4 }] }],
+  },
+  {
+    id: 'giveLine', name: 'Give Line', art: '🧶', type: 'defense', rarity: 'normal', cost: 1, target: 'none', family: 'trickster', tags: ['hold', 'rhythm', 'conditional'],
+    effects: [{ type: 'ifLastCard', cardType: 'attack', then: [{ type: 'gainBlock', amount: 8 }], else: [{ type: 'gainBlock', amount: 5 }] }],
   },
 
   // --- Flashy ---------------------------------------------------------------------
@@ -284,6 +322,10 @@ export const cards: CardDef[] = [
     effects: [{ type: 'ifIntent', tag: 'pull', then: [{ type: 'dealDamage', amount: 10 }], else: [{ type: 'dealDamage', amount: 5 }] }],
   },
   { id: 'colourShift', name: 'Colour Shift', art: '🎨', type: 'support', rarity: 'normal', cost: 0, target: 'random', family: 'flashy', tags: ['intent'], effects: [{ type: 'rerollIntent' }] },
+  {
+    id: 'readTheLine', name: 'Read the Line', art: '📖', type: 'support', rarity: 'normal', cost: 1, target: 'enemy', family: 'flashy', tags: ['hold', 'drain', 'damage', 'tension', 'conditional'],
+    effects: [{ type: 'byTension', effects: [[{ type: 'gainBlock', amount: 6 }], [{ type: 'changeEscape', amount: -6 }], [{ type: 'dealDamage', amount: 6 }]] }],
+  },
 
   // --- Camo -----------------------------------------------------------------------
   {
@@ -305,6 +347,10 @@ export const cards: CardDef[] = [
   {
     id: 'fromNowhere', name: 'From Nowhere', art: '🫥', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 1, target: 'enemy', family: 'camo', tags: ['damage', 'hold', 'patience'],
     effects: [{ type: 'dealDamage', amount: 0, fromHold: true }, { type: 'loseHold', share: 0.5 }],
+  },
+  {
+    id: 'leanBack', name: 'Lean Back', art: '🙆', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', family: 'camo', tags: ['drain', 'hold'],
+    effects: [{ type: 'changeEscape', amount: 0, fromHold: true }, { type: 'loseHold', share: 1 }],
   },
 
   // --- Slimy ----------------------------------------------------------------------

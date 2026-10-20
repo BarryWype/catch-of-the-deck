@@ -1,26 +1,26 @@
-# Spire Slice
+# Catch of the Deck
 
 A vertical slice of a Slay the Spire–style deck-building roguelike, built with TypeScript, Vite, Vue 3 and Vitest. It uses no game framework.
 
 ## Play
 
-**In the browser** (desktop or phone, no install): [barrywype.github.io/slay-the-fish](https://barrywype.github.io/slay-the-fish/). It's updated with every release, and progress is saved in that browser.
+**In the browser** (desktop or phone, no install): [barrywype.github.io/catch-of-the-deck](https://barrywype.github.io/catch-of-the-deck/). It's updated with every release, and progress is saved in that browser.
 
 ## Download
 
 Desktop app, always the latest version:
 
-- [macOS (Apple Silicon)](https://github.com/BarryWype/slay-the-fish/releases/latest/download/slay-the-fish-mac-arm64.dmg)
-- [Windows](https://github.com/BarryWype/slay-the-fish/releases/latest/download/slay-the-fish-windows.exe)
-- [Linux (AppImage)](https://github.com/BarryWype/slay-the-fish/releases/latest/download/slay-the-fish-linux.AppImage)
+- [macOS (Apple Silicon)](https://github.com/BarryWype/catch-of-the-deck/releases/latest/download/catch-of-the-deck-mac-arm64.dmg)
+- [Windows](https://github.com/BarryWype/catch-of-the-deck/releases/latest/download/catch-of-the-deck-windows.exe)
+- [Linux (AppImage)](https://github.com/BarryWype/catch-of-the-deck/releases/latest/download/catch-of-the-deck-linux.AppImage)
 
-Older versions are on the [releases page](https://github.com/BarryWype/slay-the-fish/releases).
+Older versions are on the [releases page](https://github.com/BarryWype/catch-of-the-deck/releases).
 
 The app isn't code-signed yet, so the first launch shows a warning:
 
-- **macOS**: open the app once and dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway** next to "Slay the Fish" (on older macOS, right-click the app and choose **Open** instead). If macOS says the app "is damaged" (releases up to v0.0.9), run `xattr -cr "/Applications/Slay the Fish.app"` in Terminal, then open it again.
+- **macOS**: open the app once and dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway** next to "Catch of the Deck" (on older macOS, right-click the app and choose **Open** instead). If macOS says the app "is damaged" (releases up to v0.0.9), run `xattr -cr "/Applications/Catch of the Deck.app"` in Terminal, then open it again.
 - **Windows**: on the SmartScreen prompt, click **More info**, then **Run anyway**.
-- **Linux**: make the file executable (`chmod +x slay-the-fish-linux.AppImage`), then run it.
+- **Linux**: make the file executable (`chmod +x catch-of-the-deck-linux.AppImage`), then run it.
 
 ## Running it
 
@@ -155,7 +155,7 @@ Effect reference:
 | `gainBlock` | `amount` | Always applies to the user |
 | `applyStatus` | `status` (`strength` / `vulnerable` / `weak` / `snared` / `venom` / `slow`), `amount`, `target?` | Negative amounts remove stacks, e.g. `-2` Strength. Snared stops a creature's Will from rising; Venom hits at the start of its bearer's turn, then loses a charge; each Slow makes its Will rise 20% slower, one wearing off each turn |
 | `drawCards` | `amount` | Player only |
-| `gainEnergy` | `amount` | Player only |
+| `gainEnergy` | `amount` | Player only: lowers Tension (never below 0); Tension left unbuilt still turns into Patience |
 | `changeEscape` | `amount`, `target?` | Moves a creature's Will bar: negative is **Drain** (captured at 0), positive raises it (flees at the top) |
 | `slowCap` | `amount` | For the rest of the fight, creatures' Will can be slowed by up to `amount` percent instead of 80% (never lowers it) |
 | `gainPatience`, `heal` | `amount` (`target?` for `heal`) | Patience up to 5; healing never above max health |
@@ -164,13 +164,16 @@ Effect reference:
 | `delayed`, `echoDamage` | `turns` + `effects` / `share` | Repeat effects at the start of your next turns; deal a share of the damage dealt again next turn |
 | `ifIntent`, `ifNoAttack` | `tag` + `then`/`else` / `then`/`else` | Depending on the creature's next move (Strike or Pull), or on whether you've played an attack this turn |
 | `ifStatus` | `status` + `then`/`else` | Depending on whether the target has that status (e.g. it's Slowed) |
+| `ifLastCard`, `ifBelow` | `cardType` + `then`/`else` / `bar` (`health` / `will`), `part` + `then`/`else` | Depending on the type of the card played just before this turn (none: `else`), or on the target's bar being under 1/`part` of its max |
+| `ifTension`, `byTension` | `tension` (a number or `'full'`) + `then`/`else` / `effects` (one list per Tension, the last for any higher) | Depending on your Tension before this card's cost |
+| `pickFromDraw` | `look` | Look at the top cards of the draw pile (reshuffling the discard under them if needed); the player picks one for the hand (`pickCard` action), the others stay on top |
 | `flipIntent`, `rerollIntent`, `holdFromIntent` | — / — / `max` | Change the creature's next move, or gain Hold from it |
 | `delayMove` | `target?` | The creature Paces this turn and plays the move it planned on its next turn (bait cards) |
 | `coil`, `venomBonus`, `venomCoating` | — / `amount` / `amount` | This turn: double the next attack; +damage to Venomed creatures; Venom on every hit |
 | `venomNow`, `swapHealthAndWill` | — | Venom hits now; swap health % and Will % |
 | `power` | `power`, `amount?` | A Power for the rest of the fight (see `PowerId` in `src/engine/types.ts`) |
 
-`dealDamage` and `changeEscape` take `perStatus: { status, amount }` to scale with the target's stacks (+2 damage per Slow), and `dealDamage` takes `fromHold: true` to deal your Hold as damage. Statuses that change a creature's next move: `cowed`, `intimidated`, `lured`, `distracted`, `dazzled`.
+`dealDamage` and `changeEscape` take `perStatus: { status, amount }` to scale with the target's stacks (+2 damage per Slow), `fromHold: true` to deal or Drain your Hold, and `dealDamage` takes `perTension` for extra damage per Tension before the card. Statuses that change a creature's next move: `cowed`, `intimidated`, `lured`, `distracted`, `dazzled`.
 
 `target` can be `'target'` (the default: the chosen enemy, or the player when an enemy acts), `'self'`, `'allEnemies'`, or `'randomEnemy'` (re-rolled for every hit).
 

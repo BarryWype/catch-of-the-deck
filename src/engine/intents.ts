@@ -227,6 +227,11 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
       case 'ifIntent':
       case 'ifStatus':
       case 'ifNoAttack':
+      case 'ifLastCard':
+      case 'ifBelow':
+      case 'ifTension':
+      case 'byTension':
+      case 'pickFromDraw':
       case 'coil':
       case 'venomNow':
       case 'power':

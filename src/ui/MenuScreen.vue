@@ -117,7 +117,7 @@ onBeforeUnmount(stopTheme);
       :data="data" :interactive="false" :title="t('aquarium.home')" icon="🏠" />
 
     <div v-if="!viewing" class="panel">
-      <h2>Slay the Fish</h2>
+      <h2>Catch of the Deck</h2>
       <nav class="buttons">
         <button v-tip="canResume ? undefined : t('menu.noSave')" :disabled="!canResume" @click="emit('resume')">{{ t('menu.resume') }}</button>
         <button @click="emit('newRun')">{{ t('menu.newRun') }}</button>

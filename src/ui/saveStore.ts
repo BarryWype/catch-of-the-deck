@@ -44,9 +44,9 @@ type DataFile = 'save' | 'profile';
 
 /** A file in the app's data folder in the desktop app (see electron/main.js), localStorage in a browser. */
 const storage = window.desktop ?? {
-  readData: async (name: DataFile) => localStorage.getItem(`slay-the-fish:${name}`),
-  writeData: async (name: DataFile, json: string) => localStorage.setItem(`slay-the-fish:${name}`, json),
-  deleteData: async (name: DataFile) => localStorage.removeItem(`slay-the-fish:${name}`),
+  readData: async (name: DataFile) => localStorage.getItem(`catch-of-the-deck:${name}`),
+  writeData: async (name: DataFile, json: string) => localStorage.setItem(`catch-of-the-deck:${name}`, json),
+  deleteData: async (name: DataFile) => localStorage.removeItem(`catch-of-the-deck:${name}`),
 };
 
 /** Full bond by tier before profile v5 and save v14: bond points are moved to today's (`rescaleBond`). */

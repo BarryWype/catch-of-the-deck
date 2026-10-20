@@ -8,7 +8,7 @@ import { LANGUAGES, type LanguageCode, type Messages } from '../locales';
  * (Options, kept per device), else the system's language if the game has it, else English.
  * Changing it reloads the page, so every text (content names included) is rebuilt in it.
  */
-const STORAGE_KEY = 'slay-the-fish:language';
+const STORAGE_KEY = 'catch-of-the-deck:language';
 
 const isLanguage = (code: string | null | undefined): code is LanguageCode => !!code && code in LANGUAGES;
 

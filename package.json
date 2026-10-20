@@ -1,7 +1,7 @@
 {
-  "name": "spire-slice",
+  "name": "catch-of-the-deck",
   "private": true,
-  "version": "0.1.23",
+  "version": "0.1.24",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -44,8 +44,8 @@
     "vue-tsc": "^2.1.10"
   },
   "build": {
-    "appId": "nz.co.somar.slaythefish",
-    "productName": "Slay the Fish",
+    "appId": "nz.co.barrywype.catchofthedeck",
+    "productName": "Catch of the Deck",
     "directories": {
       "output": "release"
     },
@@ -58,17 +58,17 @@
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSCameraUsageDescription": "Slay the Fish uses the camera to scan a save transfer code from another device."
+        "NSCameraUsageDescription": "Catch of the Deck uses the camera to scan a save transfer code from another device."
       },
-      "artifactName": "slay-the-fish-mac-${arch}.${ext}"
+      "artifactName": "catch-of-the-deck-mac-${arch}.${ext}"
     },
     "win": {
       "target": "nsis",
-      "artifactName": "slay-the-fish-windows.${ext}"
+      "artifactName": "catch-of-the-deck-windows.${ext}"
     },
     "linux": {
       "target": "AppImage",
-      "artifactName": "slay-the-fish-linux.${ext}"
+      "artifactName": "catch-of-the-deck-linux.${ext}"
     }
   }
 }

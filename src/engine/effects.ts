@@ -11,7 +11,7 @@ import {
   SPINES_GRIT,
 } from './constants';
 import { applyDamage, calculateDamage } from './damage';
-import { drawCards } from './piles';
+import { drawCards, reshuffleDiscardIntoDraw } from './piles';
 import { reportEvent } from './report';
 import { nextInt } from './rng';
 import { addStatus, getStatus, statusName } from './statuses';
@@ -44,6 +44,8 @@ export interface EffectContext {
   attacksBefore?: number;
   /** Resolved for a card (or what it left for later turns), not for a Power's or a companion's trigger. */
   fromCard?: boolean;
+  /** The player's Tension before this card's cost (`ifTension`, `byTension`, `perTension`). */
+  tension?: number;
 }
 
 /** A Power's number for this fight, added up over the copies played (0 when none). */
@@ -139,7 +141,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           const companionBonus = fromPlayer && !ctx.raw ? bonusTotal(state.bonuses, 'bonusDamage') : 0;
           const venomBonus = ctx.attack && getStatus(t, 'venom') > 0 ? (state.thisTurn?.venomBonus ?? 0) : 0;
           const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : (ctx.amountScale ?? 1));
-          const base = written + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
+          const base = written + (effect.perTension ?? 0) * (ctx.tension ?? 0) + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
           let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses);
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
           // Burrow: the player's attacks do less until the creature's next turn.
@@ -220,7 +222,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       if (source.id === PLAYER_ID) drawCards(state, effect.amount);
       return;
     case 'gainEnergy':
-      if (source.id === PLAYER_ID) state.player.energy += effect.amount;
+      if (source.id === PLAYER_ID) state.player.energy = Math.min(state.player.maxEnergy, state.player.energy + effect.amount);
       return;
     case 'loseHold': {
       const lost = Math.floor(state.player.block * effect.share);
@@ -270,6 +272,40 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
     case 'ifStatus': {
       const target = ctx.targetId === undefined ? undefined : getCombatant(state, ctx.targetId);
       for (const e of target && getStatus(target, effect.status) > 0 ? effect.then : (effect.else ?? [])) resolveEffect(state, e, ctx);
+      return;
+    }
+    case 'ifLastCard':
+      for (const e of state.thisTurn?.lastCard === effect.cardType ? effect.then : (effect.else ?? [])) resolveEffect(state, e, ctx);
+      return;
+    case 'ifBelow': {
+      const target = ctx.targetId === undefined ? undefined : getCombatant(state, ctx.targetId);
+      const enemy = target && 'escape' in target ? (target as EnemyState) : undefined;
+      const [value, max] = effect.bar === 'health' ? [target?.hp, target?.maxHp] : [enemy?.escape, enemy?.escapeAt];
+      const below = value !== undefined && max !== undefined && value * effect.part < max;
+      for (const e of below ? effect.then : (effect.else ?? [])) resolveEffect(state, e, ctx);
+      return;
+    }
+    case 'ifTension': {
+      const tension = ctx.tension ?? 0;
+      const met = effect.tension === 'full' ? tension >= state.player.maxEnergy : tension === effect.tension;
+      for (const e of met ? effect.then : (effect.else ?? [])) resolveEffect(state, e, ctx);
+      return;
+    }
+    case 'byTension':
+      for (const e of effect.effects[Math.min(ctx.tension ?? 0, effect.effects.length - 1)] ?? []) resolveEffect(state, e, ctx);
+      return;
+    case 'pickFromDraw': {
+      if (source.id !== PLAYER_ID) return;
+      const piles = state.piles;
+      // As when drawing: the cards left come first, then the shuffled discard pile under them.
+      if (piles.draw.length < effect.look && piles.discard.length) {
+        const left = piles.draw.splice(0);
+        reshuffleDiscardIntoDraw(state);
+        piles.draw.push(...left);
+      }
+      const shown = piles.draw.slice(-effect.look).reverse();
+      if (shown.length === 1) drawCards(state, 1);
+      else if (shown.length) state.pick = shown.map((c) => c.uid);
       return;
     }
     case 'ifIntent': {
@@ -392,7 +428,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         if (!('escape' in t)) continue;
         const enemy = t as EnemyState;
-        const amount = effect.amount + perStatusBonus(effect.perStatus, enemy);
+        const amount = (effect.fromHold ? -state.player.block : effect.amount) + perStatusBonus(effect.perStatus, enemy);
         const calming = source.id === PLAYER_ID && amount < 0 && !ctx.raw;
         const pull = calming ? Math.ceil((-amount * (state.pullPercent ?? 0)) / 100) : 0;
         const change = amount - pull - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
@@ -440,12 +476,21 @@ function coatWithVenom(state: CombatState, target: Combatant): void {
 
 /** Coiled: an effect with its numbers doubled (inner effects included). */
 export function doubled(effect: Effect): Effect {
-  const e = { ...effect } as Effect & { amount?: number; perStatus?: PerStatus; then?: Effect[]; else?: Effect[]; effects?: Effect[] };
+  const e = { ...effect } as Effect & {
+    amount?: number;
+    perStatus?: PerStatus;
+    perTension?: number;
+    then?: Effect[];
+    else?: Effect[];
+    effects?: Effect[] | Effect[][];
+  };
   if (typeof e.amount === 'number') e.amount *= 2;
   if (e.perStatus) e.perStatus = { ...e.perStatus, amount: e.perStatus.amount * 2 };
+  if (e.perTension) e.perTension *= 2;
   if (e.then) e.then = e.then.map(doubled);
   if (e.else) e.else = e.else.map(doubled);
-  if (e.effects) e.effects = e.effects.map(doubled);
+  if (e.type === 'byTension') e.effects = e.effects.map((list) => list.map(doubled));
+  else if (e.effects) e.effects = (e.effects as Effect[]).map(doubled);
   return e;
 }
 

@@ -1,3 +1,4 @@
+import './ui/renameStorage';
 import { createApp } from 'vue';
 import App from './ui/App.vue';
 import { vTip } from './ui/tooltip';

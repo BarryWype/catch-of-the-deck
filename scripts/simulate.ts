@@ -23,7 +23,8 @@
  * and the run each build was unlocked on (<name>-campaign.csv).
  *
  * The bot (`playTurn`) plays one card at a time: it tries each playable card on each target and
- * keeps the one that leaves the fight in the best shape (`evaluate`), until nothing helps. On the
+ * keeps the one that leaves the fight in the best shape (`evaluate`), until nothing helps. Cards
+ * that release Tension or show cards to pick are judged by the play they lead to (`bestPlay`). On the
  * map it takes a random path (never heading home early), picks a random card reward and event
  * choice, and buys Grit at the Cafe when it's under half. It's a decent player, not a great one.
  */
@@ -216,22 +217,47 @@ function evaluate(s: CombatState): number {
   return score;
 }
 
+/**
+ * The best card to play now, on its best target. With `look`, a card that releases Tension or shows
+ * cards to pick (Breathe Out, Check the Bait) scores as the best play it leads to, one card ahead.
+ */
+function bestPlay(state: CombatState, look = true): { next: CombatState; score: number } | null {
+  let best: { next: CombatState; score: number } | null = null;
+  for (const card of state.piles.hand) {
+    if (!isCardPlayable(state, card.uid, data)) continue;
+    const def = data.cards[card.defId];
+    const targets = def.target === 'enemy' ? state.enemies.filter(isAlive).map((e) => e.id) : [undefined];
+    for (const targetId of targets) {
+      const played = applyAction(state, { type: 'playCard', cardUid: card.uid, targetId }, data);
+      if (played === state) continue;
+      const next = pickBest(played, look);
+      // A small nudge to use the energy: a card that changes nothing visible (a buff) still gets played.
+      let score = evaluate(next) + 1;
+      if (look && def.effects.some((e) => e.type === 'gainEnergy' || e.type === 'pickFromDraw')) {
+        score = Math.max(score, bestPlay(next, false)?.score ?? -Infinity);
+      }
+      if (!best || score > best.score) best = { next, score };
+    }
+  }
+  return best;
+}
+
+/** Cards shown by Check the Bait: with `look`, the one whose best play scores highest; the top one otherwise. */
+function pickBest(state: CombatState, look: boolean): CombatState {
+  if (!state.pick) return state;
+  let best: { next: CombatState; score: number } | null = null;
+  for (const cardUid of look ? state.pick : state.pick.slice(0, 1)) {
+    const next = applyAction(state, { type: 'pickCard', cardUid }, data);
+    const score = look ? (bestPlay(next, false)?.score ?? evaluate(next)) : 0;
+    if (!best || score > best.score) best = { next, score };
+  }
+  return best!.next;
+}
+
 /** The player's turn: the best card each time, while one helps, then end the turn. */
 function playTurn(state: CombatState): CombatState {
   for (let plays = 0; plays < 30 && state.phase === 'playerTurn'; plays++) {
-    let best: { next: CombatState; score: number } | null = null;
-    for (const card of state.piles.hand) {
-      if (!isCardPlayable(state, card.uid, data)) continue;
-      const def = data.cards[card.defId];
-      const targets = def.target === 'enemy' ? state.enemies.filter(isAlive).map((e) => e.id) : [undefined];
-      for (const targetId of targets) {
-        const next = applyAction(state, { type: 'playCard', cardUid: card.uid, targetId }, data);
-        if (next === state) continue;
-        // A small nudge to use the energy: a card that changes nothing visible (a buff) still gets played.
-        const score = evaluate(next) + 1;
-        if (!best || score > best.score) best = { next, score };
-      }
-    }
+    const best = bestPlay(state);
     if (!best || best.score < evaluate(state)) break;
     state = best.next;
   }

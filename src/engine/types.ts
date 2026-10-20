@@ -70,8 +70,8 @@ export interface PerStatus {
 
 /** The reusable building blocks that every card and enemy move is made of. */
 export type Effect =
-  /** `fromHold`: the amount is the player's current Hold instead. */
-  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean }
+  /** `fromHold`: the amount is the player's current Hold instead. `perTension`: plus this much per Tension before the card. */
+  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean; perTension?: number }
   /** The player loses this share of their Hold (0.5 = half, rounded down). */
   | { type: 'loseHold'; share: number }
   /** The player loses all their Patience (it isn't spent) and gains `per` Hold for each point lost. */
@@ -96,6 +96,16 @@ export type Effect =
   | { type: 'ifIntent'; tag: MoveTag; then: Effect[]; else?: Effect[] }
   /** `then` if the target has any `status` (e.g. it's Slowed), `else` otherwise. */
   | { type: 'ifStatus'; status: StatusId; then: Effect[]; else?: Effect[] }
+  /** `then` if the card played just before this one, this turn, was of this type, `else` otherwise (also when none was). */
+  | { type: 'ifLastCard'; cardType: CardType; then: Effect[]; else?: Effect[] }
+  /** `then` if the target's health (or Will bar) is under 1/`part` of its max (2: half), `else` otherwise. */
+  | { type: 'ifBelow'; bar: 'health' | 'will'; part: number; then: Effect[]; else?: Effect[] }
+  /** `then` if the player's Tension before this card (its own cost aside) is `tension`, or is full, `else` otherwise. */
+  | { type: 'ifTension'; tension: number | 'full'; then: Effect[]; else?: Effect[] }
+  /** The effects at the index of the player's Tension before this card; the last entry covers any higher Tension. */
+  | { type: 'byTension'; effects: Effect[][] }
+  /** Look at the top `look` cards of the draw pile; the player puts one in hand (`CombatState.pick`), the others stay on top in order. */
+  | { type: 'pickFromDraw'; look: number }
   /** The target's next move becomes a random move of the other tag (Strike ↔ Pull), if it has one. */
   | { type: 'flipIntent'; target?: EffectTarget }
   /** The target's next move becomes another of its moves, picked at random. */
@@ -111,9 +121,11 @@ export type Effect =
   | { type: 'gainBlock'; amount: number }
   | { type: 'applyStatus'; status: StatusId; amount: number; target?: EffectTarget }
   | { type: 'drawCards'; amount: number }
+  /** Releases Tension (shown as Tension going down), never past its turn start. */
   | { type: 'gainEnergy'; amount: number }
   /** Move a creature's escape bar (its Will): negative Drains it toward capture (0), positive raises it toward fleeing. */
-  | { type: 'changeEscape'; amount: number; target?: EffectTarget; perStatus?: PerStatus }
+  /** `fromHold`: Drains as much as the player's current Hold instead. */
+  | { type: 'changeEscape'; amount: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean }
   /** Multiply the target's stacks of a status by `factor` (adding at most `max` stacks). */
   | { type: 'multiplyStatus'; status: StatusId; factor: number; max?: number; target?: EffectTarget }
   /** The player gains this much Patience (up to `MAX_PATIENCE`). */
@@ -746,7 +758,9 @@ export interface CombatState {
   /** Powers played this fight, in order (`power` effects). */
   powers?: { power: PowerId; amount: number }[];
   /** What lasts until the end of the player's turn (`coil`, `venomBonus`, `venomCoating`). */
-  thisTurn?: { coiled?: boolean; venomBonus?: number; venomCoating?: number; cardsPlayed?: number };
+  thisTurn?: { coiled?: boolean; venomBonus?: number; venomCoating?: number; cardsPlayed?: number; lastCard?: CardType };
+  /** Cards on top of the draw pile shown by `pickFromDraw`, top first: the player must put one in hand (`pickCard`) before anything else. */
+  pick?: string[];
   /** Creatures whose Skittish is on the player this turn: playing `SKITTISH_CARDS` cards raises their Will. */
   skittishFrom?: string[];
   /** Junk cards added this fight, for their ids. */
@@ -779,4 +793,6 @@ export interface BonusTracker {
 
 export type CombatAction =
   | { type: 'playCard'; cardUid: string; targetId?: string }
+  /** Puts one of the cards shown by `pickFromDraw` in hand. */
+  | { type: 'pickCard'; cardUid: string }
   | { type: 'endTurn' };

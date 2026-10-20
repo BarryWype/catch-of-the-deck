@@ -129,6 +129,9 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
 /** Returns a reason the action is illegal, or null if it can be applied. */
 export function validateAction(state: CombatState, action: CombatAction, data: GameData): string | null {
   if (state.phase !== 'playerTurn') return text('invalid.over');
+  // Cards shown by `pickFromDraw`: one goes in hand before anything else happens.
+  if (state.pick) return action.type === 'pickCard' && state.pick.includes(action.cardUid) ? null : text('invalid.pickFirst');
+  if (action.type === 'pickCard') return text('invalid.noPick');
   if (action.type === 'endTurn') return null;
 
   const card = state.piles.hand.find((c) => c.uid === action.cardUid);
@@ -161,7 +164,7 @@ export function isCardPlayable(state: CombatState, cardUid: string, data: GameDa
   if (state.phase !== 'playerTurn') return false;
   const card = state.piles.hand.find((c) => c.uid === cardUid);
   const def = card && data.cards[card.defId];
-  return !!def && !def.unplayable && cardCost(state, def) <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
+  return !!def && !state.pick && !def.unplayable && cardCost(state, def) <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
 }
 
 /** A card's energy cost right now: Numb Fingers makes Attack cards cost more, Tangled Drain cards. */
@@ -211,6 +214,9 @@ export function applyAction(state: CombatState, action: CombatAction, data: Game
   switch (action.type) {
     case 'playCard':
       playCard(next, action.cardUid, action.targetId, data);
+      break;
+    case 'pickCard':
+      pickCard(next, action.cardUid, data);
       break;
     case 'endTurn':
       endTurn(next, data);
@@ -289,6 +295,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   // mid-effect reshuffle can't pick it up.
   const [card] = state.piles.hand.splice(index, 1);
   const def = data.cards[card.defId];
+  const tension = state.player.maxEnergy - state.player.energy;
   state.player.energy -= cardCost(state, def);
   state.player.patience -= def.patienceCost ?? 0;
   addLog(state, text('log.plays', { who: state.player.name, card: def.name }));
@@ -330,6 +337,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
     attack,
     attacksBefore,
     fromCard: true,
+    tension,
   };
   // Coiled: the next attack's numbers are doubled.
   const coiled = attack && !!state.thisTurn?.coiled;
@@ -338,6 +346,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
     resolveEffect(state, effect, ctx);
     if (checkCombatEnd(state)) break;
   }
+  state.thisTurn!.lastCard = def.type;
   if (state.phase === 'playerTurn' && (firstOfTurn || firstOfFight)) {
     // Cards hitting every enemy have no chosen target: the bonus lands on the first one still in.
     const hit = ctx.targetId ?? state.enemies.find(isAlive)?.id;
@@ -357,6 +366,15 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   else state.piles.discard.push(card);
   // A mini-boss or boss brought low shows its Second Wind right away.
   for (const enemy of state.enemies) telegraphSecondWind(enemy, data);
+}
+
+/** One of the cards shown by `pickFromDraw` goes from the draw pile into the hand; the others stay where they are. */
+function pickCard(state: CombatState, cardUid: string, data: GameData): void {
+  const index = state.piles.draw.findIndex((c) => c.uid === cardUid);
+  const [card] = state.piles.draw.splice(index, 1);
+  state.piles.hand.push(card);
+  delete state.pick;
+  addLog(state, text('log.picked', { who: state.player.name, card: data.cards[card.defId]?.name ?? card.defId }));
 }
 
 /** Adds Patience, up to `MAX_PATIENCE`; returns how much was really added. */

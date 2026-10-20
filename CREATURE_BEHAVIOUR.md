@@ -1,4 +1,4 @@
-# Creature behaviour (Slay the Fish)
+# Creature behaviour (Catch of the Deck)
 
 Source: `src/content/behaviors.ts` (move sets, `move()` helper), `src/content/creatures.ts` (Pike/Red piranha own moves). Snapshot 2026-10-15.
 

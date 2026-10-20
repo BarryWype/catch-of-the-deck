@@ -99,10 +99,16 @@ export function validateContent(source: ContentSource): string[] {
     }
     checkEffects(where, card.effects);
     if (card.effects.some((e) => e.type === 'pull')) errors.push(`${where}: only creature moves can pull.`);
-    const needsTarget = card.effects.some(
+    // Conditions and delayed effects count with what they hold.
+    const nested = (e: Effect): Effect[] => {
+      const inner = e.type === 'byTension' ? e.effects.flat() : e.type === 'delayed' ? e.effects : 'then' in e ? [...e.then, ...(e.else ?? [])] : [];
+      return [e, ...inner.flatMap(nested)];
+    };
+    const needsTarget = card.effects.flatMap(nested).some(
       (e) =>
         e.type === 'ifIntent' ||
         e.type === 'ifStatus' ||
+        e.type === 'ifBelow' ||
         ((e.type === 'dealDamage' ||
           e.type === 'applyStatus' ||
           e.type === 'changeEscape' ||

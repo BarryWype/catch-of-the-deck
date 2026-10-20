@@ -1,4 +1,4 @@
-# How Slay the Fish works
+# How Catch of the Deck works
 
 A plain-language guide to the rules. For how the code is built, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -10,7 +10,7 @@ Before each run you pick a **fishing style**, which sets your starter deck (see 
 
 ## A fight in one minute
 
-Each turn your **Tension** starts at 0, you can build it up to **3**, and you draw **5 cards**. Each card adds its cost to your Tension; once it's full, only free cards can be played. When you're done, click **End Turn**: the creatures then act, and a new turn starts.
+Each turn your **Tension** starts at 0, you can build it up to **3**, and you draw **5 cards**. Each card adds its cost to your Tension; once it's full, only free cards can be played. A few cards release Tension (never below 0), which frees room for more cards; Tension you release and don't build up again turns into Patience at the end of the turn like any other. When you're done, click **End Turn**: the creatures then act, and a new turn starts.
 
 You win a fight by catching every creature. A creature is caught when **either**:
 
