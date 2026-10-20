@@ -436,6 +436,45 @@ export interface ShopItemDef {
   limit?: number;
 }
 
+/** What a Logbook node gives every run once bought (see progression.ts). Amounts of a type add up. */
+export type ProgressionEffect =
+  /** More card reward rerolls at the start of a run. */
+  | { type: 'rerollsAtStart'; amount: number }
+  /** More coins at the start of a run. */
+  | { type: 'coinsAtStart'; amount: number }
+  /** The bucket holds this many more creatures. */
+  | { type: 'bucketSpace'; amount: number }
+  /** The store item `item` is sold (it isn't until a node unlocks it). */
+  | { type: 'shopItem'; item: string }
+  /** Store prices are this percent lower, rounded down. */
+  | { type: 'shopDiscount'; amount: number }
+  /** Creatures sell for this percent more, added to the companions' sell bonuses. */
+  | { type: 'sellBonus'; amount: number }
+  /** Creatures resting at home bond up to this level (instead of 1). The highest counts. */
+  | { type: 'restingBondLevel'; level: number }
+  /** Card rewards offer this many more cards. */
+  | { type: 'rewardChoices'; amount: number }
+  /** Every companion counts this many more stars. */
+  | { type: 'companionStars'; amount: number };
+
+/**
+ * A node of the Logbook, bought with golden shells between runs. Nodes are laid out by `track`
+ * (a column) and `requires` (a node sits one row below the deepest node it requires).
+ */
+export interface ProgressionNodeDef {
+  id: string;
+  track: string;
+  /** Nodes to buy first. */
+  requires: string[];
+  /** In golden shells. */
+  cost: number;
+  effect: ProgressionEffect;
+  /** An emoji or an icon name (ui/assets/icons). Display-only. */
+  icon: string;
+  name: string;
+  description: string;
+}
+
 /** What releasing a creature at the Bait shop gives: one is drawn per visit. Its text is `store.blessing.<id>`. */
 export interface BlessingDef {
   id: string;
@@ -504,8 +543,6 @@ export interface EnemyDef {
   hp: [number, number];
   /** Coins it sells for once captured. Defaults to 0. */
   sellValue?: number;
-  /** 0–1: after each run, chance that two or more of it in the home aquarium lay an egg. Defaults to 0. */
-  breedChance?: number;
   /** The tug of war: the escape bar flees at `escapeAt`, captures at 0. */
   escapeAt: number;
   /** Escape bar value at the start of combat. */
@@ -662,6 +699,8 @@ export interface GameData {
   events: Record<string, EventDef>;
   shop: ShopItemDef[];
   blessings: BlessingDef[];
+  /** The Logbook, in content order. */
+  progression: ProgressionNodeDef[];
   /** Keyed by temperament id. */
   companionBonuses: Record<string, CompanionBonusDef>;
   families: Record<string, FamilyDef>;

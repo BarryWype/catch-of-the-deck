@@ -1,9 +1,9 @@
 import { addBond, bondToFull } from './bond';
-import { bonusTotal, companionEffects } from './companions';
 import { saleValue } from './equipment';
 import { creatureFamilies } from './families';
 import { text } from './text';
-import { asHomeCreature, withoutCreature, type RunState } from './run';
+import { discountedPrice, isShopItemUnlocked } from './progression';
+import { asHomeCreature, runSellBonus, withoutCreature, type RunState } from './run';
 import type { Catch } from './sizes';
 import type { GameData, ShopItemDef, StoreKind } from './types';
 import { clone } from './util';
@@ -21,9 +21,14 @@ export interface ShopVisit {
   sold?: Catch;
 }
 
-/** What the visited store sells, in content order. */
-export function storeItems(visit: ShopVisit, data: GameData): ShopItemDef[] {
-  return data.shop.filter((item) => item.store === visit.store);
+/**
+ * What the visited store sells, in content order, at the run's prices: items a Logbook node unlocks
+ * only once it's bought, and prices after its discounts (`discountedPrice`).
+ */
+export function storeItems(run: RunState, visit: Pick<ShopVisit, 'store'>, data: GameData): ShopItemDef[] {
+  return data.shop
+    .filter((item) => item.store === visit.store && isShopItemUnlocked(item, run.progression, data))
+    .map((item) => ({ ...item, price: discountedPrice(item.price, run.progression, data) }));
 }
 
 /** Items that act on a bucket creature the player picks (`creatureBlocked` says which ones can be picked). */
@@ -46,7 +51,7 @@ export function creatureBlocked(item: ShopItemDef, run: RunState, visit: ShopVis
   return null;
 }
 
-/** Why the item can't be bought right now, or null if it can. */
+/** Why the item (one of `storeItems`, at the run's price) can't be bought right now, or null if it can. */
 export function shopItemBlocked(item: ShopItemDef, run: RunState, visit: ShopVisit, data: GameData): string | null {
   if (item.limit !== undefined && (visit.bought[item.id] ?? 0) >= item.limit) return text('shop.soldOut');
   if (item.effect.type === 'heal' && run.hp >= run.maxHp) return text('shop.fullGrit');
@@ -57,11 +62,10 @@ export function shopItemBlocked(item: ShopItemDef, run: RunState, visit: ShopVis
   return null;
 }
 
-/** What the keeper's aquarium pays for the bucket creature at `slot`: its sale value (companion sell bonus included), times the item's percent. */
+/** What the keeper's aquarium pays for the bucket creature at `slot`: its sale value (`runSellBonus` included), times the item's percent. */
 export function aquariumPrice(item: ShopItemDef, run: RunState, slot: number, data: GameData): number {
   if (item.effect.type !== 'aquariumSale' || !run.bucket[slot]) return 0;
-  const sellBonus = bonusTotal(companionEffects(run.companions, data), 'sellBonus');
-  return Math.ceil((saleValue(run.bucket[slot].id, sellBonus, data) * item.effect.percent) / 100);
+  return Math.ceil((saleValue(run.bucket[slot].id, runSellBonus(run, data), data) * item.effect.percent) / 100);
 }
 
 /**
@@ -75,7 +79,7 @@ export function buyShopItem(
   data: GameData,
   choice?: number,
 ): { run: RunState; visit: ShopVisit } {
-  const item = data.shop.find((i) => i.id === itemId && i.store === visit.store);
+  const item = storeItems(run, visit, data).find((i) => i.id === itemId);
   if (!item) throw new Error(`"${itemId}" isn't sold here`);
   const blocked = shopItemBlocked(item, run, visit, data);
   if (blocked) throw new Error(blocked);

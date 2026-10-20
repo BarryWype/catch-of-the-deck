@@ -18,9 +18,12 @@
  *
  * `--campaign 20` plays 20 runs in a row (seeds from `--seed`) sharing one home aquarium, starting
  * empty: the bot brings its best companions (`chooseCompanions`), heads home at a leave node when
- * under half Grit, and hatches eggs at once. Fishermen of locked builds stand on its maps, and it
- * unlocks builds as a player would (it keeps playing its build). It reports how fast bond grows,
- * and the run each build was unlocked on (<name>-campaign.csv).
+ * under half Grit. Fishermen of locked builds stand on its maps, and it
+ * unlocks builds as a player would (it keeps playing its build). Companions of a run that ends badly
+ * come back injured and rest for as many map nodes as that run did. It earns golden shells and, after
+ * each run, buys the cheapest Logbook node it can afford (normal runs have no Logbook nodes, to stay
+ * comparable). It reports how fast bond grows, the run each build was unlocked on, the shells
+ * earned per run and the run the whole Logbook was bought on (<name>-campaign.csv).
  *
  * The bot (`playTurn`) plays one card at a time: it tries each playable card on each target and
  * keeps the one that leaves the fight in the best shape (`evaluate`), until nothing helps. Cards
@@ -41,16 +44,17 @@ import {
   bondPerFight,
   bondThreshold,
   bringCatchHome,
+  buyNode,
   CATCH_SIZES,
   catchesOf,
   companionStars,
   FULL_SCHOOL,
-  hatchling,
   keepCatch,
-  layEggs,
   MAX_BOND_LEVEL,
   restAtHome,
+  restingBondLevel,
   saleValue,
+  shellsEarned,
   sellCatch,
   SESSION_SLOTS,
   takeFromHome,
@@ -157,6 +161,8 @@ interface RunRecord {
   companions: string[];
   /** Each companion's stars at the start of the run, in the same order. */
   companionStars: number[];
+  /** Golden shells earned (mini-bosses and bosses beaten). */
+  shells: number;
 }
 
 // --- The bot -------------------------------------------------------------------------------
@@ -336,6 +342,7 @@ function makeRoom(run: RunState): RunState {
 /**
  * One run, with `brought` companions. With `headHome` (the campaign), the bot takes a leave node
  * when it's under half Grit. `fishermen` stand on the maps; the ones it meets go in `met`.
+ * `progression`: the Logbook nodes bought.
  */
 function playRun(
   seed: number,
@@ -344,9 +351,11 @@ function playRun(
   headHome = false,
   fishermen: readonly string[] = [],
   met: string[] = [],
+  progression: readonly string[] = [],
 ): { record: RunRecord; run: RunState } {
   const pick = botRng(seed);
-  let run = createRun(seed, data, BUILD, brought, undefined, fishermen);
+  let run = createRun(seed, data, BUILD, brought, undefined, fishermen, progression);
+  let shells = 0;
   const end = (outcome: RunRecord['outcome']) => {
     const mine = fights.filter((f) => f.seed === seed);
     const sum = (key: 'turns' | 'caughtByWill' | 'caughtByHealth' | 'escaped') => mine.reduce((a, f) => a + f[key], 0);
@@ -365,6 +374,7 @@ function playRun(
       bucket: run.bucket.length,
       companions: brought.map((c) => c.id),
       companionStars: brought.map((c) => companionStars(c, data)),
+      shells,
     };
     return { record, run };
   };
@@ -386,7 +396,7 @@ function playRun(
       let visit: ShopVisit;
       ({ run, visit } = visitShop(run, node.id, data));
       // Only the Cafe sells Grit; the bot ignores the other items.
-      const heal = storeItems(visit, data).find((i) => i.effect.type === 'heal');
+      const heal = storeItems(run, visit, data).find((i) => i.effect.type === 'heal');
       if (heal && run.hp * 2 < run.maxHp) {
         // Sell catches (not companions) until the Grit is affordable.
         while (run.coins < heal.price && run.bucket.length > run.companions.length) run = sellCreature(run, run.companions.length, data);
@@ -420,6 +430,7 @@ function playRun(
     fights.push(played.record);
     if (seed === LOG_SEED) console.log(`\n--- Fight #${played.record.index} (${played.record.kind}): ${played.record.result}\n${played.combat.log.join('\n')}`);
     if (played.record.result === 'stalled') return end('stalled');
+    shells += shellsEarned(run, played.combat);
     run = makeRoom(finishCombat(run, played.combat, data));
     if (played.combat.phase === 'lost') return end('died');
     if (played.combat.phase === 'fled') {
@@ -620,19 +631,36 @@ function campaign(runsInARow: number) {
   const reached = new Map<number, Set<number>>();
   const tripsTo: { level: number; tier: number; trips: number }[] = [];
   let companionsLost = 0;
+  let companionsInjured = 0;
+  /** Companions injured by lost runs, with the map nodes they still have to rest. */
+  let recovering: (Tracked & { nodesLeft: number })[] = [];
   const bucketsHome: number[] = [];
   /** Builds unlocked, the run each was unlocked on, and the fishermen met (and the run of the first meeting). */
   const unlocked: string[] = [];
   const unlockedOn: Record<string, number> = {};
   const met: string[] = [];
   const metOn: Record<string, number> = {};
+  /** The Logbook: shells left and nodes bought, and the run it was all bought on. */
+  let logbook = { shells: 0, unlocked: [] as string[] };
+  let logbookDone: number | null = null;
 
   for (let i = 0; i < runsInARow; i++) {
     const { home: left, brought } = takeFromHome(home, chooseCompanions(home));
-    const { record, run } = playRun(FIRST_SEED + i, fights, brought, true, fishermenToMeet(data, unlocked), met);
+    const { record, run } = playRun(FIRST_SEED + i, fights, brought, true, fishermenToMeet(data, unlocked), met, logbook.unlocked);
     for (const id of met) metOn[id] ??= i + 1;
     const success = record.outcome === 'won' || record.outcome === 'left';
-    home = restAtHome(left, data) as Tracked[];
+    home = restAtHome(left, data, restingBondLevel(run.progression, data)) as Tracked[];
+    // The cheapest node it can afford, again while it can.
+    logbook = { ...logbook, shells: logbook.shells + record.shells };
+    const bought: string[] = [];
+    for (;;) {
+      const next = data.progression.filter((n) => !logbook.unlocked.includes(n.id) && n.requires.every((r) => logbook.unlocked.includes(r)) && n.cost <= logbook.shells);
+      if (!next.length) break;
+      const cheapest = next.reduce((a, b) => (b.cost < a.cost ? b : a));
+      logbook = buyNode(logbook, cheapest.id, data);
+      bought.push(cheapest.id);
+    }
+    if (logbook.unlocked.length === data.progression.length) logbookDone ??= i + 1;
     if (success) {
       // bringCatchHome copies the companions with their extra fields: one more trip each.
       const back = bringCatchHome([], run, data);
@@ -644,8 +672,19 @@ function campaign(runsInARow: number) {
         unlockedOn[id] = i + 1;
       }
     }
-    companionsLost += brought.length - (success ? run.companions.length : 0);
-    home.push(...layEggs(home, run, data).map((id) => track(hatchling(id, data))));
+    companionsLost += brought.length - run.companions.length;
+    // Injured companions rest for this run's nodes; then this run's own come back injured if it ended badly.
+    recovering = recovering.map((c) => ({ ...c, nodesLeft: c.nodesLeft - run.nodesDone }));
+    home.push(...recovering.filter((c) => c.nodesLeft <= 0).map(({ nodesLeft: _, ...c }) => c));
+    recovering = recovering.filter((c) => c.nodesLeft > 0);
+    if (!success) {
+      for (const [slot, c] of run.companions.entries()) {
+        const back = { ...(c as Tracked), bond: run.companionBondsAtStart[slot] };
+        companionsInjured++;
+        if (run.nodesDone > 0) recovering.push({ ...back, nodesLeft: run.nodesDone });
+        else home.push(back);
+      }
+    }
     for (const c of home) {
       const levels = reached.get(c.uid) ?? new Set();
       for (let level = 1; level <= bondLevel(c, data); level++) {
@@ -664,6 +703,10 @@ function campaign(runsInARow: number) {
       bucketHome: success ? run.bucket.length : 0,
       home: home.length,
       bestBond: Math.max(0, ...home.map((c) => bondLevel(c, data))),
+      resting: recovering.length,
+      shells: record.shells,
+      shellsLeft: logbook.shells,
+      bought: bought.join(' '),
       met: met.join(' '),
       unlocked: unlocked.join(' '),
       // Each quest's progress after the run: at home, e.g. "foraging 3/6", or shown in the bucket ("net shown").
@@ -681,13 +724,31 @@ function campaign(runsInARow: number) {
   const successes = rows.filter((r) => r.outcome === 'won' || r.outcome === 'left').length;
   console.log(`\nCampaign: ${runsInARow} runs in a row (seeds ${FIRST_SEED}–${FIRST_SEED + runsInARow - 1}), one home aquarium`);
   console.table(Object.fromEntries(rows.map(({ run, ...r }) => [run, r])));
-  console.log(`Successful runs ${successes}, lost ${runsInARow - successes}. Companions lost: ${companionsLost}. Bucket brought home: ${avg(bucketsHome)} on average.`);
+  console.log(`Successful runs ${successes}, lost ${runsInARow - successes}. Companions lost (sold or used as bait): ${companionsLost}, injured: ${companionsInjured}. Bucket brought home: ${avg(bucketsHome)} on average.`);
   console.log('Builds to unlock: the run their fisherman was first met on, and the run they were unlocked on');
   console.table(
     Object.fromEntries(
       Object.values(data.builds)
         .filter((b) => b.unlock)
         .map((b) => [b.id, { met: metOn[b.unlock!.fisherman] ?? 'never', unlocked: unlockedOn[b.id] ?? 'never' }]),
+    ),
+  );
+  const shellsOf = (outcomes: readonly string[]) => rows.filter((r) => outcomes.includes(r.outcome)).map((r) => r.shells as number);
+  const cost = data.progression.reduce((sum, n) => sum + n.cost, 0);
+  console.log(`Golden shells per run (the whole Logbook costs ${cost}). Logbook bought in full on run ${logbookDone ?? 'never'} (${logbook.unlocked.length}/${data.progression.length} nodes).`);
+  console.table(
+    Object.fromEntries(
+      (
+        [
+          ['all runs', ['won', 'left', 'died', 'bossEscaped', 'stalled']],
+          ['won (every boss)', ['won']],
+          ['headed home', ['left']],
+          ['lost', ['died', 'bossEscaped', 'stalled']],
+        ] as const
+      ).flatMap(([name, outcomes]) => {
+        const shells = shellsOf(outcomes);
+        return shells.length ? [[name, { runs: shells.length, average: avg(shells), median: median(shells), fewest: Math.min(...shells), most: Math.max(...shells) }]] : [];
+      }),
     ),
   );
   console.log('Run in which the first creature reached each bond level');

@@ -10,7 +10,8 @@ import { t } from './i18n';
  * its bonus (at the stars already brought, or 1★) and each creature the stars it would add: a
  * species already brought counts once, with its best stars.
  */
-const props = defineProps<{ creatures: HomeCreature[]; brought: HomeCreature[]; data: GameData }>();
+/** `extraStars`: stars every companion counts on top of its own (the Logbook's). */
+const props = withDefaults(defineProps<{ creatures: HomeCreature[]; brought: HomeCreature[]; data: GameData; extraStars?: number }>(), { extraStars: 0 });
 const emit = defineEmits<{ pick: [slot: number] }>();
 
 const dialog = ref<HTMLDialogElement>();
@@ -18,9 +19,9 @@ const dialog = ref<HTMLDialogElement>();
 const filter = ref<string | null>(null);
 
 const groups = computed(() => {
-  const active = new Map(activeBonuses(props.brought, props.data).map((b) => [b.def.id, b]));
+  const active = new Map(activeBonuses(props.brought, props.data, props.extraStars).map((b) => [b.def.id, b]));
   const broughtStars = new Map<string, number>();
-  for (const c of props.brought) broughtStars.set(c.id, Math.max(broughtStars.get(c.id) ?? 0, companionStars(c, props.data)));
+  for (const c of props.brought) broughtStars.set(c.id, Math.max(broughtStars.get(c.id) ?? 0, companionStars(c, props.data, props.extraStars)));
   return Object.values(props.data.companionBonuses)
     .map((def) => {
       const bonus = active.get(def.id);
@@ -28,7 +29,7 @@ const groups = computed(() => {
         .map((c, slot) => ({ c, slot, def: props.data.enemies[c.id] }))
         .filter(({ def: e }) => e?.temperament === def.id)
         .map(({ c, slot, def: e }) => {
-          const stars = companionStars(c, props.data);
+          const stars = companionStars(c, props.data, props.extraStars);
           const level = bondLevel(c, props.data);
           return {
             slot,

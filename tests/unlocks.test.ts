@@ -12,6 +12,7 @@ import {
   isQuestMet,
   newUnlocks,
   questProgress,
+  questsFor,
   questsShownTo,
   unlockedBuilds,
   visitFisherman,
@@ -206,5 +207,17 @@ describe('unlocking at the end of a run', () => {
     game.fishermenMet.value = [];
     game.endRunAfterBoss();
     expect(game.unlocked.value).toEqual([]);
+  });
+});
+
+describe('quests a creature counts towards (its fight hover text)', () => {
+  const ids = (builds: { id: string }[]) => builds.map((b) => b.id).sort();
+
+  it('only open quests: fisherman met, build still locked; a size filter is left to the catch', () => {
+    // Progenetica: a freshwater schooling fish, for Gus's net quest and Silas's trophy freshwater quest.
+    expect(ids(questsFor('progenetica', gameData, [], ['gus', 'silas']))).toEqual(['fly', 'net']);
+    expect(ids(questsFor('flyingFish', gameData, [], ['gus', 'silas']))).toEqual(['net']);
+    expect(questsFor('progenetica', gameData, [], [])).toEqual([]);
+    expect(ids(questsFor('progenetica', gameData, ['net'], ['gus', 'silas']))).toEqual(['fly']);
   });
 });

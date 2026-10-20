@@ -279,6 +279,12 @@ export const fr: Messages = {
       wrongFamily: 'Pas le genre que cherche le patron.',
       noneOfFamily: 'Rien dans ton seau de ce que cherche le patron.',
     },
+    logbook: {
+      unknown: 'Cette page n’existe pas dans le Carnet.',
+      bought: 'Déjà achetée.',
+      locked: 'Achète d’abord la précédente.',
+      notEnoughShells: 'Pas assez de coquillages dorés.',
+    },
   },
 
   ui: {
@@ -292,13 +298,14 @@ export const fr: Messages = {
       pull: { forms: 'Traction, Tractions, Tire, Tirer', text: 'Action de créature qui tire sur la ligne et fait monter sa {@will}. Ta {@hold} l’absorbe d’abord.' },
       exhaust: { forms: 'Épuisement', text: 'Une fois jouée, la carte disparaît jusqu’à la fin du combat.' },
       block: { forms: 'Blocage', text: 'Le Blocage d’une créature absorbe les dégâts de tes attaques jusqu’à son prochain tour.' },
+      attackCard: { forms: 'carte d’Attaque, cartes d’Attaque', text: 'Une carte de type Attaque, indiqué par l’icône dans son coin supérieur droit. Seul le type compte : une carte de Drainage n’en est pas une.' },
+      drainCard: { forms: 'carte de Drainage, cartes de Drainage', text: 'Une carte de type Drainage, indiqué par l’icône dans son coin supérieur droit. Seul le type compte : une carte d’Attaque qui draine aussi (comme Remontée régulière) n’en est pas une.' },
       attack: { forms: 'attaque, attaques, Attaque, Attaques', text: 'Ce qui inflige des dégâts : tes cartes d’Attaque et de Drainage, et les Frappes des créatures. Les bonus de « première attaque » comptent tes cartes d’Attaque et de Drainage.' },
     },
     common: {
       back: '← Retour',
       cancel: 'Annuler',
       close: 'Fermer',
-      newEggs: '🥚 Un œuf a été pondu dans ton aquarium !|🥚 {n} œufs ont été pondus dans ton aquarium !',
     },
     app: {
       coins: 'Pièces',
@@ -324,6 +331,8 @@ export const fr: Messages = {
       count: '{n} pêchée|{n} pêchées',
       countOf: '{n}/{max}',
       listTip: 'Les voir en liste',
+      recoveringLabel: 'Au repos après une partie qui a mal fini',
+      recoveringTip: 'Blessée pendant une partie qui a mal fini. Elle se repose hors de l’aquarium encore {n} étape sur la carte (combats, boutiques, événements…), puis revient avec le lien qu’elle avait avant cette partie.|Blessée pendant une partie qui a mal fini. Elle se repose hors de l’aquarium encore {n} étapes sur la carte (combats, boutiques, événements…), puis revient avec le lien qu’elle avait avant cette partie.',
       stars: '{n}★',
       bond: 'Lien niveau {level} · {points}/{full}',
       bondFull: 'Lien niveau {level} (lien complet) · {points}/{full}',
@@ -346,6 +355,14 @@ export const fr: Messages = {
       dropOnBattlefield: 'Lâche-la sur le terrain…',
       chooseTarget: 'Choisis une cible…',
       playAgain: 'Touche-la à nouveau, ou le terrain, pour la jouer…',
+      creatureTip: {
+        new: 'Première rencontre.',
+        seen: 'Déjà vue, jamais attrapée.',
+        captured: 'Déjà attrapée.',
+        atHome: '{n} dans ton aquarium.',
+        notAtHome: 'Aucune dans ton aquarium.',
+        quest: '{fisherman} veut voir {quest}.',
+      },
       pickTitle: 'Choisis une carte pour ta main',
       pickHint: 'Les autres retournent sur ta pioche, dans cet ordre.',
       energy: 'Tension',
@@ -384,13 +401,13 @@ export const fr: Messages = {
       leftText: 'Tu t’arrêtes à mi-chemin, avec {grit} de {@grit} restante.',
       bucketHome: '🪣 → 🏠 {n} créature de ton seau rejoint ton aquarium.|🪣 → 🏠 {n} créatures de ton seau rejoignent ton aquarium.',
       fledTitle: 'Le boss s’est échappé',
-      fledText: 'Ta partie s’arrête ici, et ton seau reste derrière toi.',
+      fledText: 'Ta partie s’arrête ici, et tes prises restent derrière toi. Tes compagnons rentrent blessés et se reposent un moment.',
       unlocked: 'Nouvelle façon de pêcher débloquée : {build} ! Choisis-la au début d’une partie.',
       toMenu: 'Retour au menu',
     },
     newRunDialog: {
       title: 'Commencer une nouvelle partie ?',
-      text: 'Ta partie en cours et les créatures de ton seau seront perdues. Ton aquarium ne change pas.',
+      text: 'Ta partie en cours et les créatures pêchées seront perdues. Tes compagnons rentrent blessés et se reposent un moment.',
       abandon: 'Abandonner la partie',
     },
     menu: {
@@ -419,7 +436,11 @@ export const fr: Messages = {
       },
       turn: {
         title: 'Chaque tour,',
-        text: 'tu peux accumuler jusqu’à {energy} de tension et tu pioches {cards} cartes ; chaque carte ajoute son coût à ta tension. Glisse une carte sur une créature (ou le terrain) pour la jouer, puis Fin du tour.',
+        text: 'tu pioches {cards} cartes et peux accumuler jusqu’à {energy} de Tension : chaque carte ajoute son coût. Glisse une carte sur une créature (ou le terrain), ou touche-la puis touche sa cible. Puis Fin du tour.',
+      },
+      moves: {
+        title: 'Frappe et Traction :',
+        text: 'l’icône au-dessus d’une créature est sa prochaine action. Les Frappes entament ta {@grit}, les Tractions font monter sa {@will}. Survole une icône, une créature ou un mot d’une carte pour le détail.',
       },
       grit: {
         title: '{@grit} :',
@@ -427,39 +448,43 @@ export const fr: Messages = {
       },
       hold: {
         title: '{@hold} :',
-        text: 'ta prise sur la ligne. Elle absorbe les coups des créatures avant qu’ils ne t’atteignent.',
-      },
-      moves: {
-        title: 'Frappe et Traction :',
-        text: 'les Frappes entament ta {@grit}, les Tractions font monter la {@will} de la créature ; ta {@hold} absorbe les deux. Flèche verte : elle se renforce ; flèche rouge : elle t’affaiblit. Survole une icône pour le détail.',
+        text: 'ta prise sur la ligne. Elle absorbe les Frappes et les Tractions avant qu’elles ne t’atteignent, et part au début de ton tour suivant.',
       },
       patience: {
         title: '{@patience} :',
-        text: 'chaque point de tension non accumulé, et chaque {holdPerPatience} de {@hold} restante, donnent 1 point (jusqu’à {maxPatience}). Chaque point ralentit la {@will} des créatures de {patiencePercent} %.',
-      },
-      keywords: {
-        title: 'Drainer, Lenteur, Venin :',
-        text: 'Drainer baisse la {@will} d’une créature d’un montant fixe. Chaque charge de Lenteur la fait monter {slowPercent} % moins vite ({maxSlowPercent} % au plus, avec la {@patience}). Le Venin inflige ses charges en dégâts au début du tour de sa cible, puis en perd une.',
+        text: 'chaque point de Tension non accumulé, et chaque {holdPerPatience} de {@hold} restante, donnent 1 point (jusqu’à {maxPatience}). Chaque point ralentit la {@will} des créatures de {patiencePercent} %.',
       },
       aging: {
         title: 'Tu grandis',
         text: 'd’enfant à adulte puis à ancien : plus tu vas loin, plus les prises sont grosses. Chaque âge a un mini-boss et un boss, toujours relâchés.',
       },
       home: {
-        title: 'Rentre à la maison',
-        text: '(⌂, après chaque mini-boss) pour finir la partie sans risque : ton seau rejoint ton aquarium.',
+        title: 'Finir une partie :',
+        text: 'rentre à la maison (⌂, juste après chaque mini-boss) ou arrête-toi après un boss d’enfant ou d’adulte, et ton seau rejoint ton aquarium. Si ta {@grit} tombe à 0, le seau est perdu ; si un boss s’échappe, il reste sur place.',
       },
       bucket: {
         title: 'Ton seau',
-        text: 'contient {bucket} créatures, compagnons compris. Si une prise n’y tient pas, vends une créature pour la garder, ou vends la prise. Chaque prise a une taille : plus la partie avance, plus elles sont grosses, et vider la {@will} en ramène de plus grosses qu’user la vie.',
+        text: 'contient {bucket} créatures, compagnons compris. Si une prise n’y tient pas, vends une créature ou utilise-la comme appât (🪣) pour la garder. Vider la {@will} ramène de plus grosses prises qu’user la vie.',
+      },
+      fishermen: {
+        title: 'Les pêcheurs',
+        text: 'de la côte enseignent de nouvelles façons de pêcher. Parle à l’un d’eux pour ouvrir sa quête, puis finis bien une partie après l’avoir remplie pour apprendre sa technique. Les quêtes en cours s’affichent sur ce menu.',
       },
       companions: {
         title: 'Compagnons :',
-        text: 'emmène jusqu’à {slots} créatures de la maison pour un bonus. Si tu perds la partie, tu les perds aussi.',
+        text: 'avant une partie, emmène jusqu’à {slots} créatures de ton aquarium. Chacune donne le bonus de son tempérament pour toute la partie (le livre des créatures 📖 les liste). Elles voyagent dans ton seau. Si la partie finit mal, elles rentrent blessées, avec le lien d’avant la partie, et se reposent hors de l’aquarium autant d’étapes sur la carte que la partie en a duré.',
       },
       stars: {
-        title: 'Étoiles :',
-        text: 'un compagnon vaut autant d’étoiles que son rang, +1 au lien niveau 2 et +1 au niveau 3. Les étoiles d’un même genre s’additionnent (une fois par espèce) et renforcent son bonus ; 3 espèces différentes ajoutent le bonus de banc complet. Le lien grandit à chaque combat partagé, plus vite au large et contre les boss.',
+        title: 'Les étoiles',
+        text: 'renforcent le bonus d’un compagnon. Un compagnon a 1★ à 3★ selon la profondeur où il vit, +1★ au lien niveau 2 et +1★ de plus au niveau 3. Les compagnons d’un même tempérament additionnent leurs étoiles, une fois par espèce, jusqu’à {maxStars}★. Emmène {fullSchool} espèces différentes d’un même tempérament pour ajouter son bonus de banc complet.',
+      },
+      bond: {
+        title: 'Le lien',
+        text: 'grandit à chaque combat partagé avec un compagnon : {kid}/{adult}/{elder} points par combat en enfant/adulte/ancien, le double contre les mini-boss et les boss. Les niveaux 1, 2 et 3 arrivent à {level1} %, {level2} % et {level3} % du lien complet ({full1} points pour les créatures des eaux peu profondes, {full2}, puis {full3} pour les plus profondes). Un compagnon ne garde son lien que si la partie se finit bien. Les créatures restées à la maison gagnent {atHome} points par partie, jusqu’au niveau 1.',
+      },
+      shells: {
+        title: 'Les coquillages dorés',
+        text: 's’obtiennent en battant les mini-boss ({miniBoss}) et les boss ({boss}), même si la partie est perdue ensuite. Dépense-les dans le Carnet de pêche pour des améliorations valables à chaque partie.',
       },
     },
     debug: {
@@ -514,6 +539,8 @@ export const fr: Messages = {
       met: 'Pêcheurs rencontrés',
       home: 'Aquarium de la maison ({n})',
       addHome: 'Ajouter une créature',
+      shells: 'Coquillages dorés',
+      logbook: 'Pages du Carnet achetées',
       scenarios: 'Scénarios sauvegardés',
       name: 'Nom du scénario',
       save: 'Sauvegarder',
@@ -566,6 +593,7 @@ export const fr: Messages = {
         event: 'Événement inconnu « {detail} » (les trésors commencent par « treasure »).',
         fisherman: 'Pêcheur inconnu « {detail} ».',
         store: 'Boutique inconnue « {detail} » (cafe, tackle ou bait).',
+        node: 'Page du Carnet inconnue « {detail} ».',
       },
     },
     transfer: {
@@ -587,7 +615,6 @@ export const fr: Messages = {
       confirmTitle: 'Remplacer la progression de cet appareil ?',
       confirmText: 'Tout ce qui est sauvegardé sur cet appareil sera remplacé par :',
       home: '{n} créature dans l’aquarium|{n} créatures dans l’aquarium',
-      eggs: '{n} œuf|{n} œufs',
       discovered: '{n} créature découverte|{n} créatures découvertes',
       run: 'Une partie en cours : {level}, étage {floor}',
       noRun: 'Aucune partie en cours',
@@ -602,10 +629,27 @@ export const fr: Messages = {
         cameraMissing: 'Aucune caméra disponible. Colle plutôt le code ci-dessous.',
       },
     },
+    logbook: {
+      button: 'Carnet',
+      title: 'Carnet de pêche',
+      intro: 'Les coquillages dorés, gagnés en battant les mini-boss ({miniBoss}) et les boss ({boss}), achètent des améliorations pour toutes tes parties. Chaque piste s’ouvre une page à la fois.',
+      shells: '{n} coquillage doré|{n} coquillages dorés',
+      shellsTip: 'Coquillages dorés : {miniBoss} par mini-boss, {boss} par boss. Ils sont à toi tout de suite, même si la partie est perdue. Dépense-les dans le Carnet, depuis le menu.',
+      won: '+{n} coquillage doré ({total} en tout)|+{n} coquillages dorés ({total} en tout)',
+      track: { gear: 'Matériel', haggling: 'Marchandage', creatures: 'Créatures' },
+      bought: 'Achetée',
+      hidden: 'Achète la page précédente pour lire celle-ci.',
+      needMore: 'Il te manque {n} coquillage doré.|Il te manque {n} coquillages dorés.',
+      buyTip: 'Touche pour acheter.',
+      confirmTitle: 'Acheter {name} ?',
+      confirmText: 'Elle coûte {cost} coquillages dorés : il t’en restera {left}.',
+      buy: 'Acheter',
+      close: 'Fermer',
+    },
     reset: {
       button: 'Réinitialiser la progression',
       title: 'Réinitialiser la progression ?',
-      text: 'Ta partie sauvegardée et toutes les créatures de ton aquarium seront effacées. C’est définitif.',
+      text: 'Ta partie sauvegardée, toutes les créatures de ton aquarium et ton Carnet seront effacés. C’est définitif.',
       confirm: 'Tout effacer',
     },
     options: {
@@ -653,7 +697,7 @@ export const fr: Messages = {
     reward: {
       title: 'Choisis une carte à ajouter à ton deck',
       reroll: 'Relancer (encore {n})',
-      rerollTip: 'Propose trois autres cartes. Tu commences une partie avec 1 relance, et tu en gagnes 1 de plus pour chaque mini-boss et boss battu.',
+      rerollTip: 'Propose d’autres cartes. Tu commences une partie avec {n} relance, et tu en gagnes 1 de plus pour chaque mini-boss et boss battu.|Propose d’autres cartes. Tu commences une partie avec {n} relances, et tu en gagnes 1 de plus pour chaque mini-boss et boss battu.',
       removeCard: 'Retirer une carte',
       removeTip: 'Battre un boss te permet de retirer gratuitement une carte de ton deck, en plus de la récompense.',
       removeTitle: 'Choisis une carte à retirer de ton deck',
@@ -737,14 +781,6 @@ export const fr: Messages = {
         none: 'Tu as rencontré tous les vieux loups de mer de la côte, non ? Je n’ai plus rien à t’apprendre.',
       },
     },
-    eggs: {
-      hatching: 'Éclosion…',
-      hatch: 'Faire éclore cet œuf',
-      clickToHatch: 'Clique pour le faire éclore',
-      hatched: 'Un œuf a éclos',
-      itsA: 'C’est : {name} !',
-      joins: 'Il rejoint ton aquarium. Clique n’importe où pour continuer.',
-    },
     size: {
       small: 'Petite',
       normal: 'Normale',
@@ -780,7 +816,7 @@ export const fr: Messages = {
       removeLabel: 'Remettre {name} dans l’aquarium',
       empty: '+ Place libre',
       bonuses: 'Bonus pour cette partie',
-      help: 'Les créatures emmenées donnent leur bonus pour la partie. Étoiles : son rang, +1 au lien niveau 2, +1 au niveau 3 ; celles d’un même genre s’additionnent, une fois par espèce. Elles ne reviennent que si la partie réussit, avec un lien plus fort. Les créatures pêchées en route sont fâchées et ne donnent rien.',
+      help: 'Les créatures emmenées donnent leur bonus pour la partie. Étoiles : son rang, +1 au lien niveau 2, +1 au niveau 3 ; celles d’un même genre s’additionnent, une fois par espèce. Une partie réussie les ramène avec un lien plus fort ; une partie qui finit mal les ramène blessées, pour un temps de repos. Les créatures pêchées en route sont fâchées et ne donnent rien.',
       starsTip: 'Étoiles : son rang, +1 au lien niveau 2, +1 au niveau 3',
       nextStars: '{n}★ de plus : {rule}',
     },

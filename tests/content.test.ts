@@ -168,6 +168,7 @@ describe('content validation', () => {
     events: [],
     blessings: [],
     shop: [],
+    progression: [],
     companionBonuses: [],
     families: [],
     spots: [],

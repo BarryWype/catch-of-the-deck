@@ -67,6 +67,8 @@ const draft = reactive({
   unlocked: [] as string[],
   fishermenMet: [] as string[],
   home: [] as DebugCreature[],
+  shells: 0,
+  progression: [] as string[],
 });
 const startType = ref<StartType>('creature');
 const startId = ref(firstCreature());
@@ -103,7 +105,17 @@ function scenario(): DebugScenario {
     deck: [...draft.deck],
     ...(draft.hand.length ? { hand: [...draft.hand] } : {}),
     start,
-    ...(draft.useProfile ? { profile: { unlocked: [...draft.unlocked], fishermenMet: [...draft.fishermenMet], home: draft.home.map((c) => ({ ...c })) } } : {}),
+    ...(draft.useProfile
+      ? {
+          profile: {
+            unlocked: [...draft.unlocked],
+            fishermenMet: [...draft.fishermenMet],
+            home: draft.home.map((c) => ({ ...c })),
+            shells: draft.shells,
+            progression: [...draft.progression],
+          },
+        }
+      : {}),
   };
 }
 
@@ -125,6 +137,8 @@ function load(s: DebugScenario) {
     unlocked: [...(s.profile?.unlocked ?? [])],
     fishermenMet: [...(s.profile?.fishermenMet ?? [])],
     home: (s.profile?.home ?? []).map((c) => ({ ...c })),
+    shells: s.profile?.shells ?? 0,
+    progression: [...(s.profile?.progression ?? [])],
   });
   startType.value = s.start.type === 'shop' ? (s.start.store ?? 'tackle') : s.start.type;
   startId.value = 'id' in s.start ? s.start.id : '';
@@ -335,6 +349,11 @@ function applyPasted() {
           <button class="ghost" :aria-label="t('debug.remove')" @click="draft.home.splice(i, 1)">✕</button>
         </div>
         <button class="ghost" @click="draft.home.push({ id: firstCreature(), bond: 0, size: 'normal' })">+ {{ t('debug.addHome') }}</button>
+        <label class="row">{{ t('debug.shells') }} <input v-model.number="draft.shells" type="number" min="0" /></label>
+        <h4>{{ t('debug.logbook') }}</h4>
+        <label v-for="n in data.progression" :key="n.id" class="check">
+          <input type="checkbox" :checked="draft.progression.includes(n.id)" @change="toggle(draft.progression, n.id, ($event.target as HTMLInputElement).checked)" /> {{ n.name }}
+        </label>
       </template>
     </section>
 

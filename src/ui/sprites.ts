@@ -1,10 +1,6 @@
 import fishesUrl from './assets/fishes.png';
 import gearUrl from './assets/fishing_gear.png';
 import objectsUrl from './assets/objects.png';
-import beigeEggUrl from './assets/eggs/beige.png';
-import goldEggUrl from './assets/eggs/gold.png';
-import purpleEggUrl from './assets/eggs/purple.png';
-import whiteEggUrl from './assets/eggs/white.png';
 import octopusUrl from './assets/creatures/Octopus.png';
 
 export interface SpriteSheet {
@@ -80,19 +76,6 @@ export function playerClip(animation: PlayerAnimation, character = 'Fisherman'):
 /** Another fisherman's idle strip (`FishermanDef.sprite`), if his art exists. */
 export function characterClip(sprite: string | undefined): AnimationClip | undefined {
   return sprite && characterUrl(sprite, 'fish') ? playerClip('idle', sprite) : undefined;
-}
-
-/**
- * Eggs made by `npm run eggs`: assets/eggs/<colour>.png, 12×2 cells of 32×32 px,
- * idle (6 frames) on top, hatching (12 frames) below.
- */
-export type EggColour = 'beige' | 'white' | 'purple' | 'gold';
-const EGG_URLS: Record<EggColour, string> = { beige: beigeEggUrl, white: whiteEggUrl, purple: purpleEggUrl, gold: goldEggUrl };
-
-export function eggClip(colour: EggColour, name: 'idle' | 'hatch'): AnimationClip {
-  return name === 'idle'
-    ? { url: EGG_URLS[colour], frames: 6, columns: 12, rows: 2, row: 0, fps: 5, loop: true }
-    : { url: EGG_URLS[colour], frames: 12, columns: 12, rows: 2, row: 1, fps: 10, loop: false };
 }
 
 const creatureFiles = import.meta.glob<string>('./assets/creatures/*.png', { eager: true, query: '?url', import: 'default' });

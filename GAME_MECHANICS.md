@@ -64,6 +64,8 @@ You can have up to **5** points, and they last for the whole fight. Each point m
 
 ## The creatures' side
 
+Hover a creature in a fight (or long-press it) to see its temperament, whether you've seen or caught one before, how many your home aquarium holds, and the fishermen's quests it counts towards.
+
 ### Health
 
 The red bar under a creature. Your attacks bring it down; at 0, the creature is caught.
@@ -163,8 +165,11 @@ The coast changes every run: beaches, ponds, harbours and rocks land in differen
 | You beat the Elder's boss: a full fishing life | Everything comes home to your aquarium |
 | You **head home** (⌂): the dead-end node right after each mini-boss | Everything comes home: a safe, early retirement |
 | You **end the run** on the card reward after a Kid or Adult boss | Everything comes home, as when you head home |
-| A **boss** gets away | Your bucket stays behind |
-| Your **Grit** runs out | Your bucket is lost, including the creatures you brought |
+| A **boss** gets away | Your catches stay behind; your companions come home hurt |
+| Your **Grit** runs out | Your catches are lost; your companions come home hurt |
+| You **abandon** the run (New run while one is saved) | As when your Grit runs out |
+
+Companions are never lost to a run ending. When a run ends badly they come home **hurt**, with the bond they had before that run, and rest away from your aquarium for as many map stops (fights, shops, events, treasures, fishermen…) as that run lasted: 20 stops before it ended, 20 stops in your next runs before they're back. Until then they can't be brought, don't count for fishermen's quests and don't bond at home. They show along the bottom of your aquarium (on the companions screen and in See aquarium), dark, filling with colour from the bottom as they rest, with the stops left. A companion wearing a life jacket comes home as usual. Selling one, or using it as bait, still gives it up for good.
 
 Heading home is the safe choice: you stop while you're ahead and keep everything you've caught.
 
@@ -181,17 +186,17 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 ## Between fights
 
-- **Card rewards:** after a win, pick one of three cards to add to your deck. They suit the kinds of creatures you just beat (an armored crab offers Hold cards, a predator heavy attacks), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). The mini-boss's own reward always has at least one rare card. You have to take one, but you can **reroll** for three other cards: you start a run with 1 reroll and get 1 more for every mini-boss and boss you beat, and unused ones carry over. Hover the crest above a card's art to see which kinds of creatures offer it. Eel companions can let you skip a few times per age, and with 3 species add a few rerolls per age (used first, since they don't carry over).
+- **Card rewards:** after a win, pick one of three cards (four with the Logbook's Keen eye) to add to your deck. They suit the kinds of creatures you just beat (an armored crab offers Hold cards, a predator heavy attacks), and from the first mini-boss on, each one has a 10% chance to be **rare**, rising by 2% for every card that wasn't (before it, rewards are never rare). The mini-boss's own reward always has at least one rare card. You have to take one, but you can **reroll** for other cards: you start a run with 1 reroll (2 with the Logbook's Tackle box) and get 1 more for every mini-boss and boss you beat, and unused ones carry over. Hover the crest above a card's art to see which kinds of creatures offer it. Eel companions can let you skip a few times per age, and with 3 species add a few rerolls per age (used first, since they don't carry over).
 - **Events** (?): something happens: a choice, a find, sometimes a surprise fight.
 - **Stores**: every shop on the map is one of three stores, each with its own front on the map. Sell creatures from your bucket to afford things. A few stand where an event might have been. Tap the keeper for a chat. **See the map** in the top bar shows the map without leaving; until you travel on, **Back to the shop** (or tapping the shop you stand on) walks you back in, with what you bought still bought.
   - **Cafe**: a cocoa cup (15 coins, +15 Grit, as many as you like) and one espresso (20 coins: +20 max Grit and +20 Grit for the next 5 fights; then max Grit drops back). The keeper knows every fisherman on the coast, and hints at where to find the next one with a build to teach.
-  - **Tackle shop**: a life jacket (20: one creature of your choice comes home even if the run is lost), a parcel (15: post one creature home now, freeing its spot), a lucky lure (40: your next card reward has a rare card, even early on), spare hooks (10 each: one more card in your next reward, they add up) and removing a card from your deck (20). One of each per visit, spare hooks aside.
+  - **Tackle shop**: spare hooks (10 each: one more card in your next reward, they add up) and removing a card from your deck (20). Once unlocked in the Logbook (see Home), also a life jacket (20: one creature of your choice comes home even if the run is lost), a parcel (15: post one creature home now, freeing its spot) and a lucky lure (40: your next card reward has a rare card, even early on). One of each per visit, spare hooks aside.
   - **Bait shop**: a bucket extension (20: 3 more spots for the rest of the run), and two deals around the keeper's tank. **Release** a creature for the visit's blessing (+1 damage for 5 fights, +2 Drain for 4 fights, creatures start 5 fights with 2 Vulnerable, start 5 fights with 5 Hold, +30 bond for your whole bucket, or +20 Grit). The **aquarium** buys one creature of the kinds on its sign (hover it for their names) for twice its price.
 - **Treasure** (T): a free find before the boss.
 
 ## Your bucket
 
-- **It holds 7 creatures,** the companions you brought included (bring 3 and there's room for 4 catches). The count shows on it.
+- **It holds 7 creatures,** the companions you brought included (bring 3 and there's room for 4 catches), and 1 more for each bucket page of the Logbook. The count shows on it.
 - **When a fight's catches don't fit,** you choose for each one before the card reward: sell a creature from your bucket or use it as bait to keep the new catch, or sell the new catch or use it as bait. Selling a companion ends its bonus. Sales get your companions' sell bonuses, as usual. A big group can overflow by more than one: you choose for each in turn.
 - **Bait:** any creature in your bucket, a companion too, can be used as bait, on the map, in a shop, during a fight (🪣 under your draw pile) or when your bucket is full (for the new catch too). It's gone for good: it won't come home, and a companion's bonus and bond go with it. You get a one-use bait card by its tier, two for a trophy. They cost no Tension and leave your deck for the rest of the run once played:
   - **Bait** (shallow-water creature): Drain 15, and the creature's next move becomes a Pace.
@@ -205,7 +210,11 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 
 - **Home aquarium:** creatures you bring home live here between runs.
 - **Bringing companions:** before a run you can bring up to 3 creatures. Each kind of temperament gives a bonus for the run. They ride in your bucket, so they take up room in it.
-- **Stars:** each companion gives stars: 1 to 3 for how deep it lives (its tier), +1 at bond level 2 and +1 more at level 3, so 1★ to 5★. The stars of companions of the same kind add up, each species once (two Clownfish count once, the one with more stars), and more stars make the bonus stronger, up to its 8★ value. Bringing 3 different species of the same kind also adds its **full school** bonus. The companions screen shows each one's stars, each kind's total and bonus, and what the next stars would add.
-- **Bond:** companions grow closer with every fight they share with you: 1 point a fight as a Kid, 2 as an Adult, 3 as an Elder, and double against a mini-boss or boss. A creature is fully bonded at 40 points (shallow-water creatures), 60 or 90 (the deepest); levels come at 20%, 50% and 100%. They keep that bond only if the run succeeds. Creatures resting at home bond slowly too (+2 a run, up to level 1), and hatchlings start at level 1. A companion that reaches a new level mid-run gives its extra star from the next fight.
+- **Stars:** each companion gives stars: 1 to 3 for how deep it lives (its tier), +1 at bond level 2 and +1 more at level 3, so 1★ to 5★. The stars of companions of the same kind add up, each species once (two Clownfish count once, the one with more stars), and more stars make the bonus stronger, up to its 8★ value. The Logbook's last Creatures page adds 1★ to every companion. Bringing 3 different species of the same kind also adds its **full school** bonus. The companions screen shows each one's stars, each kind's total and bonus, and what the next stars would add.
+- **Bond:** companions grow closer with every fight they share with you: 1 point a fight as a Kid, 2 as an Adult, 3 as an Elder, and double against a mini-boss or boss. A creature is fully bonded at 40 points (shallow-water creatures), 60 or 90 (the deepest); levels come at 20%, 50% and 100%. They keep that bond only if the run succeeds. Creatures resting at home bond slowly too (+2 a run, up to level 1, or level 2 with the Logbook's Cosy aquarium). A companion that reaches a new level mid-run gives its extra star from the next fight.
 - **Creature book** (📖, on the menu and the map): every creature, grouped by kind (reef fish, predators…), each kind folded under its name; click a kind to open it and see the bonus it gives as a companion (at 1★ and with a full school) and its creatures. It shows every creature you've met, seen or captured, with the biggest one of each species you've ever caught: S (small), M (normal), L (large) or 🏆 (trophy).
-- **Eggs:** two of the same creature at home may lay an egg after a run. Click it to hatch.
+- **Golden shells:** beating a mini-boss gives 1, beating a boss 2. They're yours the moment the fight is won, even if the run is lost afterwards. The card reward after the fight shows them, and the menu shows how many you have, next to the Logbook button.
+- **Logbook** (on the menu): spend golden shells on lasting upgrades, for every run you start afterwards. Three tracks of four pages, each page opening once the one before it is bought; only the next page of a track says what it does, the later ones show "?" and their price. Buying asks first.
+  - **Gear:** 1 more card reward reroll at the start of a run (10), 10 more coins at the start of a run (25), then 1 more bucket space twice (45, 70).
+  - **Haggling:** the Tackle shop sells life jackets (10), then parcels (25), then every store price is 20% lower, rounded down (45), then the Tackle shop sells lucky lures (70).
+  - **Creatures:** creatures sell for 20% more, added to your companions' sell bonuses (10); creatures resting at home bond up to level 2 (25); card rewards offer 4 cards instead of 3 (45); every companion counts 1 more ★ (70).

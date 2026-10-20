@@ -40,7 +40,7 @@ async function renderFight(hold = 0, spot?: string, compact = false): Promise<st
   state.player.block = hold;
   // `v-tip` is a client directive; the server render only needs it to resolve to nothing.
   const app = createSSRApp({
-    render: () => h(CombatView, { state, data, equipment: [], newEggs: 0, releaseReason: null, spot }),
+    render: () => h(CombatView, { state, data, equipment: [], releaseReason: null, spot, homeAquarium: [], creatureBook: {}, unlocked: [], fishermenMet: [] }),
   });
   app.directive('tip', { getSSRProps: () => ({}) });
   return renderToString(app);

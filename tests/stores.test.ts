@@ -73,7 +73,7 @@ describe('stores on the map', () => {
   });
 
   it('every store sells something in the real content', () => {
-    for (const store of STORE_KINDS) expect(storeItems({ store, bought: {} }, gameData).length).toBeGreaterThan(0);
+    for (const store of STORE_KINDS) expect(storeItems(createRun(5, gameData, 'rod'), { store }, gameData).length).toBeGreaterThan(0);
   });
 
   it('opens the node’s store; the Bait shop draws its blessing and family on arrival, the same for the same run', () => {

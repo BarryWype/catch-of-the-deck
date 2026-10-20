@@ -181,7 +181,6 @@ const summary = computed(() => {
   const { profile, save } = contents;
   return [
     t('transfer.home', { n: profile.homeAquarium.length }),
-    t('transfer.eggs', { n: profile.eggs.length }),
     t('transfer.discovered', { n: Object.keys(profile.creatureBook).length }),
     save ? t('transfer.run', { level: props.data.levels[save.run.level]?.name ?? '', floor: save.run.floor }) : t('transfer.noRun'),
   ];

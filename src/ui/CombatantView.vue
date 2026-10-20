@@ -39,8 +39,10 @@ const props = withDefaults(
     frame?: number;
     /** The sprite only: the player's Grit and statuses are in the battlefield's corner panel instead. */
     bare?: boolean;
+    /** A creature's move being played: how its body moves (see CombatView's `moveMotion`). */
+    motion?: 'strike' | 'pull' | 'guard' | 'heal' | 'buff' | 'trick' | null;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false, motion: null },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
@@ -78,16 +80,19 @@ const portraitStyle = computed(() => ({
       <StatusList :statuses="combatant.statuses" />
     </div>
     <div v-tip="tip" class="portrait" :class="{ player: combatant.id === PLAYER_ID }" :style="portraitStyle">
-      <AnimatedSprite
-        v-if="clip"
-        :clip="clip"
-        :play-key="animationKey"
-        :size="animatedSize"
-        :aria-label="combatant.name"
-        @done="$emit('animationDone')"
-      />
-      <SpriteView v-else-if="sprite" :sprite="sprite" :size="stillSize" :aria-label="combatant.name" />
-      <span v-else>{{ portrait }}</span>
+      <!-- The body moves; the shadow on the ground stays put. -->
+      <span class="body" :class="motion && `motion-${motion}`">
+        <AnimatedSprite
+          v-if="clip"
+          :clip="clip"
+          :play-key="animationKey"
+          :size="animatedSize"
+          :aria-label="combatant.name"
+          @done="$emit('animationDone')"
+        />
+        <SpriteView v-else-if="sprite" :sprite="sprite" :size="stillSize" :aria-label="combatant.name" />
+        <span v-else>{{ portrait }}</span>
+      </span>
     </div>
   </div>
 </template>
@@ -141,6 +146,53 @@ const portraitStyle = computed(() => ({
   height: 14px;
   border-radius: 50%;
   background: radial-gradient(ellipse, rgb(0 0 0 / 0.45), transparent 70%);
+}
+/*
+ * A creature's move, about 0.8s: a Strike lunges at the fisherman (up and to the left), a Pull
+ * turns and drags away, a guard sinks down behind its Block, healing bobs up, a buff swells and
+ * anything else (debuffs, ink, junk) is a quick wiggle.
+ */
+.body { display: grid; place-items: center; }
+.motion-strike { animation: move-strike 0.8s ease-in-out; }
+.motion-pull { animation: move-pull 0.8s ease-in-out; }
+.motion-guard { animation: move-guard 0.8s ease-in-out; }
+.motion-heal { animation: move-heal 0.8s ease-in-out; }
+.motion-buff { animation: move-buff 0.8s ease-in-out; }
+.motion-trick { animation: move-trick 0.8s ease-in-out; }
+@keyframes move-strike {
+  0%, 100% { transform: none; }
+  25% { transform: translate(10px, 2px); }
+  45% { transform: translate(-48px, -14px) rotate(-6deg); }
+  60% { transform: translate(-40px, -12px) rotate(-4deg); }
+}
+@keyframes move-pull {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(10deg); }
+  60% { transform: translateX(34px) rotate(14deg); }
+  80% { transform: translateX(28px) rotate(8deg); }
+}
+@keyframes move-guard {
+  0%, 100% { transform: none; }
+  35%, 70% { transform: translateY(14px) scale(1.04, 0.92); }
+}
+@keyframes move-heal {
+  0%, 100% { transform: none; }
+  40% { transform: translateY(-14px); }
+  70% { transform: translateY(-6px); }
+}
+@keyframes move-buff {
+  0%, 100% { transform: none; }
+  40%, 65% { transform: scale(1.14); }
+}
+@keyframes move-trick {
+  0%, 100% { transform: none; }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .body { animation: none; }
 }
 /* The fisherman's art stands slightly right of the centre of its frame (creatures sit centred),
    so his shadow is centred under him rather than under the frame. */

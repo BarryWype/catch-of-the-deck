@@ -1,10 +1,24 @@
 <script setup lang="ts">
 import KeywordText from './KeywordText.vue';
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue';
-import { BASE_ENERGY, BUCKET_SIZE, HOLD_PER_PATIENCE, MAX_PATIENCE, MAX_SLOW_PERCENT, PATIENCE_ESCAPE_PERCENT, SESSION_SLOTS, SLOW_PERCENT, STARTING_HAND_SIZE } from '../engine';
-import { describeQuest, openQuests, questProgress, type CatchSize, type DebugScenario, type Discovery, type GameData, type HomeCreature } from '../engine';
+import {
+  BASE_ENERGY,
+  BOND_AT_HOME,
+  BOND_LEVELS,
+  bondPerFight,
+  BUCKET_SIZE,
+  FULL_SCHOOL,
+  HOLD_PER_PATIENCE,
+  MAX_PATIENCE,
+  PATIENCE_ESCAPE_PERCENT,
+  SESSION_SLOTS,
+  STARTING_HAND_SIZE,
+} from '../engine';
+import { BOND_BY_TIER } from '../content/creatures';
+import { describeQuest, GOLDEN_SHELLS, openQuests, questProgress, type CatchSize, type DebugScenario, type Discovery, type GameData, type HomeCreature, type Logbook, type RecoveringCreature } from '../engine';
 import Aquarium from './Aquarium.vue';
 import GameIcon from './GameIcon.vue';
+import LogbookScreen from './LogbookScreen.vue';
 import CreatureBook from './CreatureBook.vue';
 import DebugPanel from './DebugPanel.vue';
 import { debugPanel as debug, setDebugPanel as setDebug } from './debugStore';
@@ -24,6 +38,8 @@ const props = defineProps<{
   biggestCatch: Readonly<Record<string, CatchSize>>;
   unlocked: string[];
   fishermenMet: string[];
+  logbook: Logbook;
+  recovering: RecoveringCreature[];
   data: GameData;
   importTransfer: (contents: TransferContents) => boolean;
 }>();
@@ -38,22 +54,34 @@ const quests = computed(() =>
     return { id: build.id, text: t(key, params) };
   }),
 );
-const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [DebugScenario] }>();
+const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [DebugScenario]; buyNode: [id: string] }>();
 
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
-const GUIDE = ['catch', 'turn', 'grit', 'hold', 'moves', 'keywords', 'patience', 'aging', 'home', 'bucket', 'companions', 'stars'] as const;
-const GUIDE_NUMBERS = {
+const GUIDE = ['catch', 'turn', 'moves', 'grit', 'hold', 'patience', 'aging', 'home', 'bucket', 'fishermen', 'companions', 'stars', 'bond', 'shells'] as const;
+const GUIDE_NUMBERS = computed(() => ({
   energy: BASE_ENERGY,
   cards: STARTING_HAND_SIZE,
   holdPerPatience: HOLD_PER_PATIENCE,
   maxPatience: MAX_PATIENCE,
   patiencePercent: PATIENCE_ESCAPE_PERCENT,
-  slowPercent: SLOW_PERCENT,
-  maxSlowPercent: MAX_SLOW_PERCENT,
   slots: SESSION_SLOTS,
   bucket: BUCKET_SIZE,
-};
+  fullSchool: FULL_SCHOOL,
+  // The most stars any temperament's bonus still grows with.
+  maxStars: Math.max(...Object.values(props.data.companionBonuses).flatMap((b) => b.effects.map((e) => e.byStars?.length ?? 0))),
+  kid: bondPerFight(1, false),
+  adult: bondPerFight(2, false),
+  elder: bondPerFight(3, false),
+  level1: Math.round(BOND_LEVELS[0] * 100),
+  level2: Math.round(BOND_LEVELS[1] * 100),
+  level3: Math.round(BOND_LEVELS[2] * 100),
+  full1: BOND_BY_TIER[1],
+  full2: BOND_BY_TIER[2],
+  full3: BOND_BY_TIER[3],
+  atHome: BOND_AT_HOME,
+  ...GOLDEN_SHELLS,
+}));
 
 /** Exit only exists in the desktop app; a browser tab can't quit itself. */
 const desktop = window.desktop;
@@ -61,6 +89,8 @@ const desktop = window.desktop;
 const viewing = ref(false);
 /** The Transfer save screen, over the menu. */
 const transferring = ref(false);
+/** The Logbook, over the menu. */
+const logbookOpen = ref(false);
 /** Confirmation before wiping all progression. */
 const confirmReset = ref<HTMLDialogElement>();
 
@@ -114,6 +144,7 @@ onBeforeUnmount(stopTheme);
       class="backdrop"
       :creatures="homeAquarium"
       :bonds="homeAquarium.map((c) => c.bond)"
+      :recovering="viewing ? recovering : undefined"
       :data="data" :interactive="false" :title="t('aquarium.home')" icon="🏠" />
 
     <div v-if="!viewing" class="panel">
@@ -121,6 +152,14 @@ onBeforeUnmount(stopTheme);
       <nav class="buttons">
         <button v-tip="canResume ? undefined : t('menu.noSave')" :disabled="!canResume" @click="emit('resume')">{{ t('menu.resume') }}</button>
         <button @click="emit('newRun')">{{ t('menu.newRun') }}</button>
+        <button
+          class="ghost logbook-button"
+          :aria-label="`${t('logbook.button')} · ${t('logbook.shells', { n: logbook.shells })}`"
+          @click="logbookOpen = true"
+        >
+          <span>{{ t('logbook.button') }}</span>
+          <span class="shell-count" v-tip="t('logbook.shellsTip', GOLDEN_SHELLS)"><GameIcon icon="golden-shell" /> {{ logbook.shells }}</span>
+        </button>
         <button class="ghost" @click="viewing = true">{{ t('menu.seeAquarium') }}</button>
         <button class="ghost" @click="transferring = true">{{ t('transfer.button') }}</button>
         <button class="ghost" @click="openOptions">{{ t('menu.options') }}</button>
@@ -215,6 +254,7 @@ onBeforeUnmount(stopTheme);
       </footer>
     </dialog>
     <TransferScreen v-if="transferring" :data="data" :apply="importTransfer" @close="transferring = false" />
+    <LogbookScreen v-if="logbookOpen" :logbook="logbook" :data="data" @buy="emit('buyNode', $event)" @close="logbookOpen = false" />
     <CreatureBook :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" :biggest="biggestCatch" />
   </section>
 </template>
@@ -253,6 +293,9 @@ onBeforeUnmount(stopTheme);
 .buttons { display: flex; flex-direction: column; gap: 12px; width: 240px; }
 .buttons button { padding: 14px; font-size: 1.1rem; }
 .buttons .ghost { background: rgb(15 18 25 / 0.6); color: var(--text); }
+/* The Logbook, with the golden shells to spend at its right. */
+.logbook-button { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.shell-count { font-weight: 800; color: var(--highlight); }
 /* Open quests, under the buttons. */
 .quests { margin: 0; padding: 0; max-width: 280px; list-style: none; font-size: 0.85rem; line-height: 1.4; text-align: center; color: var(--highlight); }
 /* Who wrote the music. */

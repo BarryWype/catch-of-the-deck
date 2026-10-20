@@ -466,6 +466,21 @@ export const frContent: ContentTranslations = {
     aquarium: 'Aquarium du patron',
   },
 
+  progression: {
+    tackleBox: { name: 'Boîte à pêche', description: 'Commence chaque partie avec 1 relance de récompense de plus.' },
+    savingsJar: { name: 'Tirelire', description: 'Commence chaque partie avec 10 pièces de plus.' },
+    biggerBucket: { name: 'Seau plus grand', description: 'Ton seau contient 1 créature de plus.' },
+    deepBucket: { name: 'Seau profond', description: 'Ton seau contient 1 créature de plus.' },
+    lifeJackets: { name: 'Gilets de sauvetage', description: 'La boutique de matériel vend des gilets de sauvetage.' },
+    parcels: { name: 'Service de colis', description: 'La boutique de matériel vend des colis.' },
+    haggler: { name: 'Bon client', description: 'Les prix des boutiques baissent de 20 % (arrondi vers le bas).' },
+    luckyLures: { name: 'Leurres porte-bonheur', description: 'La boutique de matériel vend des leurres porte-bonheur.' },
+    fishmonger: { name: 'Poissonnier', description: 'Les créatures se vendent 20 % plus cher.' },
+    cosyAquarium: { name: 'Aquarium douillet', description: 'Les créatures qui se reposent à la maison s’attachent jusqu’au niveau 2, au lieu de 1.' },
+    keenEye: { name: 'Œil vif', description: 'Les récompenses de cartes proposent 1 carte de plus.' },
+    trustedHand: { name: 'Main de confiance', description: 'Chaque compagnon compte 1 ★ de plus.' },
+  },
+
   spots: {
     RP: 'Flaques rocheuses',
     JT: 'Jetée / ponton',

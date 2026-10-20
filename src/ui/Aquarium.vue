@@ -2,7 +2,7 @@
 import KeywordText from './KeywordText.vue';
 import GameIcon from './GameIcon.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { bondLevel, bondToFull, companionStars, describeCompanionEffect, MAX_BOND_LEVEL, type Catch, type GameData, type Habitat } from '../engine';
+import { bondLevel, bondToFull, companionStars, describeCompanionEffect, MAX_BOND_LEVEL, saleValue, type Catch, type GameData, type Habitat, type RecoveringCreature } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
 import BaitConfirm from './BaitConfirm.vue';
 import BaitLabel from './BaitLabel.vue';
@@ -43,6 +43,12 @@ const props = withDefaults(
     bonds?: number[];
     /** The sell button's text, when it isn't a plain "Sell". */
     sellLabel?: string;
+    /** Percent more creatures sell for (`runSellBonus`). */
+    sellBonus?: number;
+    /** Stars every companion counts on top of its own (the Logbook's). */
+    extraStars?: number;
+    /** Companions resting after a run that ended badly, shown along the bottom of the tank. */
+    recovering?: RecoveringCreature[];
   }>(),
   {
     interactive: true,
@@ -57,6 +63,9 @@ const props = withDefaults(
     bait: false,
     baitLabel: undefined,
     handSpace: undefined,
+    sellBonus: 0,
+    extraStars: 0,
+    recovering: undefined,
   },
 );
 const emit = defineEmits<{ sell: [slot: number]; bring: [slot: number]; bait: [slot: number] }>();
@@ -205,7 +214,7 @@ const residents = computed(() => {
       key,
       slot,
       name: def?.name ?? id,
-      sellValue: def?.sellValue ?? 0,
+      sellValue: saleValue(id, props.sellBonus, props.data),
       habitat,
       url: def?.sprite ? animatedSheetFor(def.sprite) : undefined,
       sprite: def?.sprite,
@@ -216,7 +225,7 @@ const residents = computed(() => {
       bond: bondOf(id, points),
       lifeJacket: !!lifeJacket,
       size,
-      stars: points === undefined ? undefined : companionStars({ id, bond: points, size }, props.data),
+      stars: points === undefined ? undefined : companionStars({ id, bond: points, size }, props.data, props.extraStars),
     };
   });
 });
@@ -300,6 +309,27 @@ const plants = [
       <PixelBubbles />
 
       <div class="sand" />
+      <!-- Injured companions: the creature in shadow, filling with colour from the bottom as it rests. -->
+      <ul v-if="recovering?.length" class="recovering" :aria-label="t('aquarium.recoveringLabel')">
+        <li
+          v-for="(c, i) in recovering"
+          :key="i"
+          v-tip="{ title: data.enemies[c.id]?.name ?? c.id, body: t('aquarium.recoveringTip', { n: c.nodesLeft }) }"
+          tabindex="0"
+        >
+          <span class="heal" :style="{ '--healed': `${Math.round((100 * (c.nodes - c.nodesLeft)) / Math.max(1, c.nodes))}%` }">
+            <span class="shadow">
+              <SpriteView v-if="data.enemies[c.id]?.sprite" :sprite="data.enemies[c.id]!.sprite!" :size="48" />
+              <span v-else class="portrait">{{ data.enemies[c.id]?.portrait ?? '🐟' }}</span>
+            </span>
+            <span class="colour" aria-hidden="true">
+              <SpriteView v-if="data.enemies[c.id]?.sprite" :sprite="data.enemies[c.id]!.sprite!" :size="48" />
+              <span v-else class="portrait">{{ data.enemies[c.id]?.portrait ?? '🐟' }}</span>
+            </span>
+          </span>
+          <small>⏳ {{ c.nodesLeft }}</small>
+        </li>
+      </ul>
       <div
         v-for="(p, i) in plants"
         :key="`p${i}`"
@@ -449,6 +479,17 @@ button.count { z-index: 6; padding: 0 8px; border: 1px solid var(--line); border
   background: linear-gradient(180deg, #4fa6c7 0%, #2b7fa8 30%, #1d5f86 70%, #164a6b 100%);
   box-shadow: inset 0 0 40px rgb(0 0 0 / 0.35), 0 8px 18px rgb(0 0 0 / 0.4);
 }
+
+/* Injured companions, along the bottom of the tank, over the sand. */
+.recovering { position: absolute; left: 8px; right: 8px; bottom: 6px; z-index: 3; display: flex; flex-wrap: wrap-reverse; gap: 6px; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.recovering li { display: flex; flex-direction: column; align-items: center; padding: 2px 4px 0; border-radius: 8px; background: rgb(10 16 26 / 0.55); pointer-events: auto; }
+.recovering small { font-size: 0.7rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+.heal { position: relative; display: block; width: 48px; height: 48px; }
+.heal .shadow, .heal .colour { position: absolute; inset: 0; display: grid; place-items: center; }
+.heal .shadow { filter: brightness(0); opacity: 0.4; }
+/* Shown from the bottom up to the share rested. */
+.heal .colour { clip-path: inset(calc(100% - var(--healed)) 0 0 0); }
+.heal .portrait { font-size: 2rem; line-height: 1; }
 
 /* Water line just under the rim. */
 .surface {

@@ -20,7 +20,6 @@ function toEnemy(creature: CreatureDef): EnemyDef {
     tier: creature.tier,
     hp: creature.hp,
     sellValue: creature.sellValue,
-    breedChance: creature.breedChance,
     bondToFull: creature.bondToFull ?? BOND_BY_TIER[creature.tier],
     escapeAt: creature.escapeAt,
     escapeStart: creature.escapeStart,

@@ -68,6 +68,12 @@ export function openQuests(data: GameData, unlocked: readonly string[], met: rea
   return Object.values(data.builds).filter((b) => b.unlock && !unlocked.includes(b.id) && met.includes(b.unlock.fisherman));
 }
 
+/** Open quests this species can count towards, whatever its size (only known once it's caught). */
+export function questsFor(enemyId: string, data: GameData, unlocked: readonly string[], met: readonly string[]): BuildDef[] {
+  const anySize = { id: enemyId, size: CATCH_SIZES[CATCH_SIZES.length - 1] };
+  return openQuests(data, unlocked, met).filter((b) => counts(b.unlock!.quest, anySize, data));
+}
+
 /**
  * Builds a successful run unlocks: open quests met by `home` (the home aquarium once the bucket has
  * joined it), or, for bucket quests, in `shown` (the run's `questsShown`).

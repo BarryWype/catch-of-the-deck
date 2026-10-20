@@ -30,9 +30,11 @@ const profile = {
   homeAquarium: [{ id: 'clownfish', bond: 12, size: 'large' as const }],
   creatureBook: { clownfish: 'captured' as const, guppy: 'seen' as const },
   biggestCatch: { clownfish: 'large' as const },
-  eggs: ['clownfish'],
   unlockedBuilds: ['fly'],
   fishermenMet: ['oldNed'],
+  goldenShells: 3,
+  logbook: ['tackleBox'],
+  recovering: [{ id: 'guppy', bond: 2, size: 'normal' as const, nodesLeft: 4, nodes: 9 }],
 };
 const save = {
   version: SAVE_VERSION,

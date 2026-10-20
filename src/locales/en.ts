@@ -285,6 +285,12 @@ export const en = {
       wrongFamily: 'Not a kind the keeper is after.',
       noneOfFamily: 'Nothing in your bucket the keeper is after.',
     },
+    logbook: {
+      unknown: 'No such page in the Logbook.',
+      bought: 'Already bought.',
+      locked: 'Buy the one before it first.',
+      notEnoughShells: 'Not enough golden shells.',
+    },
   },
 
   /** Text on the screens. */
@@ -304,13 +310,14 @@ export const en = {
       pull: { forms: 'Pull, Pulls', text: "A creature move that drags on the line, raising its own {@will}. Your {@hold} soaks it first." },
       exhaust: { forms: 'Exhaust', text: 'Once played, the card is gone for the rest of the fight.' },
       block: { forms: 'Block', text: "A creature's Block soaks your attack damage until its next turn." },
+      attackCard: { forms: 'Attack card, Attack cards', text: 'A card of the Attack type, shown by the icon in its top-right corner. Only the type counts: a Drain card is not one.' },
+      drainCard: { forms: 'Drain card, Drain cards', text: 'A card of the Drain type, shown by the icon in its top-right corner. Only the type counts: an Attack card that also drains (like Steady Haul) is not one.' },
       attack: { forms: 'attack, attacks, Attack, Attacks', text: 'What deals damage: your Attack and Drain cards, and creatures’ Strikes. “First attack” bonuses count your Attack and Drain cards.' },
     },
     common: {
       back: '← Back',
       cancel: 'Cancel',
       close: 'Close',
-      newEggs: '🥚 An egg was laid in your home aquarium!|🥚 {n} eggs were laid in your home aquarium!',
     },
     app: {
       coins: 'Coins',
@@ -336,6 +343,8 @@ export const en = {
       count: '{n} caught',
       countOf: '{n}/{max}',
       listTip: 'Show them as a list',
+      recoveringLabel: 'Resting after a run that ended badly',
+      recoveringTip: 'Hurt on a run that ended badly. It rests away from the aquarium for {n} more map stop (fights, shops, events…), then comes home with the bond it had before that run.|Hurt on a run that ended badly. It rests away from the aquarium for {n} more map stops (fights, shops, events…), then comes home with the bond it had before that run.',
       stars: '{n}★',
       bond: 'Bond level {level} · {points}/{full}',
       bondFull: 'Bond level {level} (fully bonded) · {points}/{full}',
@@ -357,6 +366,14 @@ export const en = {
       dropOnBattlefield: 'Drop it on the battlefield…',
       chooseTarget: 'Choose a target…',
       playAgain: 'Tap it again, or the battlefield, to play it…',
+      creatureTip: {
+        new: 'First time you meet it.',
+        seen: 'Seen before, never caught.',
+        captured: 'Caught before.',
+        atHome: '{n} in your home aquarium.',
+        notAtHome: 'None in your home aquarium.',
+        quest: '{fisherman} wants {quest}.',
+      },
       pickTitle: 'Pick a card for your hand',
       pickHint: 'The others go back on top of your draw pile, in this order.',
       energy: 'Tension',
@@ -395,13 +412,13 @@ export const en = {
       leftText: 'You call it a day halfway along the shore, with {grit} {@grit} left.',
       bucketHome: '🪣 → 🏠 {n} creature from your bucket joins your home aquarium.|🪣 → 🏠 {n} creatures from your bucket join your home aquarium.',
       fledTitle: 'The boss got away',
-      fledText: 'Your run ends here, and your bucket stays behind.',
+      fledText: 'Your run ends here, and your catches stay behind. Your companions come home hurt, and rest for a while.',
       unlocked: 'New fishing style unlocked: {build}! Pick it when you start a run.',
       toMenu: 'Back to the menu',
     },
     newRunDialog: {
       title: 'Start a new run?',
-      text: "You'll lose your current run, and the creatures in your bucket with it. Your home aquarium stays as it is.",
+      text: "You'll lose your current run, and the creatures you caught with it. Your companions come home hurt, and rest for a while.",
       abandon: 'Abandon run',
     },
     menu: {
@@ -430,7 +447,11 @@ export const en = {
       },
       turn: {
         title: 'Each turn',
-        text: 'you can build up to {energy} Tension and draw {cards} cards; each card adds its cost to your Tension. Drag a card onto a creature (or onto the battlefield) to play it, then End Turn.',
+        text: 'you draw {cards} cards and can build up to {energy} Tension: each card adds its cost. Drag a card onto a creature (or the battlefield), or tap it then tap where it goes. Then End Turn.',
+      },
+      moves: {
+        title: 'Strike and Pull:',
+        text: "the icon above a creature is its next move. Strikes wear down your {@grit}, Pulls raise its {@will}. Hover an icon, a creature or a word on a card for the details.",
       },
       grit: {
         title: '{@grit}',
@@ -438,39 +459,43 @@ export const en = {
       },
       hold: {
         title: '{@hold}',
-        text: 'is your grip on the line: it soaks what the creatures do before it reaches you.',
-      },
-      moves: {
-        title: 'Strike and Pull:',
-        text: "Strike moves wear down your {@grit}, Pull moves raise the creature's {@will} bar. {@hold} stops both. A green arrow means it buffs itself, a red arrow that it debuffs you: hover an icon to see what it does.",
+        text: 'is your grip on the line: it soaks Strikes and Pulls before they reach you, and goes when your next turn starts.',
       },
       patience: {
         title: '{@patience}:',
         text: "Tension you didn't build up, and every {holdPerPatience} unused {@hold}, give a point (up to {maxPatience}). Each point makes every creature's {@will} rise {patiencePercent}% slower.",
-      },
-      keywords: {
-        title: 'Drain, Slow, Venom:',
-        text: "Drain lowers a creature's {@will} by a flat amount; each stack of Slow makes its {@will} rise {slowPercent}% slower ({maxSlowPercent}% at most, with Patience); Venom deals its charges as damage at the start of its bearer's turn, then loses one.",
       },
       aging: {
         title: 'You age',
         text: 'from Kid to Adult to Elder: further out, bigger catches. Each age has a mini-boss and a boss, who are always let go.',
       },
       home: {
-        title: 'Head home',
-        text: '(⌂, after each mini-boss) to end the run safely: your bucket joins your home aquarium.',
+        title: 'Ending a run:',
+        text: 'head home (⌂, right after each mini-boss) or stop after a Kid or Adult boss, and your bucket joins your home aquarium. If your {@grit} runs out, the bucket is lost; if a boss gets away, it stays behind.',
       },
       bucket: {
         title: 'Your bucket',
-        text: 'holds {bucket} creatures, companions included. When a catch doesn’t fit, sell something to keep it, or sell the catch. Every catch has a size; bigger ones come later in a run, and draining {@will} lands bigger ones than wearing Health down.',
+        text: 'holds {bucket} creatures, companions included. When a catch doesn’t fit, sell a creature or use one as bait (🪣) to keep it. Draining {@will} lands bigger catches than wearing health down.',
+      },
+      fishermen: {
+        title: 'Fishermen',
+        text: 'on the coast teach new fishing styles. Talk to one to open his quest, then end a run well with it done to learn his style. Open quests show on this menu.',
       },
       companions: {
         title: 'Companions:',
-        text: "bring up to {slots} creatures from home for a bonus. Lose the run and they're lost too.",
+        text: 'before a run, bring up to {slots} creatures from your home aquarium. Each gives its temperament’s bonus for the whole run (the creature book 📖 lists them). They ride in your bucket. If the run ends badly they come home hurt, with the bond they had before it, and rest away from the aquarium for as many map stops as that run lasted.',
       },
       stars: {
-        title: 'Stars:',
-        text: 'a companion gives as many stars as its tier, +1 at bond level 2 and +1 more at level 3. Stars of the same kind add up (each species once) and strengthen its bonus; 3 different species add a full-school bonus. Bond grows with every fight it shares with you, faster further out and against bosses.',
+        title: 'Stars',
+        text: 'make a companion’s bonus stronger. A companion has 1★ to 3★ for how deep it lives, +1★ at bond level 2 and +1★ more at level 3. Companions of the same temperament add up their stars, each species once, up to {maxStars}★. Bring {fullSchool} different species of one temperament for its full-school bonus too.',
+      },
+      bond: {
+        title: 'Bond',
+        text: 'grows with every fight a companion shares with you: {kid}/{adult}/{elder} points a fight as a Kid/Adult/Elder, doubled against mini-bosses and bosses. Levels 1, 2 and 3 come at {level1}%, {level2}% and {level3}% of full bond ({full1} points for shallow-water creatures, {full2}, then {full3} for the deepest). A companion keeps its bond only if the run ends well. Creatures left at home gain {atHome} points a run, up to level 1.',
+      },
+      shells: {
+        title: 'Golden shells',
+        text: 'come from beating mini-bosses ({miniBoss}) and bosses ({boss}), even if the run is lost afterwards. Spend them in the Logbook on upgrades for every run.',
       },
     },
     debug: {
@@ -525,6 +550,8 @@ export const en = {
       met: 'Fishermen met',
       home: 'Home aquarium ({n})',
       addHome: 'Add a creature',
+      shells: 'Golden shells',
+      logbook: 'Logbook pages bought',
       scenarios: 'Saved scenarios',
       name: 'Scenario name',
       save: 'Save',
@@ -577,6 +604,7 @@ export const en = {
         event: 'Unknown event “{detail}” (treasures start with “treasure”).',
         fisherman: 'Unknown fisherman “{detail}”.',
         store: 'Unknown store “{detail}” (cafe, tackle or bait).',
+        node: 'Unknown Logbook page “{detail}”.',
       },
     },
     transfer: {
@@ -598,7 +626,6 @@ export const en = {
       confirmTitle: "Replace this device's progress?",
       confirmText: 'Everything saved on this device is replaced by:',
       home: '{n} creature in the home aquarium|{n} creatures in the home aquarium',
-      eggs: '{n} egg|{n} eggs',
       discovered: '{n} creature discovered|{n} creatures discovered',
       run: 'A run in progress: {level}, floor {floor}',
       noRun: 'No run in progress',
@@ -613,10 +640,27 @@ export const en = {
         cameraMissing: 'No camera available. Paste the code below instead.',
       },
     },
+    logbook: {
+      button: 'Logbook',
+      title: 'Logbook',
+      intro: 'Golden shells, earned by beating mini-bosses ({miniBoss}) and bosses ({boss}), buy lasting upgrades for every run. Each track opens one page at a time.',
+      shells: '{n} golden shell|{n} golden shells',
+      shellsTip: 'Golden shells: {miniBoss} for a mini-boss, {boss} for a boss. They are yours at once, even if the run is lost. Spend them in the Logbook, on the menu.',
+      won: '+{n} golden shell ({total} in all)|+{n} golden shells ({total} in all)',
+      track: { gear: 'Gear', haggling: 'Haggling', creatures: 'Creatures' },
+      bought: 'Bought',
+      hidden: 'Buy the page before it to read this one.',
+      needMore: 'You need {n} more golden shell.|You need {n} more golden shells.',
+      buyTip: 'Tap to buy.',
+      confirmTitle: 'Buy {name}?',
+      confirmText: 'It costs {cost} golden shells: you will have {left} left.',
+      buy: 'Buy',
+      close: 'Close',
+    },
     reset: {
       button: 'Reset progression',
       title: 'Reset progression?',
-      text: "This deletes your saved run and every creature in your home aquarium. It can't be undone.",
+      text: "This deletes your saved run, every creature in your home aquarium and your Logbook. It can't be undone.",
       confirm: 'Reset everything',
     },
     options: {
@@ -664,7 +708,7 @@ export const en = {
     reward: {
       title: 'Choose a card to add to your deck',
       reroll: 'Reroll ({n} left)',
-      rerollTip: 'Offer three other cards. You start a run with 1 reroll, and get 1 more for each mini-boss and boss you beat.',
+      rerollTip: 'Offer other cards. You start a run with {n} reroll, and get 1 more for each mini-boss and boss you beat.|Offer other cards. You start a run with {n} rerolls, and get 1 more for each mini-boss and boss you beat.',
       removeCard: 'Remove a card',
       removeTip: 'Beating a boss lets you remove one card from your deck for free, on top of the card reward.',
       removeTitle: 'Choose a card to remove from your deck',
@@ -749,14 +793,6 @@ export const en = {
         none: 'You’ve met every old salt on this coast, haven’t you? Nothing left I can tell you.',
       },
     },
-    eggs: {
-      hatching: 'Hatching…',
-      hatch: 'Hatch this egg',
-      clickToHatch: 'Click to hatch',
-      hatched: 'An egg hatched',
-      itsA: "It's a {name}!",
-      joins: 'It joins your home aquarium. Click anywhere to continue.',
-    },
     size: {
       small: 'Small',
       normal: 'Normal',
@@ -792,7 +828,7 @@ export const en = {
       removeLabel: 'Put {name} back in the aquarium',
       empty: '+ Empty slot',
       bonuses: 'Bonuses for this run',
-      help: 'Brought creatures give their bonus for the run. Each gives stars: its tier, +1 at bond level 2, +1 more at level 3; stars of the same kind add up, each species once. They come back only if the run succeeds, with a stronger bond. Creatures caught during the run are angry and give nothing.',
+      help: 'Brought creatures give their bonus for the run. Each gives stars: its tier, +1 at bond level 2, +1 more at level 3; stars of the same kind add up, each species once. A run that ends well brings them back with a stronger bond; one that ends badly brings them back hurt, to rest for a while. Creatures caught during the run are angry and give nothing.',
       starsTip: 'Stars: its tier, +1 at bond level 2, +1 more at level 3',
       nextStars: '{n}★ more: {rule}',
     },

@@ -1,4 +1,4 @@
-import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef } from './types';
+import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
 import { STORE_KINDS } from './map';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
@@ -14,6 +14,7 @@ export interface ContentSource {
   events: EventDef[];
   shop: ShopItemDef[];
   blessings: BlessingDef[];
+  progression: ProgressionNodeDef[];
   companionBonuses: CompanionBonusDef[];
   families: FamilyDef[];
   spots: SpotDef[];
@@ -38,6 +39,7 @@ export function buildGameData(source: ContentSource): GameData {
     events: Object.fromEntries(source.events.map((e) => [e.id, e])),
     shop: source.shop,
     blessings: source.blessings,
+    progression: source.progression,
     companionBonuses: Object.fromEntries(source.companionBonuses.map((b) => [b.id, b])),
     families: Object.fromEntries(source.families.map((f) => [f.id, f])),
     spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
@@ -142,9 +144,6 @@ export function validateContent(source: ContentSource): string[] {
     if (enemy.bondToFull !== undefined && !(Number.isInteger(enemy.bondToFull) && enemy.bondToFull > 0)) {
       errors.push(`${where}: bondToFull must be a whole number > 0.`);
     }
-    if (!((enemy.breedChance ?? 0) >= 0 && (enemy.breedChance ?? 0) <= 1)) {
-      errors.push(`${where}: breedChance must be between 0 and 1.`);
-    }
     if (enemy.sprite && !(Number.isInteger(enemy.sprite.index) && enemy.sprite.index >= 1)) {
       errors.push(`${where}: sprite index must be a whole number ≥ 1.`);
     }
@@ -222,6 +221,24 @@ export function validateContent(source: ContentSource): string[] {
       errors.push(`Blessing "${blessing.id}": fights must be a whole number > 0.`);
     if (blessing.effect.type === 'bonus' && blessing.effect.bonus.type === 'trigger') checkEffects(`Blessing "${blessing.id}"`, [blessing.effect.bonus.effect]);
   }
+
+  const nodeIds = new Set<string>();
+  for (const node of source.progression) checkDuplicate(nodeIds, node.id, 'Logbook node');
+  for (const node of source.progression) {
+    const where = `Logbook node "${node.id}"`;
+    if (!(Number.isInteger(node.cost) && node.cost > 0)) errors.push(`${where}: cost must be a whole number > 0.`);
+    for (const id of node.requires) if (!nodeIds.has(id)) errors.push(`${where}: requires unknown node "${id}".`);
+    const e = node.effect;
+    if (e.type === 'shopItem' && !shopIds.has(e.item)) errors.push(`${where}: unknown shop item "${e.item}".`);
+    if (e.type === 'restingBondLevel' && !(Number.isInteger(e.level) && e.level >= 1)) errors.push(`${where}: level must be a whole number ≥ 1.`);
+    if ('amount' in e && !(Number.isInteger(e.amount) && e.amount > 0)) errors.push(`${where}: amount must be a whole number > 0.`);
+    if (e.type === 'shopDiscount' && e.amount >= 100) errors.push(`${where}: a discount must be under 100%.`);
+  }
+  // Every node must be buyable: following `requires` never comes back to it.
+  const requiresOf = new Map(source.progression.map((n) => [n.id, n.requires]));
+  const reaches = (from: string, target: string, seen: Set<string>): boolean =>
+    (requiresOf.get(from) ?? []).some((r) => r === target || (!seen.has(r) && (seen.add(r), reaches(r, target, seen))));
+  for (const node of source.progression) if (reaches(node.id, node.id, new Set())) errors.push(`Logbook node "${node.id}" requires itself, through its requires.`);
 
   const bonusIds = new Set<string>();
   for (const bonus of source.companionBonuses) {

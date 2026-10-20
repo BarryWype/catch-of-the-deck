@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
 import { computed, ref } from 'vue';
-import { describeCard, findNode, isReleaseFight, justBeatBoss, SESSION_SLOTS, type CardDef } from '../engine';
+import { describeCard, findNode, isReleaseFight, justBeatBoss, progressionTotal, REWARD_REROLLS_AT_START, runSellBonus, SESSION_SLOTS, type CardDef } from '../engine';
 import { t, term } from './i18n';
 import Aquarium from './Aquarium.vue';
 import BucketFull from './BucketFull.vue';
@@ -10,7 +10,6 @@ import CombatView from './CombatView.vue';
 import DebugCombatTools from './DebugCombatTools.vue';
 import BuildSelect from './BuildSelect.vue';
 import CompanionPicker from './CompanionPicker.vue';
-import EggTray from './EggTray.vue';
 import EventScreen from './EventScreen.vue';
 import FishermanScreen from './FishermanScreen.vue';
 import CreatureBook from './CreatureBook.vue';
@@ -34,7 +33,11 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, canReturnToShop, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, eggs, newEggs, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked } = game;
+const { data, seed, run, combat, screen, canReturnToShop, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked, logbook, recovering, shellsWon } = game;
+
+/** Stars the Logbook adds to every companion: the profile's before a run, the run's during it. */
+const homeExtraStars = computed(() => progressionTotal(logbook.value.unlocked, data, 'companionStars'));
+const runExtraStars = computed(() => (run.value ? progressionTotal(run.value.progression, data, 'companionStars') : 0));
 
 /**
  * The top bar's title: the act being played, from its level's "age · place" name. It replaces
@@ -131,16 +134,18 @@ const deckCards = computed(() =>
           :data="data"
           action="bring"
           :bring-blocked="brought.length >= SESSION_SLOTS ? t('companions.slotsFull') : undefined"
+          :extra-stars="homeExtraStars"
+          :recovering="recovering"
           :title="t('aquarium.home')"
           icon="🏠"
           @bring="game.bring"
         />
         <div class="slots-column">
-          <SessionSlots :brought="brought" :data="data" @remove="game.unbring" @pick="picker?.open()" />
+          <SessionSlots :brought="brought" :data="data" :extra-stars="homeExtraStars" @remove="game.unbring" @pick="picker?.open()" />
           <button class="start-fishing" @click="game.startRun">{{ t('companions.start') }}</button>
         </div>
       </div>
-      <CompanionPicker ref="picker" :creatures="homeLeft" :brought="brought" :data="data" @pick="game.bring" />
+      <CompanionPicker ref="picker" :creatures="homeLeft" :brought="brought" :data="data" :extra-stars="homeExtraStars" @pick="game.bring" />
     </div>
     <MenuScreen
       v-else-if="screen === 'menu' || !run"
@@ -150,8 +155,11 @@ const deckCards = computed(() =>
       :biggest-catch="biggestCatch"
       :unlocked="unlocked"
       :fishermen-met="fishermenMet"
+      :logbook="logbook"
+      :recovering="recovering"
       :data="data"
       @resume="game.resume"
+      @buy-node="game.buyLogbookNode"
       @new-run="askNewRun(newRunFromMenu)"
       :import-transfer="game.importTransfer"
       @reset="game.resetProgress"
@@ -168,6 +176,8 @@ const deckCards = computed(() =>
         :capacity="run.bucketSize"
         :companions="run.companions.length"
         :bonds="run.companions.map((c) => c.bond)"
+        :sell-bonus="runSellBonus(run, data)"
+        :extra-stars="runExtraStars"
         :data="data"
         :title="t('aquarium.bucket')"
         icon="🪣"
@@ -182,9 +192,12 @@ const deckCards = computed(() =>
       :data="data"
       :run="run"
       :equipment="run.equipment"
-      :new-eggs="newEggs"
       :spot="findNode(run.map, run.position)?.spot ?? undefined"
       :character="data.builds[run.build]?.character"
+      :home-aquarium="homeAquarium"
+      :creature-book="creatureBook"
+      :unlocked="unlocked"
+      :fishermen-met="fishermenMet"
       :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? t('combat.defaultRelease')) : null"
       @action="game.dispatch"
       @bait="game.bait"
@@ -236,6 +249,8 @@ const deckCards = computed(() =>
       :data="data"
       :skips="rewardLeft.skips"
       :rerolls="rewardLeft.rerolls"
+      :shells="shellsWon ? { won: shellsWon, total: logbook.shells } : null"
+      :rerolls-at-start="REWARD_REROLLS_AT_START + progressionTotal(run.progression, data, 'rerollsAtStart')"
       :boss="run && justBeatBoss(run) ? { deck: run.deck, canRemove: run.bossRemoval, bucket: run.bucket.length } : null"
       @choose="game.chooseReward"
       @skip="game.skipCardReward"
@@ -253,7 +268,7 @@ const deckCards = computed(() =>
         <h2>{{ t('complete.fledTitle') }}</h2>
         <p>{{ t('complete.fledText') }}</p>
       </template>
-      <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
+      <p v-if="shellsWon && runEnd === 'won'" class="shells-won"><GameIcon icon="golden-shell" /> {{ t('logbook.won', { n: shellsWon, total: logbook.shells }) }}</p>
       <p v-for="id in newlyUnlocked" :key="id" class="unlocked">
         <GameIcon icon="🎣" /> {{ t('complete.unlocked', { build: data.builds[id]?.name ?? id }) }}
       </p>
@@ -281,9 +296,6 @@ const deckCards = computed(() =>
       <button class="ghost" autofocus @click="deckDialog?.close()">{{ t('common.close') }}</button>
     </footer>
   </dialog>
-
-  <!-- Only between runs, where the home aquarium is: not over the map's bucket or the cards. -->
-  <EggTray v-if="['menu', 'build', 'companions', 'complete'].includes(screen)" :eggs="eggs" :data="data" @hatch="game.hatchEgg" />
 
   <!-- Every hover text in the app (v-tip) is drawn here. -->
   <TooltipLayer />
@@ -336,7 +348,7 @@ const deckCards = computed(() =>
 .complete h2 { margin: 0; font-size: 2rem; }
 .complete p { margin: 0; max-width: 520px; text-align: center; }
 .leave-icon { font-size: 4rem; line-height: 1; filter: drop-shadow(0 6px 18px rgb(245 215 110 / 0.3)); }
-.new-eggs { color: var(--highlight); font-weight: 600; }
+.shells-won { color: var(--highlight); font-weight: 600; }
 .complete-actions { display: flex; gap: 8px; margin-top: 12px; }
 
 /* Small screens: the bucket and the home aquarium get less room, the slots go under the aquarium. */

@@ -3,7 +3,7 @@ import { applyAction, checkCombatEnd } from './combat';
 import { SECOND_WIND_ID } from './intents';
 import { buildLevelMap, START_NODE_ID, STORE_KINDS, type MapNode } from './map';
 import { drawCards } from './piles';
-import { createRun, REWARD_REROLLS_AT_START, SESSION_SLOTS, travelTo, visitFisherman, visitShop, visitTreasure, type RunState } from './run';
+import { createRun, SESSION_SLOTS, travelTo, visitFisherman, visitShop, visitTreasure, type RunState } from './run';
 import { CATCH_SIZES, type Catch, type CatchSize } from './sizes';
 import { STATUS_META } from './statuses';
 import type { ShopVisit } from './shop';
@@ -39,6 +39,9 @@ export interface DebugProfile {
   unlocked: string[];
   fishermenMet: string[];
   home: DebugCreature[];
+  /** Golden shells, and the Logbook nodes bought (none if omitted). */
+  shells?: number;
+  progression?: string[];
 }
 
 export interface DebugScenario {
@@ -71,17 +74,17 @@ export function debugCreature(creature: DebugCreature, data: GameData): HomeCrea
   return { id: creature.id, size: creature.size, bond: creature.bond > 0 ? bondThreshold(creature.id, creature.bond, data) : 0 };
 }
 
-/** The scenario's run, at the start of its age's map. */
-export function scenarioRun(scenario: DebugScenario, data: GameData): RunState {
+/** The scenario's run, at the start of its age's map, with the Logbook nodes `progression`. */
+export function scenarioRun(scenario: DebugScenario, data: GameData, progression: readonly string[] = []): RunState {
   const companions = (scenario.companions ?? []).map((c) => debugCreature(c, data));
-  const run = createRun(scenario.seed ?? 1, data, scenario.build, companions);
+  const run = createRun(scenario.seed ?? 1, data, scenario.build, companions, undefined, [], progression);
   run.level = scenario.level;
   run.map = buildLevelMap(data, scenario.level, run);
   run.fights = scenario.fights ?? 0;
   run.floor = run.fights + 1;
   run.hp = Math.min(run.maxHp, scenario.hp ?? run.maxHp);
-  run.coins = scenario.coins ?? 0;
-  run.rewardRerolls = scenario.rerolls ?? REWARD_REROLLS_AT_START;
+  run.coins = scenario.coins ?? run.coins;
+  run.rewardRerolls = scenario.rerolls ?? run.rewardRerolls;
   if (scenario.deck) run.deck = [...scenario.deck];
   run.bucket.push(...(scenario.bucket ?? []).map(({ id, size }) => ({ id, size })));
   return run;
@@ -90,13 +93,15 @@ export function scenarioRun(scenario: DebugScenario, data: GameData): RunState {
 /**
  * Put the scenario's run one step before its start node and step onto it: the fight begins, or
  * the event, shop, treasure or fisherman is visited. Fights other than the mini-boss and boss
- * (and the other nodes) take the place of the map's first node.
+ * (and the other nodes) take the place of the map's first node. The run has the Logbook nodes
+ * `progression`: its profile's, or the real profile's when it has none.
  */
 export function startScenario(
   scenario: DebugScenario,
   data: GameData,
+  progression: readonly string[] = scenario.profile?.progression ?? [],
 ): { run: RunState; kind: DebugStartKind; combat?: CombatState; eventId?: string; visit?: ShopVisit } {
-  const run = scenarioRun(scenario, data);
+  const run = scenarioRun(scenario, data, progression);
   const start = scenario.start;
   const nodes = run.map.columns.flat();
   const target =
@@ -239,7 +244,7 @@ export function applyWithInfiniteEnergy(state: CombatState, action: CombatAction
   return { ...played, player: { ...played.player, energy } };
 }
 
-export type DebugErrorCode = 'json' | 'shape' | 'build' | 'level' | 'number' | 'creature' | 'bond' | 'size' | 'companions' | 'card' | 'hand' | 'start' | 'encounter' | 'event' | 'fisherman' | 'store';
+export type DebugErrorCode = 'json' | 'shape' | 'build' | 'level' | 'number' | 'creature' | 'bond' | 'size' | 'companions' | 'card' | 'hand' | 'start' | 'encounter' | 'event' | 'fisherman' | 'store' | 'node';
 
 /** What's wrong with a pasted scenario: the problem, and the field or value at fault. */
 export interface DebugError {
@@ -331,6 +336,10 @@ export function validateScenario(value: unknown, data: GameData): DebugError | n
     if (fisherman !== undefined) return fail('fisherman', fisherman);
     const homeError = creatures(p.home, 'profile.home', true);
     if (homeError) return homeError;
+    if (p.shells !== undefined && (!Number.isInteger(p.shells) || (p.shells as number) < 0)) return fail('number', 'profile.shells');
+    if (p.progression !== undefined && !Array.isArray(p.progression)) return fail('shape', 'profile.progression');
+    const node = ((p.progression as unknown[] | undefined) ?? []).find((id) => !data.progression.some((n) => n.id === id));
+    if (node !== undefined) return fail('node', node);
   }
   return null;
 }

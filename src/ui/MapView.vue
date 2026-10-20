@@ -5,6 +5,8 @@ import { storeEffectChips } from './storeEffects';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   activeBonuses,
+  progressionTotal,
+  storeItems,
   availableDestinations,
   describeCompanionEffect,
   findNode,
@@ -47,7 +49,7 @@ const equipment = computed(() => props.run.equipment.map((id) => props.data.equi
 const bought = computed(() => storeEffectChips(props.run, props.data));
 /** Companion bonuses from the creatures brought along, shown next to the equipment. */
 const bonuses = computed(() =>
-  activeBonuses(props.run.companions, props.data).map((b) => ({ ...b, text: b.effects.map(describeCompanionEffect) })),
+  activeBonuses(props.run.companions, props.data, progressionTotal(props.run.progression, props.data, 'companionStars')).map((b) => ({ ...b, text: b.effects.map(describeCompanionEffect) })),
 );
 
 const edges = computed(() =>
@@ -96,7 +98,7 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
       return {
         title: t(`shop.title.${storeOf(node)}`),
         hint: reopens(node) ? t('map.reenterShop') : undefined,
-        detail: props.data.shop.filter((item) => item.store === storeOf(node)).map((item) => item.name).join(' · '),
+        detail: storeItems(props.run, { store: storeOf(node) }, props.data).map((item) => item.name).join(' · '),
       };
     case 'event':
       return { title: t('map.event') };

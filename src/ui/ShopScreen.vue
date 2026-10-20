@@ -74,7 +74,7 @@ const pct = (r: { x: number; y: number; w?: number; h?: number }) => ({
   ...(r.h ? { height: `${(r.h / ART.h) * 100}%` } : {}),
 });
 
-const items = computed(() => storeItems(props.visit, props.data));
+const items = computed(() => storeItems(props.run, props.visit, props.data));
 const forSale = computed(() => items.value.filter((i) => i.effect.type !== 'aquariumSale'));
 const places = computed(() => (props.visit.store !== 'bait' && forSale.value.length <= COUNTER.length ? COUNTER : SLOTS));
 const shelved = computed(() => forSale.value.slice(0, places.value.length));

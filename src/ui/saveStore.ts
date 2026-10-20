@@ -1,15 +1,15 @@
-import { BUCKET_SIZE, rescaleBond, type CatchSize, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
+import { BUCKET_SIZE, bondThreshold, rescaleBond, type CatchSize, type RecoveringCreature, type CombatState, type Discovery, type HomeCreature, type RunState, type ShopVisit } from '../engine';
 import { gameData } from './i18n';
 import type { Screen } from './useGame';
 
 /**
  * Two files, see ARCHITECTURE.md → Persistence:
  * - `save`: the run in progress, deleted when it ends;
- * - `profile`: what lasts between runs (the home aquarium, its eggs, the creature book).
+ * - `profile`: what lasts between runs (the home aquarium, the creature book, the Logbook).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 19;
-export const PROFILE_VERSION = 6;
+export const SAVE_VERSION = 21;
+export const PROFILE_VERSION = 9;
 
 /** Everything needed to pick a run up exactly where it was left. */
 export interface SavedGame {
@@ -26,18 +26,21 @@ export interface SavedGame {
 /** What the player keeps from run to run. */
 export interface Profile {
   version: number;
-  /** Creatures brought home from won runs or hatched, each with its own bond. */
+  /** Creatures brought home from won runs, each with its own bond. */
   homeAquarium: HomeCreature[];
   /** Every creature ever met, by id; missing means never encountered. */
   creatureBook: Record<string, Discovery>;
   /** The biggest of each species ever caught, by id. */
   biggestCatch: Record<string, CatchSize>;
-  /** Eggs waiting to be hatched: the creature id inside each. */
-  eggs: string[];
   /** Builds unlocked through a fisherman's quest (builds without `unlock` are always available). */
   unlockedBuilds: string[];
   /** Fishermen met on the map, whose quests are open until their builds are unlocked. */
   fishermenMet: string[];
+  /** Golden shells left to spend in the Logbook, and the Logbook nodes bought. */
+  goldenShells: number;
+  logbook: string[];
+  /** Companions back injured from runs that ended badly, resting apart from the home aquarium. */
+  recovering: RecoveringCreature[];
 }
 
 type DataFile = 'save' | 'profile';
@@ -130,6 +133,13 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
     const run = { ...save.run, map: { columns }, bucketSize: BUCKET_SIZE, boons: [], sentHome: [], luckyLure: false, spareHooks: 0 };
     save = { ...save, version: 19, run, shopVisit: { ...save.shopVisit, store: 'tackle' } };
   }
+  // v19 runs were before the Logbook: no node bought.
+  if (save.version === 19) save = { ...save, version: 20, run: { ...save.run, progression: [] } };
+  // v20 runs didn't count their nodes, nor keep their companions' starting bond: this level's nodes, and today's bond.
+  if (save.version === 20) {
+    const run = { ...save.run, nodesDone: Math.max(0, (save.run.visited?.length ?? 1) - 1), companionBondsAtStart: (save.run.companions ?? []).map((c) => c.bond) };
+    save = { ...save, version: 21, run };
+  }
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.
@@ -157,8 +167,8 @@ export function upgradeProfile(profile: Profile): Profile | null {
     const creatureBook = Object.fromEntries(ids.map((id) => [id, 'captured' as const]));
     profile = { ...profile, version: 2, creatureBook };
   }
-  // v2 had no eggs.
-  if (profile.version === 2) profile = { ...profile, version: 3, eggs: [] };
+  // v2 had no eggs (and eggs are gone since v9).
+  if (profile.version === 2) profile = { ...profile, version: 3 };
   // v3 home aquariums were plain creature ids, before bonds.
   if (profile.version === 3) {
     const homeAquarium = (profile.homeAquarium as unknown as string[]).map((id) => ({ id, bond: 0, size: 'normal' as const }));
@@ -172,6 +182,16 @@ export function upgradeProfile(profile: Profile): Profile | null {
   }
   // v5 had no build unlocks: every run used the first build, so only the default builds are unlocked.
   if (profile.version === 5) profile = { ...profile, version: 6, unlockedBuilds: [], fishermenMet: [] };
+  // v6 was before the Logbook: no shells, nothing bought.
+  if (profile.version === 6) profile = { ...profile, version: 7, goldenShells: 0, logbook: [] };
+  // v7 was before injured companions: none resting.
+  if (profile.version === 7) profile = { ...profile, version: 8, recovering: [] };
+  // v8 had eggs, before breeding was removed: each waiting egg hatches into the home aquarium, small and at bond level 1.
+  if (profile.version === 8) {
+    const { eggs = [], ...rest } = profile as Profile & { eggs?: string[] };
+    const hatched = eggs.map((id) => ({ id, size: 'small' as const, bond: bondThreshold(id, 1, gameData) }));
+    profile = { ...rest, version: 9, homeAquarium: [...rest.homeAquarium, ...hatched] };
+  }
   return profile.version === PROFILE_VERSION ? profile : null;
 }
 
@@ -184,9 +204,11 @@ export async function loadProfile(): Promise<Profile> {
       homeAquarium: [],
       creatureBook: {},
       biggestCatch: {},
-      eggs: [],
       unlockedBuilds: [],
       fishermenMet: [],
+      goldenShells: 0,
+      logbook: [],
+      recovering: [],
     }
   );
 }
@@ -260,7 +282,8 @@ export async function importTransferCode(code: string): Promise<TransferContents
     const upgradedSave = save ? upgradeSave(save) : null;
     const valid =
       upgradedProfile &&
-      [upgradedProfile.homeAquarium, upgradedProfile.eggs, upgradedProfile.unlockedBuilds, upgradedProfile.fishermenMet].every(Array.isArray) &&
+      [upgradedProfile.homeAquarium, upgradedProfile.unlockedBuilds, upgradedProfile.fishermenMet, upgradedProfile.logbook, upgradedProfile.recovering].every(Array.isArray) &&
+      Number.isInteger(upgradedProfile.goldenShells) &&
       (!upgradedSave || typeof upgradedSave.run === 'object');
     if (!valid) throw new TransferError('corrupt');
     return { save: upgradedSave, profile: upgradedProfile };

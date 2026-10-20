@@ -9,7 +9,6 @@ import {
   rescaleBond,
   bringCatchHome,
   createRun,
-  hatchling,
   restAtHome,
   travelTo,
 } from '../src/engine';
@@ -68,11 +67,6 @@ describe('bond', () => {
       homeCreature('cycler', 40),
       homeCreature('cycler', 120),
     ]);
-  });
-
-  it('hatchlings start small, at level 1', () => {
-    expect(bondLevel(hatchling('cycler', data), data)).toBe(1);
-    expect(hatchling('cycler', data).size).toBe('small');
   });
 
   it('old bond points keep their share of full bond, rounded, and never lose a level', () => {

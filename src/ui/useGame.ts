@@ -12,14 +12,17 @@ import {
   findNode,
   applyAction,
   bringCatchHome,
+  buyNode,
   catchesOf,
   finishCombat,
-  hatchling,
   keepCatch,
   recordSizes,
   sellCatch,
   restAtHome,
-  layEggs,
+  restingBondLevel,
+  injuredCompanions,
+  recoverCompanions,
+  shellsEarned,
   SESSION_SLOTS,
   takeFromHome,
   createRun,
@@ -51,6 +54,8 @@ import {
   type DebugScenario,
   type Discovery,
   type HomeCreature,
+  type Logbook,
+  type RecoveringCreature,
   type RunState,
   type ShopVisit,
 } from '../engine';
@@ -89,24 +94,27 @@ export function useGame(initialSeed: number) {
   /** The run that Resume would pick up, if any. */
   const savedGame = shallowRef<SavedGame | null>(null);
   loadSavedGame().then((save) => (savedGame.value = save));
-  /** Creatures brought home from won runs or hatched, with their bond; shown on the menu and companions screens. */
+  /** Creatures brought home from won runs, with their bond; shown on the menu and companions screens. */
   const homeAquarium = ref<HomeCreature[]>([]);
   /** Every creature met so far, seen or captured; shown in the creature book. */
   const creatureBook = shallowRef<Readonly<Record<string, Discovery>>>({});
   /** The biggest of each species ever caught, in the creature book. */
   const biggestCatch = shallowRef<Readonly<Record<string, CatchSize>>>({});
-  /** Eggs laid in the home aquarium, waiting to be clicked: the creature id inside each. */
-  const eggs = ref<string[]>([]);
   /** Builds unlocked through fishermen's quests, and the fishermen met (whose quests are open). */
   const unlocked = ref<string[]>([]);
   const fishermenMet = ref<string[]>([]);
+  /** Golden shells to spend in the Logbook, and its nodes bought (which every new run starts with). */
+  const logbook = ref<Logbook>({ shells: 0, unlocked: [] });
+  /** Companions back injured from runs that ended badly: they rejoin the home aquarium after enough map nodes. */
+  const recovering = ref<RecoveringCreature[]>([]);
   function setProfile(profile: Profile) {
     homeAquarium.value = profile.homeAquarium;
     creatureBook.value = profile.creatureBook;
     biggestCatch.value = profile.biggestCatch;
-    eggs.value = profile.eggs;
     unlocked.value = profile.unlockedBuilds;
     fishermenMet.value = profile.fishermenMet;
+    logbook.value = { shells: profile.goldenShells, unlocked: profile.logbook };
+    recovering.value = profile.recovering;
   }
   loadProfile().then(setProfile);
   /** The builds a run can start with. */
@@ -123,7 +131,15 @@ export function useGame(initialSeed: number) {
   const debugScenario = shallowRef<DebugScenario | null>(null);
   /** Debug only: cards cost no energy. */
   const infiniteEnergy = ref(false);
-  let realProfile: { home: HomeCreature[]; book: typeof creatureBook.value; biggest: typeof biggestCatch.value; eggs: string[]; unlocked: string[]; met: string[] } | null = null;
+  let realProfile: {
+    home: HomeCreature[];
+    book: typeof creatureBook.value;
+    biggest: typeof biggestCatch.value;
+    unlocked: string[];
+    met: string[];
+    logbook: Logbook;
+    recovering: RecoveringCreature[];
+  } | null = null;
 
   function saveProfile() {
     if (debugScenario.value) return;
@@ -132,10 +148,31 @@ export function useGame(initialSeed: number) {
       homeAquarium: homeAquarium.value,
       creatureBook: { ...creatureBook.value },
       biggestCatch: { ...biggestCatch.value },
-      eggs: eggs.value,
-      unlockedBuilds: unlocked.value,
+            unlockedBuilds: unlocked.value,
       fishermenMet: fishermenMet.value,
+      goldenShells: logbook.value.shells,
+      logbook: logbook.value.unlocked,
+      recovering: recovering.value,
     });
+  }
+
+  /**
+   * A run that didn't end well sends its companions home injured (`injuredCompanions`); one that
+   * did no node sends them straight back.
+   */
+  function injure(finished: RunState) {
+    const { recovering: still, back } = recoverCompanions([...recovering.value, ...injuredCompanions(finished)], 0);
+    recovering.value = still;
+    homeAquarium.value = [...homeAquarium.value, ...back];
+  }
+
+  /** A map node stepped on: injured companions rest one node, and those done resting come home. */
+  function restInjured() {
+    if (!recovering.value.length) return;
+    const { recovering: still, back } = recoverCompanions(recovering.value, 1);
+    recovering.value = still;
+    homeAquarium.value = [...homeAquarium.value, ...back];
+    saveProfile();
   }
 
   // Fill the creature book as soon as a fight starts, and again once it's won.
@@ -175,36 +212,23 @@ export function useGame(initialSeed: number) {
     broughtSlots.value = broughtSlots.value.filter((_, i) => i !== index);
   }
 
-  /** How many eggs were laid when the last run ended, for the end screens. */
-  const newEggs = ref(0);
-
   /** Builds the last run unlocked, for the end screen. */
   const newlyUnlocked = ref<string[]>([]);
 
   /**
    * Every run end (not an abandoned one): creatures that stayed home bond a little, a successful
    * run brings its bucket home and unlocks the builds whose quests are now met (a lost one only its
-   * creatures in life jackets, and either brings the parcels posted home), then pairs may lay an
-   * egg (so new catches can breed straight away).
+   * creatures in life jackets, its other companions coming back injured, and either brings the
+   * parcels posted home).
    */
   function endRun(finished: RunState, success: boolean) {
-    let home = restAtHome(homeAquarium.value, gameData);
+    let home = restAtHome(homeAquarium.value, gameData, restingBondLevel(finished.progression, gameData));
     home = bringCatchHome(home, finished, gameData, success);
+    homeAquarium.value = home;
+    if (!success) injure(finished);
+    home = homeAquarium.value;
     newlyUnlocked.value = success ? newUnlocks(gameData, unlocked.value, fishermenMet.value, home, finished.questsShown) : [];
     unlocked.value = [...unlocked.value, ...newlyUnlocked.value];
-    const laid = layEggs(home, finished, gameData);
-    homeAquarium.value = home;
-    eggs.value = [...eggs.value, ...laid];
-    newEggs.value = laid.length;
-    saveProfile();
-  }
-
-  /** The egg at `index` has hatched: its creature joins the home aquarium. */
-  function hatchEgg(index: number) {
-    const id = eggs.value[index];
-    if (id === undefined) return;
-    eggs.value = eggs.value.filter((_, i) => i !== index);
-    homeAquarium.value = [...homeAquarium.value, hatchling(id, gameData)];
     saveProfile();
   }
 
@@ -249,9 +273,10 @@ export function useGame(initialSeed: number) {
     eventId.value = save.eventId;
     shopVisit.value = save.shopVisit;
     screen.value = save.screen;
+    shellsWon.value = 0;
   }
 
-  /** Delete all progression: the saved run and the profile (home aquarium, eggs, creature book). Can't be undone. */
+  /** Delete all progression: the saved run and the profile (home aquarium, creature book, Logbook). Can't be undone. */
   function resetProgress() {
     run.value = null;
     combat.value = null;
@@ -259,10 +284,11 @@ export function useGame(initialSeed: number) {
     homeAquarium.value = [];
     unlocked.value = [];
     fishermenMet.value = [];
+    logbook.value = { shells: 0, unlocked: [] };
+    recovering.value = [];
     broughtSlots.value = [];
     creatureBook.value = {};
     biggestCatch.value = {};
-    eggs.value = [];
     clearSavedGame();
     clearProfile();
   }
@@ -294,6 +320,13 @@ export function useGame(initialSeed: number) {
 
   function newRun(newSeed: number) {
     if (debugScenario.value) endScenario();
+    // The saved run is abandoned: its companions come back injured.
+    if (savedGame.value) {
+      injure(savedGame.value.run);
+      saveProfile();
+      savedGame.value = null;
+      clearSavedGame();
+    }
     seed.value = newSeed;
     run.value = null;
     combat.value = null;
@@ -319,7 +352,7 @@ export function useGame(initialSeed: number) {
     const { buildId, itemId } = chosenBuild.value ?? { buildId: builds.value[0].id, itemId: undefined };
     // The brought creatures leave the home aquarium now: like the rest of the bucket, they only
     // come back if the run is successful.
-    run.value = createRun(seed.value, gameData, buildId, brought.value, itemId, fishermenToMeet(gameData, unlocked.value));
+    run.value = createRun(seed.value, gameData, buildId, brought.value, itemId, fishermenToMeet(gameData, unlocked.value), logbook.value.unlocked);
     if (brought.value.length) {
       homeAquarium.value = homeLeft.value;
       broughtSlots.value = [];
@@ -338,9 +371,10 @@ export function useGame(initialSeed: number) {
         home: homeAquarium.value,
         book: creatureBook.value,
         biggest: biggestCatch.value,
-        eggs: eggs.value,
-        unlocked: unlocked.value,
+                unlocked: unlocked.value,
         met: fishermenMet.value,
+        logbook: logbook.value,
+        recovering: recovering.value,
       };
     }
     debugScenario.value = scenario;
@@ -349,8 +383,11 @@ export function useGame(initialSeed: number) {
       homeAquarium.value = profile.home.map((c) => debugCreature(c, gameData));
       unlocked.value = [...profile.unlocked];
       fishermenMet.value = [...profile.fishermenMet];
+      logbook.value = { shells: profile.shells ?? 0, unlocked: [...(profile.progression ?? [])] };
+      recovering.value = [];
     }
-    const started = startScenario(scenario, gameData);
+    const started = startScenario(scenario, gameData, logbook.value.unlocked);
+    shellsWon.value = 0;
     seed.value = started.run.seed;
     run.value = started.run;
     combat.value = started.combat ?? null;
@@ -370,9 +407,10 @@ export function useGame(initialSeed: number) {
       homeAquarium.value = realProfile.home;
       creatureBook.value = realProfile.book;
       biggestCatch.value = realProfile.biggest;
-      eggs.value = realProfile.eggs;
       unlocked.value = realProfile.unlocked;
       fishermenMet.value = realProfile.met;
+      logbook.value = realProfile.logbook;
+      recovering.value = realProfile.recovering;
       realProfile = null;
     }
     debugScenario.value = null;
@@ -399,6 +437,7 @@ export function useGame(initialSeed: number) {
       screen.value = 'leave';
       return;
     }
+    restInjured();
     if (kind === 'shop') {
       const visit = visitShop(run.value, nodeId, gameData);
       run.value = visit.run;
@@ -453,8 +492,23 @@ export function useGame(initialSeed: number) {
     if (combat.value.phase === 'lost' && run.value) endRun(run.value, false);
   }
 
+  /** Golden shells the last fight won earned (a mini-boss or boss), for its reward or end screen. */
+  const shellsWon = ref(0);
+
+  /** Buy a Logbook node with golden shells. */
+  function buyLogbookNode(id: string) {
+    logbook.value = buyNode(logbook.value, id, gameData);
+    saveProfile();
+  }
+
   function claimVictory() {
     if (!run.value || !combat.value || combat.value.phase !== 'won') return;
+    // Kept straight away, however the run ends.
+    shellsWon.value = shellsEarned(run.value, combat.value);
+    if (shellsWon.value) {
+      logbook.value = { ...logbook.value, shells: logbook.value.shells + shellsWon.value };
+      saveProfile();
+    }
     let finished = finishFight(run.value, combat.value);
     const families = fightFamilies(combat.value, gameData);
     combat.value = null;
@@ -529,6 +583,7 @@ export function useGame(initialSeed: number) {
     if (!run.value || !eventId.value) return;
     const result = applyEventChoice(run.value, eventId.value, choiceIndex, gameData);
     eventId.value = null;
+    shellsWon.value = 0;
     if (result.cardReward) {
       // No fight: every family's cards.
       const rewards = rollCardRewards(result.run, gameData, { families: [] });
@@ -570,6 +625,7 @@ export function useGame(initialSeed: number) {
   /** Confirmed: move onto the finish node, which ends the run and brings the bucket home. */
   function finishSession() {
     if (!run.value || !leaveNodeId.value) return;
+    restInjured();
     bringHome(visitLeave(run.value, leaveNodeId.value), 'left');
     leaveNodeId.value = null;
   }
@@ -649,6 +705,10 @@ export function useGame(initialSeed: number) {
     builds,
     unlocked,
     fishermenMet,
+    logbook,
+    recovering,
+    shellsWon,
+    buyLogbookNode,
     newlyUnlocked,
     leaveFisherman,
     debugScenario,
@@ -660,13 +720,10 @@ export function useGame(initialSeed: number) {
     homeAquarium,
     creatureBook,
     biggestCatch,
-    eggs,
-    newEggs,
     brought,
     homeLeft,
     bring,
     unbring,
-    hatchEgg,
     runEnd,
     resume,
     toMenu,

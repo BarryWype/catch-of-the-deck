@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { describeCard, type GameData } from '../engine';
+import { describeCard, GOLDEN_SHELLS, type GameData } from '../engine';
 import CardView from './CardView.vue';
+import GameIcon from './GameIcon.vue';
 import { t } from './i18n';
 
 /**
  * `skips`: how many are left this level (Eel companions); otherwise a card must be taken.
  * `rerolls`: how many are left, the run's own and the companions'. `boss`: after a level's boss,
  * the deck (with whether a free removal is still on offer) and the bucket's size, for the two
- * extra options: removing a card, and ending the run.
+ * extra options: removing a card, and ending the run. `shells`: the golden shells the fight just
+ * won earned (a mini-boss or boss), and how many the player has now.
  */
 defineProps<{
   choices: string[];
@@ -16,6 +18,9 @@ defineProps<{
   skips: number;
   rerolls: number;
   boss?: { deck: string[]; canRemove: boolean; bucket: number } | null;
+  shells?: { won: number; total: number } | null;
+  /** Rerolls a run starts with, for the reroll button's explanation. */
+  rerollsAtStart: number;
 }>();
 const emit = defineEmits<{ choose: [cardId: string]; skip: []; reroll: []; remove: [cardIndex: number]; endRun: [] }>();
 /** Picking the card to remove, in place of the reward's cards. */
@@ -42,6 +47,7 @@ const confirmEnd = ref<HTMLDialogElement>();
     <button class="ghost" @click="removing = false">{{ t('common.cancel') }}</button>
   </section>
   <section v-else class="reward">
+    <p v-if="shells" class="shells" v-tip="t('logbook.shellsTip', GOLDEN_SHELLS)"><GameIcon icon="golden-shell" /> {{ t('logbook.won', { n: shells.won, total: shells.total }) }}</p>
     <h2>{{ t('reward.title') }}</h2>
     <div class="choices">
       <div v-for="id in choices" :key="id" class="choice">
@@ -49,7 +55,7 @@ const confirmEnd = ref<HTMLDialogElement>();
       </div>
     </div>
     <div class="options">
-      <button v-tip="t('reward.rerollTip')" class="ghost" :disabled="!rerolls" @click="emit('reroll')">🔄 {{ t('reward.reroll', { n: rerolls }) }}</button>
+      <button v-tip="t('reward.rerollTip', { n: rerollsAtStart })" class="ghost" :disabled="!rerolls" @click="emit('reroll')">🔄 {{ t('reward.reroll', { n: rerolls }) }}</button>
       <button v-if="skips" class="ghost" @click="emit('skip')">{{ t('reward.skip', { n: skips }) }}</button>
     </div>
     <!-- After a boss: a free card removal, on top of the reward, and the chance to head home. -->
@@ -73,6 +79,7 @@ const confirmEnd = ref<HTMLDialogElement>();
 <style scoped>
 .reward { display: flex; flex-direction: column; align-items: center; gap: 28px; padding-top: 10vh; }
 .reward h2 { margin: 0; }
+.shells { margin: 0 0 -14px; color: var(--highlight); font-weight: 700; }
 .options { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .options.boss { margin-top: -14px; }
 .options button { display: inline-flex; align-items: center; gap: 6px; }

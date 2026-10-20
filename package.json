@@ -1,7 +1,7 @@
 {
   "name": "catch-of-the-deck",
   "private": true,
-  "version": "0.1.24",
+  "version": "0.1.25",
   "type": "module",
   "main": "electron/main.js",
   "engines": {
@@ -15,7 +15,6 @@
     "sprites": "node scripts/generate-creature-sprites.mjs",
     "store-art": "node scripts/generate-store-art.mjs",
     "shore": "node scripts/draw-shore.mjs",
-    "eggs": "node scripts/extract-eggs.mjs",
     "hurt-sprites": "node scripts/generate-hurt-sprites.mjs",
     "sea": "node scripts/draw-sea.mjs",
     "coast": "node scripts/draw-coast.mjs",

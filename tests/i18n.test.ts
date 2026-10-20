@@ -69,11 +69,19 @@ describe('message templates', () => {
   });
 });
 
+describe.each(codes)('the %s Logbook', (code) => {
+  it('names every track', () => {
+    const tracks = (LANGUAGES[code].messages as Messages).ui.logbook.track as Record<string, string>;
+    expect(new Set(contentSource.progression.map((n) => n.track)).size).toBe(Object.keys(tracks).length);
+    for (const node of contentSource.progression) expect(tracks[node.track], node.track).toBeTruthy();
+  });
+});
+
 describe.each(codes.filter((code) => code !== 'en'))('the %s content', (code) => {
   const tr: ContentTranslations = LANGUAGES[code].content;
   const missing = (ids: string[], table: Record<string, unknown> | undefined) => ids.filter((id) => !table?.[id]);
 
-  it('names every creature, card, spot, build, item, companion, event, shop item and level', () => {
+  it('names every creature, card, spot, build, item, companion, event, shop item, level and Logbook node', () => {
     expect(missing(contentSource.enemies.map((e) => e.id), tr.creatures)).toEqual([]);
     expect(missing(contentSource.cards.map((c) => c.id), tr.cards)).toEqual([]);
     expect(missing(contentSource.spots.map((s) => s.id), tr.spots)).toEqual([]);
@@ -83,6 +91,7 @@ describe.each(codes.filter((code) => code !== 'en'))('the %s content', (code) =>
     expect(missing(contentSource.shop.map((s) => s.id), tr.shop)).toEqual([]);
     expect(missing(contentSource.levels.map((l) => l.id), tr.levels)).toEqual([]);
     expect(missing(contentSource.families.map((f) => f.id), tr.families)).toEqual([]);
+    expect(missing(contentSource.progression.map((n) => n.id), tr.progression)).toEqual([]);
     for (const event of contentSource.events) expect(tr.events?.[event.id]?.choices, event.id).toHaveLength(event.choices.length);
   });
 

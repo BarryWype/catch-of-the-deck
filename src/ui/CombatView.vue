@@ -4,6 +4,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import {
   bonusTotal,
   describeCard,
+  describeQuest,
+  questsFor,
+  temperamentList,
   instantSaleValue,
   isAlive,
   cardCost,
@@ -12,6 +15,8 @@ import {
   previewCard,
   previewIntent,
   previewIntents,
+  progressionTotal,
+  runSellBonus,
   escapeRise,
   takeReport,
   HOLD_PER_PATIENCE,
@@ -23,14 +28,17 @@ import {
   type CombatAction,
   type CombatReport,
   type CombatState,
+  type Discovery,
+  type EnemyMove,
   type EnemyState,
   type GameData,
+  type HomeCreature,
   type RunState,
 } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CardView from './CardView.vue';
 import KeywordText from './KeywordText.vue';
-import { t, term, type TextKey } from './i18n';
+import { t, term } from './i18n';
 import CombatantView from './CombatantView.vue';
 import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
@@ -50,7 +58,6 @@ import {
 } from './sprites';
 
 /**
- * `newEggs`: eggs laid at home when the run ends here (see useGame `breed`).
  * `releaseReason`: set for mini-bosses and bosses, which swim away instead of being caught.
  */
 const props = defineProps<{
@@ -59,12 +66,16 @@ const props = defineProps<{
   /** The run around the fight: its store effects show with the powers. */
   run?: RunState;
   equipment: string[];
-  newEggs: number;
   releaseReason: string | null;
   /** The fight's map node spot id: the scene's water colour (see `data.spots`). */
   spot?: string;
   /** The player's art (`BuildDef.character`). */
   character?: string;
+  /** The profile, for the creatures' hover text: the home aquarium, the creature book, builds unlocked and fishermen met. */
+  homeAquarium: HomeCreature[];
+  creatureBook: Readonly<Record<string, Discovery>>;
+  unlocked: string[];
+  fishermenMet: string[];
 }>();
 const emit = defineEmits<{ action: [CombatAction]; bait: [slot: number]; claimVictory: []; leave: []; menu: [] }>();
 
@@ -95,17 +106,26 @@ const tensionCells = computed(() => {
 /** The creatures let go after a mini-boss or boss fight, named once each. */
 const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => e.name))].join(t('combat.and')));
 
-/** A move's intensity, as a word. */
-const INTENSITY: Record<string, TextKey> = { light: 'intent.intensity.light', normal: 'intent.intensity.normal', heavy: 'intent.intensity.heavy' };
-
-/** Hover text over a creature: its whole move set (name, type, intensity), so players can plan. */
+/**
+ * Hover text over a creature: its temperament, whether the creature book has it (seen or caught;
+ * the book is updated when the fight ends), how many the home aquarium holds, and the open quests
+ * it counts towards.
+ */
 function creatureTip(enemy: EnemyState) {
-  const moves = props.data.enemies[enemy.defId].moves;
+  const def = props.data.enemies[enemy.defId];
+  const atHome = props.homeAquarium.filter((c) => c.id === enemy.defId).length;
+  const discovery = props.creatureBook[enemy.defId];
+  const lines = [
+    t(discovery === 'captured' ? 'combat.creatureTip.captured' : discovery === 'seen' ? 'combat.creatureTip.seen' : 'combat.creatureTip.new'),
+    atHome ? t('combat.creatureTip.atHome', { n: atHome }) : t('combat.creatureTip.notAtHome'),
+    ...questsFor(enemy.defId, props.data, props.unlocked, props.fishermenMet).map((b) =>
+      t('combat.creatureTip.quest', { fisherman: props.data.fishermen[b.unlock!.fisherman]?.name ?? '', quest: describeQuest(b.unlock!.quest, props.data) }),
+    ),
+  ];
   return {
     title: enemy.name,
-    body: moves
-      .map((m) => `${m.name} (${t(m.tag === 'pull' ? 'intent.pull' : 'intent.strike')}, ${t(INTENSITY[m.intensity])})`)
-      .join(' · '),
+    detail: def.temperament ? temperamentList([def.temperament], props.data, 'and') : undefined,
+    body: lines.join(' '),
   };
 }
 
@@ -140,7 +160,7 @@ const battlefield = ref<HTMLElement>();
 
 /** Coins from creatures sold on the spot by equipment (null when they go to the aquarium). */
 const instantSale = computed(() => {
-  const sales = props.state.enemies.map((e) => instantSaleValue(e.defId, props.equipment, props.data, bonusTotal(props.state.bonuses, 'sellBonus')));
+  const sales = props.state.enemies.map((e) => instantSaleValue(e.defId, props.equipment, props.data, props.run ? runSellBonus(props.run, props.data, props.state.bonuses) : bonusTotal(props.state.bonuses, 'sellBonus')));
   return sales.some((s) => s === null) ? null : sales.reduce<number>((sum, s) => sum + (s ?? 0), 0);
 });
 
@@ -215,6 +235,41 @@ watch(
 /** Names of the creatures caught before one got away (they're kept). */
 const caughtBeforeEscape = computed(() => props.state.enemies.filter((e) => !isAlive(e)).map((e) => e.name));
 
+/**
+ * The creatures' turn on screen: each one that played a move gets its motion (`moveMotion`), one
+ * after the other, `MOTION_STAGGER_MS` apart, each lasting `MOTION_MS`. End Turn is off for
+ * `ENEMY_TURN_MS` after a click, so a double click can't end the next turn too; the motions may
+ * still be playing when it's back.
+ */
+type Motion = 'strike' | 'pull' | 'guard' | 'heal' | 'buff' | 'trick';
+const MOTION_MS = 800;
+const MOTION_STAGGER_MS = 250;
+const ENEMY_TURN_MS = 700;
+const motions = reactive<Record<string, Motion>>({});
+const motionTimers: ReturnType<typeof setTimeout>[] = [];
+onBeforeUnmount(() => motionTimers.forEach(clearTimeout));
+/** True while the creatures' moves play out: End Turn is off. */
+const creaturesActing = ref(false);
+
+/** How a creature's body moves for a move: by what it does first among hitting, pulling, guarding, healing and buffing. */
+function moveMotion(move: EnemyMove): Motion {
+  const has = (type: string) => move.effects.some((e) => e.type === type);
+  if (has('dealDamage')) return 'strike';
+  if (has('pull')) return 'pull';
+  if (has('gainBlock')) return 'guard';
+  if (has('heal') || has('healPercent')) return 'heal';
+  if (move.effects.some((e) => e.type === 'applyStatus' && e.target === 'self' && e.amount > 0)) return 'buff';
+  return 'trick';
+}
+function playMotion(id: string, motion: Motion, delay: number) {
+  motionTimers.push(
+    setTimeout(() => {
+      motions[id] = motion;
+      motionTimers.push(setTimeout(() => delete motions[id], MOTION_MS));
+    }, delay),
+  );
+}
+
 /** Let the creature's lunge land before the fisherman flinches. */
 const HURT_DELAY_MS = 300;
 let hurtTimer: ReturnType<typeof setTimeout> | undefined;
@@ -265,6 +320,8 @@ watch(
       }, HURT_DELAY_MS);
     }
 
+    // Creatures that played a move so far this turn, to stagger their motions.
+    let acted = 0;
     for (const enemy of state.enemies) {
       const before = previous.enemies.find((e) => e.id === enemy.id);
       if (!before) continue;
@@ -281,6 +338,7 @@ watch(
         const moveId = enemy.moveHistory[enemy.moveHistory.length - 1];
         const move = props.data.enemies[enemy.defId].moves.find((m) => m.id === moveId);
         if (move?.effects.some((e) => e.type === 'dealDamage' || e.type === 'pull')) animate(enemy.id, 'attack');
+        if (move) playMotion(enemy.id, moveMotion(move), MOTION_STAGGER_MS * acted++);
       }
     }
   },
@@ -640,7 +698,10 @@ const hint = computed(() => {
 });
 
 function endTurn() {
+  if (creaturesActing.value) return;
   selectedUid.value = null;
+  creaturesActing.value = true;
+  motionTimers.push(setTimeout(() => (creaturesActing.value = false), ENEMY_TURN_MS));
   emit('action', { type: 'endTurn' });
 }
 /**
@@ -767,6 +828,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :targetable="aimingAtEnemy && isAlive(enemy)"
           :class="{ aimed: drag?.targetId === enemy.id }"
           @select="onEnemyClick(enemy)"
+          :motion="motions[enemy.id]"
           @animation-done="onAnimationDone(enemy.id)"
         />
       </TransitionGroup>
@@ -822,7 +884,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
 
       <div class="side">
-        <button class="end-turn" :disabled="!isPlayerTurn" @click="endTurn">{{ t('combat.endTurn') }}</button>
+        <button class="end-turn" :disabled="!isPlayerTurn || creaturesActing" @click="endTurn">{{ t('combat.endTurn') }}</button>
       </div>
     </section>
 
@@ -854,6 +916,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         :capacity="run.bucketSize"
         :companions="run.companions.length"
         :bonds="run.companions.map((c) => c.bond)"
+        :extra-stars="progressionTotal(run.progression, data, 'companionStars')"
         :data="data"
         :title="t('aquarium.bucket')"
         icon="🪣"
@@ -909,7 +972,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <template v-else>
           <h2>{{ t('combat.defeatTitle') }}</h2>
           <p><KeywordText :text="t('combat.defeatText', { n: state.turn })" /></p>
-          <p v-if="newEggs" class="new-eggs">{{ t('common.newEggs', { n: newEggs }) }}</p>
           <button @click="emit('menu')">{{ t('complete.toMenu') }}</button>
         </template>
       </div>
@@ -918,7 +980,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </template>
 
 <style scoped>
-.new-eggs { color: var(--highlight); font-weight: 600; }
 .combat { position: relative; display: flex; flex-direction: column; gap: 16px; min-height: 100%; /* Clips the part of the cards held below the screen edge, without making the page scroll. */ overflow: clip; }
 
 .battlefield {

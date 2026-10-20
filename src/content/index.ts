@@ -12,6 +12,7 @@ import { events } from './events';
 import { families } from './families';
 import { fishermen } from './fishermen';
 import { levels } from './levels';
+import { progression } from './progression';
 import { blessings, shop } from './shop';
 import { spots } from './spots';
 
@@ -27,6 +28,7 @@ export const contentSource: ContentSource = {
   events,
   shop,
   blessings,
+  progression,
   companionBonuses,
   families,
   spots,

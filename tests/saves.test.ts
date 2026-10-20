@@ -82,8 +82,44 @@ describe('saves from before stars, sizes and the bucket limit', () => {
   });
 
   it('profile v5: keeps everything, with only the default builds unlocked and no fisherman met', () => {
-    const old = { version: 5, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {}, eggs: ['clownfish'] };
-    const profile = upgradeProfile(old as never)!;
-    expect(profile).toEqual({ ...old, version: PROFILE_VERSION, unlockedBuilds: [], fishermenMet: [] });
+    const old = { version: 5, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {} };
+    const profile = upgradeProfile({ ...old, eggs: [] } as never)!;
+    expect(profile).toEqual({ ...old, version: PROFILE_VERSION, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [] });
+  });
+});
+
+describe('saves from before the Logbook', () => {
+  it('profile v6: keeps everything, with no golden shells and no Logbook node bought', () => {
+    const old = { version: 6, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {}, unlockedBuilds: ['fly'], fishermenMet: ['oldNed'] };
+    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, goldenShells: 0, logbook: [], recovering: [] });
+  });
+
+  it('profile v7: no companion resting', () => {
+    const old = { version: 7, homeAquarium: [], creatureBook: {}, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 2, logbook: ['tackleBox'] };
+    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, recovering: [] });
+  });
+
+  it('profile v8: waiting eggs hatch into the home aquarium, small and at bond level 1', () => {
+    // Clownfish: full bond 40, level 1 at 8.
+    const old = { version: 8, homeAquarium: [{ id: 'guppy', bond: 3, size: 'normal' }], creatureBook: {}, biggestCatch: {}, eggs: ['clownfish', 'clownfish'], unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [] };
+    const { eggs: _, ...rest } = old;
+    expect(upgradeProfile(old as never)).toEqual({
+      ...rest,
+      version: PROFILE_VERSION,
+      homeAquarium: [old.homeAquarium[0], { id: 'clownfish', size: 'small', bond: 8 }, { id: 'clownfish', size: 'small', bond: 8 }],
+    });
+  });
+
+  it('run save v20: the nodes done are this level’s, and the companions start from today’s bond', () => {
+    const run = { map: { columns: [] }, bucket: [], visited: ['start', 'a', 'b'], companions: [{ id: 'clownfish', bond: 12, size: 'normal' }] };
+    const save = upgradeSave({ version: 20, run, combat: null } as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run).toMatchObject({ nodesDone: 2, companionBondsAtStart: [12] });
+  });
+
+  it('run save v19: the run has no Logbook node', () => {
+    const save = upgradeSave({ version: 19, run: { map: { columns: [] }, bucket: [] }, combat: null } as never)!;
+    expect(save.version).toBe(SAVE_VERSION);
+    expect(save.run.progression).toEqual([]);
   });
 });

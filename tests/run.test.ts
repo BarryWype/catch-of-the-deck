@@ -9,7 +9,6 @@ import {
   bringCatchHome,
   createCombat,
   previewIntent,
-  layEggs,
   SESSION_SLOTS,
   takeFromHome,
   createRun,
@@ -197,19 +196,6 @@ describe('capture record', () => {
     const captured = recordEncounter(seen, { ...combat, phase: 'won' });
     expect(Object.values(captured).every((s) => s === 'captured')).toBe(true);
     expect(recordEncounter(captured, { ...combat, phase: 'fled' })).toBe(captured); // never downgraded
-  });
-
-  it('only species with at least two in the home aquarium lay eggs, at their breed chance', () => {
-    const data = { ...testData, enemies: { ...testData.enemies, dummy: { ...testData.enemies.dummy, breedChance: 0.1 } } };
-    const home = ['dummy', 'dummy', 'dummy', 'cycler', 'cycler'].map((id) => homeCreature(id));
-    let eggs = 0;
-    for (let seed = 0; seed < 2000; seed++) {
-      const laid = layEggs(home, createRun(seed, data, 'basic'), data);
-      expect(laid.every((id) => id === 'dummy')).toBe(true); // cycler has no breed chance
-      expect(laid.length).toBeLessThanOrEqual(1);
-      eggs += laid.length;
-    }
-    expect(eggs / 2000).toBeCloseTo(0.1, 1);
   });
 
   it('creatures brought from the home aquarium start the run in the bucket', () => {

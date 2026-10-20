@@ -7,7 +7,8 @@ import SpriteView from './SpriteView.vue';
 import { t } from './i18n';
 
 /** The creatures picked from the home aquarium to start the run in the bucket, one per slot. */
-const props = defineProps<{ brought: HomeCreature[]; data: GameData }>();
+/** `extraStars`: stars every companion counts on top of its own (the Logbook's). */
+const props = withDefaults(defineProps<{ brought: HomeCreature[]; data: GameData; extraStars?: number }>(), { extraStars: 0 });
 const emit = defineEmits<{ remove: [index: number]; pick: [] }>();
 
 const slots = computed(() =>
@@ -18,7 +19,7 @@ const slots = computed(() =>
     return {
       creature,
       bond: bondLevel(picked, props.data),
-      stars: companionStars(picked, props.data),
+      stars: companionStars(picked, props.data, props.extraStars),
       bonus: creature.temperament ? props.data.companionBonuses[creature.temperament] : undefined,
     };
   }),
@@ -26,7 +27,7 @@ const slots = computed(() =>
 
 /** What the picked creatures give together, with their scaled numbers, and what more stars would change. */
 const bonuses = computed(() =>
-  activeBonuses(props.brought, props.data).map((b) => {
+  activeBonuses(props.brought, props.data, props.extraStars).map((b) => {
     const next = nextStars(b);
     return {
       ...b,

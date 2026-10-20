@@ -26,6 +26,8 @@ export interface ContentTranslations {
   events?: Record<string, { name?: string; description?: string; choices?: string[] }>;
   /** Shop item id → name. */
   shop?: Record<string, string>;
+  /** Logbook node id → its name and description. */
+  progression?: Record<string, { name?: string; description?: string }>;
   /** Fishing spot id → name. */
   spots?: Record<string, string>;
   /** Place names on the map, keyed by their English text: coast visits (coast.ts), and the levels' mini-bosses, bosses and fixed first nodes (levels.ts). */
@@ -71,6 +73,7 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       };
     }),
     shop: source.shop.map((s) => ({ ...s, name: tr.shop?.[s.id] ?? s.name })),
+    progression: source.progression.map((n) => ({ ...n, ...tr.progression?.[n.id] })),
     spots: source.spots.map((s) => ({ ...s, name: tr.spots?.[s.id] ?? s.name })),
     coast: {
       places: source.coast.places.map((p) => ({ ...p, visits: p.visits.map((v) => v && { ...v, label: place(v.label) }) })),

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { bonusTotal, companionEffects, saleValue, type GameData, type RunState } from '../engine';
+import { progressionTotal, runSellBonus, saleValue, type GameData, type RunState } from '../engine';
 import Aquarium from './Aquarium.vue';
 import BaitConfirm from './BaitConfirm.vue';
 import BaitLabel from './BaitLabel.vue';
@@ -20,8 +20,7 @@ const waiting = computed(() => {
   const caught = props.run.waiting[0];
   const def = caught && props.data.enemies[caught.id];
   if (!def) return null;
-  const sellBonus = bonusTotal(companionEffects(props.run.companions, props.data), 'sellBonus');
-  return { def, size: caught.size, value: saleValue(caught.id, sellBonus, props.data), more: props.run.waiting.length - 1 };
+  return { def, size: caught.size, value: saleValue(caught.id, runSellBonus(props.run, props.data), props.data), more: props.run.waiting.length - 1 };
 });
 const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
 </script>
@@ -52,6 +51,8 @@ const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
       :capacity="run.bucketSize"
       :companions="run.companions.length"
       :bonds="run.companions.map((c) => c.bond)"
+      :sell-bonus="runSellBonus(run, data)"
+      :extra-stars="progressionTotal(run.progression, data, 'companionStars')"
       :data="data"
       :title="t('aquarium.bucket')"
       :sell-label="t('bucketFull.swap', { name: waiting.def.name })"
