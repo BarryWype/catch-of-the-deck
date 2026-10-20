@@ -4,6 +4,8 @@ import GameIcon from './GameIcon.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { bondLevel, bondToFull, companionStars, describeCompanionEffect, MAX_BOND_LEVEL, type Catch, type GameData, type Habitat } from '../engine';
 import AnimatedSprite from './AnimatedSprite.vue';
+import BaitConfirm from './BaitConfirm.vue';
+import BaitLabel from './BaitLabel.vue';
 import { t } from './i18n';
 import PixelBubbles from './PixelBubbles.vue';
 import SpriteView from './SpriteView.vue';
@@ -22,8 +24,14 @@ const props = withDefaults(
     icon?: string;
     /** False: just to look at, creatures can't be clicked. */
     interactive?: boolean;
-    /** What clicking a creature offers: selling it, or bringing it for the session. */
-    action?: 'sell' | 'bring';
+    /** What clicking a creature offers: selling it, bringing it for the session, or only using it as bait (in a fight). */
+    action?: 'sell' | 'bring' | 'bait';
+    /** Also offer using it as bait, next to selling. */
+    bait?: boolean;
+    /** The bait button's text, when it isn't a plain "Use as bait". */
+    baitLabel?: string;
+    /** In a fight: room left in the hand, for where the bait cards go. */
+    handSpace?: number;
     /** Why bringing is unavailable right now (e.g. all slots taken), if it is. */
     bringBlocked?: string;
     /**
@@ -46,9 +54,12 @@ const props = withDefaults(
     companions: undefined,
     bonds: undefined,
     sellLabel: undefined,
+    bait: false,
+    baitLabel: undefined,
+    handSpace: undefined,
   },
 );
-const emit = defineEmits<{ sell: [slot: number]; bring: [slot: number] }>();
+const emit = defineEmits<{ sell: [slot: number]; bring: [slot: number]; bait: [slot: number] }>();
 
 const SIZE = 96;
 
@@ -247,6 +258,19 @@ function act(r: Resident | undefined = selected.value) {
 /** The same creatures as a list, easier to pick from than a crowded tank. Stays open between actions. */
 const list = ref<HTMLDialogElement>();
 
+const baitable = computed(() => props.action === 'bait' || props.bait);
+/** Using a creature as bait asks first (`BaitConfirm`). */
+const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
+let baitSlot = -1;
+function askBait(r: Resident) {
+  baitSlot = r.slot;
+  baitConfirm.value?.open(props.creatures[r.slot], props.companions !== undefined && r.slot < props.companions);
+}
+function bait() {
+  emit('bait', baitSlot);
+  selectedKey.value = null;
+}
+
 // Decoration: seaweed from objects.png (1 green algae, 2 red algae, 3 seaweed). `flip` mirrors the
 // sprite so they don't all lean the same way. Bubbles: PixelBubbles.
 const plants = [
@@ -321,14 +345,17 @@ const plants = [
         <strong>{{ selected.name }}</strong>
         <span class="size">{{ t(`size.${selected.size}`) }}<template v-if="selected.stars"> · <span class="stars">{{ t('aquarium.stars', { n: selected.stars }) }}</span></template></span>
         <span v-if="selected.bond" class="bond-text">♥ {{ selected.bond.text }}</span>
-        <template v-if="action === 'sell'">
+        <template v-if="action !== 'bring'">
           <span v-if="selected.angry" class="mood">{{ t('aquarium.angryMood') }}</span>
           <span v-else-if="companions !== undefined && selected.bonus" class="mood">
             {{ selected.bonus.icon }} {{ t('aquarium.companionMood', { bonus: selected.bonus.name }) }}
           </span>
-          <span class="sell-value"><GameIcon icon="🪙" /> {{ selected.sellValue }}</span>
+          <span v-if="action === 'sell'" class="sell-value"><GameIcon icon="🪙" /> {{ selected.sellValue }}</span>
           <div class="actions">
-            <button @click="act()">{{ sellLabel ?? t('aquarium.sell') }}</button>
+            <button v-if="action === 'sell'" @click="act()">{{ sellLabel ?? t('aquarium.sell') }}</button>
+            <button v-if="baitable" class="bait" @click="askBait(selected)">
+              <BaitLabel :text="baitLabel ?? t('bait.use')" :creature="creatures[selected.slot]" :data="data" />
+            </button>
             <button class="ghost" @click="selectedKey = null">{{ t('aquarium.keep') }}</button>
           </div>
         </template>
@@ -368,7 +395,10 @@ const plants = [
               <span v-if="companions !== undefined && !r.angry && r.bonus">{{ r.bonus.icon }} {{ r.bonus.name }}</span>
             </span>
           </span>
-          <button v-if="action === 'sell'" @click="act(r)">{{ sellLabel ?? t('aquarium.sell') }} <GameIcon icon="🪙" /> {{ r.sellValue }}</button>
+          <span v-if="action !== 'bring'" class="row-actions">
+            <button v-if="action === 'sell'" @click="act(r)">{{ sellLabel ?? t('aquarium.sell') }} <GameIcon icon="🪙" /> {{ r.sellValue }}</button>
+            <button v-if="baitable" class="bait" @click="askBait(r)"><BaitLabel :text="baitLabel ?? t('bait.use')" :creature="creatures[r.slot]" :data="data" /></button>
+          </span>
           <button v-else v-tip="bringBlocked" :disabled="!!bringBlocked" @click="act(r)">{{ t('aquarium.bring') }}</button>
         </li>
       </ul>
@@ -377,6 +407,7 @@ const plants = [
         <button class="ghost" autofocus @click="list?.close()">{{ t('common.close') }}</button>
       </footer>
     </dialog>
+    <BaitConfirm v-if="baitable" ref="baitConfirm" :data="data" :hand-space="handSpace" @confirm="bait" />
   </section>
 </template>
 
@@ -401,6 +432,7 @@ button.count { z-index: 6; padding: 0 8px; border: 1px solid var(--line); border
 .rows .stars { color: #f2c94c; }
 .rows .bond-text { color: #f08bb0; }
 .rows button { flex: none; white-space: nowrap; }
+.row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 
 .tank {
   --size: 96px;
@@ -522,7 +554,7 @@ button.count { z-index: 6; padding: 0 8px; border: 1px solid var(--line); border
 /* The life jacket's buoy, on the other side from the mood and bond marks. */
 .jacket { position: absolute; top: -4px; left: 14px; font-size: 1rem; pointer-events: none; }
 .sell-panel .blocked { color: var(--muted); font-size: 0.75rem; }
-.sell-panel .actions { display: flex; gap: 6px; margin-top: 4px; }
+.sell-panel .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
 
 .empty {
   position: absolute;

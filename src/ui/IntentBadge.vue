@@ -42,8 +42,8 @@ const damage = computed(() => {
 const TAG_NAMES = { strike: t('intent.strike'), pull: t('intent.pull'), secondWind: t('intent.secondWind') } as const;
 /** The move's own tooltip: what its role and its special do, then its rules. */
 const body = computed(() => {
-  const { role, special, description } = props.intent;
-  const roleText = role && role !== 'special' ? t(`intent.role.${role}` as TextKey) : '';
+  const { role, special, description, delayed } = props.intent;
+  const roleText = delayed ? t('intent.delayed', { move: delayed }) : role && role !== 'special' ? t(`intent.role.${role}` as TextKey) : '';
   const specialText = special ? t(`intent.special.${special.key}` as TextKey, { card: special.card ?? '' }) : '';
   return [roleText, specialText, description].filter(Boolean).join(' ');
 });
@@ -62,7 +62,9 @@ const body = computed(() => {
         <b v-else-if="kind === 'defend' && intent.block">{{ intent.block }}</b>
       </span>
     </div>
-    <div class="move"><span class="tag" :class="intent.tag">{{ TAG_NAMES[intent.tag] }}</span> {{ intent.moveName }}</div>
+    <div class="move">
+      <span class="tag" :class="intent.tag">{{ TAG_NAMES[intent.tag] }}</span> {{ intent.moveName }}<span v-if="intent.delayed" class="delayed"> → {{ intent.delayed }}</span>
+    </div>
   </div>
 </template>
 
@@ -94,6 +96,7 @@ const body = computed(() => {
 .tag.strike { background: #8a2f36; }
 .tag.pull { background: #2a6b6b; }
 .tag.secondWind { background: #6a3f8a; }
+.delayed { color: var(--muted); font-weight: 500; }
 /* Small screens: tighter chips, and a move name that wraps rather than overflowing. */
 @media (max-width: 700px), (max-height: 500px) {
   .icon { padding: 2px 6px; }

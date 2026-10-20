@@ -32,6 +32,8 @@ export interface IntentPreview {
   debuffText?: string;
   /** How hard the move is: one to three pips next to the badge's value. Display-only. */
   intensity?: MoveIntensity;
+  /** The move bait put off (`delayMove`): it comes on the creature's turn after this one. */
+  delayed?: string;
 }
 
 /** A mini-boss's or boss's Second Wind: not in its move set, telegraphed once (`telegraphSecondWind`). */
@@ -76,6 +78,12 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
   enemy.intentHidden = !!enemy.inked;
   enemy.inked = false;
   if (telegraphSecondWind(enemy, data)) return;
+  // After the Pace bait put in, the move it put off.
+  if (enemy.delayedIntent !== undefined) {
+    enemy.intent = enemy.delayedIntent;
+    delete enemy.delayedIntent;
+    return;
+  }
   const moves = data.enemies[enemy.defId].moves;
   const pattern = patternOf(enemy, data);
   const history = enemy.moveHistory;
@@ -114,6 +122,8 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
 
 /** How much bigger a move is than usual: its statuses (`nextMoveMods`), and a heavy Shake the Hook when the player has no Hold. */
 function moveMods(state: CombatState, enemy: EnemyState, move: EnemyMove) {
+  // The Pace bait put in leaves the statuses to the move it put off.
+  if (enemy.delayedIntent !== undefined && move.role === 'pace') return { scale: 1, less: 0, used: [] };
   const mods = nextMoveMods(enemy, move);
   const shake = state.player.block === 0 && move.effects.some((e) => e.type === 'pull' && e.heavyIfNoHold);
   return { ...mods, scale: shake ? (mods.scale * MOVE_INTENSITY.heavy) / MOVE_INTENSITY[move.intensity] : mods.scale };
@@ -134,7 +144,8 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
   }
   // A mini-boss's or boss's Wind-up also makes it stronger.
   if (move.role === 'windUp' && enemy.boss) resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, ctx);
-  if (move.id !== SECOND_WIND_ID) enemy.moveHistory.push(move.id);
+  // A move played in place of one put off by bait isn't part of its pattern.
+  if (move.id !== SECOND_WIND_ID && enemy.delayedIntent === undefined) enemy.moveHistory.push(move.id);
 }
 
 /** The move's effects with its Strikes and Pulls at this fight's size (`damageScale`), for its description. */
@@ -169,6 +180,7 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
     description: describeEffects(scaledEffects(move, enemy), { byCreature: true }),
     kinds: [],
   };
+  if (enemy.delayedIntent !== undefined) preview.delayed = getIntentMove({ ...enemy, intent: enemy.delayedIntent }, data)?.name;
   const arrowEffects: { buff: Effect[]; debuff: Effect[] } = { buff: [], debuff: [] };
   const addKind = (k: IntentKind, effect?: Effect) => {
     if (!preview.kinds.includes(k)) preview.kinds.push(k);
@@ -223,6 +235,7 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
       case 'venomCoating':
       case 'flipIntent':
       case 'rerollIntent':
+      case 'delayMove':
       case 'holdFromIntent':
         addKind('buff', effect);
         break;

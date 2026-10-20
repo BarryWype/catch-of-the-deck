@@ -242,6 +242,9 @@ export const frContent: ContentTranslations = {
   },
 
   cards: {
+    bait: 'Appât',
+    cutBait: 'Appât coupé',
+    bigLure: 'Gros leurre',
     pebbleInTheBoot: 'Caillou dans la botte',
     slimySeaweed: 'Algue gluante',
     tangledLine: 'Ligne emmêlée',

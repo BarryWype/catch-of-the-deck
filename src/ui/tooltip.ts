@@ -1,4 +1,5 @@
 import { shallowRef, type Directive } from 'vue';
+import type { CardDef } from '../engine';
 
 /**
  * Hover text for any element: `v-tip="'Coins'"` or `v-tip="{ title, detail, body, hint }"`.
@@ -17,6 +18,8 @@ export type TipContent =
       body?: string;
       /** Small green line, e.g. "Your gear is strong against these". */
       hint?: string;
+      /** A card, drawn in full under the text (the bait a creature gives). */
+      card?: CardDef;
     };
 export type TipValue = TipContent | null | undefined | false;
 
@@ -36,7 +39,7 @@ const contents = new WeakMap<Element, TipValue>();
 function normalize(value: TipValue): ActiveTip['content'] | null {
   if (!value) return null;
   if (typeof value === 'string') return { title: value };
-  return value.title || value.detail || value.body || value.hint ? value : null;
+  return value.title || value.detail || value.body || value.hint || value.card ? value : null;
 }
 
 function show(anchor: Element) {

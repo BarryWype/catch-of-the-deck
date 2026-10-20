@@ -100,6 +100,8 @@ export type Effect =
   | { type: 'flipIntent'; target?: EffectTarget }
   /** The target's next move becomes another of its moves, picked at random. */
   | { type: 'rerollIntent'; target?: EffectTarget }
+  /** The target plays its Pace on its next turn, and the move it had planned on the turn after (`EnemyState.delayedIntent`). */
+  | { type: 'delayMove'; target?: EffectTarget }
   /** Gain Hold equal to the target's next Strike damage or Pull amount, up to `max` (0 for other moves). */
   | { type: 'holdFromIntent'; max: number; target?: EffectTarget }
   /** `effects` happen again at the start of each of the player's next `turns` turns, on the same target. */
@@ -167,6 +169,11 @@ export interface CardDef {
   unplayable?: boolean;
   /** What a junk card does while it sits in the hand: Grit lost if it's still there at the end of the turn, Hold taken off every Hold card. */
   inHand?: { gritAtEndOfTurn?: number; holdLess?: number };
+  /**
+   * A bait card, made from a bucket creature of this tier (`useAsBait`): never offered as a reward,
+   * and gone from the deck for the rest of the run once played.
+   */
+  bait?: number;
   /** Placeholder art (emoji). Display-only; ignored by the engine. */
   art?: string;
 }
@@ -680,6 +687,8 @@ export interface EnemyState extends Combatant {
   tags: string[];
   /** The move this enemy will perform on its next turn (shown to the player). */
   intent: string | null;
+  /** The move it had planned before bait (`delayMove`) made `intent` its Pace: it plays it on the turn after. */
+  delayedIntent?: string;
   moveHistory: string[];
   /** The escape bar, 0..escapeAt: it flees at `escapeAt` and is captured at 0. */
   escape: number;

@@ -110,6 +110,7 @@ export function validateContent(source: ContentSource): string[] {
           e.type === 'multiplyStatus' ||
           e.type === 'flipIntent' ||
           e.type === 'rerollIntent' ||
+          e.type === 'delayMove' ||
           e.type === 'holdFromIntent' ||
           e.type === 'venomNow' ||
           e.type === 'swapHealthAndWill') &&
@@ -257,6 +258,11 @@ export function validateContent(source: ContentSource): string[] {
   }
   for (const card of source.cards) {
     if (card.family !== undefined && !familyIds.has(card.family)) errors.push(`Card "${card.id}": unknown family "${card.family}".`);
+    if (card.bait !== undefined && card.family !== undefined) errors.push(`Card "${card.id}": a bait card is never offered, so it has no family.`);
+  }
+  // A creature makes its tier's bait card (`baitCards`).
+  for (const tier of new Set(source.cards.flatMap((c) => (c.bait === undefined ? [] : [c.bait])))) {
+    if (source.cards.filter((c) => c.bait === tier).length > 1) errors.push(`Tier ${tier} has more than one bait card.`);
   }
 
   validateLevels(source, typeIds, enemyIds, errors);

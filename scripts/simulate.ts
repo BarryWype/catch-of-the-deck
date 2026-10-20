@@ -191,7 +191,8 @@ function evaluate(s: CombatState): number {
     const will = 1 - e.escape / e.escapeAt;
     score += 100 * Math.max(health, will) + 30 * Math.min(health, will);
     for (const id of DEBUFFS) score += 2 * (e.statuses[id] ?? 0);
-    const p = previewIntent(s, e, data);
+    // A move put off by bait (its Pace now) counts as a turn it does nothing.
+    const p = e.delayedIntent === undefined ? previewIntent(s, e, data) : null;
     const hit = (p?.damage ?? 0) * (p?.hits ?? 1);
     strike += hit;
     pull += p?.pull ?? 0;

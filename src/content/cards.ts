@@ -330,6 +330,20 @@ export const cards: CardDef[] = [
     effects: [{ type: 'dealDamage', amount: 4 }, { type: 'changeEscape', amount: -5 }],
   },
 
+  // --- Bait: made from a bucket creature of its tier (`bait`), gone from the deck once played ---
+  {
+    id: 'bait', name: 'Bait', art: '🪱', type: 'drain', rarity: 'normal', cost: 0, target: 'enemy', bait: 1, tags: ['drain', 'intent'],
+    effects: [{ type: 'changeEscape', amount: -15 }, { type: 'delayMove' }],
+  },
+  {
+    id: 'cutBait', name: 'Cut Bait', art: '🔪', type: 'drain', rarity: 'normal', cost: 0, target: 'none', bait: 2, tags: ['drain', 'intent'],
+    effects: [{ type: 'changeEscape', amount: -10, target: 'allEnemies' }, { type: 'delayMove', target: 'allEnemies' }],
+  },
+  {
+    id: 'bigLure', name: 'Big Lure', art: 'lure1', type: 'drain', rarity: 'normal', cost: 0, target: 'enemy', bait: 3, tags: ['drain', 'intent'],
+    effects: [{ type: 'changeEscape', amount: -30 }, { type: 'delayMove' }],
+  },
+
   // --- Junk: creatures' special moves slip these into the deck for the fight (`addJunk`) ---
   { id: 'pebbleInTheBoot', name: 'Pebble in the Boot', art: '🥾', type: 'junk', rarity: 'normal', cost: 0, target: 'none', unplayable: true, effects: [] },
   { id: 'slimySeaweed', name: 'Slimy Seaweed', art: '🌿', type: 'junk', rarity: 'normal', cost: 1, target: 'none', exhaust: true, inHand: { gritAtEndOfTurn: 2 }, effects: [] },

@@ -107,6 +107,8 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       return text('describe.flipIntent');
     case 'rerollIntent':
       return text('describe.rerollIntent');
+    case 'delayMove':
+      return text(`describe.delayMove.${effect.target ?? 'target'}`);
     case 'holdFromIntent':
       return text('describe.holdFromIntent', { n: effect.max });
     case 'echoDamage':
@@ -142,5 +144,6 @@ export function describeCard(card: CardDef, opts: DescribeOptions = {}): string 
   if (card.inHand?.holdLess) parts.push(text('describe.inHandHold', { n: card.inHand.holdLess }));
   if (card.target === 'random') parts.push(text('describe.onRandom'));
   if (card.exhaust) parts.push(text(card.type === 'junk' ? 'describe.clearJunk' : 'describe.exhaust'));
+  if (card.bait) parts.push(text('describe.bait'));
   return parts.join(' ');
 }

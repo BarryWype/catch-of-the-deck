@@ -171,7 +171,9 @@ const deckCards = computed(() =>
         :data="data"
         :title="t('aquarium.bucket')"
         icon="🪣"
+        bait
         @sell="game.sell"
+        @bait="game.bait"
       />
     </div>
     <CombatView
@@ -185,6 +187,7 @@ const deckCards = computed(() =>
       :character="data.builds[run.build]?.character"
       :release-reason="isReleaseFight(run) ? (findNode(run.map, run.position)?.releaseReason ?? t('combat.defaultRelease')) : null"
       @action="game.dispatch"
+      @bait="game.bait"
       @claim-victory="game.claimVictory"
       @leave="game.leaveFight"
       @menu="game.toMenu"
@@ -200,7 +203,14 @@ const deckCards = computed(() =>
         />
       </template>
     </CombatView>
-    <BucketFull v-else-if="screen === 'bucketFull'" :run="run" :data="data" @keep="game.keepWaiting" @sell="game.sellWaiting" />
+    <BucketFull
+      v-else-if="screen === 'bucketFull'"
+      :run="run"
+      :data="data"
+      @keep="game.keepWaiting"
+      @sell="game.sellWaiting"
+      @bait="game.baitWaiting"
+    />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <FishermanScreen
       v-else-if="screen === 'fisherman'"

@@ -165,6 +165,7 @@ Effect reference:
 | `ifIntent`, `ifNoAttack` | `tag` + `then`/`else` / `then`/`else` | Depending on the creature's next move (Strike or Pull), or on whether you've played an attack this turn |
 | `ifStatus` | `status` + `then`/`else` | Depending on whether the target has that status (e.g. it's Slowed) |
 | `flipIntent`, `rerollIntent`, `holdFromIntent` | — / — / `max` | Change the creature's next move, or gain Hold from it |
+| `delayMove` | `target?` | The creature Paces this turn and plays the move it planned on its next turn (bait cards) |
 | `coil`, `venomBonus`, `venomCoating` | — / `amount` / `amount` | This turn: double the next attack; +damage to Venomed creatures; Venom on every hit |
 | `venomNow`, `swapHealthAndWill` | — | Venom hits now; swap health % and Will % |
 | `power` | `power`, `amount?` | A Power for the rest of the fight (see `PowerId` in `src/engine/types.ts`) |

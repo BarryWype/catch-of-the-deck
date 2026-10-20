@@ -15,6 +15,7 @@ import {
   escapeRise,
   takeReport,
   HOLD_PER_PATIENCE,
+  MAX_HAND_SIZE,
   MAX_PATIENCE,
   PATIENCE_ESCAPE_PERCENT,
   validateAction,
@@ -26,6 +27,7 @@ import {
   type GameData,
   type RunState,
 } from '../engine';
+import Aquarium from './Aquarium.vue';
 import CardView from './CardView.vue';
 import KeywordText from './KeywordText.vue';
 import { t, term, type TextKey } from './i18n';
@@ -64,7 +66,14 @@ const props = defineProps<{
   /** The player's art (`BuildDef.character`). */
   character?: string;
 }>();
-const emit = defineEmits<{ action: [CombatAction]; claimVictory: []; leave: []; menu: [] }>();
+const emit = defineEmits<{ action: [CombatAction]; bait: [slot: number]; claimVictory: []; leave: []; menu: [] }>();
+
+/** The bucket, opened from under the draw pile: its creatures can be used as bait mid-fight. */
+const bucketDialog = ref<HTMLDialogElement>();
+function bait(slot: number) {
+  bucketDialog.value?.close();
+  emit('bait', slot);
+}
 
 const PATIENCE_TIP = t('combat.patienceTip', { hold: HOLD_PER_PATIENCE, percent: PATIENCE_ESCAPE_PERCENT, max: MAX_PATIENCE });
 
@@ -780,6 +789,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <section class="controls">
       <div class="side">
         <div v-tip="t('combat.drawPile')" class="pile">🂠 {{ t('combat.draw', { n: state.piles.draw.length }) }}</div>
+        <button
+          v-if="run"
+          class="ghost bucket-button"
+          v-tip="t('bait.bucketTip')"
+          :disabled="!isPlayerTurn || !run.bucket.length"
+          @click="bucketDialog?.showModal()"
+        >
+          🪣 {{ t('aquarium.countOf', { n: run.bucket.length, max: run.bucketSize }) }}
+        </button>
       </div>
 
       <div class="hand">
@@ -824,6 +842,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     >
       <CardView :card="data.cards[card.defId]" :description="card.text" />
     </div>
+
+    <dialog v-if="run" ref="bucketDialog" class="confirm bucket-dialog" :aria-label="t('aquarium.bucket')" @click="$event.target === bucketDialog && bucketDialog?.close()">
+      <h3>🪣 {{ t('aquarium.bucket') }}</h3>
+      <Aquarium
+        class="aquarium"
+        :creatures="run.bucket"
+        :capacity="run.bucketSize"
+        :companions="run.companions.length"
+        :bonds="run.companions.map((c) => c.bond)"
+        :data="data"
+        :title="t('aquarium.bucket')"
+        icon="🪣"
+        action="bait"
+        :hand-space="MAX_HAND_SIZE - state.piles.hand.length"
+        @bait="bait"
+      />
+      <footer>
+        <button class="ghost" autofocus @click="bucketDialog?.close()">{{ t('common.close') }}</button>
+      </footer>
+    </dialog>
 
     <!-- The debug scenario's in-fight tools (DebugCombatTools), from App. -->
     <slot name="debug" />
@@ -1174,6 +1212,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 }
 .tension-bar i.empty { filter: grayscale(1) brightness(0.35); opacity: 0.7; }
 .pile { font-size: 0.85rem; color: var(--muted); }
+.bucket-button { padding: 4px 10px; font-size: 0.85rem; }
+.bucket-dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.bucket-dialog[open] { display: flex; flex-direction: column; }
+.bucket-dialog .aquarium { height: min(360px, 60dvh); }
 /* The hourglasses overlap a little, like a stack; spent ones fade to grey. */
 .patience { cursor: help; width: 100%; display: flex; justify-content: space-around; }
 .patience .game-icon { display: block; width: 30px; height: 30px; filter: drop-shadow(0 2px 0 #0d0f14); }

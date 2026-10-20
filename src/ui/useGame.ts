@@ -2,6 +2,7 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { gameData } from './i18n';
 import {
   addCardToDeck,
+  baitCatch,
   rerollReward,
   removeCardAfterBoss,
   rewardOptions,
@@ -40,6 +41,8 @@ import {
   rollCardRewards,
   sellCreature,
   travelTo,
+  useAsBait,
+  useAsBaitInFight,
   visitEvent,
   visitShop,
   type CatchSize,
@@ -473,14 +476,31 @@ export function useGame(initialSeed: number) {
     if (run.value) run.value = sellCreature(run.value, slot, gameData);
   }
 
-  /** Bucket full: the first waiting catch takes the place of the creature at `slot`, which is sold. */
-  function keepWaiting(slot: number) {
-    if (run.value) afterBucketFull(keepCatch(run.value, slot, gameData));
+  /** The bucket's creature at `slot` becomes bait: its cards join the deck, or the hand during a fight. */
+  function bait(slot: number) {
+    if (!run.value) return;
+    if (screen.value === 'combat' && combat.value) {
+      const made = useAsBaitInFight(run.value, combat.value, slot, gameData);
+      run.value = made.run;
+      combat.value = made.combat;
+    } else {
+      run.value = useAsBait(run.value, slot, gameData);
+    }
+  }
+
+  /** Bucket full: the first waiting catch takes the place of the creature at `slot`, which is sold or used as bait. */
+  function keepWaiting(slot: number, asBait = false) {
+    if (run.value) afterBucketFull(keepCatch(run.value, slot, gameData, asBait));
   }
 
   /** Bucket full: the first waiting catch is sold. */
   function sellWaiting() {
     if (run.value) afterBucketFull(sellCatch(run.value, gameData));
+  }
+
+  /** Bucket full: the first waiting catch is used as bait. */
+  function baitWaiting() {
+    if (run.value) afterBucketFull(baitCatch(run.value, gameData));
   }
 
   /** Once no catch is waiting, on to the fight's card reward, or the map after a fight a creature fled. */
@@ -621,8 +641,10 @@ export function useGame(initialSeed: number) {
     finishSession,
     cancelLeave,
     sell,
+    bait,
     keepWaiting,
     sellWaiting,
+    baitWaiting,
     newRun,
     builds,
     unlocked,

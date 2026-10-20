@@ -115,6 +115,8 @@ The icon above a creature tells you what kind of move is coming:
 | **Special** | A light move with a trick (below). About a quarter of creatures' turns. Never two in a row. |
 | **?** | Hidden by Ink: you can't see what it will do. |
 
+**Taking the bait:** a bait card (see Your bucket) makes a creature **Pace** this turn instead of what it planned, and that move comes on its **next** turn: it's put off, not cancelled. A Wind-up put off still leads to its heavy move, and a heavy move keeps its Wind-up's bonus. The intent shows the Pace, then (→) the move that waits. Baiting a creature twice in one turn puts its move off only once.
+
 ### Specials
 
 | Special | What it does to you |
@@ -190,7 +192,13 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 ## Your bucket
 
 - **It holds 7 creatures,** the companions you brought included (bring 3 and there's room for 4 catches). The count shows on it.
-- **When a fight's catches don't fit,** you choose for each one before the card reward: sell a creature from your bucket to keep the new catch, or sell the new catch. Selling a companion ends its bonus. Sales get your companions' sell bonuses, as usual. A big group can overflow by more than one: you choose for each in turn.
+- **When a fight's catches don't fit,** you choose for each one before the card reward: sell a creature from your bucket or use it as bait to keep the new catch, or sell the new catch or use it as bait. Selling a companion ends its bonus. Sales get your companions' sell bonuses, as usual. A big group can overflow by more than one: you choose for each in turn.
+- **Bait:** any creature in your bucket, a companion too, can be used as bait, on the map, in a shop, during a fight (🪣 under your draw pile) or when your bucket is full (for the new catch too). It's gone for good: it won't come home, and a companion's bonus and bond go with it. You get a one-use bait card by its tier, two for a trophy. They cost no Tension and leave your deck for the rest of the run once played:
+  - **Bait** (shallow-water creature): Drain 15, and the creature's next move becomes a Pace.
+  - **Cut Bait** (middle tier): Drain 10 on every creature, and each one's next move becomes a Pace.
+  - **Big Lure** (deep-water creature): Drain 30, and the creature's next move becomes a Pace.
+
+  Outside a fight the cards join your deck. During one they go straight into your hand; if it's full, on top of your draw pile, drawn first next turn. You're always asked first.
 - **Sizes:** every catch is small, normal, large or a trophy. On your first fight it's 30% small, 50% normal, 17% large and 3% trophy; every fight played this run makes small rarer and large and trophy more likely, until small is only 5%. Draining a creature's Will lands a bigger one than wearing its Health down (it rolls twice and keeps the bigger). Size shows in your bucket and aquarium and goes in the creature book; it does nothing else yet.
 
 ## Home

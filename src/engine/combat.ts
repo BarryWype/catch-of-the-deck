@@ -353,7 +353,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
     checkCombatEnd(state);
   }
 
-  if (def.exhaust || def.type === 'power') state.piles.exhaust.push(card);
+  if (def.exhaust || def.bait || def.type === 'power') state.piles.exhaust.push(card);
   else state.piles.discard.push(card);
   // A mini-boss or boss brought low shows its Second Wind right away.
   for (const enemy of state.enemies) telegraphSecondWind(enemy, data);

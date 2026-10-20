@@ -294,6 +294,19 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         addLog(state, text('log.newIntent', { name: enemy.name, move: move.name }));
       }
       return;
+    case 'delayMove':
+      for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
+        if (!('intent' in t) || !ctx.data) continue;
+        const enemy = t as EnemyState;
+        const pace = ctx.data.enemies[enemy.defId]?.moves.find((m) => m.role === 'pace');
+        // A move is put off once: a second bait on the same creature changes nothing.
+        if (!pace || enemy.intent === null || enemy.delayedIntent !== undefined) continue;
+        enemy.delayedIntent = enemy.intent;
+        enemy.intent = pace.id;
+        enemy.intentHidden = false;
+        addLog(state, text('log.delayMove', { name: enemy.name, move: pace.name }));
+      }
+      return;
     case 'holdFromIntent':
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         if (!('intent' in t) || !ctx.data) continue;

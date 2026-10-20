@@ -9,6 +9,7 @@ Source: `src/content/behaviors.ts` (move sets, `move()` helper), `src/content/cr
 - Roles: pace (1 per set, light, Will rise ×0.5) · special (≤2 per set, light, never twice in a row) · wind-up (light; next move = its `followUp`, played heavy ×1.3) · heavy (only right after its Wind-up).
 - Weighted (`w`) patterns for ordinary creatures; mini-bosses/bosses use the set's `bossPattern` (`seq`, loops) + Second Wind.
 - Strength from moves: only predators, Pike, Red piranha, and mini-boss/boss Wind-ups (+1). Max +3 per fight, on top of starting Strength.
+- Bait (`delayMove`, bait cards): shown move swapped for its pace (Will rise ×0.5); the planned move is played next turn instead (`delayedIntent`), Wind-up → heavy kept. The stand-in pace uses no statuses and isn't recorded in its move history. Once per move.
 - Player statuses on its next move (used up): Cowed ½ move; Intimidated ½ Strike; Lured ½ Pull; Distracted N −N Strike; Dazzled Strikes −50%, Will +50% (timed); Weak Strikes −25%.
 
 ## Specials

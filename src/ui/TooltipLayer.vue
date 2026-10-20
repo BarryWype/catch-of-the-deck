@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { activeTip, TOOLTIP_ID } from './tooltip';
+import CardView from './CardView.vue';
 
 /**
  * The one tooltip of the app (see tooltip.ts). It sits above its element, or below when there's no
@@ -62,6 +63,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     <small v-if="activeTip.content.detail">{{ activeTip.content.detail }}</small>
     <p v-if="activeTip.content.body">{{ activeTip.content.body }}</p>
     <span v-if="activeTip.content.hint" class="hint">{{ activeTip.content.hint }}</span>
+    <CardView v-if="activeTip.content.card" class="tip-card" :card="activeTip.content.card" />
   </div>
 </template>
 
@@ -94,4 +96,5 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 small { font-size: 0.72rem; color: var(--muted); }
 p { margin: 3px 0 0; line-height: 1.35; color: #d3d7de; }
 .hint { font-size: 0.72rem; color: #7ee08a; }
+.tip-card { margin-top: 4px; }
 </style>

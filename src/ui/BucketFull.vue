@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { bonusTotal, companionEffects, saleValue, type GameData, type RunState } from '../engine';
 import Aquarium from './Aquarium.vue';
+import BaitConfirm from './BaitConfirm.vue';
+import BaitLabel from './BaitLabel.vue';
 import GameIcon from './GameIcon.vue';
 import { t } from './i18n';
 import SpriteView from './SpriteView.vue';
 
 /**
  * After a fight whose catches don't fit in the bucket: for the first waiting catch, sell a
- * creature from the bucket to keep it, or sell the catch. One catch at a time.
+ * creature from the bucket or use it as bait to keep it, or sell the catch or use it as bait.
+ * One catch at a time.
  */
 const props = defineProps<{ run: RunState; data: GameData }>();
-const emit = defineEmits<{ keep: [slot: number]; sell: [] }>();
+const emit = defineEmits<{ keep: [slot: number, asBait: boolean]; sell: []; bait: [] }>();
 
 const waiting = computed(() => {
   const caught = props.run.waiting[0];
@@ -20,6 +23,7 @@ const waiting = computed(() => {
   const sellBonus = bonusTotal(companionEffects(props.run.companions, props.data), 'sellBonus');
   return { def, size: caught.size, value: saleValue(caught.id, sellBonus, props.data), more: props.run.waiting.length - 1 };
 });
+const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
 </script>
 
 <template>
@@ -35,8 +39,12 @@ const waiting = computed(() => {
         {{ waiting.def.name }}
         <small>{{ t(`size.${waiting.size}`) }}</small>
       </span>
-      <button @click="emit('sell')">{{ t('bucketFull.sellCatch') }} · <GameIcon icon="🪙" /> {{ waiting.value }}</button>
+      <span class="choices">
+        <button @click="emit('sell')">{{ t('bucketFull.sellCatch') }} · <GameIcon icon="🪙" /> {{ waiting.value }}</button>
+        <button class="bait" @click="baitConfirm?.open(run.waiting[0])"><BaitLabel :text="t('bucketFull.baitCatch')" :creature="run.waiting[0]" :data="data" /></button>
+      </span>
     </section>
+    <BaitConfirm ref="baitConfirm" :data="data" @confirm="emit('bait')" />
     <p v-if="waiting.more" class="more">{{ t('bucketFull.more', { n: waiting.more }) }}</p>
     <Aquarium
       class="aquarium"
@@ -47,8 +55,11 @@ const waiting = computed(() => {
       :data="data"
       :title="t('aquarium.bucket')"
       :sell-label="t('bucketFull.swap', { name: waiting.def.name })"
+      bait
+      :bait-label="t('bucketFull.baitSwap', { name: waiting.def.name })"
       icon="🪣"
-      @sell="(slot) => emit('keep', slot)"
+      @sell="(slot) => emit('keep', slot, false)"
+      @bait="(slot) => emit('keep', slot, true)"
     />
   </div>
 </template>
@@ -69,6 +80,7 @@ const waiting = computed(() => {
 }
 .name { display: flex; flex: 1; flex-direction: column; min-width: 120px; font-weight: 700; line-height: 1.2; }
 .name small { color: var(--muted); font-size: 0.72rem; font-weight: 500; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .more { margin: 0; color: var(--muted); font-size: 0.8rem; }
 .aquarium { flex: 1; min-height: 220px; }
 @media (max-width: 700px), (max-height: 500px) {

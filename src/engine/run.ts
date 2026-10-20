@@ -1,6 +1,6 @@
 import { addBond, bondPerFight, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
-import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MINI_BOSS_DAMAGE } from './constants';
+import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
@@ -8,10 +8,11 @@ import { nextFloat, nextInt } from './rng';
 import { rollSize, type Catch } from './sizes';
 import { isAlive } from './effects';
 import { creatureFamilies } from './families';
+import { text } from './text';
 import { questsShownTo } from './unlocks';
 import type { ShopVisit } from './shop';
 import type { BuildDef, CardDef, CombatState, CompanionEffect, EnemyState, GameData } from './types';
-import { clone } from './util';
+import { addLog, clone } from './util';
 
 /** Everything that persists between fights. */
 export interface RunState {
@@ -107,6 +108,8 @@ export const EVENT_FIGHT_CHANCE = 0.1;
 export const SESSION_SLOTS = 3;
 /** How many creatures the bucket holds, the brought ones included. */
 export const BUCKET_SIZE = 7;
+/** How many copies of its bait card a trophy-size creature makes (`baitCards`); other sizes make one. */
+export const TROPHY_BAIT_CARDS = 2;
 
 /**
  * Start a run on the first level, with the chosen build's starter deck, its chosen starting
@@ -380,6 +383,9 @@ export function catchesOf(run: RunState, combat: CombatState): Catch[] {
  */
 export function finishCombat(run: RunState, combat: CombatState, data: GameData): RunState {
   const next = { ...clone(run), hp: Math.max(0, combat.player.hp) };
+  // Bait cards played are gone from the deck: the fight's card `c<i>` is the deck's card i.
+  const played = new Set(combat.piles.exhaust.filter((c) => data.cards[c.defId]?.bait).map((c) => c.uid));
+  next.deck = next.deck.filter((_, i) => !played.has(`c${i}`));
   if (combat.phase === 'lost') return next;
   next.hp = Math.min(next.maxHp, next.hp + bonusTotal(combat.bonuses, 'healAfterFight'));
   if (combat.phase === 'won') next.floor++;
@@ -407,12 +413,66 @@ function wearBoons(run: RunState): RunState {
   return run;
 }
 
-/** The first waiting catch goes into the bucket, in place of the creature at `slot`, which is sold (`sellCreature`). */
-export function keepCatch(run: RunState, slot: number, data: GameData): RunState {
+/**
+ * The first waiting catch goes into the bucket, in place of the creature at `slot`, which is sold
+ * (`sellCreature`), or used as bait (`useAsBait`).
+ */
+export function keepCatch(run: RunState, slot: number, data: GameData, asBait = false): RunState {
   const [caught, ...rest] = run.waiting;
   if (!caught) throw new Error('No catch is waiting.');
-  const sold = sellCreature(run, slot, data);
-  return { ...sold, bucket: [...sold.bucket, caught], waiting: rest };
+  const freed = asBait ? useAsBait(run, slot, data) : sellCreature(run, slot, data);
+  return { ...freed, bucket: [...freed.bucket, caught], waiting: rest };
+}
+
+/** The first waiting catch is used as bait: its bait cards join the deck. */
+export function baitCatch(run: RunState, data: GameData): RunState {
+  const [caught, ...rest] = run.waiting;
+  if (!caught) throw new Error('No catch is waiting.');
+  return { ...clone(run), waiting: rest, deck: [...run.deck, ...baitCards(caught, data)] };
+}
+
+/** The cards a creature makes as bait: its tier's bait card (`CardDef.bait`), `TROPHY_BAIT_CARDS` copies for a trophy. */
+export function baitCards(creature: Catch, data: GameData): string[] {
+  const tier = data.enemies[creature.id]?.tier ?? 1;
+  const card = Object.values(data.cards).find((c) => c.bait === tier);
+  if (!card) throw new Error(`No bait card for tier ${tier}`);
+  return Array.from({ length: creature.size === 'trophy' ? TROPHY_BAIT_CARDS : 1 }, () => card.id);
+}
+
+/**
+ * Use the bucket's creature at `slot` as bait, between fights: it's gone for good (it won't go home,
+ * and a companion's bonus and bond go with it, as when it's sold), and its bait cards join the deck.
+ */
+export function useAsBait(run: RunState, slot: number, data: GameData): RunState {
+  const creature = run.bucket[slot];
+  if (!creature) throw new Error(`Nothing captured at slot ${slot}`);
+  const next = withoutCreature(run, slot);
+  return { ...next, deck: [...next.deck, ...baitCards(creature, data)] };
+}
+
+/**
+ * Use the bucket's creature at `slot` as bait during the fight, as `useAsBait`: its cards join the
+ * deck (as fight cards `c<i>`, see `finishCombat`) and go straight into the hand, or on top of the
+ * draw pile once the hand is full (`MAX_HAND_SIZE`). A companion's bonus stops now; what it did as
+ * the fight started (slower Will) stays for this fight.
+ */
+export function useAsBaitInFight(run: RunState, combat: CombatState, slot: number, data: GameData): { run: RunState; combat: CombatState } {
+  if (combat.phase !== 'playerTurn') throw new Error('The fight is over.');
+  const creature = run.bucket[slot];
+  const next = useAsBait(run, slot, data);
+  const fight = clone(combat);
+  const cards = next.deck.slice(run.deck.length);
+  cards.forEach((defId, i) => {
+    const card = { uid: `c${run.deck.length + i}`, defId };
+    if (fight.piles.hand.length < MAX_HAND_SIZE) fight.piles.hand.push(card);
+    else fight.piles.draw.push(card);
+  });
+  if (slot < run.companions.length) {
+    fight.bonuses = [...companionEffects(next.companions, data), ...next.boons.flatMap((b) => (b.bonus ? [b.bonus] : []))];
+  }
+  const name = data.enemies[creature.id]?.name ?? creature.id;
+  addLog(fight, text('log.bait', { name, cards: cards.map((id) => data.cards[id].name).join(', ') }));
+  return { run: next, combat: fight };
 }
 
 /** Sell the first waiting catch, as `sellCreature` would. */

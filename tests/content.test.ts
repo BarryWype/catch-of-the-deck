@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { contentSource, gameData } from '../src/content';
 import { creatures } from '../src/content/creatures';
 import { gear } from '../src/content/gear';
-import { describeCard, startingBuilds, unlockedBuilds, validateContent, type ContentSource } from '../src/engine';
+import { baitCards, describeCard, startingBuilds, unlockedBuilds, validateContent, type ContentSource } from '../src/engine';
 
 describe('game content', () => {
   it('passes validation', () => {
@@ -27,7 +27,11 @@ describe('game content', () => {
 
   it('starter and junk cards have no family, so they are never offered; every other card has one', () => {
     const starters = new Set(Object.values(gameData.builds).flatMap((b) => b.starterDeck));
-    for (const card of Object.values(gameData.cards)) expect(card.family === undefined, card.id).toBe(starters.has(card.id) || card.type === 'junk');
+    for (const card of Object.values(gameData.cards)) expect(card.family === undefined, card.id).toBe(starters.has(card.id) || card.type === 'junk' || !!card.bait);
+  });
+
+  it('every creature tier has its bait card', () => {
+    for (const enemy of Object.values(gameData.enemies)) expect(() => baitCards({ id: enemy.id, size: 'normal' }, gameData), enemy.id).not.toThrow();
   });
 
   it('every card has rules text', () => {
