@@ -1,6 +1,6 @@
 import { addBond, bondPerFight, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
-import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MAX_CREATURES_PER_FIGHT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
+import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, ENCOUNTER_WILL_POOL, GROUP_DAMAGE_PERCENT, MAX_CREATURES_PER_FIGHT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
@@ -263,7 +263,8 @@ export function travelTo(run: RunState, nodeId: string, data: GameData): { run: 
 /**
  * Start the fight at `node` (advancing `next`'s RNG): an encounter from its fishing spot at its
  * tier (`encountersFor`), only decided on arrival. Its creatures get at least `ENCOUNTER_HP_POOL`
- * Health together and deal `ENCOUNTER_TURN_AVERAGE` per turn on average, both growing with every fight before it
+ * Health and `ENCOUNTER_WILL_POOL` starting Will together, and deal `ENCOUNTER_TURN_AVERAGE` per turn on average,
+ * all growing with every fight before it
  * (a mini-boss and a boss roll their own damage instead); a group splits the damage
  * (`GROUP_DAMAGE_PERCENT` of a share each).
  */
@@ -289,6 +290,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
       equipment: next.equipment,
       bonuses: [...runCompanionEffects(next, data), ...next.boons.flatMap((b) => (b.bonus ? [b.bonus] : []))],
       hpPool: Math.ceil((ENCOUNTER_HP_POOL * growth) / 100),
+      willPool: Math.ceil((ENCOUNTER_WILL_POOL * growth) / 100),
       damage: enemies.length > 1 ? (damage / enemies.length) * (GROUP_DAMAGE_PERCENT / 100) : damage,
       bosses: !!bossDamage,
     },

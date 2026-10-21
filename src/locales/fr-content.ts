@@ -258,6 +258,7 @@ export const frContent: ContentTranslations = {
     holdTight: 'Tenir bon',
     steadyHand: 'Main sûre',
     reelIn: 'Moulinet',
+    brace: 'Arc-bouté',
     slackLine: 'Donner du mou',
     playTheLine: 'Fatiguer la prise',
     throwTheNet: 'Lancer le filet',

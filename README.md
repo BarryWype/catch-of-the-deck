@@ -78,7 +78,7 @@ You play a young fisherman setting off on their fishing journey from the grandpa
 | Build | Unlocked by | Starter deck |
 | --- | --- | --- |
 | Rod fishing | from the start | 4 Tug, 4 Hold Tight, 1 Steady Hand, 1 Reel In |
-| Foraging | Old Ned (Kid) | 4 Reel In, 4 Hold Tight, 1 Play the Line, 1 Slack Line |
+| Foraging | Old Ned (Kid) | 4 Reel In, 4 Brace, 1 Play the Line, 1 Slack Line |
 | Net fishing | Gus the Netmaker (Adult) | 3 Tug, 2 Reel In, 3 Hold Tight, 1 Throw the Net, 1 Draw the Net |
 | Fly fishing | Silent Silas (Elder) | 3 Tug, 2 Reel In, 3 Hold Tight, 1 Wait for the Rise, 1 Perfect Cast |
 
