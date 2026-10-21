@@ -8,6 +8,7 @@ import GameIcon from './GameIcon.vue';
 import KeywordText from './KeywordText.vue';
 import SpriteView from './SpriteView.vue';
 import { COMPACT_QUERY, useMedia } from './useScreen';
+import { pressCard } from './cardZoom';
 
 const props = withDefaults(
   defineProps<{
@@ -17,8 +18,10 @@ const props = withDefaults(
     selected?: boolean;
     /** Its energy cost right now, when a tax changes it (`cardCost`). */
     cost?: number;
+    /** Holding a finger on it shows it full screen (cardZoom.ts). */
+    zoomable?: boolean;
   }>(),
-  { description: undefined, playable: true, selected: false, cost: undefined },
+  { description: undefined, playable: true, selected: false, cost: undefined, zoomable: true },
 );
 
 const shownCost = computed(() => props.cost ?? props.card.cost);
@@ -87,6 +90,10 @@ onMounted(() => {
 });
 onBeforeUnmount(() => resizes?.disconnect());
 watch(text, fitText);
+
+function onPointerDown(event: PointerEvent) {
+  if (props.zoomable) pressCard(event, () => ({ card: props.card, description: text.value, cost: props.cost }));
+}
 /** Splits out "5 (9)" pairs (printed amount, real amount) so the real one can be coloured. */
 const parts = computed(() =>
   text.value.split(/(\d+ \(\d+\))/).map((part) => {
@@ -103,6 +110,7 @@ const parts = computed(() =>
     :class="[card.type, `rarity-${card.rarity}`, { unplayable: !playable, selected }]"
     :style="{ '--family': familyColour }"
     :aria-disabled="!playable"
+    @pointerdown="onPointerDown"
   >
     <span class="waves" />
     <span class="art">

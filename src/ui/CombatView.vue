@@ -37,6 +37,7 @@ import {
 } from '../engine';
 import Aquarium from './Aquarium.vue';
 import CardView from './CardView.vue';
+import { zoomedCard } from './cardZoom';
 import KeywordText from './KeywordText.vue';
 import { t, term } from './i18n';
 import CombatantView from './CombatantView.vue';
@@ -464,6 +465,8 @@ function stopDrag() {
   window.removeEventListener('pointercancel', stopDrag);
 }
 onBeforeUnmount(stopDrag);
+// A card held still long enough is shown full screen instead of being dragged.
+watch(zoomedCard, (zoomed) => zoomed && stopDrag());
 
 /** The aiming arrow: leaves the card upwards and bends towards the pointer. */
 const arrowPath = computed(() => {

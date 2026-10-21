@@ -59,9 +59,9 @@ function hide(anchor: Element) {
 // status, an intent, a keyword) shows its tip until the next tap. The mouse and focus events
 // browsers fake after a tap are ignored, so tips don't get stuck open.
 
-const LONG_PRESS_MS = 450;
+export const LONG_PRESS_MS = 450;
 /** A finger that moves this far is scrolling or dragging, not pressing. */
-const PRESS_MOVE_PX = 10;
+export const PRESS_MOVE_PX = 10;
 /** Taps on these do something: a quick tap does that, only holding shows the tip. A creature a
  * card is aimed at (`.targetable`, CombatView) joins them, so tapping it plays the card without
  * opening its tip. */
@@ -73,7 +73,8 @@ let press: { anchor: Element; x: number; y: number; at: number; timer: ReturnTyp
 /** A tip opened by a quick tap, closed by the next tap anywhere else. */
 let tapped: Element | null = null;
 
-function clearPress() {
+/** Drops a pending long press: a card's own long press (cardZoom.ts) takes over from the tips inside it. */
+export function clearPress() {
   if (press) clearTimeout(press.timer);
   press = null;
 }
