@@ -74,11 +74,9 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     name: 'Hunter',
     temperamentName: 'Predator',
     icon: '🦈',
-    description: '+1 damage on all attacks (2 from 3★, 3 from 6★).',
+    description: '+1 damage on all attacks (2 from 3★, 3 from 6★). With 3 species, 1 more.',
     effects: [{ type: 'bonusDamage', amount: 1, byStars: [1, 1, 2, 2, 2, 3, 3, 3] }],
-    fullSchool: [
-      { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' } },
-    ],
+    fullSchool: [{ type: 'bonusDamage', amount: 1 }],
   },
   {
     id: 'ambusher',
@@ -97,7 +95,7 @@ export const companionBonuses: Array<CompanionBonusDef & { id: BehaviorId }> = [
     description: 'Your Drain drains 1 more (2 from 2★, 3 from 4★, 4 from 6★, 5 from 8★).',
     effects: [{ type: 'bonusEscapeReduction', amount: 1, byStars: [1, 2, 2, 3, 3, 4, 4, 5] }],
     fullSchool: [
-      { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'snared', amount: 1, target: 'allEnemies' } },
+      { type: 'trigger', on: 'combatStart', effect: { type: 'applyStatus', status: 'slow', amount: 1, target: 'allEnemies' } },
     ],
   },
   {
