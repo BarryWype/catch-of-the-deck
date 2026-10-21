@@ -9,12 +9,12 @@ import { t } from './i18n';
 import SpriteView from './SpriteView.vue';
 
 /**
- * After a fight whose catches don't fit in the bucket: for the first waiting catch, sell a
- * creature from the bucket or use it as bait to keep it, or sell the catch or use it as bait.
- * One catch at a time.
+ * After a fight whose catches don't fit in the bucket: for the first waiting catch, keep it once
+ * the bucket has room (made by selling bucket creatures or using them as bait, as many as the
+ * player likes), or sell the catch or use it as bait. One catch at a time.
  */
 const props = defineProps<{ run: RunState; data: GameData }>();
-const emit = defineEmits<{ keep: [slot: number, asBait: boolean]; sell: []; bait: [] }>();
+const emit = defineEmits<{ keep: []; sell: []; bait: []; sellCreature: [slot: number]; baitCreature: [slot: number] }>();
 
 const waiting = computed(() => {
   const caught = props.run.waiting[0];
@@ -22,14 +22,15 @@ const waiting = computed(() => {
   if (!def) return null;
   return { def, size: caught.size, value: saleValue(caught.id, runSellBonus(props.run, props.data), props.data, caught.size), more: props.run.waiting.length - 1 };
 });
+const full = computed(() => props.run.bucket.length >= props.run.bucketSize);
 const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
 </script>
 
 <template>
   <div v-if="waiting" class="bucket-full">
     <header class="head">
-      <h2><GameIcon icon="🪣" /> {{ t('bucketFull.title', { n: run.bucket.length, max: run.bucketSize }) }}</h2>
-      <p>{{ t('bucketFull.text', { name: waiting.def.name }) }}</p>
+      <h2><GameIcon icon="🪣" /> {{ t(full ? 'bucketFull.title' : 'bucketFull.roomTitle', { n: run.bucket.length, max: run.bucketSize }) }}</h2>
+      <p>{{ t(full ? 'bucketFull.text' : 'bucketFull.roomText', { name: waiting.def.name }) }}</p>
     </header>
     <section class="catch" :aria-label="t('bucketFull.newCatch')">
       <SpriteView v-if="waiting.def.sprite" :sprite="waiting.def.sprite" :size="64" />
@@ -39,7 +40,8 @@ const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
         <small>{{ t(`size.${waiting.size}`) }}</small>
       </span>
       <span class="choices">
-        <button @click="emit('sell')">{{ t('bucketFull.sellCatch') }} · <GameIcon icon="🪙" /> {{ waiting.value }}</button>
+        <button v-tip="full ? t('bucketFull.keepBlocked') : undefined" :disabled="full" @click="emit('keep')">{{ t('bucketFull.keep') }}</button>
+        <button @click="emit('sell')">{{ t('bucketFull.sellCatch') }} <GameIcon icon="🪙" /> {{ waiting.value }}</button>
         <button class="bait" @click="baitConfirm?.open(run.waiting[0])"><BaitLabel :text="t('bucketFull.baitCatch')" :creature="run.waiting[0]" :data="data" /></button>
       </span>
     </section>
@@ -55,12 +57,10 @@ const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
       :extra-stars="progressionTotal(run.progression, data, 'companionStars')"
       :data="data"
       :title="t('aquarium.bucket')"
-      :sell-label="t('bucketFull.swap', { name: waiting.def.name })"
       bait
-      :bait-label="t('bucketFull.baitSwap', { name: waiting.def.name })"
       icon="🪣"
-      @sell="(slot) => emit('keep', slot, false)"
-      @bait="(slot) => emit('keep', slot, true)"
+      @sell="(slot) => emit('sellCreature', slot)"
+      @bait="(slot) => emit('baitCreature', slot)"
     />
   </div>
 </template>

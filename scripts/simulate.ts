@@ -352,7 +352,7 @@ function makeRoom(run: RunState): RunState {
     const value = (slot: number) => saleValue(slot < 0 ? run.waiting[0].id : run.bucket[slot].id, 0, data);
     let cheapest = -1;
     for (let slot = run.companions.length; slot < run.bucket.length; slot++) if (value(slot) < value(cheapest)) cheapest = slot;
-    run = cheapest < 0 ? sellCatch(run, data) : keepCatch(run, cheapest, data);
+    run = cheapest < 0 ? sellCatch(run, data) : keepCatch(sellCreature(run, cheapest, data));
   }
   return run;
 }

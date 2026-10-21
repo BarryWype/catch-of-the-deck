@@ -138,7 +138,7 @@ describe('using a creature as bait', () => {
     const r = { ...run([{ id: 'perch', size: 'normal' }]), waiting: [{ id: 'catfish', size: 'normal' as const }] };
     const baited = baitCatch(r, gameData);
     expect(baited).toMatchObject({ waiting: [], deck: [...r.deck, 'cutBait'], coins: r.coins });
-    const kept = keepCatch(r, 0, gameData, true);
+    const kept = keepCatch(useAsBait(r, 0, gameData));
     expect(kept).toMatchObject({ waiting: [], deck: [...r.deck, 'bait'], coins: r.coins });
     expect(ids(kept.bucket)).toEqual(['catfish']);
   });

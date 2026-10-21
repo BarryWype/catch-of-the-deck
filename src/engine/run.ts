@@ -532,14 +532,14 @@ function wearBoons(run: RunState): RunState {
 }
 
 /**
- * The first waiting catch goes into the bucket, in place of the creature at `slot`, which is sold
- * (`sellCreature`), or used as bait (`useAsBait`).
+ * The first waiting catch goes into the bucket, once there's room: the player makes it by selling
+ * (`sellCreature`) or baiting (`useAsBait`) bucket creatures first.
  */
-export function keepCatch(run: RunState, slot: number, data: GameData, asBait = false): RunState {
+export function keepCatch(run: RunState): RunState {
   const [caught, ...rest] = run.waiting;
   if (!caught) throw new Error('No catch is waiting.');
-  const freed = asBait ? useAsBait(run, slot, data) : sellCreature(run, slot, data);
-  return { ...freed, bucket: [...freed.bucket, caught], waiting: rest };
+  if (run.bucket.length >= run.bucketSize) throw new Error('The bucket is full.');
+  return { ...clone(run), bucket: [...run.bucket, caught], waiting: rest };
 }
 
 /** The first waiting catch is used as bait: its bait cards join the deck. */

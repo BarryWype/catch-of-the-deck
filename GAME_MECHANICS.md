@@ -205,7 +205,7 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 ## Your bucket
 
 - **It holds 7 creatures,** the companions you brought included (bring 3 and there's room for 4 catches), and 1 more for each bucket page of the Logbook. The count shows on it.
-- **When a fight's catches don't fit,** you choose for each one before the card reward: sell a creature from your bucket or use it as bait to keep the new catch, or sell the new catch or use it as bait. Selling a companion ends its bonus. Sales get your companions' sell bonuses, as usual. A big group can overflow by more than one: you choose for each in turn.
+- **When a fight's catches don't fit,** you choose for each one before the card reward: keep it, or sell it or use it as bait. Keeping needs room: open the bucket's list (☰) and sell creatures or use them as bait, as many as you like, then close it and keep the new catch. Selling a companion ends its bonus. Sales get your companions' sell bonuses, as usual. A big group can overflow by more than one: you choose for each in turn.
 - **Bait:** any creature in your bucket, a companion too, can be used as bait, on the map, in a shop, during a fight (🪣 under your draw pile) or when your bucket is full (for the new catch too). It's gone for good: it won't come home, and a companion's bonus and bond go with it. You get a one-use bait card by its tier, two for a trophy. They cost no Tension and leave your deck for the rest of the run once played:
   - **Bait** (shallow-water creature): Drain 15, and the creature's next move becomes a Pace.
   - **Cut Bait** (middle tier): Drain 10 on every creature, and each one's next move becomes a Pace.
