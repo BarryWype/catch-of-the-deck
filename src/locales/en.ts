@@ -168,7 +168,7 @@ export const en = {
         baitBall: 'Whenever you play a 0-cost card: {n} drain to a random creature.',
         deadWeight: 'At the start of your turn, every creature gains {n} Slow.',
         gooeyMess: 'Every Pull against you loses {n} before it reaches your {@hold}.',
-        perfectDisguise: "At the end of your turn, if you didn't play an attack: gain {n} {@hold}, and at the start of your next turn apply 1 Slow to a random creature.",
+        perfectDisguise: "At the end of your turn, if you haven't played an attack this turn: gain {n} {@hold}, and at the start of your next turn apply 1 Slow to a random creature.",
       },
       swap: "Swap the creature's health % and {@will} %.",
       venomBonus: 'This turn, your attacks deal +{n} damage per hit to creatures with Venom.',
