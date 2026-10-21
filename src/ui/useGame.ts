@@ -48,6 +48,8 @@ import {
   useAsBaitInFight,
   visitEvent,
   visitShop,
+  takeRelic,
+  skipRelics,
   type CatchSize,
   type CombatAction,
   type CombatState,
@@ -596,12 +598,17 @@ export function useGame(initialSeed: number) {
     }
   }
 
-  function chooseEvent(choiceIndex: number) {
+  /** `pick`: the deck card or bucket slot the choice acts on, when it needs one (`eventChoicePick`). */
+  function chooseEvent(choiceIndex: number, pick?: number) {
     if (!run.value || !eventId.value) return;
-    const result = applyEventChoice(run.value, eventId.value, choiceIndex, gameData);
+    const result = applyEventChoice(run.value, eventId.value, choiceIndex, gameData, pick);
     eventId.value = null;
     shellsWon.value = 0;
-    if (result.cardReward) {
+    if (result.combat) {
+      run.value = result.run;
+      combat.value = result.combat;
+      screen.value = 'combat';
+    } else if (result.cardReward) {
       // No fight: every family's cards.
       const rewards = rollCardRewards(result.run, gameData, { families: [] });
       run.value = rewards.run;
@@ -658,6 +665,14 @@ export function useGame(initialSeed: number) {
     screen.value = 'map';
   }
 
+  /** Take one of the relics on offer (`relicChoices`, shown over the map), or leave them. */
+  function takeRelicChoice(id: string) {
+    if (run.value) run.value = takeRelic(run.value, id);
+  }
+  function skipRelicChoice() {
+    if (run.value) run.value = skipRelics(run.value);
+  }
+
   /** Skips (this level, Eel companions) and rerolls (the run's and the companions') of the card reward left. */
   const rewardLeft = computed(() => (run.value ? rewardOptions(run.value, gameData) : { skips: 0, rerolls: 0 }));
 
@@ -701,6 +716,8 @@ export function useGame(initialSeed: number) {
     claimVictory,
     leaveFight,
     chooseReward,
+    takeRelicChoice,
+    skipRelicChoice,
     rewardLeft,
     skipCardReward,
     removeBossCard,

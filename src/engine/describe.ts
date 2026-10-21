@@ -35,7 +35,7 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       if (target === 'allEnemies') return text('describe.dealAll', params);
       if (target === 'randomEnemy') return text('describe.dealRandom', params);
       if (target === 'self') return text('describe.loseGrit', params);
-      if (opts.byCreature) return text('describe.strike', params);
+      if (opts.byCreature) return text('describe.strike', params) + (effect.doubleIfHoldBelow !== undefined ? ` ${text('describe.doubleIfHoldBelow', { n: effect.doubleIfHoldBelow })}` : '');
       return text('describe.deal', params);
     }
     case 'gainBlock':
@@ -50,6 +50,10 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       return text('describe.stealPatience', { n: effect.amount });
     case 'secondWind':
       return text('describe.secondWind');
+    case 'grabCard':
+      return text('describe.grabCard', { n: effect.returnAt });
+    case 'shedDebuffs':
+      return text('describe.shedDebuffs');
     case 'applyStatus': {
       const params = { n: Math.abs(effect.amount), status: statusName(effect.status), windUpPercent: WIND_UP_PERCENT };
       const target = effect.target ?? 'target';

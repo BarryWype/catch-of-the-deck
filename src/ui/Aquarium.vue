@@ -214,7 +214,7 @@ const residents = computed(() => {
       key,
       slot,
       name: def?.name ?? id,
-      sellValue: saleValue(id, props.sellBonus, props.data),
+      sellValue: saleValue(id, props.sellBonus, props.data, size),
       habitat,
       url: def?.sprite ? animatedSheetFor(def.sprite) : undefined,
       sprite: def?.sprite,

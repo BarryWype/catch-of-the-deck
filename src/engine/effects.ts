@@ -14,9 +14,10 @@ import { applyDamage, calculateDamage } from './damage';
 import { drawCards, reshuffleDiscardIntoDraw } from './piles';
 import { reportEvent } from './report';
 import { nextInt } from './rng';
-import { addStatus, getStatus, statusName } from './statuses';
+import { addStatus, getStatus, isDebuff, statusName } from './statuses';
 import { text } from './text';
-import type { Combatant, CombatState, CompanionTrigger, Effect, EffectTarget, EnemyMove, EnemyState, GameData, PerStatus, PowerId } from './types';
+import { movesOf, traitOf } from './traits';
+import type { Combatant, CombatState, CompanionTrigger, Effect, EffectTarget, EnemyMove, EnemyState, GameData, PerStatus, PowerId, StatusId } from './types';
 import { addLog } from './util';
 
 export interface EffectContext {
@@ -140,12 +141,21 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           const fromPlayer = source.id === PLAYER_ID;
           const companionBonus = fromPlayer && !ctx.raw ? bonusTotal(state.bonuses, 'bonusDamage') : 0;
           const venomBonus = ctx.attack && getStatus(t, 'venom') > 0 ? (state.thisTurn?.venomBonus ?? 0) : 0;
-          const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : (ctx.amountScale ?? 1));
+          // A creature's Strike at the fight's size, and a Hook-scarred one's bigger.
+          const scarred = fromPlayer ? 100 : 100 + ((source as EnemyState).strikePercent ?? 0);
+          const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : ((ctx.amountScale ?? 1) * scarred) / 100);
           const base = written + (effect.perTension ?? 0) * (ctx.tension ?? 0) + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
           let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses);
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
           // Burrow: the player's attacks do less until the creature's next turn.
           if (fromPlayer && getStatus(t, 'burrowed') > 0) amount = Math.floor((amount * (100 - BURROW_PERCENT)) / 100);
+          // In its hole: nothing gets through until its next turn.
+          if (fromPlayer && getStatus(t, 'hiding') > 0) amount = 0;
+          // Breach: double when the player has little Hold left.
+          if (!fromPlayer && effect.doubleIfHoldBelow !== undefined && state.player.block < effect.doubleIfHoldBelow) amount *= 2;
+          // Drifting: so do they while its next move is its pace.
+          const guard = fromPlayer && 'escape' in t ? traitOf(t as EnemyState, ctx.data) : undefined;
+          if (guard?.type === 'paceGuard' && ctx.data && intentMove(t as EnemyState, ctx.data)?.role === 'pace') amount = Math.floor((amount * (100 - guard.percent)) / 100);
           // Spines: every hit of an attack card pricks the player.
           if (fromPlayer && ctx.attack && getStatus(state.player, 'spines') > 0) {
             const pricked = Math.min(state.player.hp, SPINES_GRIT);
@@ -173,7 +183,11 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           if (enemyAttack && !hpLost) addLog(state, text('log.held', params));
           else if (enemyAttack) addLog(state, text('log.wornDown', params));
           else addLog(state, text('log.hit', params));
-          if (enemyAttack) afterEnemyHit(state, source.id, amount, hpLost);
+          if (enemyAttack) afterEnemyHit(state, source.id, amount, hpLost, ctx.data);
+          else if (fromPlayer && 'escape' in t) {
+            afterPlayerHit(state, t as EnemyState, amount, blocked, hpLost, ctx.data);
+            takeBack(state, t as EnemyState, hpLost, ctx.data);
+          }
         }
       }
       if (strikeBlocked + strikeHpLost > 0) reportEvent({ kind: 'strike', blocked: strikeBlocked, hpLost: strikeHpLost });
@@ -192,7 +206,13 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       if (!('escape' in source)) return;
       const enemy = source as EnemyState;
       // Gooey Mess takes its share off first.
-      const pull = Math.max(0, Math.floor(effect.amount * (ctx.amountScale ?? 1) * (ctx.moveScale ?? 1)) - powerTotal(state, 'gooeyMess'));
+      let pull = Math.max(0, Math.floor(effect.amount * (ctx.amountScale ?? 1) * (ctx.moveScale ?? 1)) - powerTotal(state, 'gooeyMess'));
+      // The fight's first Pull is smaller with `firstPullPercent`.
+      const firstPull = bonusTotal(state.bonuses, 'firstPullPercent');
+      if (firstPull && !state.bonusTracker.firstPullDone) {
+        state.bonusTracker.firstPullDone = true;
+        pull = Math.floor((pull * (100 - Math.min(100, firstPull))) / 100);
+      }
       const held = Math.min(state.player.block, pull);
       state.player.block -= held;
       enemy.escape = Math.min(enemy.escapeAt, enemy.escape + pull - held);
@@ -212,6 +232,8 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           enemy.strengthGained = (enemy.strengthGained ?? 0) + amount;
         }
         addStatus(t, effect.status, amount);
+        // Toxic: Venom from this creature doesn't lose a charge the first time it hits.
+        if (effect.status === 'venom' && t.id === PLAYER_ID && 'escape' in source && traitOf(source as EnemyState, ctx.data)?.type === 'lingeringVenom') state.venomLinger = true;
         // Skittish remembers whose Will the player's busy turn raises.
         if (effect.status === 'skittish' && 'escape' in source) (state.skittishFrom ??= []).push(source.id);
         const key = amount >= 0 ? 'log.statusGained' : 'log.statusLost';
@@ -320,13 +342,14 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (!('intent' in t) || !ctx.data) continue;
         const enemy = t as EnemyState;
         const current = intentMove(enemy, ctx.data);
-        const moves = ctx.data.enemies[enemy.defId]?.moves ?? [];
+        const moves = movesOf(enemy, ctx.data);
         // A flip turns a Strike into a Pull and back. Heavy moves only come after a Wind-up.
         const other = current?.tag === 'strike' ? 'pull' : 'strike';
         const options = moves.filter((m) => m.id !== current?.id && m.role !== 'heavy' && (effect.type === 'rerollIntent' || m.tag === other));
         if (!options.length) continue;
         const move = options[nextInt(state, 0, options.length - 1)];
         enemy.intent = move.id;
+        delete enemy.bluff;
         addLog(state, text('log.newIntent', { name: enemy.name, move: move.name }));
       }
       return;
@@ -334,12 +357,13 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         if (!('intent' in t) || !ctx.data) continue;
         const enemy = t as EnemyState;
-        const pace = ctx.data.enemies[enemy.defId]?.moves.find((m) => m.role === 'pace');
+        const pace = movesOf(enemy, ctx.data).find((m) => m.role === 'pace');
         // A move is put off once: a second bait on the same creature changes nothing.
         if (!pace || enemy.intent === null || enemy.delayedIntent !== undefined) continue;
         enemy.delayedIntent = enemy.intent;
         enemy.intent = pace.id;
         enemy.intentHidden = false;
+        delete enemy.bluff;
         addLog(state, text('log.delayMove', { name: enemy.name, move: pace.name }));
       }
       return;
@@ -376,7 +400,13 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       }
       return;
     case 'ink':
-      if ('escape' in source) (source as EnemyState).inked = true;
+      if ('escape' in source) {
+        const enemy = source as EnemyState;
+        enemy.inked = true;
+        // Ink Sense: it hides more than its next move.
+        const ink = traitOf(enemy, ctx.data);
+        if (ink?.type === 'inkMoves') enemy.inkLeft = ink.moves - 1;
+      }
       return;
     case 'addJunk': {
       const piles = state.piles;
@@ -416,6 +446,15 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (healed) addLog(state, text('log.heal', { who: t.name, n: healed }));
       }
       return;
+    case 'grabCard':
+      if ('escape' in source) (source as EnemyState).grabbing = effect.returnAt;
+      return;
+    case 'shedDebuffs':
+      for (const id of Object.keys(source.statuses) as StatusId[]) {
+        if (isDebuff(id, source.statuses[id] ?? 0)) delete source.statuses[id];
+      }
+      addLog(state, text('log.shedDebuffs', { name: source.name }));
+      return;
     case 'slowCap':
       if (effect.amount > (state.slowCap ?? MAX_SLOW_PERCENT)) {
         state.slowCap = effect.amount;
@@ -431,7 +470,14 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         const amount = (effect.fromHold ? -state.player.block : effect.amount) + perStatusBonus(effect.perStatus, enemy);
         const calming = source.id === PLAYER_ID && amount < 0 && !ctx.raw;
         const pull = calming ? Math.ceil((-amount * (state.pullPercent ?? 0)) / 100) : 0;
-        const change = amount - pull - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
+        let change = amount - pull - (calming ? bonusTotal(state.bonuses, 'bonusEscapeReduction') : 0);
+        // Slippery: the player's first Drain on it each turn drains less.
+        const slippery = source.id === PLAYER_ID && change < 0 ? traitOf(enemy, ctx.data) : undefined;
+        if (slippery?.type === 'firstDrain' && !enemy.drainedThisTurn) {
+          enemy.drainedThisTurn = true;
+          change = -Math.ceil((-change * slippery.percent) / 100);
+          addLog(state, text('log.trait', { name: enemy.name, trait: ctx.data!.enemies[enemy.defId].trait!.name }));
+        }
         const before = enemy.escape;
         enemy.escape = Math.max(0, Math.min(enemy.escapeAt, enemy.escape + change));
         if (ctx.attack && change < 0) coatWithVenom(state, enemy);
@@ -496,7 +542,7 @@ export function doubled(effect: Effect): Effect {
 
 /** The creature's next move. */
 function intentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
-  return data.enemies[enemy.defId]?.moves.find((m) => m.id === enemy.intent);
+  return movesOf(enemy, data).find((m) => m.id === enemy.intent);
 }
 
 /**
@@ -506,7 +552,7 @@ function intentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
 export function moveValue(move: EnemyMove, enemy?: EnemyState, player?: Combatant): number {
   const scale = enemy?.damageScale ?? 1;
   const value = move.effects.reduce((sum, e) => {
-    if (e.type === 'dealDamage') return sum + (enemy && player ? calculateDamage(e.amount * scale, enemy.statuses, player.statuses) : e.amount) * (e.hits ?? 1);
+    if (e.type === 'dealDamage') return sum + (enemy && player ? calculateDamage((e.amount * scale * (100 + (enemy.strikePercent ?? 0))) / 100, enemy.statuses, player.statuses) : e.amount) * (e.hits ?? 1);
     if (e.type === 'pull') return sum + e.amount * (enemy ? scale : 1);
     return sum;
   }, 0);
@@ -528,20 +574,63 @@ function perStatusBonus(per: PerStatus | undefined, target: Combatant): number {
 const ENEMY_TURN_TRIGGERS: CompanionTrigger[] = ['hitByEnemy', 'fullBlock', 'firstBelowHalfHp'];
 
 /** Resolve, as the player, every companion bonus triggered by `on`. `targetId` is who 'target' means. */
-export function fireTriggers(state: CombatState, on: CompanionTrigger, targetId?: string): void {
+export function fireTriggers(state: CombatState, on: CompanionTrigger, targetId?: string, data?: GameData): void {
   for (const bonus of state.bonuses) {
     if (bonus.type !== 'trigger' || bonus.on !== on) continue;
     const before = state.player.block;
-    resolveEffect(state, bonus.effect, { sourceId: PLAYER_ID, targetId, raw: true });
+    resolveEffect(state, bonus.effect, { sourceId: PLAYER_ID, targetId, raw: true, data });
     if (ENEMY_TURN_TRIGGERS.includes(on)) state.bonusTracker.carriedBlock += state.player.block - before;
   }
 }
 
-function afterEnemyHit(state: CombatState, attackerId: string, amount: number, hpLost: number): void {
-  fireTriggers(state, 'hitByEnemy', attackerId);
-  if (amount > 0 && hpLost === 0) fireTriggers(state, 'fullBlock', attackerId);
+function afterEnemyHit(state: CombatState, attackerId: string, amount: number, hpLost: number, data?: GameData): void {
+  fireTriggers(state, 'hitByEnemy', attackerId, data);
+  if (amount > 0 && hpLost === 0) fireTriggers(state, 'fullBlock', attackerId, data);
   if (hpLost > 0 && !state.bonusTracker.belowHalf && state.player.hp * 2 < state.player.maxHp) {
     state.bonusTracker.belowHalf = true;
-    fireTriggers(state, 'firstBelowHalfHp');
+    fireTriggers(state, 'firstBelowHalfHp', undefined, data);
   }
+  // Bloodlust: creatures that sense the player weakening.
+  if (hpLost <= 0) return;
+  for (const enemy of state.enemies) {
+    const rule = traitOf(enemy, data);
+    if (rule?.type !== 'playerBelow' || enemy.traitUsed || !isAlive(enemy) || state.player.hp * 100 >= state.player.maxHp * rule.percent) continue;
+    enemy.traitUsed = true;
+    addLog(state, text('log.trait', { name: enemy.name, trait: data!.enemies[enemy.defId].trait!.name }));
+    resolveEffect(state, rule.effect, { sourceId: enemy.id, targetId: PLAYER_ID, data });
+  }
+}
+
+/** A hit of the player's on a creature, for its trait: Inflate counts it, Counter-pinch answers a soaked one, Scatter watches its Health. */
+function afterPlayerHit(state: CombatState, enemy: EnemyState, amount: number, blocked: number, hpLost: number, data?: GameData): void {
+  const rule = traitOf(enemy, data);
+  if (!rule) return;
+  const name = data!.enemies[enemy.defId].trait!.name;
+  if (rule.type === 'afterHits') {
+    enemy.hitsThisTurn = (enemy.hitsThisTurn ?? 0) + 1;
+    if (enemy.hitsThisTurn === rule.hits && isAlive(enemy)) {
+      addLog(state, text('log.trait', { name: enemy.name, trait: name }));
+      resolveEffect(state, rule.effect, { sourceId: enemy.id, targetId: PLAYER_ID, data });
+    }
+  }
+  if (rule.type === 'counter' && amount > 0 && blocked > 0 && hpLost === 0 && isAlive(enemy)) {
+    const { hpLost: lost } = applyDamage(state.player, rule.damage);
+    addLog(state, text('log.counter', { name: enemy.name, trait: name, n: lost }));
+  }
+  if (rule.type === 'belowHealth' && !enemy.traitUsed && isAlive(enemy) && enemy.hp * 100 < enemy.maxHp * rule.percent) {
+    enemy.traitUsed = true;
+    enemy.escape = Math.min(enemy.escapeAt, enemy.escape + Math.round(rule.will * (enemy.fightScale ?? 1)));
+    addLog(state, text('log.trait', { name: enemy.name, trait: name }));
+  }
+}
+
+/** Eight Arms: the cards a creature holds come back to the hand once it has lost `returnAt` Health this turn, or once it's out of the fight. */
+function takeBack(state: CombatState, enemy: EnemyState, hpLost: number, data?: GameData): void {
+  if (!enemy.held) return;
+  enemy.damageThisTurn = (enemy.damageThisTurn ?? 0) + hpLost;
+  if (enemy.damageThisTurn < enemy.held.returnAt && isAlive(enemy)) return;
+  state.piles.hand.push(...enemy.held.cards);
+  const cards = enemy.held.cards.map((c) => data?.cards[c.defId]?.name ?? c.defId).join(', ');
+  delete enemy.held;
+  addLog(state, text('log.cardBack', { who: state.player.name, name: enemy.name, card: cards }));
 }

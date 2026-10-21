@@ -6,6 +6,7 @@ import { drawCards } from './piles';
 import { createRun, SESSION_SLOTS, travelTo, visitFisherman, visitShop, visitTreasure, type RunState } from './run';
 import { CATCH_SIZES, type Catch, type CatchSize } from './sizes';
 import { STATUS_META } from './statuses';
+import { movesOf } from './traits';
 import type { ShopVisit } from './shop';
 import type { CombatAction, CombatState, GameData, StatusId, StoreKind } from './types';
 import { clone } from './util';
@@ -209,7 +210,7 @@ export function debugSetIntent(state: CombatState, enemyId: string, moveId: stri
   const next = clone(state);
   const enemy = next.enemies.find((e) => e.id === enemyId);
   if (!enemy) throw new Error(`No creature "${enemyId}" in this fight.`);
-  if (moveId !== SECOND_WIND_ID && !data.enemies[enemy.defId].moves.some((m) => m.id === moveId)) {
+  if (moveId !== SECOND_WIND_ID && !movesOf(enemy, data).some((m) => m.id === moveId)) {
     throw new Error(`${enemy.defId} has no move "${moveId}".`);
   }
   enemy.intent = moveId;

@@ -22,6 +22,10 @@ export interface ContentTranslations {
   families?: Record<string, { name?: string; identity?: string; focus?: string }>;
   /** Keyed by temperament id. */
   companions?: Record<string, { name?: string; temperamentName?: string; description?: string }>;
+  /** Affix id → its name, its title (with {name}) and description. */
+  affixes?: Record<string, { name?: string; title?: string; description?: string }>;
+  /** Temperament id → its trait's name and description. */
+  traits?: Record<string, { name?: string; description?: string }>;
   /** Event id → its name, text and choice labels (in order). */
   events?: Record<string, { name?: string; description?: string; choices?: string[] }>;
   /** Shop item id → name. */
@@ -53,6 +57,10 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       ...e,
       name: tr.creatures?.[e.id] ?? e.name,
       moves: e.moves.map((m) => ({ ...m, name: tr.moves?.[`${e.id}.${m.id}`] ?? tr.moves?.[`${e.temperament}.${m.id}`] ?? m.name })),
+      ...(e.bossMoves
+        ? { bossMoves: { ...e.bossMoves, moves: e.bossMoves.moves.map((m) => ({ ...m, name: tr.moves?.[`${e.id}.${m.id}`] ?? tr.moves?.[`${e.temperament}.${m.id}`] ?? m.name })) } }
+        : {}),
+      ...(e.trait ? { trait: { ...e.trait, ...tr.traits?.[e.temperament ?? ''] } } : {}),
     })),
     cards: source.cards.map((c) => ({ ...c, name: tr.cards?.[c.id] ?? c.name })),
     builds: source.builds.map((b) => {
@@ -73,6 +81,7 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       };
     }),
     shop: source.shop.map((s) => ({ ...s, name: tr.shop?.[s.id] ?? s.name })),
+    affixes: source.affixes?.map((a) => ({ ...a, ...tr.affixes?.[a.id] })),
     progression: source.progression.map((n) => ({ ...n, ...tr.progression?.[n.id] })),
     spots: source.spots.map((s) => ({ ...s, name: tr.spots?.[s.id] ?? s.name })),
     coast: {
@@ -81,8 +90,18 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
     levels: source.levels.map((l) => ({
       ...l,
       name: tr.levels?.[l.id] ?? l.name,
-      miniBoss: l.miniBoss && { ...l.miniBoss, label: place(l.miniBoss.label), releaseReason: reason(l.miniBoss.releaseReason) },
-      boss: l.boss && { ...l.boss, label: place(l.boss.label), releaseReason: reason(l.boss.releaseReason) },
+      miniBoss: l.miniBoss && {
+        ...l.miniBoss,
+        label: place(l.miniBoss.label),
+        releaseReason: reason(l.miniBoss.releaseReason),
+        candidates: l.miniBoss.candidates?.map((c) => ({ ...c, releaseReason: reason(c.releaseReason) })),
+      },
+      boss: l.boss && {
+        ...l.boss,
+        label: place(l.boss.label),
+        releaseReason: reason(l.boss.releaseReason),
+        candidates: l.boss.candidates?.map((c) => ({ ...c, releaseReason: reason(c.releaseReason) })),
+      },
       firstColumn: l.firstColumn?.map((s) => ({ ...s, label: place(s.label) })),
       nodes: l.nodes?.map((n) => ({ ...n, label: n.label && place(n.label), releaseReason: n.releaseReason && reason(n.releaseReason) })),
     })),

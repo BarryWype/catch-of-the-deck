@@ -1,4 +1,6 @@
-import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
+import type { AffixDef, IntentPattern, PhasePattern, BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
+import { FEATURES, type Features } from './constants';
+import { turnAverage } from './combat';
 import { STORE_KINDS } from './map';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
@@ -21,6 +23,10 @@ export interface ContentSource {
   /** In play order. */
   levels: LevelDef[];
   coast: CoastDef;
+  /** Creature affixes (`affixes`). */
+  affixes?: AffixDef[];
+  /** The fight-variety features to play with; all off when omitted. */
+  features?: Features;
 }
 
 /** Index content by id, throwing a readable error if anything is inconsistent. */
@@ -45,7 +51,22 @@ export function buildGameData(source: ContentSource): GameData {
     spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
     levels: source.levels,
     coast: source.coast,
+    ...(source.features ? { features: source.features } : {}),
+    ...(source.affixes ? { affixes: Object.fromEntries(source.affixes.map((a) => [a.id, a])) } : {}),
+    tierAverages: tierAverages(source.enemies),
   };
+}
+
+/** Each tier's average creature: Health (the middle of its range), starting Will, and Strike or Pull per turn. */
+function tierAverages(enemies: EnemyDef[]): NonNullable<GameData['tierAverages']> {
+  const tiers = [...new Set(enemies.map((e) => e.tier ?? 1))];
+  const average = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  return Object.fromEntries(
+    tiers.map((tier) => {
+      const of = enemies.filter((e) => (e.tier ?? 1) === tier);
+      return [tier, { hp: average(of.map((e) => (e.hp[0] + e.hp[1]) / 2)), will: average(of.map((e) => e.escapeStart)), turnAverage: average(of.map((e) => turnAverage(e.moves, e.pattern))) }];
+    }),
+  );
 }
 
 /** Returns a list of human-readable problems; empty means the content is valid. */
@@ -81,6 +102,11 @@ export function validateContent(source: ContentSource): string[] {
   for (const item of source.equipment) {
     checkDuplicate(equipmentIds, item.id, 'equipment');
     for (const effect of item.effects) {
+      if (effect.type === 'bonus') {
+        if (effect.bonus.type === 'trigger') checkEffects(`Equipment "${item.id}"`, [effect.bonus.effect]);
+        else if (!(effect.bonus.amount >= 0)) errors.push(`Equipment "${item.id}": bonus "${effect.bonus.type}" needs an amount ≥ 0.`);
+        continue;
+      }
       const value = 'percent' in effect ? effect.percent : effect.bonusPercent;
       if (!(value >= 0)) errors.push(`Equipment "${item.id}": effect "${effect.type}" needs a value ≥ 0.`);
       if (effect.type === 'extraCatch') {
@@ -132,6 +158,49 @@ export function validateContent(source: ContentSource): string[] {
     }
   }
 
+  /** A move set and its patterns (a phased pattern's phases each checked as a pattern). */
+  const flatten = (p: IntentPattern): PhasePattern[] => (p.type === 'phased' ? [p.first, p.then] : [p]);
+  const checkMoveSet = (where: string, moves: EnemyDef['moves'], patterns: IntentPattern[]) => {
+    const moveIds = new Set<string>();
+    for (const move of moves) {
+      if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);
+      moveIds.add(move.id);
+      checkEffects(`${where} move "${move.id}"`, move.effects);
+      // Strikes deal damage and Pulls pull, and nothing else does.
+      const effectType = move.tag === 'strike' ? 'dealDamage' : move.tag === 'pull' ? 'pull' : undefined;
+      if (!effectType) errors.push(`${where} move "${move.id}": tag must be 'strike' or 'pull'.`);
+      else if (!move.effects.some((e) => e.type === effectType)) errors.push(`${where} move "${move.id}": a ${move.tag} move needs a "${effectType}" effect.`);
+      if (move.tag !== 'strike' && move.effects.some((e) => e.type === 'dealDamage')) errors.push(`${where} move "${move.id}": only Strikes deal damage.`);
+      if (move.tag !== 'pull' && move.effects.some((e) => e.type === 'pull')) errors.push(`${where} move "${move.id}": only Pulls pull.`);
+      if (!['light', 'normal', 'heavy'].includes(move.intensity)) errors.push(`${where} move "${move.id}": intensity must be light, normal or heavy.`);
+      if (move.role === 'windUp' && !moves.some((m) => m.id === move.followUp)) errors.push(`${where} move "${move.id}": a Wind-up needs a \`followUp\` move.`);
+      if (move.role === 'windUp' && !move.effects.some((e) => e.type === 'applyStatus' && e.status === 'windUp')) {
+        errors.push(`${where} move "${move.id}": a Wind-up applies the windUp status to itself.`);
+      }
+    }
+    for (const p of patterns.flatMap(flatten)) {
+      const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : [])];
+      for (const id of referenced) {
+        if (!moveIds.has(id)) errors.push(`${where}: pattern references unknown move "${id}".`);
+      }
+      const move = (id: string) => moves.find((m) => m.id === id);
+      if (p.type === 'sequence') {
+        if (p.moves.length === 0) errors.push(`${where}: sequence pattern has no moves.`);
+        const loopFrom = p.loopFrom ?? 0;
+        if (loopFrom < 0 || loopFrom >= p.moves.length) errors.push(`${where}: loopFrom is out of range.`);
+        // Heavy moves come right after their Wind-up, and only then.
+        p.moves.forEach((id, i) => {
+          const prev = move(p.moves[(i + p.moves.length - 1) % p.moves.length]);
+          if (prev?.role === 'windUp' && prev.followUp && prev.followUp !== id) errors.push(`${where}: "${prev.id}" must be followed by "${prev.followUp}".`);
+          if (move(id)?.role === 'heavy' && prev?.role !== 'windUp') errors.push(`${where}: heavy move "${id}" only comes right after a Wind-up.`);
+        });
+      } else {
+        if (!Object.values(p.weights).some((w) => w > 0)) errors.push(`${where}: weighted pattern needs at least one positive weight.`);
+        for (const id of Object.keys(p.weights)) if (move(id)?.role === 'heavy') errors.push(`${where}: heavy move "${id}" can't have a weight (it follows its Wind-up).`);
+      }
+    }
+  };
+
   for (const enemy of source.enemies) {
     checkDuplicate(enemyIds, enemy.id, 'enemy');
     const where = `Enemy "${enemy.id}"`;
@@ -148,44 +217,10 @@ export function validateContent(source: ContentSource): string[] {
       errors.push(`${where}: sprite index must be a whole number ≥ 1.`);
     }
     checkTags(where, enemy.tags ?? []);
-    const moveIds = new Set<string>();
-    for (const move of enemy.moves) {
-      if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);
-      moveIds.add(move.id);
-      checkEffects(`${where} move "${move.id}"`, move.effects);
-      // Strikes deal damage and Pulls pull, and nothing else does.
-      const effectType = move.tag === 'strike' ? 'dealDamage' : move.tag === 'pull' ? 'pull' : undefined;
-      if (!effectType) errors.push(`${where} move "${move.id}": tag must be 'strike' or 'pull'.`);
-      else if (!move.effects.some((e) => e.type === effectType)) errors.push(`${where} move "${move.id}": a ${move.tag} move needs a "${effectType}" effect.`);
-      if (move.tag !== 'strike' && move.effects.some((e) => e.type === 'dealDamage')) errors.push(`${where} move "${move.id}": only Strikes deal damage.`);
-      if (move.tag !== 'pull' && move.effects.some((e) => e.type === 'pull')) errors.push(`${where} move "${move.id}": only Pulls pull.`);
-      if (!['light', 'normal', 'heavy'].includes(move.intensity)) errors.push(`${where} move "${move.id}": intensity must be light, normal or heavy.`);
-      if (move.role === 'windUp' && !enemy.moves.some((m) => m.id === move.followUp)) errors.push(`${where} move "${move.id}": a Wind-up needs a \`followUp\` move.`);
-      if (move.role === 'windUp' && !move.effects.some((e) => e.type === 'applyStatus' && e.status === 'windUp')) {
-        errors.push(`${where} move "${move.id}": a Wind-up applies the windUp status to itself.`);
-      }
-    }
-    for (const p of [enemy.pattern, ...(enemy.bossPattern ? [enemy.bossPattern] : [])]) {
-      const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : [])];
-      for (const id of referenced) {
-        if (!moveIds.has(id)) errors.push(`${where}: pattern references unknown move "${id}".`);
-      }
-      const move = (id: string) => enemy.moves.find((m) => m.id === id);
-      if (p.type === 'sequence') {
-        if (p.moves.length === 0) errors.push(`${where}: sequence pattern has no moves.`);
-        const loopFrom = p.loopFrom ?? 0;
-        if (loopFrom < 0 || loopFrom >= p.moves.length) errors.push(`${where}: loopFrom is out of range.`);
-        // Heavy moves come right after their Wind-up, and only then.
-        p.moves.forEach((id, i) => {
-          const prev = move(p.moves[(i + p.moves.length - 1) % p.moves.length]);
-          if (prev?.role === 'windUp' && prev.followUp && prev.followUp !== id) errors.push(`${where}: "${prev.id}" must be followed by "${prev.followUp}".`);
-          if (move(id)?.role === 'heavy' && prev?.role !== 'windUp') errors.push(`${where}: heavy move "${id}" only comes right after a Wind-up.`);
-        });
-      } else {
-        if (!Object.values(p.weights).some((w) => w > 0)) errors.push(`${where}: weighted pattern needs at least one positive weight.`);
-        for (const id of Object.keys(p.weights)) if (move(id)?.role === 'heavy') errors.push(`${where}: heavy move "${id}" can't have a weight (it follows its Wind-up).`);
-      }
-    }
+    const rule = enemy.trait?.rule;
+    if (rule && 'effect' in rule) checkEffects(`${where} trait`, [rule.effect]);
+    checkMoveSet(where, enemy.moves, [enemy.pattern, ...(enemy.bossPattern ? [enemy.bossPattern] : [])]);
+    if (enemy.bossMoves) checkMoveSet(`${where} boss moves`, enemy.bossMoves.moves, [enemy.bossMoves.pattern]);
   }
 
   const encounterIds = new Set<string>();
@@ -201,10 +236,25 @@ export function validateContent(source: ContentSource): string[] {
   }
   if (source.encounters.length === 0) errors.push('There must be at least one encounter.');
 
+  const affixIds = new Set<string>();
+  for (const affix of source.affixes ?? []) {
+    checkDuplicate(affixIds, affix.id, 'affix');
+    if (!affix.title.includes('{name}')) errors.push(`Affix "${affix.id}": its title needs {name}.`);
+  }
+
   const eventIds = new Set<string>();
   for (const event of source.events) {
     checkDuplicate(eventIds, event.id, 'event');
-    if (event.choices.length === 0) errors.push(`Event "${event.id}" has no choices.`);
+    const where = `Event "${event.id}"`;
+    if (event.choices.length === 0) errors.push(`${where} has no choices.`);
+    for (const id of event.levels ?? []) if (!source.levels.some((l) => l.id === id)) errors.push(`${where}: unknown level "${id}".`);
+    if (event.feature && !(event.feature in FEATURES)) errors.push(`${where}: unknown feature "${event.feature}".`);
+    for (const effect of event.choices.flatMap((c) => c.effects)) {
+      if (effect.type === 'addJunk' && source.cards.find((c) => c.id === effect.card)?.type !== 'junk') errors.push(`${where}: "${effect.card}" isn't a junk card.`);
+      if (effect.type === 'freeNextFight' && effect.cardId && !cardIds.has(effect.cardId)) errors.push(`${where}: unknown card "${effect.cardId}".`);
+      if (effect.type === 'gainEquipment' && effect.id && !equipmentIds.has(effect.id)) errors.push(`${where}: unknown equipment "${effect.id}".`);
+      for (const id of effect.type === 'fight' ? (effect.enemies ?? []) : []) if (!enemyIds.has(id)) errors.push(`${where}: unknown enemy "${id}".`);
+    }
   }
 
   const shopIds = new Set<string>();
@@ -360,6 +410,7 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
   }
 
   const nodeIds = new Set<string>();
+  const bossCandidates = new Set<string>();
   for (const level of source.levels) {
     const where = `Level "${level.id}"`;
     if (!(Number.isInteger(level.tier) && level.tier >= 1)) errors.push(`${where}: tier must be a whole number ≥ 1.`);
@@ -369,6 +420,16 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
       for (const stop of level.firstColumn ?? []) if (!spotIds.has(stop.spot)) errors.push(`${where}: unknown fishing spot "${stop.spot}".`);
       for (const fight of [level.miniBoss, level.boss]) {
         for (const id of fight?.enemies ?? []) if (!enemyIds.has(id)) errors.push(`${where}: unknown enemy "${id}".`);
+        for (const candidate of fight?.candidates ?? []) {
+          for (const id of candidate.enemies) {
+            if (!enemyIds.has(id)) errors.push(`${where}: unknown boss candidate "${id}".`);
+            // A creature is a candidate of one mini-boss or boss only, so a run never meets it twice.
+            if (bossCandidates.has(id)) errors.push(`${where}: "${id}" is already a candidate of another mini-boss or boss.`);
+            bossCandidates.add(id);
+          }
+          const def = source.enemies.find((e) => e.id === candidate.enemies[0]);
+          if (def && def.bossPattern?.type !== 'sequence') errors.push(`${where}: boss candidate "${def.id}" needs a bossPattern sequence.`);
+        }
       }
       if (!hasEvents || !hasTreasures || !storesStocked) errors.push(`${where}: generated maps need events, treasure events and something in every store.`);
       continue;

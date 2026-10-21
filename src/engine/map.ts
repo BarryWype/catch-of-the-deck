@@ -1,4 +1,5 @@
-import { MAX_CREATURES_PER_FIGHT } from './constants';
+import { MAX_CREATURES_PER_FIGHT, TROPHY_MIN_NODES, TROPHY_NODE_SHARE } from './constants';
+import { hasFeature } from './features';
 import { nextFloat, nextInt, shuffleInPlace, type RngHolder } from './rng';
 import type { EncounterDef, GameData, LevelDef, LevelNodeKind, StoreKind } from './types';
 
@@ -27,6 +28,8 @@ export interface MapNode {
   fisherman?: string;
   /** Shop nodes: which store it is (`assignStores`). */
   store?: StoreKind;
+  /** Fights: a trophy fight, tougher and better rewarded (`trophyElites`, `markTrophies`). */
+  trophy?: boolean;
   /** Ids of the nodes reachable from here. */
   next: string[];
 }
@@ -42,10 +45,37 @@ export interface GameMap {
  */
 export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHolder, fishermen: readonly string[] = []): GameMap {
   const level = data.levels[levelIndex];
-  if (level.nodes) return assignStores(handMadeMap(level, level.nodes), holder);
-  const map = generateLevelMap(level, levelIndex, data, holder);
-  placeFishermen(map, fishermen.filter((id) => data.fishermen[id]?.level === level.id));
-  return assignStores(map, holder);
+  let map: GameMap;
+  if (level.nodes) map = assignStores(handMadeMap(level, level.nodes), holder);
+  else {
+    map = generateLevelMap(level, levelIndex, data, holder);
+    placeFishermen(map, fishermen.filter((id) => data.fishermen[id]?.level === level.id));
+    assignStores(map, holder);
+  }
+  if (hasFeature(data, 'trophyElites')) markTrophies(map, holder);
+  if (hasFeature(data, 'bossPools')) drawBosses(map, level, holder);
+  return map;
+}
+
+/** The mini-boss and boss this run meets on the level, each drawn among its `candidates` (`bossPools`). */
+function drawBosses(map: GameMap, level: LevelDef, holder: RngHolder) {
+  for (const [kind, def] of [['miniBoss', level.miniBoss], ['boss', level.boss]] as const) {
+    const node = map.columns.flat().find((n) => n.kind === kind);
+    if (!node || !def?.candidates?.length) continue;
+    const drawn = def.candidates[nextInt(holder, 0, def.candidates.length - 1)];
+    Object.assign(node, { enemies: [...drawn.enemies], releaseReason: drawn.releaseReason });
+  }
+}
+
+/**
+ * About 1 in `TROPHY_NODE_SHARE` of the map's ordinary fights become trophy fights, at least
+ * `TROPHY_MIN_NODES`, never in column 1. Drawn after everything else, so the rest of the map is
+ * the same with or without them.
+ */
+function markTrophies(map: GameMap, holder: RngHolder) {
+  const fights = map.columns.flat().filter((n) => n.kind === 'fight' && n.column > 1);
+  const count = Math.min(fights.length, Math.max(TROPHY_MIN_NODES, Math.round(fights.length / TROPHY_NODE_SHARE)));
+  for (const node of shuffleInPlace(holder, fights).slice(0, count)) node.trophy = true;
 }
 
 export const STORE_KINDS: readonly StoreKind[] = ['cafe', 'tackle', 'bait'];

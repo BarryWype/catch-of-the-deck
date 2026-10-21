@@ -1,5 +1,5 @@
 import type { Habitat, SpriteRef, Statuses } from '../engine';
-import { move, STEAL, WIND_UP, type Behavior, type BehaviorId } from './behaviors';
+import { bossMoveSets, move, STEAL, WIND_UP, type Behavior, type BehaviorId } from './behaviors';
 import type { CreatureType } from './creatureTypes';
 
 /**
@@ -21,6 +21,8 @@ import type { CreatureType } from './creatureTypes';
  * - `temperament`: the archetype whose shared move set it uses (behaviors.ts).
  * - `moves` (optional): this creature's own `{ moves, pattern }`, used instead of
  *   its temperament's (see Pike and Red piranha below).
+ * - `bossMoves` (optional): its own `{ moves, pattern }` as a boss, with its signature mechanic
+ *   (`bossMoveSets` in behaviors.ts, the `bossGimmicks` feature).
  * - `strength` (optional): Strength it starts every fight with.
  * - `habitat` (optional): 'swim' | 'drift' | 'bottom', how it moves in the aquarium.
  * - `sprite` (optional): its own art (a sheet in ui/sprites.ts) instead of its cell in fishes.png.
@@ -48,6 +50,7 @@ export interface CreatureDef {
   escapeRate: number;
   temperament: BehaviorId;
   moves?: Behavior;
+  bossMoves?: Behavior;
   strength?: number;
   /** Any other statuses it starts with, e.g. { vulnerable: 2 }. */
   statuses?: Statuses;
@@ -70,7 +73,7 @@ export const creatures: CreatureDef[] = [
   { no: 9, id: 'frenchAngelfish', name: 'French angelfish', scientific: 'Pomacanthus paru', type: 'smallFish', water: 'salt', tier: 1, hp: [22, 26], sellValue: 5, escapeAt: 75, escapeStart: 29, escapeRate: 7, temperament: 'reefFish' },
   { no: 10, id: 'goldfish', name: 'Goldfish', scientific: 'Carassius auratus', type: 'smallFish', water: 'fresh', tier: 1, hp: [14, 18], sellValue: 3, escapeAt: 60, escapeStart: 34, escapeRate: 5, temperament: 'reefFish' },
   { no: 11, id: 'fightingFish', name: 'Fighting fish', scientific: 'Betta splendens', type: 'smallFish', water: 'fresh', tier: 1, hp: [18, 22], sellValue: 4, escapeAt: 65, escapeStart: 31, escapeRate: 7, temperament: 'predator' },
-  { no: 12, id: 'catfish', name: 'Catfish', scientific: 'Silurus glanis', type: 'sportFish', water: 'fresh', tier: 2, hp: [40, 46], sellValue: 10, escapeAt: 135, escapeStart: 48, escapeRate: 11, temperament: 'ambusher' },
+  { no: 12, id: 'catfish', name: 'Catfish', scientific: 'Silurus glanis', type: 'sportFish', water: 'fresh', tier: 2, hp: [40, 46], sellValue: 10, escapeAt: 135, escapeStart: 48, escapeRate: 11, temperament: 'ambusher', bossMoves: bossMoveSets.catfish },
   { no: 13, id: 'porcupinefish', name: 'Porcupinefish', scientific: 'Diodon holocanthus', type: 'rockFish', water: 'salt', tier: 2, hp: [32, 38], sellValue: 8, escapeAt: 100, escapeStart: 55, escapeRate: 7, temperament: 'puffer' },
   { no: 14, id: 'spottedPufferfish', name: 'Spotted pufferfish', scientific: 'Dichotomyctere nigroviridis', type: 'smallFish', water: 'brackish', tier: 1, hp: [24, 28], sellValue: 6, escapeAt: 80, escapeStart: 37, escapeRate: 6, temperament: 'puffer' },
   { no: 15, id: 'oceanSunfish', name: 'Ocean sunfish', scientific: 'Mola mola', type: 'bigFish', water: 'salt', tier: 3, hp: [70, 80], sellValue: 18, escapeAt: 185, escapeStart: 79, escapeRate: 11, temperament: 'giant' },
@@ -123,7 +126,7 @@ export const creatures: CreatureDef[] = [
   { no: 50, id: 'silverSeabream', name: 'Silver seabream', scientific: 'Sparus aurata', type: 'sportFish', water: 'salt', tier: 1, hp: [26, 30], sellValue: 6, escapeAt: 105, escapeStart: 31, escapeRate: 15, temperament: 'fighter' },
   { no: 51, id: 'atlanticCod', name: 'Atlantic cod', scientific: 'Gadus morhua', type: 'sportFish', water: 'salt', tier: 2, hp: [40, 46], sellValue: 10, escapeAt: 135, escapeStart: 53, escapeRate: 15, temperament: 'fighter' },
   { no: 52, id: 'hake', name: 'Hake', scientific: 'Merluccius', type: 'sportFish', water: 'salt', tier: 2, hp: [34, 40], sellValue: 9, escapeAt: 125, escapeStart: 58, escapeRate: 16, temperament: 'predator' },
-  { no: 53, id: 'bluefinTuna', name: 'Bluefin tuna', scientific: 'Thunnus thynnus', type: 'bigFish', water: 'salt', tier: 3, hp: [72, 80], sellValue: 19, escapeAt: 190, escapeStart: 59, escapeRate: 25, temperament: 'giant', strength: 1 },
+  { no: 53, id: 'bluefinTuna', name: 'Bluefin tuna', scientific: 'Thunnus thynnus', type: 'bigFish', water: 'salt', tier: 3, hp: [72, 80], sellValue: 19, escapeAt: 190, escapeStart: 59, escapeRate: 25, temperament: 'giant', strength: 1, bossMoves: bossMoveSets.bluefinTuna },
   {
     no: 54, id: 'pike', name: 'Pike', scientific: 'Esox lucius', type: 'sportFish', water: 'fresh', tier: 2, hp: [40, 44], sellValue: 10, escapeAt: 135, escapeStart: 60, escapeRate: 18,
     temperament: 'predator',
@@ -140,6 +143,7 @@ export const creatures: CreatureDef[] = [
         move('holdStill', 'Hold Still', 'pull', 'light', { role: 'pace' }),
       ],
       pattern: { type: 'weighted', weights: { snap: 30, thrash: 20, lurk: 20, grab: 15, holdStill: 15 } },
+      bossPattern: { type: 'sequence', moves: ['snap', 'thrash', 'lurk', 'snap', 'grab', 'holdStill'] },
     },
   },
   { no: 55, id: 'commonBarbel', name: 'Common barbel', scientific: 'Barbus barbus', type: 'sportFish', water: 'fresh', tier: 1, hp: [26, 30], sellValue: 6, escapeAt: 105, escapeStart: 31, escapeRate: 15, temperament: 'fighter' },
@@ -149,10 +153,10 @@ export const creatures: CreatureDef[] = [
   { no: 59, id: 'blueDiscus', name: 'Blue discus', scientific: 'Symphysodon aequifasciatus', type: 'smallFish', water: 'fresh', tier: 1, hp: [18, 22], sellValue: 4, escapeAt: 65, escapeStart: 35, escapeRate: 6, temperament: 'reefFish' },
   { no: 60, id: 'rainbowTrout', name: 'Rainbow trout', scientific: 'Oncorhynchus mykiss', type: 'sportFish', water: 'fresh', tier: 2, hp: [34, 40], sellValue: 9, escapeAt: 125, escapeStart: 52, escapeRate: 18, temperament: 'fighter' },
   { no: 61, id: 'ribbonEel', name: 'Ribbon eel', scientific: 'Rhinomuraena quaesita', type: 'rockFish', water: 'salt', tier: 1, hp: [22, 26], sellValue: 5, escapeAt: 75, escapeStart: 36, escapeRate: 7, temperament: 'eel' },
-  { no: 62, id: 'giantMorayEel', name: 'Giant moray eel', scientific: 'Gymnothorax javanicus', type: 'rockFish', water: 'salt', tier: 3, hp: [56, 62], sellValue: 14, escapeAt: 150, escapeStart: 76, escapeRate: 17, temperament: 'eel', strength: 1 },
+  { no: 62, id: 'giantMorayEel', name: 'Giant moray eel', scientific: 'Gymnothorax javanicus', type: 'rockFish', water: 'salt', tier: 3, hp: [56, 62], sellValue: 14, escapeAt: 150, escapeStart: 76, escapeRate: 17, temperament: 'eel', strength: 1, bossMoves: bossMoveSets.giantMorayEel },
   { no: 63, id: 'europeanConger', name: 'European conger', scientific: 'Conger conger', type: 'rockFish', water: 'salt', tier: 2, hp: [40, 46], sellValue: 10, escapeAt: 115, escapeStart: 59, escapeRate: 13, temperament: 'eel' },
   { no: 64, id: 'harlequinSnakeEel', name: 'Harlequin snake eel', scientific: 'Myrichthys colubrinus', type: 'rockFish', water: 'salt', tier: 2, hp: [30, 36], sellValue: 7, escapeAt: 95, escapeStart: 52, escapeRate: 10, temperament: 'eel' },
-  { no: 65, id: 'oarfish', name: 'Oarfish', scientific: 'Regalecus glesne', type: 'deepSea', water: 'salt', tier: 3, hp: [76, 86], sellValue: 20, escapeAt: 200, escapeStart: 85, escapeRate: 12, temperament: 'giant' },
+  { no: 65, id: 'oarfish', name: 'Oarfish', scientific: 'Regalecus glesne', type: 'deepSea', water: 'salt', tier: 3, hp: [76, 86], sellValue: 20, escapeAt: 200, escapeStart: 85, escapeRate: 12, temperament: 'giant', bossMoves: bossMoveSets.oarfish },
   { no: 66, id: 'africanCoelacanth', name: 'African coelacanth', scientific: 'Latimeria chalumnae', type: 'deepSea', water: 'salt', tier: 3, hp: [66, 74], sellValue: 17, escapeAt: 175, escapeStart: 86, escapeRate: 11, temperament: 'giant' },
   { no: 67, id: 'longnoseGar', name: 'Longnose gar', scientific: 'Lepisosteus osseus', type: 'sportFish', water: 'fresh', tier: 2, hp: [38, 44], sellValue: 10, escapeAt: 135, escapeStart: 55, escapeRate: 19, temperament: 'predator' },
   { no: 68, id: 'saddledBichir', name: 'Saddled bichir', scientific: 'Polypterus endlicheri', type: 'sportFish', water: 'fresh', tier: 2, hp: [30, 36], sellValue: 7, escapeAt: 115, escapeStart: 56, escapeRate: 14, temperament: 'predator' },
@@ -162,7 +166,7 @@ export const creatures: CreatureDef[] = [
   { no: 72, id: 'europeanAnchovy', name: 'European anchovy', scientific: 'Engraulis encrasicolus', type: 'smallFish', water: 'salt', tier: 1, hp: [10, 14], sellValue: 2, escapeAt: 50, escapeStart: 18, escapeRate: 7, temperament: 'schooling' },
   { no: 73, id: 'humpheadWrasse', name: 'Humphead wrasse', scientific: 'Cheilinus undulatus', type: 'bigFish', water: 'salt', tier: 3, hp: [60, 68], sellValue: 16, escapeAt: 165, escapeStart: 76, escapeRate: 13, temperament: 'giant' },
   { no: 74, id: 'commonStingray', name: 'Common stingray', scientific: 'Dasyatis pastinaca', type: 'bigFish', water: 'salt', tier: 3, hp: [52, 58], sellValue: 13, escapeAt: 145, escapeStart: 74, escapeRate: 12, temperament: 'venomous' },
-  { no: 75, id: 'shortfinMakoShark', name: 'Shortfin mako shark', scientific: 'Isurus oxyrinchus', type: 'bigFish', water: 'salt', tier: 3, hp: [70, 78], sellValue: 18, escapeAt: 185, escapeStart: 65, escapeRate: 30, temperament: 'predator', strength: 2 },
+  { no: 75, id: 'shortfinMakoShark', name: 'Shortfin mako shark', scientific: 'Isurus oxyrinchus', type: 'bigFish', water: 'salt', tier: 3, hp: [70, 78], sellValue: 18, escapeAt: 185, escapeStart: 65, escapeRate: 30, temperament: 'predator', strength: 2, bossMoves: bossMoveSets.shortfinMakoShark },
   { no: 76, id: 'riverLamprey', name: 'River lamprey', scientific: 'Lampetra fluviatilis', type: 'rockFish', water: 'brackish', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 32, escapeRate: 7, temperament: 'eel' },
   { no: 77, id: 'racoonButterfish', name: 'Racoon butterfish', scientific: 'Chaetodon lunula', type: 'smallFish', water: 'salt', tier: 1, hp: [16, 20], sellValue: 4, escapeAt: 65, escapeStart: 35, escapeRate: 6, temperament: 'reefFish' },
   { no: 78, id: 'atlanticTrumpetfish', name: 'Atlantic trumpetfish', scientific: 'Aulostomus strigosus', type: 'rockFish', water: 'salt', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 25, escapeRate: 9, temperament: 'predator' },
@@ -189,7 +193,7 @@ export const creatures: CreatureDef[] = [
   { no: 97, id: 'pacificOyster', name: 'Pacific oyster', scientific: 'Crassostrea gigas', type: 'shellfish', water: 'salt', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 38, escapeRate: 3, temperament: 'armored' },
   { no: 98, id: 'pearlOyster', name: 'Pearl oyster', scientific: 'Pinctada margaritifera', type: 'shellfish', water: 'salt', tier: 2, hp: [30, 36], sellValue: 7, escapeAt: 95, escapeStart: 56, escapeRate: 4, temperament: 'armored' },
   { no: 99, id: 'hardClam', name: 'Hard clam', scientific: 'Mercenaria mercenaria', type: 'shellfish', water: 'salt', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 38, escapeRate: 4, temperament: 'armored' },
-  { no: 100, id: 'giantClam', name: 'Giant clam', scientific: 'Tridacna gigas', type: 'shellfish', water: 'salt', tier: 3, hp: [60, 70], sellValue: 16, escapeAt: 165, escapeStart: 103, escapeRate: 6, temperament: 'armored', strength: 2 },
+  { no: 100, id: 'giantClam', name: 'Giant clam', scientific: 'Tridacna gigas', type: 'shellfish', water: 'salt', tier: 3, hp: [60, 70], sellValue: 16, escapeAt: 165, escapeStart: 103, escapeRate: 6, temperament: 'armored', strength: 2, bossMoves: bossMoveSets.giantClam },
   { no: 101, id: 'mediterraneanMussel', name: 'Mediterranean mussel', scientific: 'Mytilus galloprovincialis', type: 'shellfish', water: 'salt', tier: 1, hp: [16, 20], sellValue: 4, escapeAt: 65, escapeStart: 40, escapeRate: 3, temperament: 'armored' },
   { no: 102, id: 'greatScallop', name: 'Great scallop', scientific: 'Pecten maximus', type: 'shellfish', water: 'salt', tier: 1, hp: [18, 22], sellValue: 4, escapeAt: 65, escapeStart: 31, escapeRate: 7, temperament: 'armored' },
   { no: 103, id: 'spinyCockle', name: 'Spiny cockle', scientific: 'Acanthocardia aculeata', type: 'shellfish', water: 'salt', tier: 1, hp: [18, 22], sellValue: 4, escapeAt: 65, escapeStart: 37, escapeRate: 4, temperament: 'armored' },
@@ -200,7 +204,7 @@ export const creatures: CreatureDef[] = [
   { no: 108, id: 'flameJellyfish', name: 'Flame jellyfish', scientific: 'Rhopilema esculentum', type: 'tentacled', water: 'salt', tier: 2, hp: [30, 36], sellValue: 7, escapeAt: 95, escapeStart: 55, escapeRate: 6, temperament: 'jellyfish' },
   { no: 109, id: 'commonOctopus', name: 'Common octopus', scientific: 'Octopus vulgaris', type: 'tentacled', water: 'salt', tier: 2, hp: [38, 44], sellValue: 10, escapeAt: 115, escapeStart: 56, escapeRate: 14, temperament: 'cephalopod' },
   { no: 110, id: 'flapjackOctopus', name: 'Flapjack octopus', scientific: 'Opisthoteuthis californiana', type: 'tentacled', water: 'salt', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 38, escapeRate: 6, temperament: 'cephalopod' },
-  { no: 111, id: 'atlanticGiantSquid', name: 'Atlantic giant squid', scientific: 'Architeuthis dux', type: 'tentacled', water: 'salt', tier: 3, hp: [70, 80], sellValue: 18, escapeAt: 185, escapeStart: 74, escapeRate: 20, temperament: 'cephalopod', strength: 2 },
+  { no: 111, id: 'atlanticGiantSquid', name: 'Atlantic giant squid', scientific: 'Architeuthis dux', type: 'tentacled', water: 'salt', tier: 3, hp: [70, 80], sellValue: 18, escapeAt: 185, escapeStart: 74, escapeRate: 20, temperament: 'cephalopod', strength: 2, bossMoves: bossMoveSets.atlanticGiantSquid },
   { no: 112, id: 'commonSquid', name: 'Common squid', scientific: 'Loligo vulgaris', type: 'tentacled', water: 'salt', tier: 2, hp: [30, 36], sellValue: 7, escapeAt: 95, escapeStart: 42, escapeRate: 13, temperament: 'cephalopod' },
   { no: 113, id: 'cushionStar', name: 'Cushion star', scientific: 'Culcita novaeguineae', type: 'critter', water: 'salt', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 38, escapeRate: 4, temperament: 'bottomDweller' },
   { no: 114, id: 'commonStarfish', name: 'Common starfish', scientific: 'Asterias rubens', type: 'critter', water: 'salt', tier: 1, hp: [18, 22], sellValue: 4, escapeAt: 65, escapeStart: 37, escapeRate: 4, temperament: 'bottomDweller' },
@@ -212,7 +216,7 @@ export const creatures: CreatureDef[] = [
   { no: 120, id: 'yetiCrab', name: 'Yeti crab', scientific: 'Kiwa hirsuta', type: 'crustacean', water: 'salt', tier: 2, hp: [30, 36], sellValue: 7, escapeAt: 95, escapeStart: 56, escapeRate: 7, temperament: 'clawed' },
   { no: 121, id: 'atlanticHorseshoeCrab', name: 'Atlantic horseshoe crab', scientific: 'Limulus polyphemus', type: 'crustacean', water: 'salt', tier: 2, hp: [36, 42], sellValue: 9, escapeAt: 110, escapeStart: 62, escapeRate: 7, temperament: 'clawed' },
   { no: 122, id: 'atlanticCrayfish', name: 'Atlantic crayfish', scientific: 'Austropotamobius pallipes', type: 'crustacean', water: 'fresh', tier: 1, hp: [20, 24], sellValue: 5, escapeAt: 70, escapeStart: 32, escapeRate: 7, temperament: 'clawed' },
-  { no: 123, id: 'commonLobster', name: 'Common lobster', scientific: 'Homarus gammarus', type: 'crustacean', water: 'salt', tier: 2, hp: [42, 48], sellValue: 11, escapeAt: 120, escapeStart: 60, escapeRate: 11, temperament: 'clawed' },
+  { no: 123, id: 'commonLobster', name: 'Common lobster', scientific: 'Homarus gammarus', type: 'crustacean', water: 'salt', tier: 2, hp: [42, 48], sellValue: 11, escapeAt: 120, escapeStart: 60, escapeRate: 11, temperament: 'clawed', bossMoves: bossMoveSets.commonLobster },
   { no: 124, id: 'spinyLobster', name: 'Spiny lobster', scientific: 'Palinurus elephas', type: 'crustacean', water: 'salt', tier: 2, hp: [40, 46], sellValue: 10, escapeAt: 115, escapeStart: 56, escapeRate: 11, temperament: 'clawed' },
   { no: 125, id: 'shrimp', name: 'Shrimp', scientific: 'Parapenaeus longirostris', type: 'crustacean', water: 'salt', tier: 1, hp: [10, 14], sellValue: 2, escapeAt: 50, escapeStart: 16, escapeRate: 7, temperament: 'schooling' },
   { no: 126, id: 'greenSeaTurtle', name: 'Green sea turtle', scientific: 'Chelonia mydas', type: 'critter', water: 'salt', tier: 2, hp: [44, 50], sellValue: 11, escapeAt: 125, escapeStart: 42, escapeRate: 13, temperament: 'armored' },
@@ -236,5 +240,5 @@ export const creatures: CreatureDef[] = [
   { no: 144, id: 'medicinalLeech', name: 'Medicinal leech', scientific: 'Hirudo medicinalis', type: 'critter', water: 'fresh', tier: 1, hp: [14, 18], sellValue: 3, escapeAt: 60, escapeStart: 30, escapeRate: 6, temperament: 'eel' },
 
   // --- Own art (not in fishes.png) -------------------------------------------
-  { no: 145, id: 'giantPacificOctopus', name: 'Giant octopus', scientific: 'Enteroctopus dofleini', type: 'tentacled', water: 'salt', tier: 2, hp: [42, 48], sellValue: 11, escapeAt: 120, escapeStart: 60, escapeRate: 11, temperament: 'cephalopod', sprite: { sheet: 'octopus', index: 1 } },
+  { no: 145, id: 'giantPacificOctopus', name: 'Giant octopus', scientific: 'Enteroctopus dofleini', type: 'tentacled', water: 'salt', tier: 2, hp: [42, 48], sellValue: 11, escapeAt: 120, escapeStart: 60, escapeRate: 11, temperament: 'cephalopod', sprite: { sheet: 'octopus', index: 1 }, bossMoves: bossMoveSets.giantPacificOctopus },
 ];

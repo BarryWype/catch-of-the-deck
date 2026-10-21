@@ -13,15 +13,19 @@ import {
   isCardPlayable,
   PLAYER_ID,
   previewCard,
+  previewForesight,
+  hasFeature,
   previewIntent,
   previewIntents,
   progressionTotal,
   runSellBonus,
   escapeRise,
+  escalationPercent,
   takeReport,
   HOLD_PER_PATIENCE,
   MAX_HAND_SIZE,
   MAX_PATIENCE,
+  movesOf,
   PATIENCE_ESCAPE_PERCENT,
   validateAction,
   type CardInstance,
@@ -112,6 +116,25 @@ const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => 
  * the book is updated when the fight ends), how many the home aquarium holds, and the open quests
  * it counts towards.
  */
+/** Labelled badges under a creature's name: a trophy fight's, its trait, its affix… */
+function badgesOf(enemy: EnemyState) {
+  const badges: { key: string; label: string; tip: string; tone?: 'trait' | 'affix' | 'warn' }[] = [];
+  if (enemy.trophy) badges.push({ key: 'trophy', label: t('combat.badge.trophy'), tip: t('combat.badge.trophyTip'), tone: 'affix' });
+  const trait = hasFeature(props.data, 'traits') ? props.data.enemies[enemy.defId]?.trait : undefined;
+  if (trait) badges.push({ key: 'trait', label: trait.name, tip: t('combat.badge.trait', { text: trait.description }), tone: 'trait' });
+  const affix = enemy.affix ? props.data.affixes?.[enemy.affix] : undefined;
+  if (affix) badges.push({ key: 'affix', label: affix.name, tip: affix.description, tone: 'affix' });
+  if (enemy.held) {
+    const cards = enemy.held.cards.map((c) => props.data.cards[c.defId]?.name ?? c.defId).join(', ');
+    const left = Math.max(0, enemy.held.returnAt - (enemy.damageThisTurn ?? 0));
+    badges.push({ key: 'held', label: t('combat.badge.held', { n: enemy.held.cards.length }), tip: t('combat.badge.heldTip', { cards, left }), tone: 'warn' });
+  }
+  const desperate = escalationPercent(enemy, props.data);
+  if (desperate) badges.push({ key: 'desperate', label: t('combat.badge.desperate'), tip: t('combat.badge.desperateTip', { n: Math.min(100, desperate) }), tone: 'warn' });
+  if (previewIntent(shownState.value, enemy, props.data)?.mayBluff) badges.push({ key: 'bluff', label: t('combat.badge.bluff'), tip: t('combat.badge.bluffTip'), tone: 'warn' });
+  return badges;
+}
+
 function creatureTip(enemy: EnemyState) {
   const def = props.data.enemies[enemy.defId];
   const atHome = props.homeAquarium.filter((c) => c.id === enemy.defId).length;
@@ -161,7 +184,9 @@ const battlefield = ref<HTMLElement>();
 
 /** Coins from creatures sold on the spot by equipment (null when they go to the aquarium). */
 const instantSale = computed(() => {
-  const sales = props.state.enemies.map((e) => instantSaleValue(e.defId, props.equipment, props.data, props.run ? runSellBonus(props.run, props.data, props.state.bonuses) : bonusTotal(props.state.bonuses, 'sellBonus')));
+  const sales = props.state.enemies.map((e) =>
+    instantSaleValue(e.defId, props.equipment, props.data, props.run ? runSellBonus(props.run, props.data, props.state.bonuses) : bonusTotal(props.state.bonuses, 'sellBonus'), e.trophy ? 'trophy' : undefined),
+  );
   return sales.some((s) => s === null) ? null : sales.reduce<number>((sum, s) => sum + (s ?? 0), 0);
 });
 
@@ -337,7 +362,7 @@ watch(
         animate(enemy.id, 'flee');
       } else if (enemy.moveHistory.length > before.moveHistory.length) {
         const moveId = enemy.moveHistory[enemy.moveHistory.length - 1];
-        const move = props.data.enemies[enemy.defId].moves.find((m) => m.id === moveId);
+        const move = movesOf(enemy, props.data).find((m) => m.id === moveId);
         if (move?.effects.some((e) => e.type === 'dealDamage' || e.type === 'pull')) animate(enemy.id, 'attack');
         if (move) playMotion(enemy.id, moveMotion(move), MOTION_STAGGER_MS * acted++);
       }
@@ -818,6 +843,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(shownState, enemy, data)"
+          :then="previewForesight(shownState, enemy, data)"
+          :badges="badgesOf(enemy)"
           :escape-bar="{
             escape: enemy.escape,
             escapeAt: enemy.escapeAt,
@@ -874,7 +901,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :card="data.cards[card.defId]"
             :description="cardText(card)"
             :playable="isCardPlayable(state, card.uid, data)"
-            :cost="cardCost(state, data.cards[card.defId])"
+            :cost="cardCost(state, data.cards[card.defId], card.uid)"
             :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
             :data-card-uid="card.uid"
             :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
@@ -941,7 +968,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :key="card.uid"
             :card="data.cards[card.defId]"
             :description="cardText(card)"
-            :cost="cardCost(state, data.cards[card.defId])"
+            :cost="cardCost(state, data.cards[card.defId], card.uid)"
             :data-pick-uid="card.uid"
             @click="emit('action', { type: 'pickCard', cardUid: card.uid })"
           />

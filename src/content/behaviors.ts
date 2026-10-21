@@ -1,4 +1,4 @@
-import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type MoveIntensity, type MoveRole, type MoveTag, type StatusId } from '../engine';
+import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type MoveIntensity, type MoveRole, type MoveTag, type StatusId, type TraitDef } from '../engine';
 
 /**
  * Shared move sets. A creature in creatures.ts picks one by name, so
@@ -18,12 +18,17 @@ import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type M
  * bosses (whose Wind-ups also give 1), MAX_MOVE_STRENGTH per fight at most.
  * Patterns: 'weighted' for ordinary creatures; `bossPattern`, a fixed 'sequence', when the
  * creature is a mini-boss or boss.
+ * Traits (`trait`, the `traits` feature): one rule per temperament (TraitRule), its numbers here.
+ * Boss move sets (`bossMoveSets`, the `bossGimmicks` feature): a boss's own moves and pattern, built
+ * around one signature mechanic, played instead of its temperament's when it's fought as a boss.
  */
 export interface Behavior {
   moves: EnemyMove[];
   pattern: IntentPattern;
   /** Its pattern as a mini-boss or boss. */
   bossPattern?: IntentPattern;
+  /** The temperament's signature trait (the `traits` feature), shown as a badge on its creatures. */
+  trait?: TraitDef;
 }
 
 /** A normal move's Strike or Pull before the fight scales it (only the ratios between moves matter). */
@@ -35,12 +40,12 @@ export function move(
   name: string,
   tag: MoveTag,
   intensity: MoveIntensity,
-  opts: { hits?: number; role?: MoveRole; followUp?: string; extras?: Effect[]; heavyIfNoHold?: boolean } = {},
+  opts: { hits?: number; role?: MoveRole; followUp?: string; extras?: Effect[]; heavyIfNoHold?: boolean; doubleIfHoldBelow?: number } = {},
 ): EnemyMove {
   const amount = MOVE_INTENSITY[intensity] * POINTS;
   const main: Effect =
     tag === 'strike'
-      ? { type: 'dealDamage', amount: amount / (opts.hits ?? 1), ...(opts.hits ? { hits: opts.hits } : {}) }
+      ? { type: 'dealDamage', amount: amount / (opts.hits ?? 1), ...(opts.hits ? { hits: opts.hits } : {}), ...(opts.doubleIfHoldBelow ? { doubleIfHoldBelow: opts.doubleIfHoldBelow } : {}) }
       : { type: 'pull', amount, ...(opts.heavyIfNoHold ? { heavyIfNoHold: true } : {}) };
   return {
     id,
@@ -60,6 +65,7 @@ const strength: Effect = { type: 'applyStatus', status: 'strength', amount: 1, t
 export const STEAL: Effect = { type: 'stealPatience', amount: 1 };
 const INK: Effect = { type: 'ink' };
 const BURROW: Effect = { type: 'applyStatus', status: 'burrowed', amount: 1, target: 'self' };
+const HIDE: Effect = { type: 'applyStatus', status: 'hiding', amount: 1, target: 'self' };
 const junk = (card: string): Effect => ({ type: 'addJunk', card });
 const special = { role: 'special' as const };
 const pace = { role: 'pace' as const };
@@ -75,6 +81,7 @@ export const behaviors = {
       move('flashColors', 'Flashy Zigzag', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { nip: 35, dartAway: 25, nibble: 20, flashColors: 20 } },
+    trait: { name: 'Dazzle', description: 'Every third move, it shows a random move of its set: a "?" warns it may be a bluff.', rule: { type: 'bluff', every: 3 } },
   },
 
   /** Tiny fish in a shoal: many small bites, and they get under your skin. */
@@ -87,6 +94,7 @@ export const behaviors = {
       move('weave', 'Weave Through the Line', 'pull', 'light', { ...special, extras: [junk('tangledLine')] }),
     ],
     pattern: { type: 'weighted', weights: { swarm: 30, scatter: 25, regroup: 20, startle: 12, weave: 13 } },
+    trait: { name: 'Scatter', description: 'The first time its Health drops below 50%, its Will jumps by 10.', rule: { type: 'belowHealth', percent: 50, will: 10 } },
   },
 
   /** Hunters: they size up the lure, then shake hard and run. */
@@ -100,6 +108,8 @@ export const behaviors = {
       move('circleLure', 'Circle the Lure', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { lunge: 30, circle: 20, sizeUp: 15, grab: 15, circleLure: 20 } },
+    bossPattern: { type: 'sequence', moves: ['lunge', 'circle', 'sizeUp', 'bite', 'grab', 'lunge', 'circleLure'] },
+    trait: { name: 'Bloodlust', description: 'The first time a creature’s hit drops your Grit below 50%, it gains 1 Strength.', rule: { type: 'playerBelow', percent: 50, effect: { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' } } },
   },
 
   /** Spines and venom. */
@@ -112,6 +122,8 @@ export const behaviors = {
       move('lieStill', 'Lie Still', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { venomStrike: 25, raiseSpines: 25, sting: 15, bristle: 15, lieStill: 20 } },
+    bossPattern: { type: 'sequence', moves: ['venomStrike', 'sting', 'raiseSpines', 'bristle', 'venomStrike', 'lieStill'] },
+    trait: { name: 'Toxic', description: 'Venom it gives you doesn’t wear off the first time it hits.', rule: { type: 'lingeringVenom' } },
   },
 
   /** Inflates and pokes, then has to deflate. */
@@ -124,6 +136,8 @@ export const behaviors = {
       move('deflate', 'Deflate', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { spikeJab: 30, paddle: 25, puffUp: 20, bump: 10, deflate: 15 } },
+    bossPattern: { type: 'sequence', moves: ['spikeJab', 'puffUp', 'paddle', 'bump', 'spikeJab', 'deflate'] },
+    trait: { name: 'Inflate', description: 'After taking 3 hits in one turn, it puffs up: you get 2 Spines.', rule: { type: 'afterHits', hits: 3, effect: { type: 'applyStatus', status: 'spines', amount: 2 } } },
   },
 
   /** Hides, waits, then strikes hard. Hit it while it's hiding! */
@@ -137,6 +151,8 @@ export const behaviors = {
       move('settle', 'Settle in the Sand', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { snap: 25, lurk: 25, stirSilt: 15, lieInWait: 15, settle: 20 } },
+    bossPattern: { type: 'sequence', moves: ['snap', 'stirSilt', 'lurk', 'lieInWait', 'ambush', 'settle'] },
+    trait: { name: 'Camouflage', description: 'It starts each of its turns hidden behind 3 Block.', rule: { type: 'turnStart', effect: { type: 'gainBlock', amount: 3 } } },
   },
 
   /** Game fish that put up a fight on the line, and need to catch their breath. */
@@ -149,6 +165,8 @@ export const behaviors = {
       move('catchBreath', 'Catch Breath', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { tailSlap: 30, leap: 25, thrash: 10, shake: 15, catchBreath: 20 } },
+    bossPattern: { type: 'sequence', moves: ['tailSlap', 'leap', 'shake', 'thrash', 'tailSlap', 'catchBreath'] },
+    trait: { name: 'Second Run', description: 'Once, when its Will is below 25%, it skips a rest for one more normal Pull.', rule: { type: 'lastRun', percent: 25 } },
   },
 
   /** Huge and slow: sounds deep, heaves, then hangs off the line like dead weight. */
@@ -162,6 +180,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { ram: 25, longRun: 25, dive: 15, heave: 15, drift: 20 } },
     bossPattern: { type: 'sequence', moves: ['ram', 'longRun', 'dive', 'heave', 'ram', 'drift'] },
+    trait: { name: 'Deep Runs', description: 'Its Will rises only every other turn, but twice as much.', rule: { type: 'slowWill', every: 2, times: 2 } },
   },
 
   /** Wriggles, hides in the rocks, coils, then wriggles hard. */
@@ -175,6 +194,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { doubleBite: 30, coil: 25, coilUp: 15, slime: 15, crevice: 15 } },
     bossPattern: { type: 'sequence', moves: ['doubleBite', 'slime', 'coil', 'coilUp', 'doubleBite', 'crevice'] },
+    trait: { name: 'Slippery', description: 'Your first Drain on it each turn drains half.', rule: { type: 'firstDrain', percent: 50 } },
   },
 
   /** Shells: very hard to crack. */
@@ -187,6 +207,8 @@ export const behaviors = {
       move('restOnRocks', 'Rest on the Rocks', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { spit: 25, clampShut: 25, clampTight: 15, snap: 15, restOnRocks: 20 } },
+    bossPattern: { type: 'sequence', moves: ['spit', 'clampShut', 'snap', 'clampTight', 'spit', 'restOnRocks'] },
+    trait: { name: 'Hard Shell', description: 'It keeps half its Block from one turn to the next.', rule: { type: 'keepBlock', percent: 50 } },
   },
 
   /** Drifting stingers. */
@@ -199,6 +221,7 @@ export const behaviors = {
       move('pulse', 'Pulse', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { wrap: 25, drift: 25, sting: 15, tangle: 15, pulse: 20 } },
+    trait: { name: 'Drifting', description: 'While its next move is its rest, your attacks deal 25% less.', rule: { type: 'paceGuard', percent: 25 } },
   },
 
   /** Octopus and squid: ink, many suckers, a change of colour, then anchored to a rock. */
@@ -213,6 +236,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { tentacles: 25, squeeze: 20, inkCloud: 15, venomBite: 10, changeColour: 15, hover: 15 } },
     bossPattern: { type: 'sequence', moves: ['tentacles', 'inkCloud', 'squeeze', 'venomBite', 'changeColour', 'tentacles', 'hover'] },
+    trait: { name: 'Ink Sense', description: 'Its Ink hides its next two moves instead of one.', rule: { type: 'inkMoves', moves: 2 } },
   },
 
   /** Crabs, lobsters and other crustaceans: pinch, wedge in, raise the claws, crush. */
@@ -227,6 +251,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { pinch: 30, shellUp: 25, brandishClaws: 15, kickSand: 15, raiseClaws: 15 } },
     bossPattern: { type: 'sequence', moves: ['pinch', 'shellUp', 'kickSand', 'brandishClaws', 'crush', 'raiseClaws'] },
+    trait: { name: 'Counter-pinch', description: 'When its Block soaks a whole hit, it pinches back for 2.', rule: { type: 'counter', damage: 2 } },
   },
 
   /** Slugs, stars, worms and other things on the sea floor: they also stop to graze. */
@@ -239,7 +264,131 @@ export const behaviors = {
       move('graze', 'Graze', 'pull', 'light', { ...pace, extras: [{ type: 'healPercent', percent: 5, target: 'self' }] }),
     ],
     pattern: { type: 'weighted', weights: { prickle: 30, harden: 25, ooze: 15, stirSilt: 10, graze: 20 } },
+    trait: { name: 'Regrowth', description: 'It heals 3% of its Health at the start of each of its turns.', rule: { type: 'turnStart', effect: { type: 'healPercent', percent: 3, target: 'self' } } },
   },
 } satisfies Record<string, Behavior>;
 
 export type BehaviorId = keyof typeof behaviors;
+
+/** Boss move sets (`bossGimmicks`), by creature id: the same rules as a temperament's set, each with its signature mechanic. */
+export const bossMoveSets = {
+  /** Eight Arms: it takes a card from your next hand; 10 Health lost in that turn gets it back. */
+  giantPacificOctopus: {
+    moves: [
+      move('tentacles', 'Suction Grip', 'strike', 'normal', { hits: 3 }),
+      move('squeeze', 'Rock Anchor', 'pull', 'normal'),
+      move('eightArms', 'Eight Arms', 'strike', 'light', { ...special, extras: [{ type: 'grabCard', returnAt: 10 }] }),
+      move('inkCloud', 'Ink Cloud', 'pull', 'light', { ...special, extras: [block(3), INK] }),
+      move('hover', 'Hover', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['tentacles', 'eightArms', 'squeeze', 'inkCloud', 'tentacles', 'hover'] },
+  },
+
+  /** Molting: it sheds every debuff you put on it, so debuffs pay off only before it molts. */
+  commonLobster: {
+    moves: [
+      move('pinch', 'Pinch the Fingers', 'strike', 'normal'),
+      move('shellUp', 'Wedge Under a Rock', 'pull', 'normal', { extras: [block(6)] }),
+      move('molt', 'Molt', 'pull', 'light', { ...special, extras: [{ type: 'shedDebuffs' }] }),
+      move('brandishClaws', 'Raise the Claws', 'strike', 'light', windUp('crush')),
+      move('crush', 'Crushing Pinch', 'strike', 'heavy', { role: 'heavy' }),
+      move('raiseClaws', 'Scuttle Backwards', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['pinch', 'shellUp', 'molt', 'brandishClaws', 'crush', 'raiseClaws'] },
+  },
+
+  /** Into the Mud: it burrows while it winds up, then ambushes. */
+  catfish: {
+    moves: [
+      move('snap', 'Snap at the Lure', 'strike', 'normal'),
+      move('lurk', 'Into the Weed', 'pull', 'normal', { extras: [block(4)] }),
+      move('digIn', 'Into the Mud', 'pull', 'light', windUp('ambush', [BURROW])),
+      move('ambush', 'Ambush the Lure', 'strike', 'heavy', { role: 'heavy' }),
+      move('stirSilt', 'Stir the Silt', 'pull', 'light', { ...special, extras: [INK] }),
+      move('settle', 'Settle in the Sand', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['snap', 'lurk', 'digIn', 'ambush', 'stirSilt', 'settle'] },
+  },
+
+  /** Retreat into the Hole: your attacks do nothing until its next turn, but Drain does. */
+  giantMorayEel: {
+    moves: [
+      move('doubleBite', 'Slimy Wriggle', 'strike', 'normal', { hits: 4 }),
+      move('coil', 'Hide in the Rocks', 'pull', 'normal', { extras: [block(4)] }),
+      move('retreat', 'Retreat into the Hole', 'pull', 'light', { ...special, extras: [HIDE] }),
+      move('lunge', 'Lunge from the Hole', 'strike', 'normal', { hits: 2 }),
+      move('slime', 'Slime the Line', 'strike', 'light', { ...special, extras: [junk('slimySeaweed')] }),
+      move('crevice', 'Rest in the Crevice', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['doubleBite', 'retreat', 'lunge', 'coil', 'slime', 'retreat', 'lunge', 'crevice'] },
+  },
+
+  /** Snap Shut: 20 Block and Burrow at once (and Hard Shell keeps half the Block). */
+  giantClam: {
+    moves: [
+      move('spit', 'Squirt', 'strike', 'normal', { extras: [onYou('weak')] }),
+      move('clampShut', 'Bury in the Sand', 'pull', 'normal', { extras: [block(8)] }),
+      move('snapShut', 'Snap Shut', 'pull', 'light', { ...special, extras: [block(20), BURROW] }),
+      move('snap', 'Clamp the Fingers', 'strike', 'light', { ...special, extras: [onYou('pinchedHand')] }),
+      move('restOnRocks', 'Rest on the Rocks', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['spit', 'clampShut', 'snapShut', 'snap', 'spit', 'restOnRocks'] },
+  },
+
+  /** Sprint: for 2 turns its Will rises twice as fast. */
+  bluefinTuna: {
+    moves: [
+      move('ram', 'Dead Weight', 'strike', 'normal'),
+      move('longRun', 'Long Run', 'pull', 'normal'),
+      move('sprint', 'Sprint', 'pull', 'light', { ...special, extras: [{ type: 'applyStatus', status: 'sprinting', amount: 2, target: 'self' }] }),
+      move('heave', 'Heave', 'strike', 'light', windUp('ram')),
+      move('drift', 'Drift', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['ram', 'sprint', 'longRun', 'heave', 'ram', 'drift'] },
+  },
+
+  /** Two phases: Ink and Pulls while its Health is above half, then a frenzy of multi-hit Strikes. */
+  atlanticGiantSquid: {
+    moves: [
+      move('tentacles', 'Suction Grip', 'strike', 'normal', { hits: 3 }),
+      move('armFrenzy', 'Arm Frenzy', 'strike', 'normal', { hits: 5 }),
+      move('squeeze', 'Rock Anchor', 'pull', 'normal'),
+      move('jet', 'Jet Away', 'pull', 'normal', { extras: [block(3)] }),
+      move('inkCloud', 'Ink Cloud', 'pull', 'light', { ...special, extras: [block(3), INK] }),
+      move('venomBite', 'Venomous Bite', 'strike', 'light', { ...special, extras: [onYou('numbFingers')] }),
+      move('hover', 'Hover', 'pull', 'light', pace),
+    ],
+    pattern: {
+      type: 'phased',
+      below: 50,
+      first: { type: 'sequence', moves: ['inkCloud', 'squeeze', 'jet', 'hover'] },
+      then: { type: 'sequence', moves: ['tentacles', 'armFrenzy', 'venomBite', 'armFrenzy', 'hover'] },
+    },
+  },
+
+  /** Breach: after it sizes up the lure, its leap deals double if you have less than 10 Hold. */
+  shortfinMakoShark: {
+    moves: [
+      move('lunge', 'Jolt the Rod', 'strike', 'normal', { extras: [onYou('vulnerable')] }),
+      move('circle', 'Screaming Run', 'pull', 'normal', { extras: [strength] }),
+      move('sizeUp', 'Size Up the Lure', 'pull', 'light', windUp('breach')),
+      move('breach', 'Breach', 'strike', 'heavy', { role: 'heavy', doubleIfHoldBelow: 10 }),
+      move('grab', 'Grab the Bait', 'strike', 'light', { ...special, extras: [onYou('baitGrabbed')] }),
+      move('circleLure', 'Circle the Lure', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['lunge', 'circle', 'sizeUp', 'breach', 'grab', 'circleLure'] },
+  },
+
+  /** Omen: Tangled and Numb Fingers at once, so every Attack and Drain card costs more next turn. */
+  oarfish: {
+    moves: [
+      move('ram', 'Dead Weight', 'strike', 'normal'),
+      move('longRun', 'Long Run', 'pull', 'normal'),
+      move('omen', 'Omen', 'pull', 'light', { ...special, extras: [onYou('tangled'), onYou('numbFingers')] }),
+      move('dive', 'Sound Deep', 'pull', 'light', { ...special, extras: [BURROW] }),
+      move('heave', 'Heave', 'strike', 'light', windUp('ram')),
+      move('drift', 'Drift', 'pull', 'light', pace),
+    ],
+    pattern: { type: 'sequence', moves: ['longRun', 'omen', 'ram', 'dive', 'heave', 'ram', 'drift'] },
+  },
+} satisfies Record<string, Behavior>;

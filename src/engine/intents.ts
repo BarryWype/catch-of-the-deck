@@ -1,8 +1,11 @@
-import { MOVE_INTENSITY, PLAYER_ID, SECOND_WIND_PERCENT } from './constants';
+import { ESCALATION_PULL_PERCENT, ESCALATION_TURN, MOVE_INTENSITY, PLAYER_ID, SECOND_WIND_PERCENT } from './constants';
+import { hasFeature } from './features';
+import { bonusTotal } from './companions';
 import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
-import { pickWeighted } from './rng';
+import { nextInt, pickWeighted } from './rng';
+import { affixOf, movesOf, traitOf } from './traits';
 import { nextMoveMods, statusDescription, statusName } from './statuses';
 import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveIntensity, MoveRole, MoveTag } from './types';
 import { text } from './text';
@@ -34,6 +37,8 @@ export interface IntentPreview {
   intensity?: MoveIntensity;
   /** The move bait put off (`delayMove`): it comes on the creature's turn after this one. */
   delayed?: string;
+  /** This may be a bluff (a Dazzle trait): the creature shows a random move of its set. */
+  mayBluff?: boolean;
 }
 
 /** A mini-boss's or boss's Second Wind: not in its move set, telegraphed once (`telegraphSecondWind`). */
@@ -44,12 +49,13 @@ function secondWindMove(): EnemyMove {
 
 export function getIntentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
   if (enemy.intent === SECOND_WIND_ID) return secondWindMove();
-  return data.enemies[enemy.defId]?.moves.find((m) => m.id === enemy.intent);
+  return movesOf(enemy, data).find((m) => m.id === enemy.intent);
 }
 
-/** The pattern a creature follows in this fight: its `bossPattern` as a mini-boss or boss. */
+/** The pattern a creature follows in this fight: its own boss set's (`bossMoves`), or its `bossPattern` as a mini-boss or boss. */
 export function patternOf(enemy: EnemyState, data: GameData): IntentPattern {
   const def = data.enemies[enemy.defId];
+  if (enemy.gimmick && def.bossMoves) return def.bossMoves.pattern;
   return (enemy.boss && def.bossPattern) || def.pattern;
 }
 
@@ -66,6 +72,7 @@ export function telegraphSecondWind(enemy: EnemyState, data: GameData): boolean 
   enemy.secondWindUsed = true;
   enemy.intent = SECOND_WIND_ID;
   enemy.intentHidden = false;
+  delete enemy.bluff;
   return true;
 }
 
@@ -77,47 +84,102 @@ export function telegraphSecondWind(enemy: EnemyState, data: GameData): boolean 
 export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameData): void {
   enemy.intentHidden = !!enemy.inked;
   enemy.inked = false;
+  delete enemy.bluff;
+  // Ink Sense: the Ink hides more moves to come.
+  if (enemy.inkLeft) {
+    enemy.inked = true;
+    enemy.inkLeft--;
+  }
   if (telegraphSecondWind(enemy, data)) return;
+  // A phased pattern moves on to its second phase once, when its Health drops low enough (a Wind-up's heavy move first).
+  const pattern = patternOf(enemy, data);
+  const windingUp = movesOf(enemy, data).find((m) => m.id === enemy.moveHistory[enemy.moveHistory.length - 1])?.role === 'windUp';
+  if (pattern.type === 'phased' && enemy.phaseFrom === undefined && !windingUp && enemy.hp * 100 < enemy.maxHp * pattern.below) enemy.phaseFrom = enemy.moveHistory.length;
   // After the Pace bait put in, the move it put off.
   if (enemy.delayedIntent !== undefined) {
     enemy.intent = enemy.delayedIntent;
     delete enemy.delayedIntent;
     return;
   }
-  const moves = data.enemies[enemy.defId].moves;
-  const pattern = patternOf(enemy, data);
-  const history = enemy.moveHistory;
+  // Foresight: the move shown as coming after this one comes now.
+  if (enemy.foresight !== undefined) {
+    enemy.intent = enemy.foresight;
+    delete enemy.foresight;
+  } else {
+    enemy.intent = nextMove(state, enemy, data, enemy.moveHistory);
+  }
+  if (bonusTotal(state.bonuses, 'foresight') > 0) enemy.foresight = nextMove(state, enemy, data, [...enemy.moveHistory, enemy.intent]);
+  const rule = traitOf(enemy, data);
+  const moves = movesOf(enemy, data);
+  // Second Run: low on Will, it trades a rest for one more pull.
+  if (rule?.type === 'lastRun' && !enemy.traitUsed && enemy.escape * 100 < enemy.escapeAt * rule.percent && getIntentMove(enemy, data)?.role === 'pace') {
+    const pull = moves.find((m) => m.tag === 'pull' && m.intensity === 'normal' && !m.role);
+    if (pull) {
+      enemy.intent = pull.id;
+      enemy.traitUsed = true;
+    }
+  }
+  // Dazzle: every few moves it shows a random one of its moves instead.
+  if (rule?.type === 'bluff' && (enemy.moveHistory.length + 1) % rule.every === 0) {
+    const shown = moves.filter((m) => m.role !== 'heavy');
+    enemy.bluff = shown[nextInt(state, 0, shown.length - 1)].id;
+  }
+}
+
+/**
+ * How far an ordinary creature's weighted pattern has escalated (`escalation`) for the move after
+ * these many: the percent its normal Pulls gain and its pace loses, 0 before `ESCALATION_TURN`.
+ */
+export function escalationPercent(enemy: EnemyState, data: GameData, played = enemy.moveHistory.length): number {
+  if (enemy.boss || !hasFeature(data, 'escalation') || patternOf(enemy, data).type !== 'weighted') return 0;
+  return Math.max(0, played + 2 - ESCALATION_TURN) * ESCALATION_PULL_PERCENT;
+}
+
+/** The creature's next move from its pattern, after these moves. */
+function nextMove(state: CombatState, enemy: EnemyState, data: GameData, history: string[]): string {
+  const moves = movesOf(enemy, data);
+  const own = patternOf(enemy, data);
+  // A phased pattern: the phase it's in, its sequence counted from where that phase began.
+  const phased = own.type === 'phased' && enemy.phaseFrom !== undefined;
+  if (phased) history = history.slice(enemy.phaseFrom);
+  const pattern = own.type !== 'phased' ? own : phased ? own.then : own.first;
 
   if (pattern.type === 'sequence') {
     const loopFrom = pattern.loopFrom ?? 0;
     const n = history.length;
     const loopLength = pattern.moves.length - loopFrom;
     const index = n < pattern.moves.length ? n : loopFrom + ((n - loopFrom) % loopLength);
-    enemy.intent = pattern.moves[index];
-    return;
+    return pattern.moves[index];
   }
 
   const last = moves.find((m) => m.id === history[history.length - 1]);
-  if (last?.role === 'windUp' && last.followUp) {
-    enemy.intent = last.followUp;
-    return;
-  }
-  if (history.length === 0 && pattern.firstMove) {
-    enemy.intent = pattern.firstMove;
-    return;
-  }
+  if (last?.role === 'windUp' && last.followUp) return last.followUp;
+  if (history.length === 0 && pattern.firstMove) return pattern.firstMove;
   const max = pattern.maxConsecutive ?? Infinity;
   const recent = history.slice(-max);
+  // A Frenzied creature doesn't rest at first.
+  const frenzy = affixOf(enemy, data);
+  const restless = frenzy?.type === 'noPaceFor' && history.length < frenzy.turns;
   const allowed = (id: string) => {
     const move = moves.find((m) => m.id === id);
     if (!move || move.role === 'heavy') return false;
+    if (restless && move.role === 'pace') return false;
     if (last?.role === 'special' && move.role === 'special') return false;
     if (last?.effects.some((e) => e.type === 'ink') && move.role === 'windUp') return false;
     return !(recent.length >= max && recent.every((m) => m === id));
   };
-  let entries = Object.entries(pattern.weights).filter(([id, w]) => w > 0 && allowed(id));
-  if (entries.length === 0) entries = Object.entries(pattern.weights).filter(([, w]) => w > 0);
-  enemy.intent = pickWeighted(state, entries);
+  // A long fight tightens: more Pulls, less rest.
+  const shift = escalationPercent(enemy, data, history.length);
+  const weight = (id: string, w: number) => {
+    const move = moves.find((m) => m.id === id);
+    if (!shift || !move) return w;
+    if (move.role === 'pace') return Math.max(0, (w * (100 - shift)) / 100);
+    return move.tag === 'pull' && !move.role ? (w * Math.min(200, 100 + shift)) / 100 : w;
+  };
+  const weights = Object.entries(pattern.weights).map(([id, w]): [string, number] => [id, weight(id, w)]);
+  let entries = weights.filter(([id, w]) => w > 0 && allowed(id));
+  if (entries.length === 0) entries = weights.filter(([, w]) => w > 0);
+  return pickWeighted(state, entries);
 }
 
 /** How much bigger a move is than usual: its statuses (`nextMoveMods`), and a heavy Shake the Hook when the player has no Hold. */
@@ -133,6 +195,8 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
   const move = getIntentMove(enemy, data);
   if (!move) return;
   enemy.intentHidden = false;
+  if (enemy.bluff !== undefined && enemy.bluff !== move.id) addLog(state, text('log.bluff', { name: enemy.name }));
+  delete enemy.bluff;
   addLog(state, text('log.uses', { name: enemy.name, move: move.name }));
   // Statuses the player put on it change this move, and are used up by it.
   const mods = moveMods(state, enemy, move);
@@ -142,8 +206,10 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
     resolveEffect(state, effect, ctx);
     if (state.player.hp <= 0) break;
   }
-  // A mini-boss's or boss's Wind-up also makes it stronger.
+  // A mini-boss's or boss's Wind-up also makes it stronger, and a Hungry creature's.
   if (move.role === 'windUp' && enemy.boss) resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, ctx);
+  const affix = affixOf(enemy, data);
+  if (move.role === 'windUp' && affix?.type === 'windUpStrength') resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: affix.amount, target: 'self' }, ctx);
   // A move played in place of one put off by bait isn't part of its pattern.
   if (move.id !== SECOND_WIND_ID && enemy.delayedIntent === undefined) enemy.moveHistory.push(move.id);
 }
@@ -161,6 +227,8 @@ function specialOf(move: EnemyMove, data: GameData): IntentPreview['special'] {
     if (e.type === 'addJunk') return { key: 'junk', card: data.cards[e.card]?.name ?? e.card };
     if (e.type === 'stealPatience') return { key: 'steal' };
     if (e.type === 'secondWind') return { key: 'secondWind' };
+    if (e.type === 'grabCard') return { key: 'grab' };
+    if (e.type === 'shedDebuffs') return { key: 'molt' };
     if (e.type === 'pull' && e.heavyIfNoHold) return { key: 'shake' };
     if (e.type === 'applyStatus' && move.role === 'special') return { key: e.status };
   }
@@ -171,6 +239,11 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   const move = getIntentMove(enemy, data);
   if (!move) return null;
   if (enemy.intentHidden) return { moveName: '?', tag: move.tag, hidden: true, description: '', kinds: [] };
+  // Dazzle: it shows the move it bluffs with, flagged as maybe a bluff.
+  if (enemy.bluff !== undefined) {
+    const shown = previewIntent(state, { ...enemy, intent: enemy.bluff, bluff: undefined, delayedIntent: undefined }, data);
+    return shown && { ...shown, mayBluff: true };
+  }
   const preview: IntentPreview = {
     moveName: move.name,
     tag: move.id === SECOND_WIND_ID ? 'secondWind' : move.tag,
@@ -190,15 +263,20 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   const size = enemy.damageScale ?? 1;
   for (const effect of move.effects) {
     switch (effect.type) {
-      case 'dealDamage':
+      case 'dealDamage': {
         addKind('attack');
-        preview.damage ??= Math.max(0, Math.floor(calculateDamage(effect.amount * size, enemy.statuses, state.player.statuses) * scale) - less);
+        // Breach: double against the player's Hold as it is now.
+        const breach = effect.doubleIfHoldBelow !== undefined && state.player.block < effect.doubleIfHoldBelow ? 2 : 1;
+        preview.damage ??= Math.max(0, Math.floor(calculateDamage((effect.amount * size * (100 + (enemy.strikePercent ?? 0))) / 100, enemy.statuses, state.player.statuses) * breach * scale) - less);
         preview.hits ??= effect.hits ?? 1;
         break;
-      case 'pull':
+      }
+      case 'pull': {
         addKind('pull');
-        preview.pull = (preview.pull ?? 0) + Math.floor(effect.amount * size * scale);
+        const firstPull = state.bonusTracker.firstPullDone ? 0 : Math.min(100, bonusTotal(state.bonuses, 'firstPullPercent'));
+        preview.pull = (preview.pull ?? 0) + Math.floor((Math.floor(effect.amount * size * scale) * (100 - firstPull)) / 100);
         break;
+      }
       case 'gainBlock':
         addKind('defend', effect);
         preview.block = (preview.block ?? 0) + effect.amount;
@@ -212,6 +290,8 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
       case 'addJunk':
       case 'stealPatience':
       case 'secondWind':
+      case 'grabCard':
+      case 'shedDebuffs':
         break;
       case 'drawCards':
       case 'gainEnergy':
@@ -254,4 +334,10 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   preview.buffText = arrowText(arrowEffects.buff);
   preview.debuffText = arrowText(arrowEffects.debuff);
   return preview;
+}
+
+/** The move after the next one, when foresight shows it (`EnemyState.foresight`); null otherwise, or while Ink hides the next one. */
+export function previewForesight(state: CombatState, enemy: EnemyState, data: GameData): IntentPreview | null {
+  if (enemy.foresight === undefined || enemy.intentHidden) return null;
+  return previewIntent(state, { ...enemy, intent: enemy.foresight, delayedIntent: undefined, statuses: {} }, data);
 }

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
+import SpriteView from './SpriteView.vue';
 import { iconUrl } from './icons';
 import { storeEffectChips } from './storeEffects';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   activeBonuses,
+  hasFeature,
   progressionTotal,
   storeItems,
   availableDestinations,
@@ -83,6 +85,7 @@ const SYMBOLS: Partial<Record<MapNode['kind'], string>> = { event: 'question-mar
 const STORE_NODES: Record<StoreKind, string> = { cafe: cafeNodeUrl, tackle: tackleNodeUrl, bait: baitNodeUrl };
 const storeOf = (node: MapNode): StoreKind => node.store ?? 'tackle';
 
+const hasTrophy = computed(() => nodes.value.some((n) => n.trophy));
 const hasFisherman = computed(() => props.run.map.columns.some((column) => column.some((n) => n.kind === 'fisherman')));
 
 function creatureNames(node: MapNode) {
@@ -114,6 +117,7 @@ function tooltipFor(node: MapNode): { title: string; hint?: string; detail?: str
     default: {
       const spot = node.spot ? props.data.spots[node.spot] : undefined;
       const detail = node.enemies ? creatureNames(node) : node.label && spot?.name;
+      if (node.trophy) return { title: `🏆 ${t('map.trophy')} · ${node.label ?? spot?.name ?? ''}`, hint: t('map.trophyDetail'), detail: detail || undefined };
       return { title: node.label ?? spot?.name ?? t('map.fight'), detail: detail || undefined };
     }
   }
@@ -222,7 +226,8 @@ function choose(node: MapNode) {
         tabindex="0"
         :aria-label="item.name"
       >
-        <span class="icon"><GameIcon :icon="item.icon ?? '🎒'" /></span>
+        <SpriteView v-if="item.sprite" class="icon" :sprite="item.sprite" :size="24" />
+        <span v-else class="icon"><GameIcon :icon="item.icon ?? '🎒'" /></span>
       </li>
       <li
         v-for="b in bonuses"
@@ -253,6 +258,7 @@ function choose(node: MapNode) {
       <li><span class="sym">T</span> {{ t('map.treasure') }}</li>
       <li><span class="sym leave">⌂</span> {{ t('map.headHomeLegend') }}</li>
       <li v-if="hasFisherman"><span class="sym fisherman">F</span> {{ t('map.fisherman') }}</li>
+      <li v-if="hasTrophy"><span class="sym">🏆</span> {{ t('map.trophy') }}</li>
       <li><span class="sym diamond" /> {{ t('map.miniBoss') }}</li>
       <li><span class="sym boss" /> {{ t('map.boss') }}</li>
     </ul>
@@ -311,8 +317,10 @@ function choose(node: MapNode) {
             <!-- A finger-sized target around small nodes, in addition to their body. -->
             <circle v-if="touch" class="hit" r="18" />
             <template v-if="node.kind === 'fight'">
+              <circle v-if="node.trophy" class="trophy-ring" :r="RADIUS + 4" />
               <circle class="body" :r="RADIUS" :style="{ fill: node.spot ? data.spots[node.spot]?.color : undefined }" />
               <text class="code" dominant-baseline="central" text-anchor="middle">{{ node.spot ?? '!' }}</text>
+              <text v-if="node.trophy" class="trophy-mark" x="-15" y="-9">🏆</text>
             </template>
             <rect v-else-if="node.kind === 'miniBoss'" class="body" x="-12" y="-12" width="24" height="24" transform="rotate(45)" />
             <template v-else-if="node.kind === 'boss'">
@@ -330,7 +338,7 @@ function choose(node: MapNode) {
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
           <text v-if="node.label && (node.kind === 'miniBoss' || node.kind === 'boss')" class="label" :text-anchor="labelAnchor(node)" :x="labelAnchor(node) === 'end' ? 18 : 0" :y="node.kind === 'boss' ? -28 : -22">
-            {{ t(node.kind === 'boss' ? 'map.bossLabel' : 'map.miniBossLabel') }} · {{ node.label }}
+            {{ t(node.kind === 'boss' ? 'map.bossLabel' : 'map.miniBossLabel') }} · {{ hasFeature(data, 'bossPools') ? creatureNames(node) : node.label }}
           </text>
         </g>
       </svg>
@@ -472,4 +480,6 @@ function choose(node: MapNode) {
 @media (prefers-reduced-motion: reduce) {
   .node.available .ring { animation: none; }
 }
+.trophy-ring { fill: none; stroke: #f5d76e; stroke-width: 3; stroke-dasharray: 4 3; }
+.trophy-mark { font-size: 11px; pointer-events: none; }
 </style>

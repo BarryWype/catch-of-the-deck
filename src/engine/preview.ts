@@ -19,13 +19,14 @@ export function previewCard(state: CombatState, cardUid: string, targetId: strin
 /**
  * The fight as it would be after each creature plays its shown move, in order, on a copy: Strikes
  * after the player's Hold and dodges, Pulls after Hold, Block, healing. Only the moves: not Venom,
- * nor the Will's rise at the end of the turn. A hidden (inked) move is left out.
+ * nor the Will's rise at the end of the turn. A hidden (inked) move, and one a creature may be
+ * bluffing with, is left out.
  */
 export function previewIntents(state: CombatState, data: GameData): CombatState {
   const next = clone(state);
   if (next.phase !== 'playerTurn') return next;
   for (const enemy of next.enemies) {
-    if (!isAlive(enemy) || enemy.intentHidden) continue;
+    if (!isAlive(enemy) || enemy.intentHidden || enemy.bluff !== undefined) continue;
     executeIntent(next, enemy, data);
     if (next.player.hp <= 0) break;
   }

@@ -16,6 +16,9 @@
  *
  * `--build foraging` plays that build instead of the first one (Rod), locked or not.
  *
+ * `--features none` plays with every fight-variety feature off (as the game was before them),
+ * `--features moreEvents,gearRelics` with only those on; every feature in `FEATURES` otherwise.
+ *
  * `--campaign 20` plays 20 runs in a row (seeds from `--seed`) sharing one home aquarium, starting
  * empty: the bot brings its best companions (`chooseCompanions`), heads home at a leave node when
  * under half Grit. Fishermen of locked builds stand on its maps, and it
@@ -32,7 +35,7 @@
  * choice, and buys Grit at the Cafe when it's under half. It's a decent player, not a great one.
  */
 import { BOND_BY_TIER } from '../src/content/creatures';
-import { gameData as data } from '../src/content';
+import { contentSource } from '../src/content';
 import {
   addCardToDeck,
   applyAction,
@@ -51,6 +54,7 @@ import {
   FULL_SCHOOL,
   keepCatch,
   MAX_BOND_LEVEL,
+  movesOf,
   restAtHome,
   restingBondLevel,
   saleValue,
@@ -63,6 +67,7 @@ import {
   createRun,
   enterNextLevel,
   eventChoiceBlocked,
+  eventChoicePick,
   fightFamilies,
   finishCombat,
   isAlive,
@@ -91,6 +96,11 @@ import {
   type HomeCreature,
   type RunState,
   type StatusId,
+  buildGameData,
+  takeRelic,
+  FEATURES,
+  NO_FEATURES,
+  type Features,
 } from '../src/engine';
 import { en } from '../src/locales/en';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -110,6 +120,10 @@ const COMPANIONS = arg('companions', '').split(',').filter(Boolean);
 const BOND = Number(arg('bond', '0'));
 const LINEUPS = args.includes('--lineups');
 const CAMPAIGN = Number(arg('campaign', '0'));
+const FEATURE_ARG = arg('features', 'all');
+const features: Features =
+  FEATURE_ARG === 'all' ? FEATURES : FEATURE_ARG === 'none' ? NO_FEATURES : { ...NO_FEATURES, ...Object.fromEntries(FEATURE_ARG.split(',').map((id) => [id, true])) };
+const data = buildGameData({ ...contentSource, features });
 const BUILD = arg('build', startingBuilds(data)[0].id);
 if (!data.builds[BUILD]) throw new Error(`Unknown build "${BUILD}"`);
 /** A fight still going after this many turns is stopped and counted as a stall. */
@@ -163,6 +177,8 @@ interface RunRecord {
   companionStars: number[];
   /** Golden shells earned (mini-bosses and bosses beaten). */
   shells: number;
+  /** Floor reached (1 + fights won). */
+  floor: number;
 }
 
 // --- The bot -------------------------------------------------------------------------------
@@ -198,6 +214,8 @@ function evaluate(s: CombatState): number {
     const will = 1 - e.escape / e.escapeAt;
     score += 100 * Math.max(health, will) + 30 * Math.min(health, will);
     for (const id of DEBUFFS) score += 2 * (e.statuses[id] ?? 0);
+    // Cards a creature holds (Eight Arms): worth getting back.
+    score -= 6 * (e.held?.cards.length ?? 0);
     // A move put off by bait (its Pace now) counts as a turn it does nothing.
     const p = e.delayedIntent === undefined ? previewIntent(s, e, data) : null;
     const hit = (p?.damage ?? 0) * (p?.hits ?? 1);
@@ -303,7 +321,7 @@ const ROLES = ['normal', 'pace', 'special', 'windUp', 'heavy'] as const;
 
 function creatureTurns(combat: CombatState) {
   const roles = combat.enemies.flatMap((e) => {
-    const moves = e.moveHistory.map((id) => data.enemies[e.defId].moves.find((m) => m.id === id));
+    const moves = e.moveHistory.map((id) => movesOf(e, data).find((m) => m.id === id));
     return moves.map((m, i) => (moves[i - 1]?.role === 'windUp' ? 'heavy' : (m?.role ?? 'normal')));
   });
   const count = (role: (typeof ROLES)[number]) => roles.filter((r) => r === role).length;
@@ -375,11 +393,14 @@ function playRun(
       companions: brought.map((c) => c.id),
       companionStars: brought.map((c) => companionStars(c, data)),
       shells,
+      floor: run.floor,
     };
     return { record, run };
   };
 
   for (let steps = 0; steps < 200; steps++) {
+    // Relics on offer: a random one.
+    if (run.relicChoices?.length) run = takeRelic(run, run.relicChoices[pick(run.relicChoices.length)]);
     const leave = availableDestinations(run).find((n) => n.kind === 'leave');
     if (headHome && leave && run.hp * 2 < run.maxHp) {
       run = visitLeave(run, leave.id);
@@ -419,9 +440,19 @@ function playRun(
 
     if (eventId) {
       const choices = data.events[eventId].choices.map((c, i) => ({ c, i })).filter(({ c }) => !eventChoiceBlocked(c, run));
-      const result = applyEventChoice(run, eventId, choices[pick(choices.length)].i, data);
-      run = result.cardReward ? pickReward(result.run, [], pick) : result.run;
-      continue;
+      const chosen = choices[pick(choices.length)];
+      // A choice acting on a deck card or a bucket creature takes a random one.
+      const needs = eventChoicePick(chosen.c);
+      const target = needs === 'card' ? pick(run.deck.length) : needs === 'creature' ? pick(run.bucket.length) : undefined;
+      const result = applyEventChoice(run, eventId, chosen.i, data, target);
+      if (result.combat) {
+        run = result.run;
+        combat = result.combat;
+        kind = 'eventFight';
+      } else {
+        run = result.cardReward ? pickReward(result.run, [], pick) : result.run;
+        continue;
+      }
     }
     if (!combat) continue;
 
@@ -464,7 +495,17 @@ function simulate(brought: readonly HomeCreature[] = []): { runs: RunRecord[]; f
 }
 
 function report(runs: RunRecord[], fights: FightRecord[], started: number) {
-  console.log(`\n${RUNS} runs (seeds ${FIRST_SEED}–${FIRST_SEED + RUNS - 1}) in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
+  console.log(`\n${RUNS} runs (seeds ${FIRST_SEED}–${FIRST_SEED + RUNS - 1}) in ${((Date.now() - started) / 1000).toFixed(1)}s, features: ${FEATURE_ARG}\n`);
+  const ordinary = fights.filter((f) => f.kind === 'fight' || f.kind === 'eventFight');
+  console.log(
+    `Summary: win ${pct(runs.filter((r) => r.outcome === 'won').length, RUNS)}, average floor ${avg(runs.map((r) => r.floor))}, ` +
+      `average fight ${avg(fights.map((f) => f.turns))} turns (ordinary ${avg(ordinary.map((f) => f.turns))}).`,
+  );
+  for (const level of data.levels.map((l) => l.id)) {
+    const turns = ordinary.filter((f) => f.level === level).map((f) => f.turns);
+    if (turns.length) console.log(`  ${level} ordinary fights: shortest ${Math.min(...turns)}, longest ${Math.max(...turns)}, average ${avg(turns)} turns`);
+  }
+  console.log('');
 
   console.log('Run outcomes');
   const outcomes = ['won', 'died', 'bossEscaped', 'stalled'] as const;

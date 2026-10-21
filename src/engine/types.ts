@@ -1,3 +1,4 @@
+import type { FeatureId, Features } from './constants';
 import type { CatchSize } from './sizes';
 
 // ---------------------------------------------------------------------------
@@ -27,7 +28,10 @@ export type StatusId =
   | 'pinchedHand'
   | 'skittish'
   | 'spines'
-  | 'baitGrabbed';
+  | 'baitGrabbed'
+  // A boss's own mechanics (`bossGimmicks`): in its hole until its next turn (attacks do nothing), sprinting (Will rises double).
+  | 'hiding'
+  | 'sprinting';
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /**
@@ -70,8 +74,11 @@ export interface PerStatus {
 
 /** The reusable building blocks that every card and enemy move is made of. */
 export type Effect =
-  /** `fromHold`: the amount is the player's current Hold instead. `perTension`: plus this much per Tension before the card. */
-  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean; perTension?: number }
+  /**
+   * `fromHold`: the amount is the player's current Hold instead. `perTension`: plus this much per Tension before the card.
+   * `doubleIfHoldBelow` (creature moves): double if the player has less Hold than this when it lands.
+   */
+  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean; perTension?: number; doubleIfHoldBelow?: number }
   /** The player loses this share of their Hold (0.5 = half, rounded down). */
   | { type: 'loseHold'; share: number }
   /** The player loses all their Patience (it isn't spent) and gains `per` Hold for each point lost. */
@@ -142,6 +149,10 @@ export type Effect =
   | { type: 'stealPatience'; amount: number }
   /** A mini-boss's or boss's Second Wind: points move from its higher bar into the low one. */
   | { type: 'secondWind' }
+  /** Creature moves: once the player has drawn next turn, it takes a random card from their hand; `returnAt` damage dealt to it in one turn gives it back. */
+  | { type: 'grabCard'; returnAt: number }
+  /** Creature moves: it loses every debuff it has. */
+  | { type: 'shedDebuffs' }
   /** For the rest of the fight, escape bars can be slowed by up to `amount` percent (instead of `MAX_SLOW_PERCENT`); it never lowers it. */
   | { type: 'slowCap'; amount: number }
   /** Creature moves only: it pulls on the line. The player's Hold takes it first; the rest raises its escape bar. */
@@ -267,7 +278,14 @@ export type EquipmentEffect =
    * Each ordinary fight (at one of `spots`, if given) has this chance to bring one more creature of
    * one of `types`, from the same tier.
    */
-  | { type: 'extraCatch'; percent: number; types: string[]; spots?: string[] };
+  | { type: 'extraCatch'; percent: number; types: string[]; spots?: string[] }
+  /** A combat bonus, worked out as a companion's (`CompanionEffect`, triggers included), in every fight (`gearRelics`). */
+  | { type: 'bonus'; bonus: CompanionEffect }
+  /** Each fight has this chance to start with a bait card of the level's tier in hand, for that fight (`gearRelics`). */
+  | { type: 'baitChance'; percent: number };
+
+/** How rare a relic is: what relic choices draw from (`RELIC_ODDS`). */
+export type RelicRarity = 'common' | 'uncommon' | 'rare';
 
 /** An object carried for the whole run, with passive effects. */
 export interface EquipmentDef {
@@ -277,6 +295,10 @@ export interface EquipmentDef {
   description: string;
   /** Placeholder art (emoji). Display-only. */
   icon?: string;
+  /** Its art, a cell of a sprite sheet (the gear sheet for relics). Display-only. */
+  sprite?: SpriteRef;
+  /** A relic: earned during a run (`gearRelics`), never a starting item. */
+  rarity?: RelicRarity;
   effects: EquipmentEffect[];
 }
 
@@ -294,7 +316,9 @@ export type CompanionTrigger =
   /** Any enemy attack hit on the player, blocked or not; `target` is the attacker. */
   | 'hitByEnemy'
   /** The first time the player's HP drops below half in a fight. */
-  | 'firstBelowHalfHp';
+  | 'firstBelowHalfHp'
+  /** The end of a player's turn in which no attack (Attack or Drain card) was played, before the creatures act. */
+  | 'quietTurnEnd';
 
 /**
  * What a creature brought from the home aquarium does for the run (see companions.ts).
@@ -323,6 +347,10 @@ export type CompanionEffect = (
   | { type: 'healAfterFight'; amount: number }
   /** Creatures sell for this percentage more during the run (bucket and on-the-spot sales). */
   | { type: 'sellBonus'; amount: number }
+  /** The first Pull against the player each fight is this percentage smaller. */
+  | { type: 'firstPullPercent'; amount: number }
+  /** The creatures' move after next is shown too (`EnemyState.foresight`). */
+  | { type: 'foresight'; amount: number }
   /** Card rewards the player may skip, and reroll (new cards offered), on each level. */
   | { type: 'rewardSkips'; amount: number }
   | { type: 'rewardRerolls'; amount: number }
@@ -365,15 +393,37 @@ export interface CompanionBonusDef {
   fullSchool: CompanionEffect[];
 }
 
+/** What an event gives for a trade or a won fight: a card reward with a rare in it, or a relic choice (a rare card when relics are off). */
+export type EventReward = 'rareCard' | 'relic';
+
 /** What a map event's choice does. Percentages are whole numbers (30 = 30%). */
 export type EventEffect =
   | { type: 'heal'; percent: number }
   | { type: 'loseHp'; amount: number }
   | { type: 'gainCoins'; amount: number }
+  /** Pay coins: the choice can't be picked without them. */
+  | { type: 'loseCoins'; amount: number }
   /** Coins for each creature in the bucket (raised by passerby equipment bonuses). The creatures stay. */
   | { type: 'coinsPerCreature'; amount: number }
-  /** Offer the usual pick-1-of-3 card reward afterwards. */
-  | { type: 'cardReward' };
+  /** Offer the usual pick-1-of-3 card reward afterwards; `rare`: with at least one rare card. */
+  | { type: 'cardReward'; rare?: boolean }
+  /** The player picks a deck card to remove. */
+  | { type: 'removeCard' }
+  /** A random deck card is lost. */
+  | { type: 'loseCard' }
+  /** A junk card (`card`) joins the run's deck for good, until a card removal takes it out. */
+  | { type: 'addJunk'; card: string }
+  /**
+   * A fight against `enemies`, or a creature of the level's tier when omitted (`trophy`: a trophy
+   * fight). Winning it also gives `reward` and `coins`.
+   */
+  | { type: 'fight'; enemies?: string[]; trophy?: boolean; reward?: EventReward; coins?: number }
+  /** The player gives up a creature from the bucket for `reward`. */
+  | { type: 'tradeCatch'; reward: EventReward }
+  /** The next fight starts with a copy of `cardId` (or of a deck card the player picks) in hand, free to play that fight. */
+  | { type: 'freeNextFight'; cardId?: string }
+  /** The equipment `id`, or a choice of 1 of 3 relics when omitted. */
+  | { type: 'gainEquipment'; id?: string };
 
 export interface EventChoice {
   label: string;
@@ -391,6 +441,10 @@ export interface EventDef {
   minColumn?: number;
   /** Only met on treasure nodes, never as an ordinary event. */
   treasure?: boolean;
+  /** Only met on these levels (ids). Every level if omitted. */
+  levels?: string[];
+  /** Only met while this feature is on (`hasFeature`). */
+  feature?: FeatureId;
   choices: EventChoice[];
 }
 
@@ -528,11 +582,82 @@ export interface SpriteRef {
   index: number;
 }
 
-export type IntentPattern =
+export type PhasePattern =
   /** Play `moves` in order; after the last one, loop back to index `loopFrom` (default 0). */
   | { type: 'sequence'; moves: string[]; loopFrom?: number }
   /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row. A special never follows a special, and a Wind-up never follows Ink. */
   | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number };
+
+export type IntentPattern =
+  | PhasePattern
+  /** Two phases: `first` until its Health drops below `below` percent of its max, then `then` for the rest of the fight (a sequence counts from where the phase began). */
+  | { type: 'phased'; below: number; first: PhasePattern; then: PhasePattern };
+
+/**
+ * What a temperament's signature trait does (`traits`), each rule worked out where it acts (see
+ * traits.ts). Effects are resolved as the creature, numbers as written.
+ */
+export type TraitRule =
+  /** After this many hits from the player in one turn: `effect` (once a turn). */
+  | { type: 'afterHits'; hits: number; effect: Effect }
+  /** It keeps this share of its Block into its next turn. */
+  | { type: 'keepBlock'; percent: number }
+  /** Its Will rises only one turn in `every`, `times` as much. */
+  | { type: 'slowWill'; every: number; times: number }
+  /** The player's first Drain on it each turn drains this share of itself (rounded up). */
+  | { type: 'firstDrain'; percent: number }
+  /** The first time its Health drops below `percent`, its Will jumps by `will` (× the fight's scale). */
+  | { type: 'belowHealth'; percent: number; will: number }
+  /** Its Ink hides this many of its moves. */
+  | { type: 'inkMoves'; moves: number }
+  /** The first time the player's Grit drops below `percent` from a creature's hit: `effect`. */
+  | { type: 'playerBelow'; percent: number; effect: Effect }
+  /** Once, while its Will is below `percent`, a pace move it would play becomes its normal Pull. */
+  | { type: 'lastRun'; percent: number }
+  /** Venom it puts on the player loses no charge the first time it hits. */
+  | { type: 'lingeringVenom' }
+  /** Every `every`th move it shows a random move of its set instead, played for real only if it's the one (a "?" warns of it). */
+  | { type: 'bluff'; every: number }
+  /** While its next move is its pace, the player's attacks deal this share less. */
+  | { type: 'paceGuard'; percent: number }
+  /** At the start of each of its turns: `effect`. */
+  | { type: 'turnStart'; effect: Effect }
+  /** When its Block soaks a whole hit of the player's, it deals this much back. */
+  | { type: 'counter'; damage: number };
+
+/** What a creature affix does (`affixes`, see affixes.ts in content). */
+export type AffixRule =
+  /** Its first move is hidden, as after Ink. */
+  | { type: 'hiddenStart' }
+  /** Each of its Wind-ups also gives it this much Strength. */
+  | { type: 'windUpStrength'; amount: number }
+  /** It starts with this much more Will, in percent. */
+  | { type: 'startWill'; percent: number }
+  /** Its Will rises `willPercent` slower and its Strikes deal `strikePercent` more. */
+  | { type: 'scarred'; willPercent: number; strikePercent: number }
+  /** It starts the fight, and each of its turns, with this much Block (× the fight's scale). */
+  | { type: 'turnBlock'; amount: number }
+  /** Its weighted pattern skips its pace for its first `turns` moves. */
+  | { type: 'noPaceFor'; turns: number };
+
+/** A creature affix: rolled on trophy fights and some adult and elder ones, it changes one creature for one fight. */
+export interface AffixDef {
+  id: string;
+  /** Its badge, e.g. "Hungry". */
+  name: string;
+  /** The creature's name with it, `{name}` its own, e.g. "Hungry {name}". */
+  title: string;
+  description: string;
+  rule: AffixRule;
+}
+
+/** A temperament's signature trait, shown as a labelled badge on its creatures. */
+export interface TraitDef {
+  name: string;
+  /** Player-facing rules text, for the badge's tip. */
+  description: string;
+  rule: TraitRule;
+}
 
 export interface EnemyDef {
   id: string;
@@ -553,6 +678,8 @@ export interface EnemyDef {
   pattern: IntentPattern;
   /** Its pattern as a mini-boss or boss (a fixed `sequence`); `pattern` otherwise. */
   bossPattern?: IntentPattern;
+  /** Its own moves and pattern as a mini-boss or boss, with its signature mechanic (`bossGimmicks`), instead of `moves` and `bossPattern`. */
+  bossMoves?: { moves: EnemyMove[]; pattern: IntentPattern };
   /** Statuses the enemy starts every fight with, e.g. `{ strength: 2 }`. */
   startingStatuses?: Statuses;
   /** Creature type ids, matched by card damage bonuses. */
@@ -564,6 +691,8 @@ export interface EnemyDef {
   habitat?: Habitat;
   /** Picks its companion bonus (`GameData.companionBonuses`) when brought from the home aquarium. */
   temperament?: string;
+  /** Its temperament's signature trait (`traits`). */
+  trait?: TraitDef;
   /** Bond points to be fully bonded once it lives in the home aquarium (see bond.ts). Defaults to 100. */
   bondToFull?: number;
   /** 'fresh', 'salt' or 'brackish': which fishing spots it can be met at (`SpotDef.waters`). */
@@ -618,6 +747,8 @@ export interface FixedFightDef {
   enemies: string[];
   /** Why it's let go after the fight (see `LevelNodeDef.releaseReason`). */
   releaseReason: string;
+  /** With `bossPools`: who it can be instead, one drawn per run (`enemies` and its release reason). */
+  candidates?: { enemies: string[]; releaseReason: string }[];
 }
 
 /** A fight node of a generated level that's always there, e.g. on the base map's own rocks. */
@@ -708,6 +839,12 @@ export interface GameData {
   /** Played in order, one per act of a run. */
   levels: LevelDef[];
   coast: CoastDef;
+  /** Creature affixes, by id (`affixes`). */
+  affixes?: Record<string, AffixDef>;
+  /** The fight-variety features on (`hasFeature`); none when omitted. */
+  features?: Features;
+  /** Each creature tier's average Health (middle of its range), starting Will and Strike or Pull per turn (`turnAverage`), for `ownStats`. */
+  tierAverages?: Record<number, { hp: number; will: number; turnAverage: number }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -758,6 +895,28 @@ export interface EnemyState extends Combatant {
   secondWindUsed?: boolean;
   /** Strength its moves gave it this fight (at most `MAX_MOVE_STRENGTH`; starting Strength aside). */
   strengthGained?: number;
+  /** Its move after `intent`, already decided and shown (`foresight` bonus). */
+  foresight?: string;
+  /** A trophy fight's creature: bigger bars and moves, always caught at trophy size (`trophyElites`). */
+  trophy?: boolean;
+  /** Its trait's bookkeeping (`traits`): hits taken and a Drain received this player turn, a once-a-fight trait used, Ink moves still to hide, the move shown while it bluffs. */
+  hitsThisTurn?: number;
+  drainedThisTurn?: boolean;
+  traitUsed?: boolean;
+  inkLeft?: number;
+  bluff?: string;
+  /** Its affix this fight (`affixes`), and how much more its Strikes deal from it, in percent. */
+  affix?: string;
+  strikePercent?: number;
+  /** A boss playing its own move set (`bossGimmicks`, `EnemyDef.bossMoves`). */
+  gimmick?: boolean;
+  /** Damage the player dealt it this turn (cards it holds come back at `held.returnAt`). */
+  damageThisTurn?: number;
+  /** `grabCard`: it takes a card from the next hand (`grabbing`, the damage that gets it back), then holds it. */
+  grabbing?: number;
+  held?: { cards: CardInstance[]; returnAt: number };
+  /** Where its current phase began in its move history (a `phased` pattern). */
+  phaseFrom?: number;
 }
 
 export interface CardInstance {
@@ -808,6 +967,10 @@ export interface CombatState {
   keepHold?: boolean;
   /** How much escape bars can be slowed this fight, in percent, when a card raised it (`slowCap`). `MAX_SLOW_PERCENT` otherwise. */
   slowCap?: number;
+  /** Cards (uids) that cost no energy this fight (an event's `freeNextFight`). */
+  freeCards?: string[];
+  /** The player's Venom loses no charge at its next hit (a `lingeringVenom` trait). */
+  venomLinger?: boolean;
 }
 
 /** Effects that happen at the start of the player's next turns, on the target they were played on. */
@@ -828,6 +991,8 @@ export interface BonusTracker {
   belowHalf: boolean;
   /** Block gained from bonuses triggered by enemy attacks; it survives into the next turn. */
   carriedBlock: number;
+  /** The first Pull of the fight has been made smaller (`firstPullPercent`). */
+  firstPullDone?: boolean;
 }
 
 export type CombatAction =

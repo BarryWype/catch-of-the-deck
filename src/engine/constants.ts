@@ -61,3 +61,82 @@ export const GROUP_DAMAGE_PERCENT = 110;
 /** What a mini-boss's and a boss's moves average per turn (rolled each fight, no growth). */
 export const MINI_BOSS_DAMAGE: [number, number] = [9, 10];
 export const BOSS_DAMAGE: [number, number] = [10, 12];
+
+/**
+ * The fight-variety features, each with its own toggle, so they can be tried one by one (the debug
+ * panel's Features). The engine reads them from `GameData.features` (`hasFeature`); content built
+ * without any (`buildGameData` alone, as the tests do) has them all off, which plays as before.
+ */
+export interface Features {
+  /** More events, spread across the levels, never twice in a run while unseen ones remain. */
+  moreEvents: boolean;
+  /** Gear earned mid-run as relics: after mini-bosses, on treasures and after trophy fights. */
+  gearRelics: boolean;
+  /** About 1 in 6 fights per level is a tougher trophy fight, with a better reward. */
+  trophyElites: boolean;
+  /** Each mini-boss and boss is drawn from a few candidates per run. */
+  bossPools: boolean;
+  /** Creatures keep their own Health, Will and damage spread instead of all being raised to the same pools. */
+  ownStats: boolean;
+  /** Each temperament has a signature trait. */
+  traits: boolean;
+  /** Trophy creatures, and some adult and elder ones, roll an affix. */
+  affixes: boolean;
+  /** Bosses play their own move sets, each with a signature mechanic. */
+  bossGimmicks: boolean;
+  /** Long ordinary fights tighten: more Pulls, fewer pace moves. */
+  escalation: boolean;
+  /** Two-creature fights in the adult and elder levels. */
+  groupFights: boolean;
+}
+export type FeatureId = keyof Features;
+/** What the game plays with unless the debug panel says otherwise. */
+export const FEATURES: Features = {
+  moreEvents: true,
+  gearRelics: true,
+  trophyElites: true,
+  bossPools: true,
+  ownStats: true,
+  traits: true,
+  affixes: true,
+  bossGimmicks: true,
+  escalation: true,
+  groupFights: true,
+};
+export const NO_FEATURES: Features = Object.fromEntries(Object.keys(FEATURES).map((id) => [id, false])) as unknown as Features;
+
+/** Relic choices (`gearRelics`): how many relics are offered at once, and each rarity's weight by level (kid, adult, elder; the last covers later ones). */
+export const RELIC_CHOICES = 3;
+export const RELIC_ODDS: { common: number; uncommon: number; rare: number }[] = [
+  { common: 60, uncommon: 30, rare: 10 },
+  { common: 45, uncommon: 35, rare: 20 },
+  { common: 30, uncommon: 40, rare: 30 },
+];
+
+/** Trophy fights (`trophyElites`): about 1 in `TROPHY_NODE_SHARE` ordinary fights of a level (at least `TROPHY_MIN_NODES`, never in column 1). */
+export const TROPHY_NODE_SHARE = 6;
+export const TROPHY_MIN_NODES = 2;
+/** A trophy fight's creatures: Health and Will this much bigger, damage this much bigger, in percent. */
+export const TROPHY_POOL_PERCENT = 140;
+export const TROPHY_DAMAGE_PERCENT = 120;
+/** A trophy-size catch sells for this share of its value, in percent (`trophyElites`). */
+export const TROPHY_SELL_PERCENT = 200;
+
+/**
+ * Creatures' own stats (`ownStats`): an ordinary fight scales each creature by its pool ÷ its
+ * tier's average (Health, Will, damage) instead of raising everyone to the same pools, then
+ * clamps it between these shares of the pool, in percent.
+ */
+export const OWN_STATS_MIN_PERCENT = 70;
+export const OWN_STATS_MAX_PERCENT = 140;
+
+/** Creature affixes (`affixes`): chance, in percent, that a creature of an ordinary fight in the adult and elder levels rolls one (trophy fights always do). */
+export const AFFIX_CHANCE_PERCENT = 15;
+
+/**
+ * Escalating intents (`escalation`): from an ordinary creature's `ESCALATION_TURN`th move on, each
+ * move shifts its weighted pattern by `ESCALATION_PULL_PERCENT` more: normal Pulls weigh that
+ * much more (double at most), its pace that much less (none at least).
+ */
+export const ESCALATION_TURN = 5;
+export const ESCALATION_PULL_PERCENT = 10;

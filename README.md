@@ -172,8 +172,9 @@ Effect reference:
 | `coil`, `venomBonus`, `venomCoating` | — / `amount` / `amount` | This turn: double the next attack; +damage to Venomed creatures; Venom on every hit |
 | `venomNow`, `swapHealthAndWill` | — | Venom hits now; swap health % and Will % |
 | `power` | `power`, `amount?` | A Power for the rest of the fight (see `PowerId` in `src/engine/types.ts`) |
+| `grabCard`, `shedDebuffs` | `returnAt` / — | Creature moves: take a random card from the player's next hand, given back once the creature loses `returnAt` Health in one turn; lose every debuff |
 
-`dealDamage` and `changeEscape` take `perStatus: { status, amount }` to scale with the target's stacks (+2 damage per Slow), `fromHold: true` to deal or Drain your Hold, and `dealDamage` takes `perTension` for extra damage per Tension before the card. Statuses that change a creature's next move: `cowed`, `intimidated`, `lured`, `distracted`, `dazzled`.
+`dealDamage` and `changeEscape` take `perStatus: { status, amount }` to scale with the target's stacks (+2 damage per Slow), `fromHold: true` to deal or Drain your Hold, and `dealDamage` takes `perTension` for extra damage per Tension before the card, or, on a creature's move, `doubleIfHoldBelow` to deal double when the player has less Hold than that. Statuses that change a creature's next move: `cowed`, `intimidated`, `lured`, `distracted`, `dazzled`.
 
 `target` can be `'target'` (the default: the chosen enemy, or the player when an enemy acts), `'self'`, `'allEnemies'`, or `'randomEnemy'` (re-rolled for every hit).
 
@@ -220,6 +221,8 @@ To give one creature its own moves, add a `moves` object; it is used instead of 
   },
 },
 ```
+
+A boss can also have its own move set as a boss, built around one signature mechanic: `bossMoves` (from `bossMoveSets` in `behaviors.ts`), played instead of its temperament's set when it's fought as a boss with the `bossGimmicks` feature on. Its pattern may be `phased`: `{ type: 'phased', below: 50, first, then }` plays `first` until its Health drops below `below` percent, then `then` (each a sequence or weighted pattern). French names of its new moves go in `moves['<creature>.<id>']`.
 
 Every creature is automatically a one-on-one encounter at its tier. For fights with several creatures, add a group in `src/content/encounters.ts` (only offered once `MAX_CREATURES_PER_FIGHT` in `src/engine/constants.ts` allows its size; it's 1 for now), e.g. `{ id: 'pilchardShoal', name: 'Pilchard shoal', tier: 2, enemies: ['europeanPilchard', 'europeanPilchard', 'europeanPilchard'] }`.
 

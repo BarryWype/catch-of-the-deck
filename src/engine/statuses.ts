@@ -39,6 +39,10 @@ export const STATUS_META: Record<StatusId, StatusMeta> = {
   spines: { kind: 'debuff', decays: true },
   // Used up once the player has drawn their next hand (`startPlayerTurn`).
   baitGrabbed: { kind: 'debuff', decays: false },
+  // Gone when the creature's next turn starts (`endTurn`), as Burrow.
+  hiding: { kind: 'buff', decays: false },
+  // Lasts its stacks in the creature's turns: its Will rises double meanwhile.
+  sprinting: { kind: 'buff', decays: true },
 };
 
 export const statusName = (id: StatusId) => text(`status.${id}.name`);

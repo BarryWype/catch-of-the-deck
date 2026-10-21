@@ -27,11 +27,14 @@ function toEnemy(creature: CreatureDef): EnemyDef {
     moves: behavior.moves,
     pattern: behavior.pattern,
     ...('bossPattern' in behavior && behavior.bossPattern ? { bossPattern: behavior.bossPattern } : {}),
+    ...(creature.bossMoves ? { bossMoves: { moves: creature.bossMoves.moves, pattern: creature.bossMoves.pattern } } : {}),
     tags: [creature.type],
     startingStatuses: { ...creature.statuses, ...(creature.strength ? { strength: creature.strength } : {}) },
     sprite: creature.sprite ?? { sheet: 'fishes', index: creature.no },
     habitat: creature.habitat ?? HABITAT_BY_TEMPERAMENT[creature.temperament] ?? 'swim',
     temperament: creature.temperament,
+    // The trait is the temperament's, even with a move set of its own.
+    ...(behaviors[creature.temperament].trait ? { trait: behaviors[creature.temperament].trait } : {}),
     water: creature.water,
   };
 }

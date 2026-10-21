@@ -5,14 +5,19 @@ import {
   HOLD_PER_PATIENCE,
   MAX_PATIENCE,
   MOVE_INTENSITY,
+  OWN_STATS_MAX_PERCENT,
+  OWN_STATS_MIN_PERCENT,
   PACE_WILL_PERCENT,
   PLAYER_ID,
   SKITTISH_CARDS,
   SKITTISH_WILL,
   STARTING_HAND_SIZE,
   TAX_COST,
+  TROPHY_POOL_PERCENT,
   WIND_UP_PERCENT,
 } from './constants';
+import { hasFeature } from './features';
+import { affixOf, movesOf, traitOf } from './traits';
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
@@ -44,6 +49,14 @@ export interface CombatConfig {
   damage?: number;
   /** A mini-boss or boss fight: the creatures follow their `bossPattern`, their Wind-ups also give Strength, and they have a Second Wind. */
   bosses?: boolean;
+  /** A card (id) that starts in hand, free to play this fight (an event's `freeNextFight`). */
+  freeCard?: string;
+  /** Cards (ids) that start in hand, for this fight only (`baitChance` gear). */
+  extraCards?: string[];
+  /** A trophy fight: Health and Will `TROPHY_POOL_PERCENT` bigger after the pools, and 1 Strength unless it has an affix (`damage` is already bigger). */
+  trophy?: boolean;
+  /** Each creature's affix (`affixes`), in the order of `enemies`; null for none. */
+  affixes?: (string | null)[];
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -94,25 +107,79 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
       escapeAt: def.escapeAt,
       escapeRate: def.escapeRate,
       ...(config.bosses ? { boss: true } : {}),
+      // A boss with a move set of its own plays it, and its mechanic.
+      ...(config.bosses && def.bossMoves && hasFeature(data, 'bossGimmicks') ? { gimmick: true } : {}),
     });
   });
 
+  // Creatures' own stats: each one scaled from its tier's average to its share of the pools, its spread kept within bounds.
+  const averages = hasFeature(data, 'ownStats') && !config.bosses ? data.tierAverages : undefined;
+  const average = (enemy: EnemyState) => averages?.[data.enemies[enemy.defId].tier ?? 1];
+  const ownShare = (value: number, share: number) => Math.min((share * OWN_STATS_MAX_PERCENT) / 100, Math.max((share * OWN_STATS_MIN_PERCENT) / 100, value));
   const rolled = state.enemies.reduce((sum, e) => sum + e.maxHp, 0);
-  if (config.hpPool && rolled > 0 && rolled < config.hpPool) {
-    for (const enemy of state.enemies) enemy.hp = enemy.maxHp = Math.ceil((enemy.maxHp * config.hpPool) / rolled);
-  }
-  const will = state.enemies.reduce((sum, e) => sum + e.escape, 0);
-  if (config.willPool && will > 0 && will < config.willPool) {
+  if (averages) {
     for (const enemy of state.enemies) {
-      enemy.escape = Math.round((enemy.escape * config.willPool) / will);
-      enemy.escapeAt = Math.round((enemy.escapeAt * config.willPool) / will);
-      enemy.escapeRate = Math.round((enemy.escapeRate * config.willPool) / will);
+      const tier = average(enemy);
+      if (!tier) continue;
+      if (config.hpPool) {
+        const share = config.hpPool / state.enemies.length;
+        enemy.hp = enemy.maxHp = Math.ceil(ownShare((enemy.maxHp * share) / tier.hp, share));
+      }
+      if (config.willPool && enemy.escape > 0) {
+        const share = config.willPool / state.enemies.length;
+        const factor = ownShare((enemy.escape * share) / tier.will, share) / enemy.escape;
+        enemy.escape = Math.round(enemy.escape * factor);
+        enemy.escapeAt = Math.round(enemy.escapeAt * factor);
+        enemy.escapeRate = Math.round(enemy.escapeRate * factor);
+      }
+    }
+  } else {
+    if (config.hpPool && rolled > 0 && rolled < config.hpPool) {
+      for (const enemy of state.enemies) enemy.hp = enemy.maxHp = Math.ceil((enemy.maxHp * config.hpPool) / rolled);
+    }
+    const will = state.enemies.reduce((sum, e) => sum + e.escape, 0);
+    if (config.willPool && will > 0 && will < config.willPool) {
+      for (const enemy of state.enemies) {
+        enemy.escape = Math.round((enemy.escape * config.willPool) / will);
+        enemy.escapeAt = Math.round((enemy.escapeAt * config.willPool) / will);
+        enemy.escapeRate = Math.round((enemy.escapeRate * config.willPool) / will);
+      }
     }
   }
+  if (config.trophy) {
+    for (const enemy of state.enemies) {
+      const bigger = (n: number) => Math.round((n * TROPHY_POOL_PERCENT) / 100);
+      enemy.hp = enemy.maxHp = bigger(enemy.maxHp);
+      enemy.escape = bigger(enemy.escape);
+      enemy.escapeAt = bigger(enemy.escapeAt);
+      enemy.escapeRate = bigger(enemy.escapeRate);
+      enemy.trophy = true;
+    }
+  }
+  state.enemies.forEach((enemy, i) => {
+    const affix = config.affixes?.[i] ? data.affixes?.[config.affixes[i]!] : undefined;
+    // A trophy without an affix (affixes off) gets 1 Strength instead.
+    if (!affix) {
+      if (enemy.trophy) enemy.statuses.strength = (enemy.statuses.strength ?? 0) + 1;
+      return;
+    }
+    enemy.affix = affix.id;
+    enemy.name = affix.title.replace('{name}', enemy.name);
+    const rule = affix.rule;
+    if (rule.type === 'startWill') enemy.escape = Math.min(enemy.escapeAt - 1, Math.round((enemy.escape * (100 + rule.percent)) / 100));
+    if (rule.type === 'scarred') {
+      enemy.escapeRate -= escapeRateReduction(enemy.escapeRate, rule.willPercent);
+      enemy.strikePercent = rule.strikePercent;
+    }
+    if (rule.type === 'turnBlock') enemy.block = Math.round((rule.amount * (config.damage ?? ENCOUNTER_TURN_AVERAGE)) / ENCOUNTER_TURN_AVERAGE);
+  });
   if (config.damage) {
     for (const enemy of state.enemies) {
-      const average = turnAverage(data.enemies[enemy.defId].moves, patternOf(enemy, data));
-      if (average > 0) enemy.damageScale = config.damage / average;
+      const moves = turnAverage(movesOf(enemy, data), patternOf(enemy, data));
+      // Its own stats: its moves keep their size against its tier's average, within bounds.
+      const tier = average(enemy);
+      const dealt = tier?.turnAverage ? ownShare((moves * config.damage) / tier.turnAverage, config.damage) : config.damage;
+      if (moves > 0) enemy.damageScale = dealt / moves;
       enemy.fightScale = config.damage / ENCOUNTER_TURN_AVERAGE;
     }
   }
@@ -129,9 +196,18 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   }
 
   shuffleInPlace(state, state.piles.draw);
-  for (const enemy of state.enemies) chooseIntent(state, enemy, data);
+  if (config.freeCard) {
+    state.piles.hand.push({ uid: 'free0', defId: config.freeCard });
+    state.freeCards = ['free0'];
+  }
+  config.extraCards?.forEach((defId, i) => state.piles.hand.push({ uid: `x${i}`, defId }));
+  for (const enemy of state.enemies) {
+    chooseIntent(state, enemy, data);
+    // Old and Wily: its first move is hidden.
+    if (affixOf(enemy, data)?.type === 'hiddenStart') enemy.intentHidden = true;
+  }
   startPlayerTurn(state, data);
-  fireTriggers(state, 'combatStart');
+  fireTriggers(state, 'combatStart', undefined, data);
   checkCombatEnd(state);
   return state;
 }
@@ -149,7 +225,7 @@ export function validateAction(state: CombatState, action: CombatAction, data: G
   const def = data.cards[card.defId];
   if (!def) return `Unknown card "${card.defId}".`;
   if (def.unplayable) return text('invalid.unplayable');
-  if (cardCost(state, def) > state.player.energy) return text('invalid.noEnergy');
+  if (cardCost(state, def, card.uid) > state.player.energy) return text('invalid.noEnergy');
   if ((def.patienceCost ?? 0) > state.player.patience) return text('invalid.noPatience');
   if (def.target === 'enemy') {
     const target = state.enemies.find((e) => e.id === action.targetId);
@@ -174,11 +250,12 @@ export function isCardPlayable(state: CombatState, cardUid: string, data: GameDa
   if (state.phase !== 'playerTurn') return false;
   const card = state.piles.hand.find((c) => c.uid === cardUid);
   const def = card && data.cards[card.defId];
-  return !!def && !state.pick && !def.unplayable && cardCost(state, def) <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
+  return !!def && !state.pick && !def.unplayable && cardCost(state, def, cardUid) <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
 }
 
-/** A card's energy cost right now: Numb Fingers makes Attack cards cost more, Tangled Drain cards. */
-export function cardCost(state: CombatState, def: CardDef): number {
+/** A card's energy cost right now: Numb Fingers makes Attack cards cost more, Tangled Drain cards. A free card (`uid` in `freeCards`) costs nothing. */
+export function cardCost(state: CombatState, def: CardDef, uid?: string): number {
+  if (uid && state.freeCards?.includes(uid)) return 0;
   const has = (id: StatusId) => getStatus(state.player, id) > 0;
   return def.cost + ((def.type === 'attack' && has('numbFingers')) || (def.type === 'drain' && has('tangled')) ? TAX_COST : 0);
 }
@@ -186,9 +263,11 @@ export function cardCost(state: CombatState, def: CardDef): number {
 /**
  * A creature's average Strike or Pull per turn as written (its moves' intensities), over its moves
  * as often as its pattern plays them: each Wind-up is followed by its heavy move, played heavy and
- * `WIND_UP_PERCENT` bigger. The fight scales it to its damage (`damageScale`).
+ * `WIND_UP_PERCENT` bigger. A phased pattern counts both phases alike. The fight scales it to its
+ * damage (`damageScale`).
  */
 export function turnAverage(moves: EnemyMove[], pattern: IntentPattern): number {
+  if (pattern.type === 'phased') return (turnAverage(moves, pattern.first) + turnAverage(moves, pattern.then)) / 2;
   const byId = (id: string | undefined) => moves.find((m) => m.id === id);
   const heavy = (move: EnemyMove) => ((moveValue(move) * MOVE_INTENSITY.heavy) / MOVE_INTENSITY[move.intensity]) * (1 + WIND_UP_PERCENT / 100);
   const turns: { weight: number; value: number }[] = [];
@@ -262,14 +341,21 @@ function onRandomCreature(state: CombatState, effect: Effect): void {
 function startPlayerTurn(state: CombatState, data: GameData): void {
   state.turn++;
   addLog(state, text('log.turn', { n: state.turn }));
-  venomStrikes(state, state.player);
+  // Toxic: Venom put on by such a creature loses no charge the first time it hits.
+  venomHits(state, state.player, !state.venomLinger);
+  delete state.venomLinger;
   if (checkCombatEnd(state)) return;
+  for (const enemy of state.enemies) {
+    delete enemy.hitsThisTurn;
+    delete enemy.drainedThisTurn;
+    delete enemy.damageThisTurn;
+  }
   state.player.block = Math.min(state.player.block, keptBlock(state));
   state.keepHold = false;
   state.bonusTracker.carriedBlock = 0;
   state.bonusTracker.attacksThisTurn = 0;
   state.thisTurn = {};
-  if (runDelayedEffects(state)) return;
+  if (runDelayedEffects(state, data)) return;
   // Dead Weight: every creature gains Slow now, and it slows their coming turn.
   const deadWeight = powerTotal(state, 'deadWeight');
   if (deadWeight > 0) resolveEffect(state, { type: 'applyStatus', status: 'slow', amount: deadWeight, target: 'allEnemies' }, { sourceId: PLAYER_ID, raw: true });
@@ -282,16 +368,24 @@ function startPlayerTurn(state: CombatState, data: GameData): void {
     state.piles.discard.push(card);
     addLog(state, text('log.baitGrabbed', { who: state.player.name, card: data.cards[card.defId]?.name ?? card.defId }));
   }
-  if (state.turn === 2) fireTriggers(state, 'secondTurnStart');
+  // Eight Arms: it takes a random card from the new hand, until it's hurt enough this turn.
+  for (const enemy of state.enemies) {
+    if (enemy.grabbing === undefined || !isAlive(enemy) || !state.piles.hand.length) continue;
+    const [card] = state.piles.hand.splice(nextInt(state, 0, state.piles.hand.length - 1), 1);
+    enemy.held = { cards: [...(enemy.held?.cards ?? []), card], returnAt: enemy.grabbing };
+    delete enemy.grabbing;
+    addLog(state, text('log.grabCard', { name: enemy.name, card: data.cards[card.defId]?.name ?? card.defId, n: enemy.held.returnAt }));
+  }
+  if (state.turn === 2) fireTriggers(state, 'secondTurnStart', undefined, data);
 }
 
 /** Effects waiting for this turn (`delayed`, `echoDamage`), after the Hold reset. True if they ended the fight. */
-function runDelayedEffects(state: CombatState): boolean {
+function runDelayedEffects(state: CombatState, data: GameData): boolean {
   const due = state.delayed ?? [];
   state.delayed = [];
   for (const d of due) {
     for (const effect of d.effects) {
-      resolveEffect(state, effect, { sourceId: PLAYER_ID, targetId: d.targetId, raw: d.raw, fromCard: true });
+      resolveEffect(state, effect, { sourceId: PLAYER_ID, targetId: d.targetId, raw: d.raw, fromCard: true, data });
       if (checkCombatEnd(state)) return true;
     }
     if (d.turnsLeft > 1) state.delayed.push({ ...d, turnsLeft: d.turnsLeft - 1 });
@@ -306,7 +400,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   const [card] = state.piles.hand.splice(index, 1);
   const def = data.cards[card.defId];
   const tension = state.player.maxEnergy - state.player.energy;
-  state.player.energy -= cardCost(state, def);
+  state.player.energy -= cardCost(state, def, card.uid);
   state.player.patience -= def.patienceCost ?? 0;
   addLog(state, text('log.plays', { who: state.player.name, card: def.name }));
   // Skittish: a busy turn raises the Will of the creatures that made the player skittish.
@@ -360,8 +454,8 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   if (state.phase === 'playerTurn' && (firstOfTurn || firstOfFight)) {
     // Cards hitting every enemy have no chosen target: the bonus lands on the first one still in.
     const hit = ctx.targetId ?? state.enemies.find(isAlive)?.id;
-    if (firstOfTurn) fireTriggers(state, 'firstAttackEachTurn', hit);
-    if (firstOfFight) fireTriggers(state, 'firstAttackEachFight', hit);
+    if (firstOfTurn) fireTriggers(state, 'firstAttackEachTurn', hit, data);
+    if (firstOfFight) fireTriggers(state, 'firstAttackEachFight', hit, data);
     checkCombatEnd(state);
   }
 
@@ -405,6 +499,11 @@ function endTurn(state: CombatState, data: GameData): void {
     const slow: Effect = { type: 'applyStatus', status: 'slow', amount: 1, target: 'randomEnemy' };
     (state.delayed ??= []).push({ turnsLeft: 1, raw: true, effects: Array.from({ length: disguises }, () => slow) });
   }
+  // A turn without an attack: gear and companion bonuses that reward it.
+  if (state.bonusTracker.attacksThisTurn === 0) {
+    fireTriggers(state, 'quietTurnEnd', undefined, data);
+    if (checkCombatEnd(state)) return;
+  }
   gainPatience(state, state.player.energy, 'waits');
   // Junk still in hand (Slimy Seaweed) costs Grit.
   for (const card of state.piles.hand) {
@@ -420,8 +519,16 @@ function endTurn(state: CombatState, data: GameData): void {
 
   for (const enemy of state.enemies) {
     if (!isAlive(enemy)) continue;
-    enemy.block = 0;
+    const rule = traitOf(enemy, data);
+    // Hard Shell keeps some of its Block; anyone else's is gone.
+    enemy.block = rule?.type === 'keepBlock' ? Math.floor((enemy.block * rule.percent) / 100) : 0;
     delete enemy.statuses.burrowed;
+    delete enemy.statuses.hiding;
+    // Regrowth and other turn-start traits.
+    if (rule?.type === 'turnStart') resolveEffect(state, rule.effect, { sourceId: enemy.id, targetId: enemy.id, data });
+    // An Armored affix: Block at the start of each of its turns.
+    const affix = affixOf(enemy, data);
+    if (affix?.type === 'turnBlock') enemy.block += Math.round(affix.amount * (enemy.fightScale ?? 1));
     venomStrikes(state, enemy);
     // Venom can wear a creature out before it acts: it's caught.
     if (checkCombatEnd(state)) return;
@@ -430,7 +537,11 @@ function endTurn(state: CombatState, data: GameData): void {
     executeIntent(state, enemy, data);
     if (checkCombatEnd(state)) return;
     // A pace move: its Will rises half as much this turn.
-    const rise = escapeRise(enemy, state.player.patience, state.slowCap);
+    let rise = escapeRise(enemy, state.player.patience, state.slowCap);
+    // Deep Runs: the Will rises only one turn in a few, by that much more.
+    if (rule?.type === 'slowWill') rise = enemy.moveHistory.length % rule.every === 0 ? rise * rule.times : 0;
+    // Sprint: its Will rises double meanwhile.
+    if (getStatus(enemy, 'sprinting') > 0) rise *= 2;
     const paced = move?.role === 'pace' ? Math.ceil((rise * PACE_WILL_PERCENT) / 100) : rise;
     if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + paced);
     if (checkCombatEnd(state)) return;

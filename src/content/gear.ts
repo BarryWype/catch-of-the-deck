@@ -1,10 +1,9 @@
 /**
- * Fishing gear the player will earn during a run.
+ * The fishing gear catalogue: every piece of gear with art in the gear sheet.
  *
- * What gear *does* isn't designed yet: this is the catalogue, ready for
- * effects to be added. When we decide (passive bonuses like Slay the Spire's
- * relics, unlocking cards, etc.), the new field goes on `GearDef` and every
- * entry here gets filled in.
+ * Gear the player earns during a run is a relic: an equipment entry (equipment.ts) with a
+ * `rarity`, under the same id, its art this catalogue's cell. The pieces without a relic yet
+ * are here waiting for an effect.
  *
  * - `no`: number in assets/gear_names.pdf = position in assets/fishing_gear.png
  *   (left to right, top to bottom, 6 per row).

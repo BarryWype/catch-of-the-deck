@@ -1,4 +1,5 @@
 import { buildGameData, type ContentSource } from '../engine';
+import { affixes } from './affixes';
 import { builds } from './builds';
 import { cards } from './cards';
 import { companionBonuses } from './companions';
@@ -34,6 +35,7 @@ export const contentSource: ContentSource = {
   spots,
   levels,
   coast,
+  affixes,
 };
 
 /** Validated, id-indexed content. Throws at startup if any data is inconsistent. */
