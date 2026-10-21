@@ -15,6 +15,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | 6. Traits | 0% | 7.8 | 8.5 | 8.6 | traits mostly favour the creatures: the biggest drop so far |
 | 7. Affixes | 0% | 8 | 8.7 | 8.7 | trophies now get an affix instead of +1 Strength |
 | 8. Boss gimmicks | 0% | 7.9 | 8.7 | 8.8 | kid boss won 25% (32% before): Common lobster 4/24 (8/24), Catfish 4/19 (6/19), Giant octopus 8/22 (7/22); the adult and elder bosses were reached once |
+| 9. Escalation | 0% | 7.3 | 9 | 9.1 | kid ordinary fights got away 36% (32% before), won 60% (65%); the bot doesn't hurry long fights |
 
 ### Phase 5: shortest and longest ordinary fights per level
 
@@ -73,11 +74,14 @@ The 1-turn fights are creatures that flee or are caught at once (bait, a lucky D
 - **Breach** doubles each hit after Strength and Weak, before the creature's own statuses (Cowed…), against the Hold left when the hit lands; the intent shows it against the Hold the player has now, so it updates as they gain Hold.
 - **Sprint** (2) doubles the Will rise on its own turn and the next. **Molting** sheds every debuff (Venom, Slow, Snared included) and keeps Strength. **The Catfish** burrows on its Wind-up turn.
 - **Omen's intent** shows the Tangled special icon (its first status); its description names both.
+- **Escalation counts the creature's moves**, not the fight's turns: its 5th move is the first to shift (10%), its 14th reaches double. Its foresight and any bait in between count the same way.
+- **"Pull weights"** are its normal Pulls (no role): a Pull special or a Pull Wind-up keeps its weight. The pace loses the same percent, down to 0.
+- **The Desperate badge** (😤, tone `warn`) shows from the move it starts with, its tooltip giving the current percent.
 - **The simulator** counts each held card as 6 points lost (`evaluate`), so the bot hits the octopus to get them back.
 
-## Handoff: phases 9–10 still to do
+## Handoff: phase 10 still to do
 
-Phases 1–7 are committed on `fight-variety`; phase 8 is done (commit it before phase 9). The original brief is the prompt this work started from (ten phases: phase 8 boss gimmicks, phase 9 escalating intents, phase 10 two-creature fights, then the final report). Keep following what phases 1–8 did:
+Phases 1–9 are done on `fight-variety`. The original brief is the prompt this work started from (ten phases: phase 8 boss gimmicks, phase 9 escalating intents, phase 10 two-creature fights, then the final report). Keep following what phases 1–9 did:
 
 - Every feature behind its flag in `Features` (`src/engine/constants.ts`), read with `hasFeature(data, id)`. Content built without features (the tests' `gameData`) plays as before, so existing tests must pass unchanged; new tests build `buildGameData({ ...contentSource, features: … })`.
 - New numbers in `constants.ts` or the content file, each with a one-line comment. Every player-facing text in `en.ts`, `fr.ts` and `fr-content.ts`.
@@ -88,9 +92,9 @@ Phases 1–7 are committed on `fight-variety`; phase 8 is done (commit it before
 
 The nine sets are in `bossMoveSets` (behaviors.ts); see Decisions and ARCHITECTURE.md → Fight-variety features.
 
-### Phase 9: escalating intents (`escalation`)
+### Phase 9: escalating intents (`escalation`), done
 
-From turn `ESCALATION_TURN = 5`, an ordinary creature's weighted pattern shifts each turn: Pull weights +`ESCALATION_PULL_PERCENT = 10`%, pace weights −10%, capped at double (and at zero). In `nextMove` (intents.ts), weighted branch only; never bosses. A "tiring / desperate" indicator from that turn: a badge through `badgesOf` in `CombatView.vue` (tone `warn`). Small.
+See Decisions and ARCHITECTURE.md → Fight-variety features.
 
 ### Phase 10: two-creature fights (`groupFights`)
 
@@ -98,11 +102,11 @@ From turn `ESCALATION_TURN = 5`, an ordinary creature's weighted pattern shifts 
 
 ### At the end
 
-Fill in "every new constant with its starting value" and "left unfinished or unverified" below, and the final report (what's in, each flag, the debug panel's Features section, the three things to tune first). From phases 1–8 so far, the tuning candidates are: traits mostly help the creatures (floor 8.9 → 7.8 at phase 6); trophy fights cost a lot of Grit before the mini-boss (11.0 → 9.3); the Crab trap's +1 Hold (as briefed) is nearly worthless.
+Fill in "every new constant with its starting value" and "left unfinished or unverified" below, and the final report (what's in, each flag, the debug panel's Features section, the three things to tune first). From phases 1–9 so far, the tuning candidates are: traits mostly help the creatures (floor 8.9 → 7.8 at phase 6); trophy fights cost a lot of Grit before the mini-boss (11.0 → 9.3); the Crab trap's +1 Hold (as briefed) is nearly worthless. Escalation took the floor from 7.9 to 7.3: `ESCALATION_TURN` later or a smaller step if it's too much.
 
 ### Constants so far
 
-`FEATURES`, `RELIC_CHOICES` 3, `RELIC_ODDS` 60/30/10 · 45/35/20 · 30/40/30, `TROPHY_NODE_SHARE` 6, `TROPHY_MIN_NODES` 2, `TROPHY_POOL_PERCENT` 140, `TROPHY_DAMAGE_PERCENT` 120, `TROPHY_SELL_PERCENT` 200, `OWN_STATS_MIN_PERCENT` 70, `OWN_STATS_MAX_PERCENT` 140, `AFFIX_CHANCE_PERCENT` 15. Relic, trait and affix numbers are in `content/equipment.ts`, `behaviors.ts` and `affixes.ts`; the boss gimmicks' in `bossMoveSets` (Eight Arms 10 Health, Snap Shut 20 Block, Sprint 2 turns, Breach below 10 Hold, the squid's phase at 50%).
+`FEATURES`, `RELIC_CHOICES` 3, `RELIC_ODDS` 60/30/10 · 45/35/20 · 30/40/30, `TROPHY_NODE_SHARE` 6, `TROPHY_MIN_NODES` 2, `TROPHY_POOL_PERCENT` 140, `TROPHY_DAMAGE_PERCENT` 120, `TROPHY_SELL_PERCENT` 200, `OWN_STATS_MIN_PERCENT` 70, `OWN_STATS_MAX_PERCENT` 140, `AFFIX_CHANCE_PERCENT` 15, `ESCALATION_TURN` 5, `ESCALATION_PULL_PERCENT` 10. Relic, trait and affix numbers are in `content/equipment.ts`, `behaviors.ts` and `affixes.ts`; the boss gimmicks' in `bossMoveSets` (Eight Arms 10 Health, Snap Shut 20 Block, Sprint 2 turns, Breach below 10 Hold, the squid's phase at 50%).
 
 ### Not verified yet
 

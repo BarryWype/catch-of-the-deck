@@ -389,6 +389,8 @@ export const fr: Messages = {
         trophy: '🏆 Trophée',
         trophyTip: 'Un combat trophée : plus de Vie et de Volonté, des coups plus durs, et 1 Force. Gagne-le pour un équipement ; la prise est de taille trophée.',
         held: '✋ {n}',
+        desperate: '😤 Aux abois',
+        desperateTip: 'Un long combat : elle s’impatiente. Ses Tractions normales sont {n} % plus probables et son repos {n} % moins, un peu plus à chaque tour.',
         heldTip: 'Elle tient {cards}. Fais-lui perdre encore {left} de vie ce tour pour les récupérer.',
       },
       defaultRelease: 'trop gros pour être gardé',

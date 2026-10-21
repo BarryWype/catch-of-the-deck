@@ -401,6 +401,8 @@ export const en = {
         trophy: '🏆 Trophy',
         trophyTip: 'A trophy fight: more Health and Will, harder hits, and 1 Strength. Win it for a piece of gear, and it’s caught at trophy size.',
         held: '✋ {n}',
+        desperate: '😤 Desperate',
+        desperateTip: 'A long fight: it’s getting desperate. Its normal Pulls are {n}% more likely and its rest {n}% less, a bit more each turn.',
         heldTip: 'It holds {cards}. Make it lose {left} more health this turn to get them back.',
       },
       defaultRelease: 'too big to keep',

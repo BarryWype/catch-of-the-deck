@@ -1,4 +1,5 @@
-import { MOVE_INTENSITY, PLAYER_ID, SECOND_WIND_PERCENT } from './constants';
+import { ESCALATION_PULL_PERCENT, ESCALATION_TURN, MOVE_INTENSITY, PLAYER_ID, SECOND_WIND_PERCENT } from './constants';
+import { hasFeature } from './features';
 import { bonusTotal } from './companions';
 import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
@@ -125,6 +126,15 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
   }
 }
 
+/**
+ * How far an ordinary creature's weighted pattern has escalated (`escalation`) for the move after
+ * these many: the percent its normal Pulls gain and its pace loses, 0 before `ESCALATION_TURN`.
+ */
+export function escalationPercent(enemy: EnemyState, data: GameData, played = enemy.moveHistory.length): number {
+  if (enemy.boss || !hasFeature(data, 'escalation') || patternOf(enemy, data).type !== 'weighted') return 0;
+  return Math.max(0, played + 2 - ESCALATION_TURN) * ESCALATION_PULL_PERCENT;
+}
+
 /** The creature's next move from its pattern, after these moves. */
 function nextMove(state: CombatState, enemy: EnemyState, data: GameData, history: string[]): string {
   const moves = movesOf(enemy, data);
@@ -158,8 +168,17 @@ function nextMove(state: CombatState, enemy: EnemyState, data: GameData, history
     if (last?.effects.some((e) => e.type === 'ink') && move.role === 'windUp') return false;
     return !(recent.length >= max && recent.every((m) => m === id));
   };
-  let entries = Object.entries(pattern.weights).filter(([id, w]) => w > 0 && allowed(id));
-  if (entries.length === 0) entries = Object.entries(pattern.weights).filter(([, w]) => w > 0);
+  // A long fight tightens: more Pulls, less rest.
+  const shift = escalationPercent(enemy, data, history.length);
+  const weight = (id: string, w: number) => {
+    const move = moves.find((m) => m.id === id);
+    if (!shift || !move) return w;
+    if (move.role === 'pace') return Math.max(0, (w * (100 - shift)) / 100);
+    return move.tag === 'pull' && !move.role ? (w * Math.min(200, 100 + shift)) / 100 : w;
+  };
+  const weights = Object.entries(pattern.weights).map(([id, w]): [string, number] => [id, weight(id, w)]);
+  let entries = weights.filter(([id, w]) => w > 0 && allowed(id));
+  if (entries.length === 0) entries = weights.filter(([, w]) => w > 0);
   return pickWeighted(state, entries);
 }
 

@@ -20,6 +20,7 @@ import {
   progressionTotal,
   runSellBonus,
   escapeRise,
+  escalationPercent,
   takeReport,
   HOLD_PER_PATIENCE,
   MAX_HAND_SIZE,
@@ -128,6 +129,8 @@ function badgesOf(enemy: EnemyState) {
     const left = Math.max(0, enemy.held.returnAt - (enemy.damageThisTurn ?? 0));
     badges.push({ key: 'held', label: t('combat.badge.held', { n: enemy.held.cards.length }), tip: t('combat.badge.heldTip', { cards, left }), tone: 'warn' });
   }
+  const desperate = escalationPercent(enemy, props.data);
+  if (desperate) badges.push({ key: 'desperate', label: t('combat.badge.desperate'), tip: t('combat.badge.desperateTip', { n: Math.min(100, desperate) }), tone: 'warn' });
   if (previewIntent(shownState.value, enemy, props.data)?.mayBluff) badges.push({ key: 'bluff', label: t('combat.badge.bluff'), tip: t('combat.badge.bluffTip'), tone: 'warn' });
   return badges;
 }

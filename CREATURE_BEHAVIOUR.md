@@ -58,5 +58,8 @@ Kid: Blue crab (mini, clawed), Giant octopus (boss, cephalopod). Adult: Common o
 - **Mako** — predator set with Breach (S H; ×2 if the player has < 10 Hold when it lands) [heavy after Size Up] instead of Head Shake. `seq` Jolt, Run, Size Up, Breach, Grab, Circle.
 - **Oarfish** — giant set plus Omen (P L; Tangled + Numb Fingers) [special]. `seq` Long Run, Omen, Dead Weight, Sound Deep, Heave, Dead Weight, Drift.
 
+## Escalation (`escalation` feature)
+Ordinary creatures with a `w` pattern, from their 5th move (`ESCALATION_TURN`): +10% per move (`ESCALATION_PULL_PERCENT`) on normal Pull weights (no role; ×2 at most), −10% on the pace (0 at least). Specials, Strikes, Wind-ups unchanged. Never bosses. 😤 Desperate badge.
+
 ## Tuning
 Move sets → `behaviors.ts`; one creature → its own `moves` in `creatures.ts`; Will/HP/Strength → `creatures.ts`; global → `ENCOUNTER_TURN_AVERAGE`, `ENCOUNTER_GROWTH_PERCENT`, `GROUP_DAMAGE_PERCENT`, `MINI_BOSS_DAMAGE`, `BOSS_DAMAGE`, `MOVE_INTENSITY`, `WIND_UP_PERCENT`, `PACE_WILL_PERCENT`, `MAX_MOVE_STRENGTH` and the special constants in `src/engine/constants.ts`. Since moves are scaled to an average, intensities, weights, extras and order shape a creature; the constants set how hard fights are. Check with `npm run simulate`.

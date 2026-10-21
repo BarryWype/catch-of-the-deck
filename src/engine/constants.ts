@@ -132,3 +132,11 @@ export const OWN_STATS_MAX_PERCENT = 140;
 
 /** Creature affixes (`affixes`): chance, in percent, that a creature of an ordinary fight in the adult and elder levels rolls one (trophy fights always do). */
 export const AFFIX_CHANCE_PERCENT = 15;
+
+/**
+ * Escalating intents (`escalation`): from an ordinary creature's `ESCALATION_TURN`th move on, each
+ * move shifts its weighted pattern by `ESCALATION_PULL_PERCENT` more: normal Pulls weigh that
+ * much more (double at most), its pace that much less (none at least).
+ */
+export const ESCALATION_TURN = 5;
+export const ESCALATION_PULL_PERCENT = 10;
