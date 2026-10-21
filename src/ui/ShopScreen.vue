@@ -6,7 +6,7 @@ import tackleUrl from './assets/stores/tackle-shop.png';
 import tackleKeeperUrl from './assets/stores/tackle-keeper.png';
 import baitUrl from './assets/stores/bait-shop.png';
 import baitKeeperUrl from './assets/stores/bait-keeper.png';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   aquariumPrice,
   creatureBlocked,
@@ -75,7 +75,9 @@ const pct = (r: { x: number; y: number; w?: number; h?: number }) => ({
 });
 
 const items = computed(() => storeItems(props.run, props.visit, props.data));
-const forSale = computed(() => items.value.filter((i) => i.effect.type !== 'aquariumSale'));
+/** On the shelves: everything but the aquarium, less the one-off items already bought this visit. */
+const soldOut = (item: ShopItemDef) => item.limit !== undefined && (props.visit.bought[item.id] ?? 0) >= item.limit;
+const forSale = computed(() => items.value.filter((i) => i.effect.type !== 'aquariumSale' && !soldOut(i)));
 const places = computed(() => (props.visit.store !== 'bait' && forSale.value.length <= COUNTER.length ? COUNTER : SLOTS));
 const shelved = computed(() => forSale.value.slice(0, places.value.length));
 /** Where each shelved item stands: an item alone on its board is centred on it (the shelves span `SHELF_X` in the script). */
@@ -125,14 +127,38 @@ function tip(item: ShopItemDef) {
 
 function onBuy(item: ShopItemDef) {
   if (item.effect.type === 'removeCard' || needsCreature(item)) picking.value = item;
-  else emit('buy', item.id);
+  else ask(item);
 }
 
 function onPick(choice: number) {
-  if (!picking.value) return;
-  emit('buy', picking.value.id, choice);
-  picking.value = null;
+  if (picking.value) ask(picking.value, choice);
 }
+
+/** The purchase waiting for the player's yes: the item, and the card or creature picked for it. */
+const confirming = ref<{ item: ShopItemDef; choice?: number } | null>(null);
+const confirmDialog = ref<HTMLDialogElement>();
+async function ask(item: ShopItemDef, choice?: number) {
+  confirming.value = { item, choice };
+  await nextTick();
+  confirmDialog.value?.showModal();
+}
+function confirm() {
+  if (!confirming.value) return;
+  emit('buy', confirming.value.item.id, confirming.value.choice);
+  picking.value = null;
+  confirmDialog.value?.close();
+}
+/** The creature picked for the purchase being confirmed, if it needs one. */
+const chosen = computed(() => (confirming.value && needsCreature(confirming.value.item) ? choices.value[confirming.value.choice ?? -1] : undefined));
+/** What the purchase being confirmed gives: the blessing, the keeper's coins, or the item's effect. */
+const reward = computed(() => {
+  if (!confirming.value) return '';
+  const { item, choice } = confirming.value;
+  if (item.effect.type === 'release') return t('shop.reward', { reward: blessingText(props.data.blessings.find((b) => b.id === props.visit.blessing)) });
+  if (item.effect.type === 'aquariumSale') return t('shop.keeperPays', { coins: aquariumPrice(item, props.run, choice ?? -1, props.data) });
+  if (item.effect.type === 'removeCard') return t('shop.removeThis');
+  return effectText(item);
+});
 
 /** The bucket as the picker shows it: each creature, why it can't be picked, and what the aquarium pays for it. */
 const choices = computed(() =>
@@ -141,6 +167,8 @@ const choices = computed(() =>
     def: props.data.enemies[c.id],
     size: c.size,
     lifeJacket: !!c.lifeJacket,
+    /** Brought from home (the bucket's first creatures): its bonus ends when it leaves. */
+    companion: slot < props.run.companions.length ? (props.data.companionBonuses[props.data.enemies[c.id]?.temperament ?? '']?.name ?? '') : null,
     blocked: picking.value ? creatureBlocked(picking.value, props.run, props.visit, slot, props.data) : null,
     price: picking.value?.effect.type === 'aquariumSale' ? aquariumPrice(picking.value, props.run, slot, props.data) : null,
   })),
@@ -198,7 +226,11 @@ onUnmounted(() => {
         <li v-for="c in choices" :key="c.slot">
           <button type="button" class="pick" :disabled="!!c.blocked" v-tip="c.blocked ?? ''" @click="onPick(c.slot)">
             <SpriteView v-if="c.def?.sprite" :sprite="c.def.sprite" :size="48" />
-            <span class="name">{{ c.def?.name ?? '?' }} <small>{{ t(`size.${c.size}`) }}</small></span>
+            <span class="name">
+              {{ c.def?.name ?? '?' }}
+              <small>{{ t(`size.${c.size}`) }} · {{ t(c.companion === null ? 'shop.caught' : 'shop.companion') }}</small>
+            </span>
+            <span v-if="c.companion !== null" class="companion" v-tip="t('shop.companionTip', { bonus: c.companion })"><GameIcon icon="🏠" /></span>
             <span v-if="c.lifeJacket" class="jacket" v-tip="t('shop.lifeJacket')"><GameIcon :icon="HOLD_ICON" /></span>
             <span v-if="c.price !== null && !c.blocked" class="price"><GameIcon icon="🪙" /> {{ c.price }}</span>
           </button>
@@ -262,6 +294,36 @@ onUnmounted(() => {
         <button type="button" class="ghost exit" :style="pct(EXIT)" @click="emit('leave')"><GameIcon icon="rod1" /> {{ t('shop.leave') }}</button>
       </div>
     </template>
+
+    <!-- Every purchase asks first: what it costs, what is given up (a card, a creature) and what it gives. -->
+    <dialog ref="confirmDialog" class="confirm buy" @close="confirming = null" @click="$event.target === confirmDialog && confirmDialog?.close()">
+      <template v-if="confirming">
+        <h3><GameIcon :icon="confirming.item.icon ?? '🎁'" /> {{ confirming.item.name }}</h3>
+        <CardView
+          v-if="confirming.item.effect.type === 'removeCard' && confirming.choice !== undefined"
+          :card="data.cards[run.deck[confirming.choice]]"
+          :description="describeCard(data.cards[run.deck[confirming.choice]])"
+        />
+        <div v-else-if="chosen" class="chosen">
+          <SpriteView v-if="chosen.def?.sprite" :sprite="chosen.def.sprite" :size="48" />
+          <span class="name">
+            {{ chosen.def?.name ?? '?' }}
+            <small>{{ t(`size.${chosen.size}`) }} · {{ t(chosen.companion === null ? 'shop.caught' : 'shop.companion') }}</small>
+          </span>
+          <span v-if="chosen.companion !== null" class="companion"><GameIcon icon="🏠" /></span>
+        </div>
+        <p v-if="chosen && chosen.companion !== null" class="warn">{{ t('shop.companionWarning', { bonus: chosen.companion }) }}</p>
+        <p class="reward">{{ reward }}</p>
+        <p class="cost">
+          <template v-if="confirming.item.price">{{ t('shop.price') }} <GameIcon icon="🪙" /> {{ confirming.item.price }}</template>
+          <template v-else>{{ t('shop.free') }}</template>
+        </p>
+        <footer>
+          <button class="ghost" autofocus @click="confirmDialog?.close()">{{ t('shop.cancel') }}</button>
+          <button @click="confirm">{{ t('shop.confirm') }}</button>
+        </footer>
+      </template>
+    </dialog>
   </section>
 </template>
 
@@ -433,6 +495,18 @@ onUnmounted(() => {
 .pick .name { display: flex; flex-direction: column; align-items: flex-start; font-weight: 700; line-height: 1.2; }
 .pick small { color: var(--muted); font-size: 0.72rem; font-weight: 500; }
 .pick .price { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; color: var(--highlight); }
+.companion { font-size: 1.1rem; }
+
+.buy { width: min(400px, calc(100vw - 32px)); text-align: center; }
+.buy h3 { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.buy :deep(.card) { margin: 0 auto 8px; }
+.chosen { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+.chosen .name { display: flex; flex-direction: column; align-items: flex-start; font-weight: 700; line-height: 1.2; }
+.chosen small { color: var(--muted); font-size: 0.72rem; font-weight: 500; }
+.buy p.warn { margin: 0 0 8px; color: #f0a050; font-size: 0.85rem; }
+.buy p.reward { color: var(--text); }
+.buy p.cost { margin-top: 6px; color: var(--highlight); font-weight: 700; }
+.buy footer { justify-content: center; }
 
 /* Small screens: tags too tight for a name (its tooltip keeps it), and a smaller sign. */
 @media (max-width: 700px), (max-height: 500px) {
