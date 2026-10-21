@@ -10,8 +10,8 @@ const FORAGING_QUEST_SPECIES = 4;
 const NET_QUEST_SPECIES = 3;
 
 const STARTER_DECK = ['tug', 'tug', 'tug', 'tug', 'holdTight', 'holdTight', 'holdTight', 'holdTight', 'steadyHand', 'reelIn'];
-/** Wears creatures out instead of hitting them: Drain and Slow. */
-const FORAGING_DECK = ['reelIn', 'reelIn', 'reelIn', 'reelIn', 'holdTight', 'holdTight', 'holdTight', 'holdTight', 'playTheLine', 'slackLine'];
+/** Wears creatures out instead of hitting them: Drain and Slow, with Brace to hold against Strikes and Drain on Pulls. */
+const FORAGING_DECK = ['reelIn', 'reelIn', 'reelIn', 'reelIn', 'brace', 'brace', 'brace', 'brace', 'playTheLine', 'slackLine'];
 /** Hits every creature at once: made for group fights. */
 const NET_DECK = ['tug', 'tug', 'tug', 'reelIn', 'reelIn', 'holdTight', 'holdTight', 'holdTight', 'throwTheNet', 'drawTheNet'];
 /** Saves Patience to slow the Will, then spends it on one Perfect Cast. */

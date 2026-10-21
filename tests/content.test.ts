@@ -17,7 +17,7 @@ describe('game content', () => {
     };
     const expected: Record<string, Record<string, number>> = {
       rod: { tug: 4, holdTight: 4, steadyHand: 1, reelIn: 1 },
-      foraging: { reelIn: 4, holdTight: 4, playTheLine: 1, slackLine: 1 },
+      foraging: { reelIn: 4, brace: 4, playTheLine: 1, slackLine: 1 },
       net: { tug: 3, reelIn: 2, holdTight: 3, throwTheNet: 1, drawTheNet: 1 },
       fly: { tug: 3, reelIn: 2, holdTight: 3, waitForTheRise: 1, perfectCast: 1 },
     };
@@ -40,7 +40,7 @@ describe('game content', () => {
 
   it('generates readable rules text', () => {
     expect(describeCard(gameData.cards.tug)).toBe('5 damage.');
-    expect(describeCard(gameData.cards.reelIn)).toBe('7 drain.');
+    expect(describeCard(gameData.cards.reelIn)).toBe('If the creature is about to Strike: 4 drain. Otherwise: 7 drain.');
     expect(describeCard(gameData.cards.sting)).toBe('2 damage. Apply 3 Venom.');
     expect(describeCard(gameData.cards.dartingNips)).toBe('2 damage 4 times to random creatures.');
     expect(describeCard(gameData.cards.cheapShot)).toBe('5 damage. The creature gains 5 Will.');

@@ -270,6 +270,17 @@ describe('travelling the map', () => {
     expect(later.enemies[0].maxHp).toBe(57);
   });
 
+  it("gives a fight's creatures at least 45 starting Will, raising the top of the bar and its rise alike", () => {
+    // Two dummies start at 4 Will each (8 together): ×45/8, rounded.
+    const low = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, willPool: 45 }, testData);
+    expect(low.enemies.map((e) => [e.escape, e.escapeAt, e.escapeRate])).toEqual([[23, 5625, 6], [23, 5625, 6]]);
+    // Already above the pool: left as written.
+    const high = createCombat({ seed: 1, deck: [], enemies: ['dummy'], playerHp: 60, playerMaxHp: 60, willPool: 3 }, testData);
+    expect(high.enemies[0]).toMatchObject({ escape: 4, escapeAt: 1000, escapeRate: 1 });
+    const later = travelTo({ ...createRun(5, testData, 'basic'), fights: 7 }, '1a', testData).combat;
+    expect(later.enemies[0].escape).toBe(52); // ceil(45 × 1.14) = 52
+  });
+
   it('splits the damage in a group, and a mini-boss rolls 9–10', () => {
     const group = createCombat({ seed: 1, deck: [], enemies: ['dummy', 'dummy'], playerHp: 60, playerMaxHp: 60, hpPool: 50, damage: (5.5 / 2) * 1.1 }, testData);
     expect(previewIntent(group, group.enemies[0], testData)?.damage).toBe(3);
@@ -370,7 +381,8 @@ describe('equipment', () => {
     expect([10, 6, 2, 1, 0].map((rate) => escapeRateReduction(rate, 20))).toEqual([2, 2, 1, 1, 0]);
     const run = createRun(5, testData, 'angler');
     const { combat } = travelTo(run, availableDestinations(run)[0].id, testData);
-    expect(combat.enemies[0].escapeRate).toBe(0);
+    // The Will pool raises the dummy's bar from 4 to 45, its rise from 1 to 11; the item then cuts 3.
+    expect(combat.enemies[0].escapeRate).toBe(8);
   });
 
   it('sellOnCapture sells captures on the spot for more, instead of the aquarium', () => {

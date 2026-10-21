@@ -32,9 +32,9 @@ describe('Patience and healing cards', () => {
     expect(s.player.patience).toBe(1);
   });
 
-  it('Slack Line: 4 Slow on the target', () => {
+  it('Slack Line: 3 Slow on the target', () => {
     const s = playCard(fight(['slackLine']), 'slackLine');
-    expect(s.enemies[0].statuses.slow).toBe(4);
+    expect(s.enemies[0].statuses.slow).toBe(3);
     expect(s.player.energy).toBe(fight(['slackLine']).player.energy - 1);
   });
 
@@ -220,6 +220,20 @@ describe('cards that read or change the next move', () => {
     expect(a0.enemies[0].escape - playCard(about(a0, 'dartAway'), 'adaptation').enemies[0].escape).toBe(10);
   });
 
+  it('Reel In: Drain 7, only 4 before a Strike; Brace: 5 Hold, and Drain 3 before a Pull', () => {
+    const r0 = fight(['reelIn']);
+    expect(r0.enemies[0].escape - playCard(about(r0, 'dartAway'), 'reelIn').enemies[0].escape).toBe(7);
+    expect(r0.enemies[0].escape - playCard(about(r0, 'nibble'), 'reelIn').enemies[0].escape).toBe(4);
+    const b0 = fight(['brace']);
+    const pull = playCard(about(b0, 'dartAway'), 'brace');
+    expect(pull.player.block).toBe(5);
+    expect(b0.enemies[0].escape - pull.enemies[0].escape).toBe(3);
+    const strike = playCard(about(b0, 'nibble'), 'brace');
+    expect(strike.player.block).toBe(5);
+    expect(strike.enemies[0].escape).toBe(b0.enemies[0].escape);
+    expect(describeCard(gameData.cards.brace)).toBe('Gain 5 Hold. If the creature is about to Pull: 3 drain.');
+  });
+
   it('Menacing Presence halves every creature’s next Strike or Pull, once', () => {
     const s0 = about(fight(['menacingPresence']), 'nibble');
     const s = playCard({ ...s0, player: { ...s0.player, patience: 2 } }, 'menacingPresence');
@@ -279,7 +293,9 @@ describe('cards that last until the end of your turn', () => {
   const rich = (s: CombatState): CombatState => ({ ...s, player: { ...s.player, energy: 9 } });
 
   it('Coiled doubles the next Attack or Drain card this turn, once', () => {
-    const s0 = rich(fight(['coiled', 'tug', 'tug', 'reelIn', 'holdTight']));
+    // Before a Pull, so Reel In drains its full 7.
+    const s0f = rich(fight(['coiled', 'tug', 'tug', 'reelIn', 'holdTight']));
+    const s0: CombatState = { ...s0f, enemies: s0f.enemies.map((e) => ({ ...e, intent: 'dartAway' })) };
     const coiled = playCard(s0, 'coiled');
     const once = playCard(coiled, 'tug');
     expect(s0.enemies[0].hp - once.enemies[0].hp).toBe(10);

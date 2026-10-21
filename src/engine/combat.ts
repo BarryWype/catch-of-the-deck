@@ -38,6 +38,8 @@ export interface CombatConfig {
   bonuses?: CompanionEffect[];
   /** The least Health the creatures have together (raised in proportion when they roll less). */
   hpPool?: number;
+  /** The least Will the creatures start with together: their bars (start, top and rise) are raised in proportion when they start lower. */
+  willPool?: number;
   /** What each creature deals per turn on average: its moves are scaled to it (`turnAverage`). */
   damage?: number;
   /** A mini-boss or boss fight: the creatures follow their `bossPattern`, their Wind-ups also give Strength, and they have a Second Wind. */
@@ -98,6 +100,14 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   const rolled = state.enemies.reduce((sum, e) => sum + e.maxHp, 0);
   if (config.hpPool && rolled > 0 && rolled < config.hpPool) {
     for (const enemy of state.enemies) enemy.hp = enemy.maxHp = Math.ceil((enemy.maxHp * config.hpPool) / rolled);
+  }
+  const will = state.enemies.reduce((sum, e) => sum + e.escape, 0);
+  if (config.willPool && will > 0 && will < config.willPool) {
+    for (const enemy of state.enemies) {
+      enemy.escape = Math.round((enemy.escape * config.willPool) / will);
+      enemy.escapeAt = Math.round((enemy.escapeAt * config.willPool) / will);
+      enemy.escapeRate = Math.round((enemy.escapeRate * config.willPool) / will);
+    }
   }
   if (config.damage) {
     for (const enemy of state.enemies) {

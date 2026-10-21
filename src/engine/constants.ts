@@ -41,6 +41,12 @@ export const HOLD_PER_PATIENCE = 3;
 /** The least Health a fight's creatures have together, before `ENCOUNTER_GROWTH_PERCENT`. */
 export const ENCOUNTER_HP_POOL = 50;
 /**
+ * The least Will a fight's creatures start with together, before `ENCOUNTER_GROWTH_PERCENT`. Small
+ * creatures get a bigger bar (start, top and rise alike), so draining them takes about as long as
+ * wearing their Health down.
+ */
+export const ENCOUNTER_WILL_POOL = 45;
+/**
  * What a fight's creatures deal per turn on average (Strike or Pull, over all their moves as often
  * as they come, intensity and Wind-ups included), before `ENCOUNTER_GROWTH_PERCENT`. Split between
  * them in a group.

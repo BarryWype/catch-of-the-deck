@@ -96,7 +96,7 @@ menu ──New run──▶ build ──▶ companions ──Set off──▶ ma
   - **Win/lose check:** after every effect.
 - **Grit** (`terms.grit`): the player's HP is shown as **Grit**, the will to keep fishing, in its own orange bar. It works like HP (`hp`, `maxHp` in the code): creatures' Strikes wear it down, and the fight is lost when it runs out.
 - **Hold** (`terms.hold`): the player's Block is shown as **Hold**, their hold on the line (the starter defence card is called Hold). It soaks both kinds of creature move; creatures' own Block is still called Block.
-- **Fight scaling** (`startFight` in `run.ts`): each fight is tougher by `ENCOUNTER_GROWTH_PERCENT` (2%) per fight already started this run (`RunState.fights`). `createCombat` raises the creatures' rolled Health in proportion when it adds up to less than `hpPool` (`ENCOUNTER_HP_POOL`, 50), and gives each a `damageScale` so its Strike and Pull moves average `damage`: `ENCOUNTER_TURN_AVERAGE` (5.5 per turn), or a roll of `MINI_BOSS_DAMAGE` / `BOSS_DAMAGE` with no growth; in a group, each gets its share × `GROUP_DAMAGE_PERCENT` (110%). `MAX_CREATURES_PER_FIGHT` (1 for now, as several creatures stack too tall on phones) keeps larger encounters out of `encountersFor`; the debug panel can still start one. `damageScale` multiplies the move's `moveScale`, so statuses and the intent preview use it too.
+- **Fight scaling** (`startFight` in `run.ts`): each fight is tougher by `ENCOUNTER_GROWTH_PERCENT` (2%) per fight already started this run (`RunState.fights`). `createCombat` raises the creatures' rolled Health in proportion when it adds up to less than `hpPool` (`ENCOUNTER_HP_POOL`, 50), raises their escape bars (`escape`, `escapeAt` and `escapeRate` alike) in proportion when their starting `escape` adds up to less than `willPool` (`ENCOUNTER_WILL_POOL`, 45), so small creatures take about as long to Drain as to wear down, and gives each a `damageScale` so its Strike and Pull moves average `damage`: `ENCOUNTER_TURN_AVERAGE` (5.5 per turn), or a roll of `MINI_BOSS_DAMAGE` / `BOSS_DAMAGE` with no growth; in a group, each gets its share × `GROUP_DAMAGE_PERCENT` (110%). `MAX_CREATURES_PER_FIGHT` (1 for now, as several creatures stack too tall on phones) keeps larger encounters out of `encountersFor`; the debug panel can still start one. `damageScale` multiplies the move's `moveScale`, so statuses and the intent preview use it too.
 - **Creature moves** (`content/behaviors.ts`) each have a `tag`, checked against their effects on startup:
   - **Strike:** deals damage. What gets past the Hold wears down Grit.
   - **Pull:** has a `pull` effect (creature moves only). What gets past the Hold raises the creature's own escape bar.
@@ -123,7 +123,7 @@ menu ──New run──▶ build ──▶ companions ──Set off──▶ ma
   - **Rod fishing** manages tension: big hits raise its Will, skills Drain and tire the fish.
   - **Net fishing** hits and Drains every creature at once (`target: 'allEnemies'`).
   - **Fly fishing** banks Patience (`gainPatience`) to slow the rise, then spends it on Perfect Cast's `patienceCost`.
-  - **Foraging** barely deals damage: it snares creatures and Drains them down to 0.
+  - **Foraging** barely deals damage: it snares creatures and Drains them down to 0. Its cards read the intent (`ifIntent`): Reel In drains less before a Strike, Brace adds Drain before a Pull, so Hold matters on both kinds of turn.
 
 ## Aquariums: the bucket and the home aquarium
 

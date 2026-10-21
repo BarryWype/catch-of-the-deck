@@ -31,7 +31,7 @@ If Grit reaches 0, you give up: the run is over, and **everything in your bucket
 
 ### Hold
 
-Hold is your grip on the line: your defence. You get it from Defense cards like **Hold Tight** (in every starter deck). It shows as a 🛟 number in your Grit globe, and fills the globe from the top: blue over your Grit, on the same scale.
+Hold is your grip on the line: your defence. You get it from Defense cards like **Hold Tight** (in every starter deck but Foraging's, which has **Brace**). It shows as a 🛟 number in your Grit globe, and fills the globe from the top: blue over your Grit, on the same scale.
 
 Hold soaks up **both** kinds of creature moves (see Strike and Pull below), in the order the creatures act. Whatever gets past your Hold lands.
 
@@ -76,7 +76,7 @@ The creatures of a fight have **at least 50 Health together**. Smaller ones get 
 
 The other bar under a creature: its will to break free. It:
 
-- **starts part way up** when the fight begins,
+- **starts part way up** when the fight begins: the creatures of a fight start with **at least 45 Will together** (growing 2% a fight like Health). Smaller ones get a bigger bar to reach it, the top of the bar and its rise scaled alike, so they take about as long to Drain as to wear down,
 - **rises a little every turn** by itself (shown as "+N/turn", slowed by your Patience),
 - **jumps up** when the creature **Pulls** and gets past your Hold.
 
@@ -176,7 +176,7 @@ Heading home is the safe choice: you stop while you're ahead and keep everything
 ## Fishermen and builds
 
 - **Fishing styles:** your fishing style sets your starter deck. You start with **Rod fishing** only (4 Tug, 4 Hold Tight, Steady Hand, Reel In), and can learn three more from fishermen you meet on the way: Foraging, Net fishing and Fly fishing. Once you have more than one, you pick before each run; with one, the choice is skipped.
-- **Foraging** is the patient way, for bigger catches: you drain a creature's Will instead of wearing down its Health, and a creature caught by its Will comes out bigger. Its deck: 4 Reel In, 4 Hold Tight, Play the Line and Slack Line.
+- **Foraging** is the patient way, for bigger catches: you drain a creature's Will instead of wearing down its Health, and a creature caught by its Will comes out bigger. Its deck: 4 Reel In, 4 **Brace** (1 Tension: 5 Hold, and Drain 3 if the creature is about to Pull), Play the Line and Slack Line. Reel In drains 7, but only 4 if the creature is about to Strike: Hold the Strikes, Drain the Pulls.
 - **Old Ned**, an experienced fisherman, teaches it. As a Kid, while you haven't learnt Foraging, he stands one step after the mini-boss (it leads straight to him). Talk to him to open his quest: he wants to see **4 different species of crustaceans, shellfish or critters in your home aquarium**. He says how many you have so far, counting your bucket, and tells you when you already have them all.
 - **Net fishing** hits every creature at once, at its best in group fights. Its deck: 3 Tug, 2 Reel In, 3 Hold Tight, **Throw the Net** (1 Tension: 3 damage to every creature) and **Draw the Net** (1 Tension: Drain 3 on every creature). **Gus the Netmaker** teaches it, one step after the Adult mini-boss: he wants to see **3 different species of schooling fish in your bucket**.
 - **Fly fishing** is about Patience: save it to slow the Will, then spend it on one perfect cast. Its deck: 3 Tug, 2 Reel In, 3 Hold Tight, **Wait for the Rise** (1 Tension: gain 2 Patience) and **Perfect Cast** (no Tension but 3 Patience: 6 damage and Drain 6). **Silent Silas** teaches it, one step after the Elder mini-boss: he wants to see **a trophy-size freshwater creature in your bucket**.

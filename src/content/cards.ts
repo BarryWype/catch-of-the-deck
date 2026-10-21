@@ -22,8 +22,15 @@ export const cards: CardDef[] = [
     id: 'steadyHand', name: 'Steady Hand', art: '🫴', type: 'attack', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy',
     tags: ['damage', 'patience'], effects: [{ type: 'dealDamage', amount: 10 }],
   },
-  { id: 'reelIn', name: 'Reel In', art: '🧵', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', tags: ['drain'], effects: [{ type: 'changeEscape', amount: -7 }] },
-  { id: 'slackLine', name: 'Slack Line', art: '🎐', type: 'support', rarity: 'normal', cost: 1, target: 'enemy', tags: ['slow'], effects: [{ type: 'applyStatus', status: 'slow', amount: 4 }] },
+  {
+    id: 'reelIn', name: 'Reel In', art: '🧵', type: 'drain', rarity: 'normal', cost: 1, target: 'enemy', tags: ['drain', 'intent', 'conditional'],
+    effects: [{ type: 'ifIntent', tag: 'strike', then: [{ type: 'changeEscape', amount: -4 }], else: [{ type: 'changeEscape', amount: -7 }] }],
+  },
+  {
+    id: 'brace', name: 'Brace', art: '🧍', type: 'defense', rarity: 'normal', cost: 1, target: 'enemy', tags: ['hold', 'drain', 'intent', 'conditional'],
+    effects: [{ type: 'gainBlock', amount: 5 }, { type: 'ifIntent', tag: 'pull', then: [{ type: 'changeEscape', amount: -3 }] }],
+  },
+  { id: 'slackLine', name: 'Slack Line', art: '🎐', type: 'support', rarity: 'normal', cost: 1, target: 'enemy', tags: ['slow'], effects: [{ type: 'applyStatus', status: 'slow', amount: 3 }] },
   {
     id: 'playTheLine', name: 'Play the Line', art: '🪢', type: 'drain', rarity: 'normal', cost: 1, patienceCost: 2, target: 'enemy',
     tags: ['drain', 'slow', 'patience'], effects: [{ type: 'changeEscape', amount: -12 }, { type: 'applyStatus', status: 'slow', amount: 2 }],
