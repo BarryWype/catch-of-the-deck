@@ -9,6 +9,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | Before (`--features none`) | 0% | 10.8 | 8.0 | 7.9 | kid ordinary 1–24 turns, adult 1–19 |
 | 1. More events | 0% | 10.2 | 8.0 | 8.0 | |
 | 2. Gear relics | 0% | 11.0 | 7.9 | 7.9 | relics after each mini-boss (the bot takes one at random) |
+| 3. Trophy fights | 0% | 9.3 | 8.0 | 7.9 | trophy fights cost Grit before the mini-boss |
 
 ## Decisions
 
@@ -29,3 +30,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 - **Handline:** 20% per fight to start with a bait card of the level's tier in hand, for that fight only (it isn't added to the deck). Only with `gearRelics` on; its description changed for both settings.
 - **A treasure chest choice** is a new treasure event, `tackleChest` (gear or 20 coins), drawn alongside the Sunken Chest while `gearRelics` is on.
 - **A `relic` reward with no relic left** (all carried) falls back to a rare card.
+- **Trophy scaling applies after the pools:** today's pools are floors (a creature below them is raised to them), so multiplying the pools alone would often change nothing. A trophy creature's Health and Will bars are raised by `TROPHY_POOL_PERCENT` after the pools, and its damage by `TROPHY_DAMAGE_PERCENT` on top of the fight's.
+- **Trophy markers are drawn last** on the map (after the stores), so turning `trophyElites` off or on changes nothing else on a seed's map.
+- **"Sells for 200%"** applies to every trophy-size catch while `trophyElites` is on (sizes had no other use), not only to trophy fights' catches.
+- **One relic offer at a time:** a trophy fight from an event that also promises a relic (the bottle with a map) offers one choice, not two.

@@ -369,6 +369,10 @@ export const fr: Messages = {
       empty: 'Rien ici pour l’instant. Va pêcher !',
     },
     combat: {
+      badge: {
+        trophy: '🏆 Trophée',
+        trophyTip: 'Un combat trophée : plus de Vie et de Volonté, des coups plus durs, et 1 Force. Gagne-le pour un équipement ; la prise est de taille trophée.',
+      },
       defaultRelease: 'trop gros pour être gardé',
       patienceTip:
         'Chaque point de tension non accumulé en fin de tour donne 1 point, et chaque {hold} de {@hold} restante après le tour des créatures aussi. Chaque point ralentit la {@will} des créatures de {percent} %, jusqu’à {max} points.',
@@ -744,6 +748,8 @@ export const fr: Messages = {
       headHome: 'Rentrer à la maison',
       headHomeDetail: 'Finit la partie ici ; ton seau rentre avec toi',
       headHomeLegend: 'Rentrer à la maison (termine la partie)',
+      trophy: 'Combat trophée',
+      trophyDetail: 'Une créature plus grosse : plus coriace, mais elle rapporte un équipement et une prise de taille trophée.',
       fisherman: 'Pêcheur',
       fishermanDetail: 'Un pêcheur expérimenté. Il a quelque chose à t’apprendre.',
       boss: 'Boss',

@@ -806,6 +806,8 @@ export interface EnemyState extends Combatant {
   strengthGained?: number;
   /** Its move after `intent`, already decided and shown (`foresight` bonus). */
   foresight?: string;
+  /** A trophy fight's creature: bigger bars and moves, always caught at trophy size (`trophyElites`). */
+  trophy?: boolean;
 }
 
 export interface CardInstance {

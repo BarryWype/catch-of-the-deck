@@ -113,6 +113,13 @@ const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => 
  * the book is updated when the fight ends), how many the home aquarium holds, and the open quests
  * it counts towards.
  */
+/** Labelled badges under a creature's name: a trophy fight's, its trait, its affix… */
+function badgesOf(enemy: EnemyState) {
+  const badges: { key: string; label: string; tip: string; tone?: 'trait' | 'affix' | 'warn' }[] = [];
+  if (enemy.trophy) badges.push({ key: 'trophy', label: t('combat.badge.trophy'), tip: t('combat.badge.trophyTip'), tone: 'affix' });
+  return badges;
+}
+
 function creatureTip(enemy: EnemyState) {
   const def = props.data.enemies[enemy.defId];
   const atHome = props.homeAquarium.filter((c) => c.id === enemy.defId).length;
@@ -162,7 +169,9 @@ const battlefield = ref<HTMLElement>();
 
 /** Coins from creatures sold on the spot by equipment (null when they go to the aquarium). */
 const instantSale = computed(() => {
-  const sales = props.state.enemies.map((e) => instantSaleValue(e.defId, props.equipment, props.data, props.run ? runSellBonus(props.run, props.data, props.state.bonuses) : bonusTotal(props.state.bonuses, 'sellBonus')));
+  const sales = props.state.enemies.map((e) =>
+    instantSaleValue(e.defId, props.equipment, props.data, props.run ? runSellBonus(props.run, props.data, props.state.bonuses) : bonusTotal(props.state.bonuses, 'sellBonus'), e.trophy ? 'trophy' : undefined),
+  );
   return sales.some((s) => s === null) ? null : sales.reduce<number>((sum, s) => sum + (s ?? 0), 0);
 });
 
@@ -820,6 +829,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(shownState, enemy, data)"
           :then="previewForesight(shownState, enemy, data)"
+          :badges="badgesOf(enemy)"
           :escape-bar="{
             escape: enemy.escape,
             escapeAt: enemy.escapeAt,

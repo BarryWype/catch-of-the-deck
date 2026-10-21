@@ -11,6 +11,7 @@ import {
   SKITTISH_WILL,
   STARTING_HAND_SIZE,
   TAX_COST,
+  TROPHY_POOL_PERCENT,
   WIND_UP_PERCENT,
 } from './constants';
 import { text } from './text';
@@ -48,6 +49,8 @@ export interface CombatConfig {
   freeCard?: string;
   /** Cards (ids) that start in hand, for this fight only (`baitChance` gear). */
   extraCards?: string[];
+  /** A trophy fight: Health and Will `TROPHY_POOL_PERCENT` bigger after the pools, and 1 Strength (`damage` is already bigger). */
+  trophy?: boolean;
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -111,6 +114,17 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
       enemy.escape = Math.round((enemy.escape * config.willPool) / will);
       enemy.escapeAt = Math.round((enemy.escapeAt * config.willPool) / will);
       enemy.escapeRate = Math.round((enemy.escapeRate * config.willPool) / will);
+    }
+  }
+  if (config.trophy) {
+    for (const enemy of state.enemies) {
+      const bigger = (n: number) => Math.round((n * TROPHY_POOL_PERCENT) / 100);
+      enemy.hp = enemy.maxHp = bigger(enemy.maxHp);
+      enemy.escape = bigger(enemy.escape);
+      enemy.escapeAt = bigger(enemy.escapeAt);
+      enemy.escapeRate = bigger(enemy.escapeRate);
+      enemy.trophy = true;
+      enemy.statuses.strength = (enemy.statuses.strength ?? 0) + 1;
     }
   }
   if (config.damage) {

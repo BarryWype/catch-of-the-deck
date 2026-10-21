@@ -20,7 +20,7 @@ const waiting = computed(() => {
   const caught = props.run.waiting[0];
   const def = caught && props.data.enemies[caught.id];
   if (!def) return null;
-  return { def, size: caught.size, value: saleValue(caught.id, runSellBonus(props.run, props.data), props.data), more: props.run.waiting.length - 1 };
+  return { def, size: caught.size, value: saleValue(caught.id, runSellBonus(props.run, props.data), props.data, caught.size), more: props.run.waiting.length - 1 };
 });
 const baitConfirm = ref<InstanceType<typeof BaitConfirm>>();
 </script>

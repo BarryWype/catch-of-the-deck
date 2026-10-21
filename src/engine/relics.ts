@@ -8,12 +8,15 @@ import { clone } from './util';
  * Relics (`gearRelics`): equipment with a `rarity`, earned during a run. A relic choice offers
  * `RELIC_CHOICES` of those the run doesn't have, each slot's rarity drawn at the level's
  * `RELIC_ODDS` (another rarity when that one has none left), never the same relic twice. It waits
- * in `RunState.relicChoices` until one is taken (`takeRelic`) or passed on (`skipRelics`).
+ * in `RunState.relicChoices` until one is taken (`takeRelic`) or passed on (`skipRelics`); while it
+ * waits, no other offer is added.
  */
 export function rollRelicChoices(run: RunState, data: GameData, count = RELIC_CHOICES): RunState {
+  // One offer at a time: a trophy event's own relic doesn't add a second choice.
+  if (run.relicChoices?.length) return run;
   const next = clone(run);
   const odds = RELIC_ODDS[Math.min(run.level, RELIC_ODDS.length - 1)];
-  const owned = new Set([...run.equipment, ...(run.relicChoices ?? [])]);
+  const owned = new Set(run.equipment);
   const left = Object.values(data.equipment).filter((e) => e.rarity && !owned.has(e.id));
   const choices: string[] = [];
   for (let slot = 0; slot < count; slot++) {
@@ -25,7 +28,7 @@ export function rollRelicChoices(run: RunState, data: GameData, count = RELIC_CH
     const from = ofRarity.length ? ofRarity : pool;
     choices.push(from[nextInt(next, 0, from.length - 1)].id);
   }
-  next.relicChoices = [...(run.relicChoices ?? []), ...choices];
+  next.relicChoices = choices;
   return next;
 }
 

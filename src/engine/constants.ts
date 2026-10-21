@@ -112,3 +112,12 @@ export const RELIC_ODDS: { common: number; uncommon: number; rare: number }[] = 
   { common: 45, uncommon: 35, rare: 20 },
   { common: 30, uncommon: 40, rare: 30 },
 ];
+
+/** Trophy fights (`trophyElites`): about 1 in `TROPHY_NODE_SHARE` ordinary fights of a level (at least `TROPHY_MIN_NODES`, never in column 1). */
+export const TROPHY_NODE_SHARE = 6;
+export const TROPHY_MIN_NODES = 2;
+/** A trophy fight's creatures: Health and Will this much bigger, damage this much bigger, in percent. */
+export const TROPHY_POOL_PERCENT = 140;
+export const TROPHY_DAMAGE_PERCENT = 120;
+/** A trophy-size catch sells for this share of its value, in percent (`trophyElites`). */
+export const TROPHY_SELL_PERCENT = 200;

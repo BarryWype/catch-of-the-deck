@@ -65,7 +65,7 @@ export function shopItemBlocked(item: ShopItemDef, run: RunState, visit: ShopVis
 /** What the keeper's aquarium pays for the bucket creature at `slot`: its sale value (`runSellBonus` included), times the item's percent. */
 export function aquariumPrice(item: ShopItemDef, run: RunState, slot: number, data: GameData): number {
   if (item.effect.type !== 'aquariumSale' || !run.bucket[slot]) return 0;
-  return Math.ceil((saleValue(run.bucket[slot].id, runSellBonus(run, data), data) * item.effect.percent) / 100);
+  return Math.ceil((saleValue(run.bucket[slot].id, runSellBonus(run, data), data, run.bucket[slot].size) * item.effect.percent) / 100);
 }
 
 /**

@@ -381,6 +381,10 @@ export const en = {
       empty: 'Nothing in here yet. Catch something!',
     },
     combat: {
+      badge: {
+        trophy: '🏆 Trophy',
+        trophyTip: 'A trophy fight: more Health and Will, harder hits, and 1 Strength. Win it for a piece of gear, and it’s caught at trophy size.',
+      },
       defaultRelease: 'too big to keep',
       patienceTip: "Every point of Tension not built up at the end of the turn generates a patience point. Every {hold} {@hold} left after the creatures' turn gives one too. Each point makes every creature's {@will} rise {percent}% slower, up to {max} points.",
       swimsAway: '{name} swims away',
@@ -755,6 +759,8 @@ export const en = {
       headHome: 'Head home',
       headHomeDetail: 'Ends the run here; your bucket comes home',
       headHomeLegend: 'Head home (ends the run)',
+      trophy: 'Trophy fight',
+      trophyDetail: 'A bigger creature: tougher, but it comes with a piece of gear and a trophy-size catch.',
       fisherman: 'Fisherman',
       fishermanDetail: 'An experienced fisherman. He has something to teach you.',
       boss: 'Boss',
