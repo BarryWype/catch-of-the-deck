@@ -10,6 +10,7 @@ import { isAlive } from './effects';
 import { progressionTotal } from './progression';
 import { creatureFamilies } from './families';
 import { hasFeature } from './features';
+import { rollRelicChoices } from './relics';
 import { text } from './text';
 import { questsShownTo } from './unlocks';
 import type { ShopVisit } from './shop';
@@ -92,6 +93,8 @@ export interface RunState {
   eventFight?: { reward?: EventReward; coins?: number };
   /** The next fight starts with a copy of this card in hand, free to play (an event's `freeNextFight`). */
   freeCard?: string;
+  /** Relics on offer (`gearRelics`, `rollRelicChoices`): the player takes one or passes. */
+  relicChoices?: string[];
 }
 
 /**
@@ -287,6 +290,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   next.fights++;
   const freeCard = next.freeCard;
   delete next.freeCard;
+  const extraCards = baitFromGear(next, data);
   const bossDamage = node.kind === 'miniBoss' ? MINI_BOSS_DAMAGE : node.kind === 'boss' ? BOSS_DAMAGE : null;
   const damage = bossDamage ? nextInt(next, bossDamage[0], bossDamage[1]) : (ENCOUNTER_TURN_AVERAGE * growth) / 100;
   return createCombat(
@@ -297,12 +301,13 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
       playerHp: next.hp,
       playerMaxHp: next.maxHp,
       equipment: next.equipment,
-      bonuses: [...runCompanionEffects(next, data), ...next.boons.flatMap((b) => (b.bonus ? [b.bonus] : []))],
+      bonuses: runBonuses(next, data),
       hpPool: Math.ceil((ENCOUNTER_HP_POOL * growth) / 100),
       willPool: Math.ceil((ENCOUNTER_WILL_POOL * growth) / 100),
       damage: enemies.length > 1 ? (damage / enemies.length) * (GROUP_DAMAGE_PERCENT / 100) : damage,
       bosses: !!bossDamage,
       ...(freeCard ? { freeCard } : {}),
+      ...(extraCards.length ? { extraCards } : {}),
     },
     data,
   );
@@ -325,8 +330,29 @@ export function startEventFight(run: RunState, effect: Extract<EventEffect, { ty
  * An event's `reward`: a rare in the next card reward (`luckyLure`), or a choice of relics
  * (a rare card instead when relics are off). `cardReward`: a card reward comes next.
  */
-export function grantReward(run: RunState, _reward: EventReward, _data: GameData): { run: RunState; cardReward: boolean } {
+export function grantReward(run: RunState, reward: EventReward, data: GameData): { run: RunState; cardReward: boolean } {
+  if (reward === 'relic' && hasFeature(data, 'gearRelics')) {
+    const offered = rollRelicChoices(run, data);
+    if (offered.relicChoices?.length) return { run: offered, cardReward: false };
+  }
   return { run: { ...run, luckyLure: true }, cardReward: true };
+}
+
+/**
+ * Every combat bonus the run brings to a fight: its companions', its boons' and, with `gearRelics`,
+ * its equipment's (`bonus` effects).
+ */
+export function runBonuses(run: RunState, data: GameData): CompanionEffect[] {
+  const gear = hasFeature(data, 'gearRelics') ? equipmentEffects(run.equipment, data).flatMap((e) => (e.type === 'bonus' ? [e.bonus] : [])) : [];
+  return [...runCompanionEffects(run, data), ...run.boons.flatMap((b) => (b.bonus ? [b.bonus] : [])), ...gear];
+}
+
+/** With `gearRelics`, each `baitChance` effect rolls for a bait card of the level's tier, in hand for the coming fight. */
+function baitFromGear(next: RunState, data: GameData): string[] {
+  if (!hasFeature(data, 'gearRelics')) return [];
+  const tier = data.levels[next.level]?.tier ?? 1;
+  const card = Object.values(data.cards).find((c) => c.bait === tier);
+  return equipmentEffects(next.equipment, data).flatMap((e) => (e.type === 'baitChance' && card && nextFloat(next) < e.percent / 100 ? [card.id] : []));
 }
 
 /**
@@ -454,7 +480,10 @@ export function finishCombat(run: RunState, combat: CombatState, data: GameData)
     else if (next.bucket.length < next.bucketSize) next.bucket.push(caught);
     else next.waiting.push(caught);
   }
-  return wearBoons(eventFightWon(next, combat, data));
+  const done = wearBoons(eventFightWon(next, combat, data));
+  // A mini-boss beaten offers a relic.
+  const miniBoss = findNode(run.map, run.position)?.kind === 'miniBoss';
+  return combat.phase === 'won' && miniBoss && hasFeature(data, 'gearRelics') ? rollRelicChoices(done, data) : done;
 }
 
 /** An event's fight is over: winning it gives its coins and reward. */
@@ -535,7 +564,7 @@ export function useAsBaitInFight(run: RunState, combat: CombatState, slot: numbe
     else fight.piles.draw.push(card);
   });
   if (slot < run.companions.length) {
-    fight.bonuses = [...runCompanionEffects(next, data), ...next.boons.flatMap((b) => (b.bonus ? [b.bonus] : []))];
+    fight.bonuses = runBonuses(next, data);
   }
   const name = data.enemies[creature.id]?.name ?? creature.id;
   addLog(fight, text('log.bait', { name, cards: cards.map((id) => data.cards[id].name).join(', ') }));

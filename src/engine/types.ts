@@ -268,7 +268,14 @@ export type EquipmentEffect =
    * Each ordinary fight (at one of `spots`, if given) has this chance to bring one more creature of
    * one of `types`, from the same tier.
    */
-  | { type: 'extraCatch'; percent: number; types: string[]; spots?: string[] };
+  | { type: 'extraCatch'; percent: number; types: string[]; spots?: string[] }
+  /** A combat bonus, worked out as a companion's (`CompanionEffect`, triggers included), in every fight (`gearRelics`). */
+  | { type: 'bonus'; bonus: CompanionEffect }
+  /** Each fight has this chance to start with a bait card of the level's tier in hand, for that fight (`gearRelics`). */
+  | { type: 'baitChance'; percent: number };
+
+/** How rare a relic is: what relic choices draw from (`RELIC_ODDS`). */
+export type RelicRarity = 'common' | 'uncommon' | 'rare';
 
 /** An object carried for the whole run, with passive effects. */
 export interface EquipmentDef {
@@ -278,6 +285,10 @@ export interface EquipmentDef {
   description: string;
   /** Placeholder art (emoji). Display-only. */
   icon?: string;
+  /** Its art, a cell of a sprite sheet (the gear sheet for relics). Display-only. */
+  sprite?: SpriteRef;
+  /** A relic: earned during a run (`gearRelics`), never a starting item. */
+  rarity?: RelicRarity;
   effects: EquipmentEffect[];
 }
 
@@ -295,7 +306,9 @@ export type CompanionTrigger =
   /** Any enemy attack hit on the player, blocked or not; `target` is the attacker. */
   | 'hitByEnemy'
   /** The first time the player's HP drops below half in a fight. */
-  | 'firstBelowHalfHp';
+  | 'firstBelowHalfHp'
+  /** The end of a player's turn in which no attack (Attack or Drain card) was played, before the creatures act. */
+  | 'quietTurnEnd';
 
 /**
  * What a creature brought from the home aquarium does for the run (see companions.ts).
@@ -324,6 +337,10 @@ export type CompanionEffect = (
   | { type: 'healAfterFight'; amount: number }
   /** Creatures sell for this percentage more during the run (bucket and on-the-spot sales). */
   | { type: 'sellBonus'; amount: number }
+  /** The first Pull against the player each fight is this percentage smaller. */
+  | { type: 'firstPullPercent'; amount: number }
+  /** The creatures' move after next is shown too (`EnemyState.foresight`). */
+  | { type: 'foresight'; amount: number }
   /** Card rewards the player may skip, and reroll (new cards offered), on each level. */
   | { type: 'rewardSkips'; amount: number }
   | { type: 'rewardRerolls'; amount: number }
@@ -787,6 +804,8 @@ export interface EnemyState extends Combatant {
   secondWindUsed?: boolean;
   /** Strength its moves gave it this fight (at most `MAX_MOVE_STRENGTH`; starting Strength aside). */
   strengthGained?: number;
+  /** Its move after `intent`, already decided and shown (`foresight` bonus). */
+  foresight?: string;
 }
 
 export interface CardInstance {
@@ -859,6 +878,8 @@ export interface BonusTracker {
   belowHalf: boolean;
   /** Block gained from bonuses triggered by enemy attacks; it survives into the next turn. */
   carriedBlock: number;
+  /** The first Pull of the fight has been made smaller (`firstPullPercent`). */
+  firstPullDone?: boolean;
 }
 
 export type CombatAction =

@@ -13,6 +13,7 @@ import {
   isCardPlayable,
   PLAYER_ID,
   previewCard,
+  previewForesight,
   previewIntent,
   previewIntents,
   progressionTotal,
@@ -818,6 +819,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :clip="enemyClip(enemy)"
           :animation-key="animations[enemy.id]?.key"
           :intent="previewIntent(shownState, enemy, data)"
+          :then="previewForesight(shownState, enemy, data)"
           :escape-bar="{
             escape: enemy.escape,
             escapeAt: enemy.escapeAt,

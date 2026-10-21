@@ -96,6 +96,7 @@ import {
   type RunState,
   type StatusId,
   buildGameData,
+  takeRelic,
   FEATURES,
   NO_FEATURES,
   type Features,
@@ -395,6 +396,8 @@ function playRun(
   };
 
   for (let steps = 0; steps < 200; steps++) {
+    // Relics on offer: a random one.
+    if (run.relicChoices?.length) run = takeRelic(run, run.relicChoices[pick(run.relicChoices.length)]);
     const leave = availableDestinations(run).find((n) => n.kind === 'leave');
     if (headHome && leave && run.hp * 2 < run.maxHp) {
       run = visitLeave(run, leave.id);

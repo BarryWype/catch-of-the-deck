@@ -104,3 +104,11 @@ export const FEATURES: Features = {
   groupFights: true,
 };
 export const NO_FEATURES: Features = Object.fromEntries(Object.keys(FEATURES).map((id) => [id, false])) as unknown as Features;
+
+/** Relic choices (`gearRelics`): how many relics are offered at once, and each rarity's weight by level (kid, adult, elder; the last covers later ones). */
+export const RELIC_CHOICES = 3;
+export const RELIC_ODDS: { common: number; uncommon: number; rare: number }[] = [
+  { common: 60, uncommon: 30, rare: 10 },
+  { common: 45, uncommon: 35, rare: 20 },
+  { common: 30, uncommon: 40, rare: 30 },
+];

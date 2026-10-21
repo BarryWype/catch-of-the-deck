@@ -11,8 +11,8 @@ export interface TutorialStep {
 /**
  * A short guided tour over a screen: everything goes dark but the step's elements, with a line of
  * text beside them, Next and Skip. It's a modal <dialog>, so the screen under it can't be played
- * (and CombatView's Space shortcut stands down). The first element of a step is scrolled into view
- * (the map scrolls sideways); a step with nothing on screen is passed over. Esc skips.
+ * (and CombatView's Space shortcut stands down). A step's elements are scrolled into view together
+ * (`light`); a step with nothing on screen is passed over. Esc skips.
  */
 const props = defineProps<{ steps: TutorialStep[] }>();
 const emit = defineEmits<{ done: [] }>();
@@ -30,18 +30,50 @@ const hole = ref<{ x: number; y: number; width: number; height: number } | null>
 /** Where the text sits; null until it has been measured, so it never shows in the wrong place. */
 const bubbleAt = ref<{ left: number; top: number } | null>(null);
 
-/** Lights up step `i`'s elements: false when none of them is on screen. */
+type Box = { left: number; top: number; right: number; bottom: number };
+const boxOf = (rects: Box[]): Box => ({
+  left: Math.min(...rects.map((r) => r.left)),
+  top: Math.min(...rects.map((r) => r.top)),
+  right: Math.max(...rects.map((r) => r.right)),
+  bottom: Math.max(...rects.map((r) => r.bottom)),
+});
+
+/** The nearest ancestor that scrolls (the map scrolls sideways), if any. */
+function scrollParent(element: Element): HTMLElement | null {
+  for (let e = element.parentElement; e; e = e.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(e);
+    if ((/auto|scroll/.test(overflowX) && e.scrollWidth > e.clientWidth) || (/auto|scroll/.test(overflowY) && e.scrollHeight > e.clientHeight)) return e;
+  }
+  return null;
+}
+
+/**
+ * Lights up step `i`'s elements: false when none of them is on screen. Their scrolling container
+ * centres them all (the mini-boss and the boss together), or starts at the first when they don't
+ * all fit; the lit area stops at that container's edges.
+ */
 function light(i: number): boolean {
-  const elements = [...document.querySelectorAll(props.steps[i].target)];
-  elements[0]?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  const elements = [...document.querySelectorAll(props.steps[i].target)].filter((e) => e.getBoundingClientRect().width);
+  if (!elements.length) return false;
+  elements[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const scroller = scrollParent(elements[0]);
+  let bounds: Box = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+  if (scroller) {
+    const all = boxOf(elements.map((e) => e.getBoundingClientRect()));
+    const view = scroller.getBoundingClientRect();
+    const shift = (from: number, to: number, start: number, end: number) => (to - from > end - start ? from - PAD - start : (from + to) / 2 - (start + end) / 2);
+    scroller.scrollBy({ left: shift(all.left, all.right, view.left, view.right), top: shift(all.top, all.bottom, view.top, view.bottom), behavior: 'instant' });
+    bounds = { left: Math.max(0, view.left), top: Math.max(0, view.top), right: Math.min(innerWidth, view.right), bottom: Math.min(innerHeight, view.bottom) };
+  }
   const rects = elements
     .map((e) => e.getBoundingClientRect())
-    .filter((r) => r.width && r.height && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight);
+    .filter((r) => r.right > bounds.left && r.left < bounds.right && r.bottom > bounds.top && r.top < bounds.bottom);
   if (!rects.length) return false;
-  const left = Math.max(0, Math.min(...rects.map((r) => r.left)) - PAD);
-  const top = Math.max(0, Math.min(...rects.map((r) => r.top)) - PAD);
-  const right = Math.min(innerWidth, Math.max(...rects.map((r) => r.right)) + PAD);
-  const bottom = Math.min(innerHeight, Math.max(...rects.map((r) => r.bottom)) + PAD);
+  const lit = boxOf(rects);
+  const left = Math.max(bounds.left, lit.left - PAD);
+  const top = Math.max(bounds.top, lit.top - PAD);
+  const right = Math.min(bounds.right, lit.right + PAD);
+  const bottom = Math.min(bounds.bottom, lit.bottom + PAD);
   hole.value = { x: left, y: top, width: right - left, height: bottom - top };
   return true;
 }

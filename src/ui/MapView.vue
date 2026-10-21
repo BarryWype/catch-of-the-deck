@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
+import SpriteView from './SpriteView.vue';
 import { iconUrl } from './icons';
 import { storeEffectChips } from './storeEffects';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -222,7 +223,8 @@ function choose(node: MapNode) {
         tabindex="0"
         :aria-label="item.name"
       >
-        <span class="icon"><GameIcon :icon="item.icon ?? '🎒'" /></span>
+        <SpriteView v-if="item.sprite" class="icon" :sprite="item.sprite" :size="24" />
+        <span v-else class="icon"><GameIcon :icon="item.icon ?? '🎒'" /></span>
       </li>
       <li
         v-for="b in bonuses"

@@ -15,6 +15,7 @@ import FishermanScreen from './FishermanScreen.vue';
 import CreatureBook from './CreatureBook.vue';
 import MapView from './MapView.vue';
 import MenuScreen from './MenuScreen.vue';
+import RelicChoice from './RelicChoice.vue';
 import RewardScreen from './RewardScreen.vue';
 import SessionSlots from './SessionSlots.vue';
 import ShopScreen from './ShopScreen.vue';
@@ -201,6 +202,7 @@ const deckCards = computed(() =>
     <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
       <MapView v-if="screen === 'map'" :run="run" :data="data" @travel="game.travel" />
+      <RelicChoice v-if="screen === 'map' && run.relicChoices?.length" :run="run" :data="data" @take="game.takeRelicChoice" @skip="game.skipRelicChoice" />
       <CreatureBook v-if="screen === 'map'" :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" :biggest="biggestCatch" />
       <ShopScreen v-else class="shop-panel" :run="run" :data="data" :visit="shopVisit" @buy="game.buy" @leave="game.leaveShop" @picking="shopPicking = $event" />
       <Aquarium

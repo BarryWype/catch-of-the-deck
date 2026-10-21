@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import GameIcon from './GameIcon.vue';
+import SpriteView from './SpriteView.vue';
 import { computed } from 'vue';
 import { describeEffect, powerCount, powerTotal, type CardDef, type CombatState, type Effect, type GameData, type PowerId, type RunState } from '../engine';
 import { t } from './i18n';
@@ -9,6 +10,8 @@ import { storeEffectChips } from './storeEffects';
 const props = defineProps<{ state: CombatState; data: GameData; run?: RunState }>();
 
 const bought = computed(() => (props.run ? storeEffectChips(props.run, props.data) : []));
+/** Relics carried this run (equipment with a rarity), with their art. */
+const relics = computed(() => (props.run?.equipment ?? []).map((id) => props.data.equipment[id]).filter((e) => e?.rarity));
 
 /** Powers without a fitting icon show their card's art. */
 const ICONS: Partial<Record<PowerId, string>> = { hardShell: 'golden-shell', stingsAndSpines: 'thorn', envenomedHooks: 'hook', pushTheLimits: 'trap2',
@@ -64,7 +67,11 @@ const temporary = computed(() => {
 </script>
 
 <template>
-  <div v-if="entries.length || temporary.length || bought.length" class="powers">
+  <div v-if="entries.length || temporary.length || bought.length || relics.length" class="powers">
+    <span v-for="r in relics" :key="r.id" class="power relic" v-tip="{ title: r.name, body: r.description }" tabindex="0">
+      <SpriteView v-if="r.sprite" :sprite="r.sprite" :size="16" />
+      <GameIcon v-else :icon="r.icon ?? '🎒'" />
+    </span>
     <span v-for="p in entries" :key="p.power" class="power" v-tip="{ title: p.title, body: p.body }" tabindex="0">
       <GameIcon :icon="p.icon" /><b v-if="p.count > 1">{{ p.count }}</b>
     </span>
@@ -92,4 +99,5 @@ const temporary = computed(() => {
 }
 .temporary { background: #173a4a; box-shadow: inset 0 0 0 1px #3aa4c9; }
 .bought { background: #1f3a24; box-shadow: inset 0 0 0 1px #5aa45f; }
+.relic { background: #2a2f45; box-shadow: inset 0 0 0 1px #8c94c9; }
 </style>

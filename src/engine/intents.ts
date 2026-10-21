@@ -1,4 +1,5 @@
 import { MOVE_INTENSITY, PLAYER_ID, SECOND_WIND_PERCENT } from './constants';
+import { bonusTotal } from './companions';
 import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
@@ -84,28 +85,32 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
     delete enemy.delayedIntent;
     return;
   }
+  // Foresight: the move shown as coming after this one comes now.
+  if (enemy.foresight !== undefined) {
+    enemy.intent = enemy.foresight;
+    delete enemy.foresight;
+  } else {
+    enemy.intent = nextMove(state, enemy, data, enemy.moveHistory);
+  }
+  if (bonusTotal(state.bonuses, 'foresight') > 0) enemy.foresight = nextMove(state, enemy, data, [...enemy.moveHistory, enemy.intent]);
+}
+
+/** The creature's next move from its pattern, after these moves. */
+function nextMove(state: CombatState, enemy: EnemyState, data: GameData, history: string[]): string {
   const moves = data.enemies[enemy.defId].moves;
   const pattern = patternOf(enemy, data);
-  const history = enemy.moveHistory;
 
   if (pattern.type === 'sequence') {
     const loopFrom = pattern.loopFrom ?? 0;
     const n = history.length;
     const loopLength = pattern.moves.length - loopFrom;
     const index = n < pattern.moves.length ? n : loopFrom + ((n - loopFrom) % loopLength);
-    enemy.intent = pattern.moves[index];
-    return;
+    return pattern.moves[index];
   }
 
   const last = moves.find((m) => m.id === history[history.length - 1]);
-  if (last?.role === 'windUp' && last.followUp) {
-    enemy.intent = last.followUp;
-    return;
-  }
-  if (history.length === 0 && pattern.firstMove) {
-    enemy.intent = pattern.firstMove;
-    return;
-  }
+  if (last?.role === 'windUp' && last.followUp) return last.followUp;
+  if (history.length === 0 && pattern.firstMove) return pattern.firstMove;
   const max = pattern.maxConsecutive ?? Infinity;
   const recent = history.slice(-max);
   const allowed = (id: string) => {
@@ -117,7 +122,7 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
   };
   let entries = Object.entries(pattern.weights).filter(([id, w]) => w > 0 && allowed(id));
   if (entries.length === 0) entries = Object.entries(pattern.weights).filter(([, w]) => w > 0);
-  enemy.intent = pickWeighted(state, entries);
+  return pickWeighted(state, entries);
 }
 
 /** How much bigger a move is than usual: its statuses (`nextMoveMods`), and a heavy Shake the Hook when the player has no Hold. */
@@ -195,10 +200,12 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
         preview.damage ??= Math.max(0, Math.floor(calculateDamage(effect.amount * size, enemy.statuses, state.player.statuses) * scale) - less);
         preview.hits ??= effect.hits ?? 1;
         break;
-      case 'pull':
+      case 'pull': {
         addKind('pull');
-        preview.pull = (preview.pull ?? 0) + Math.floor(effect.amount * size * scale);
+        const firstPull = state.bonusTracker.firstPullDone ? 0 : Math.min(100, bonusTotal(state.bonuses, 'firstPullPercent'));
+        preview.pull = (preview.pull ?? 0) + Math.floor((Math.floor(effect.amount * size * scale) * (100 - firstPull)) / 100);
         break;
+      }
       case 'gainBlock':
         addKind('defend', effect);
         preview.block = (preview.block ?? 0) + effect.amount;
@@ -254,4 +261,10 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   preview.buffText = arrowText(arrowEffects.buff);
   preview.debuffText = arrowText(arrowEffects.debuff);
   return preview;
+}
+
+/** The move after the next one, when foresight shows it (`EnemyState.foresight`); null otherwise, or while Ink hides the next one. */
+export function previewForesight(state: CombatState, enemy: EnemyState, data: GameData): IntentPreview | null {
+  if (enemy.foresight === undefined || enemy.intentHidden) return null;
+  return previewIntent(state, { ...enemy, intent: enemy.foresight, delayedIntent: undefined, statuses: {} }, data);
 }

@@ -48,6 +48,18 @@ export const events: EventDef[] = [
     ],
   },
 
+  {
+    id: 'tackleChest',
+    name: 'Lost Tackle Chest',
+    icon: '🧰',
+    treasure: true,
+    feature: 'gearRelics',
+    description: 'A fisherman’s chest, wedged between the rocks. Most of it is rusted, but some of the gear still looks good.',
+    choices: [
+      { label: 'Look through the gear', effects: [{ type: 'gainEquipment' }] },
+      { label: 'Take the coins', effects: [{ type: 'gainCoins', amount: 20 }] },
+    ],
+  },
   // --- More events (the `moreEvents` feature): each a trade-off, some only on some levels. ---
   {
     id: 'gull',

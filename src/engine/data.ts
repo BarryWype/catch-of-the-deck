@@ -85,6 +85,11 @@ export function validateContent(source: ContentSource): string[] {
   for (const item of source.equipment) {
     checkDuplicate(equipmentIds, item.id, 'equipment');
     for (const effect of item.effects) {
+      if (effect.type === 'bonus') {
+        if (effect.bonus.type === 'trigger') checkEffects(`Equipment "${item.id}"`, [effect.bonus.effect]);
+        else if (!(effect.bonus.amount >= 0)) errors.push(`Equipment "${item.id}": bonus "${effect.bonus.type}" needs an amount ≥ 0.`);
+        continue;
+      }
       const value = 'percent' in effect ? effect.percent : effect.bonusPercent;
       if (!(value >= 0)) errors.push(`Equipment "${item.id}": effect "${effect.type}" needs a value ≥ 0.`);
       if (effect.type === 'extraCatch') {

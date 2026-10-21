@@ -41,8 +41,12 @@ const props = withDefaults(
     bare?: boolean;
     /** A creature's move being played: how its body moves (see CombatView's `moveMotion`). */
     motion?: 'strike' | 'pull' | 'guard' | 'heal' | 'buff' | 'trick' | null;
+    /** Its move after the next one, when the player's gear shows it. */
+    then?: IntentPreview | null;
+    /** Labelled badges under its name (a trait, an affix, a warning), each with its tip. */
+    badges?: { key: string; label: string; tip: TipValue; tone?: 'trait' | 'affix' | 'warn' }[];
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false, motion: null },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false, motion: null, then: null, badges: () => [] },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
@@ -62,12 +66,16 @@ const portraitStyle = computed(() => ({
     <!-- A creature shows what it will do above its head; the player has no intent. -->
     <div v-if="intent || escapeBar" class="intent-slot">
       <IntentBadge v-if="intent && isAlive(combatant)" :intent="intent" />
+      <small v-if="then && isAlive(combatant)" v-tip="{ title: then.moveName, body: then.description }" class="then" tabindex="0">→ {{ then.moveName }}</small>
     </div>
     <!-- Everything about it in one block above the sprite, the bars the same width: its name, its
          Will, its health, then its statuses. Compact screens drop the name (it stays in the
          creature's tip). -->
     <div v-if="!bare" class="hud">
       <div v-if="combatant.id !== PLAYER_ID" class="name">{{ combatant.name }}</div>
+      <div v-if="badges.length" class="badges">
+        <span v-for="b in badges" :key="b.key" v-tip="b.tip" class="badge" :class="b.tone" tabindex="0">{{ b.label }}</span>
+      </div>
       <PanicBar v-if="escapeBar" v-bind="escapeBar" />
       <HealthBar
         :hp="combatant.hp"
@@ -124,7 +132,12 @@ const portraitStyle = computed(() => ({
 @media (hover: hover) {
   .targetable:hover::before { background: rgb(255 255 255 / 0.09); }
 }
-.intent-slot { min-height: 44px; display: flex; align-items: flex-end; }
+.intent-slot { min-height: 44px; display: flex; align-items: flex-end; gap: 6px; }
+.then { padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; color: var(--muted); background: rgb(0 0 0 / 0.35); white-space: nowrap; cursor: help; }
+.badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; }
+.badge { padding: 0 6px; border-radius: 8px; font-size: 0.65rem; line-height: 1.5; white-space: nowrap; background: #2a2f45; box-shadow: inset 0 0 0 1px #8c94c9; cursor: help; }
+.badge.affix { background: #4a2f17; box-shadow: inset 0 0 0 1px #c97a3a; }
+.badge.warn { background: #4a1717; box-shadow: inset 0 0 0 1px #c93a3a; }
 .portrait {
   display: grid;
   place-items: center;

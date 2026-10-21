@@ -8,6 +8,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 |---|---|---|---|---|---|
 | Before (`--features none`) | 0% | 10.8 | 8.0 | 7.9 | kid ordinary 1–24 turns, adult 1–19 |
 | 1. More events | 0% | 10.2 | 8.0 | 8.0 | |
+| 2. Gear relics | 0% | 11.0 | 7.9 | 7.9 | relics after each mini-boss (the bot takes one at random) |
 
 ## Decisions
 
@@ -20,3 +21,11 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 - **`addJunk`** puts the junk card in the run deck itself: it's a curse until a card removal takes it out. No new card kind was needed.
 - **The rival angler's bet** is paid up front (`loseCoins` 10) and the fight pays 25 on a win, nothing otherwise.
 - **Save version 22:** v21 runs get `seenEvents: []`; every other new run field is optional and read as absent.
+- **Relics are equipment with a `rarity`**, in `content/equipment.ts` under the gear catalogue's ids; `gear.ts` stays as the art catalogue (a test checks every relic is a piece of it). They carry companion bonuses through a new `{ type: 'bonus', bonus }` equipment effect, gated by `gearRelics`.
+- **Relic choices wait in `RunState.relicChoices`** and show over the map (`RelicChoice.vue`), so a mini-boss's card reward comes first, then the gear. They can be left.
+- **Rarity odds:** Kid 60/30/10 as asked; Adult 45/35/20 and Elder 30/40/30 (`RELIC_ODDS`), my guess at "shift toward rarer ones".
+- **New hooks for the relics:** `firstPullPercent` (Cork bobber), `foresight` (Fishing sonar), the `quietTurnEnd` trigger (Crab trap, Fish trap). Harpoon's "+3 on the first attack each fight" is a 3-damage trigger after that attack, not damage added to it (Strength and Weak don't touch it).
+- **Fishing sonar** decides each creature's move after next ahead of time (from its pattern, as if the next one had been played) and shows it as "→ move" beside the intent; a card that changes the next move doesn't change the one after. Ink hides both.
+- **Handline:** 20% per fight to start with a bait card of the level's tier in hand, for that fight only (it isn't added to the deck). Only with `gearRelics` on; its description changed for both settings.
+- **A treasure chest choice** is a new treasure event, `tackleChest` (gear or 20 coins), drawn alongside the Sunken Chest while `gearRelics` is on.
+- **A `relic` reward with no relic left** (all carried) falls back to a rare card.

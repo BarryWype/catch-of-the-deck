@@ -48,6 +48,8 @@ import {
   useAsBaitInFight,
   visitEvent,
   visitShop,
+  takeRelic,
+  skipRelics,
   type CatchSize,
   type CombatAction,
   type CombatState,
@@ -663,6 +665,14 @@ export function useGame(initialSeed: number) {
     screen.value = 'map';
   }
 
+  /** Take one of the relics on offer (`relicChoices`, shown over the map), or leave them. */
+  function takeRelicChoice(id: string) {
+    if (run.value) run.value = takeRelic(run.value, id);
+  }
+  function skipRelicChoice() {
+    if (run.value) run.value = skipRelics(run.value);
+  }
+
   /** Skips (this level, Eel companions) and rerolls (the run's and the companions') of the card reward left. */
   const rewardLeft = computed(() => (run.value ? rewardOptions(run.value, gameData) : { skips: 0, rerolls: 0 }));
 
@@ -706,6 +716,8 @@ export function useGame(initialSeed: number) {
     claimVictory,
     leaveFight,
     chooseReward,
+    takeRelicChoice,
+    skipRelicChoice,
     rewardLeft,
     skipCardReward,
     removeBossCard,

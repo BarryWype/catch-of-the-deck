@@ -192,7 +192,13 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       if (!('escape' in source)) return;
       const enemy = source as EnemyState;
       // Gooey Mess takes its share off first.
-      const pull = Math.max(0, Math.floor(effect.amount * (ctx.amountScale ?? 1) * (ctx.moveScale ?? 1)) - powerTotal(state, 'gooeyMess'));
+      let pull = Math.max(0, Math.floor(effect.amount * (ctx.amountScale ?? 1) * (ctx.moveScale ?? 1)) - powerTotal(state, 'gooeyMess'));
+      // The fight's first Pull is smaller with `firstPullPercent`.
+      const firstPull = bonusTotal(state.bonuses, 'firstPullPercent');
+      if (firstPull && !state.bonusTracker.firstPullDone) {
+        state.bonusTracker.firstPullDone = true;
+        pull = Math.floor((pull * (100 - Math.min(100, firstPull))) / 100);
+      }
       const held = Math.min(state.player.block, pull);
       state.player.block -= held;
       enemy.escape = Math.min(enemy.escapeAt, enemy.escape + pull - held);

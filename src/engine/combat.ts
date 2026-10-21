@@ -46,6 +46,8 @@ export interface CombatConfig {
   bosses?: boolean;
   /** A card (id) that starts in hand, free to play this fight (an event's `freeNextFight`). */
   freeCard?: string;
+  /** Cards (ids) that start in hand, for this fight only (`baitChance` gear). */
+  extraCards?: string[];
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -135,6 +137,7 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
     state.piles.hand.push({ uid: 'free0', defId: config.freeCard });
     state.freeCards = ['free0'];
   }
+  config.extraCards?.forEach((defId, i) => state.piles.hand.push({ uid: `x${i}`, defId }));
   for (const enemy of state.enemies) chooseIntent(state, enemy, data);
   startPlayerTurn(state, data);
   fireTriggers(state, 'combatStart');
@@ -411,6 +414,11 @@ function endTurn(state: CombatState, data: GameData): void {
     resolveEffect(state, { type: 'gainBlock', amount: powerTotal(state, 'perfectDisguise') }, { sourceId: PLAYER_ID, raw: true });
     const slow: Effect = { type: 'applyStatus', status: 'slow', amount: 1, target: 'randomEnemy' };
     (state.delayed ??= []).push({ turnsLeft: 1, raw: true, effects: Array.from({ length: disguises }, () => slow) });
+  }
+  // A turn without an attack: gear and companion bonuses that reward it.
+  if (state.bonusTracker.attacksThisTurn === 0) {
+    fireTriggers(state, 'quietTurnEnd');
+    if (checkCombatEnd(state)) return;
   }
   gainPatience(state, state.player.energy, 'waits');
   // Junk still in hand (Slimy Seaweed) costs Grit.
