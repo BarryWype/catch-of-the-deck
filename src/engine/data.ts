@@ -1,5 +1,6 @@
 import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
 import { FEATURES, type Features } from './constants';
+import { turnAverage } from './combat';
 import { STORE_KINDS } from './map';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
@@ -49,7 +50,20 @@ export function buildGameData(source: ContentSource): GameData {
     levels: source.levels,
     coast: source.coast,
     ...(source.features ? { features: source.features } : {}),
+    tierAverages: tierAverages(source.enemies),
   };
+}
+
+/** Each tier's average creature: Health (the middle of its range), starting Will, and Strike or Pull per turn. */
+function tierAverages(enemies: EnemyDef[]): NonNullable<GameData['tierAverages']> {
+  const tiers = [...new Set(enemies.map((e) => e.tier ?? 1))];
+  const average = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  return Object.fromEntries(
+    tiers.map((tier) => {
+      const of = enemies.filter((e) => (e.tier ?? 1) === tier);
+      return [tier, { hp: average(of.map((e) => (e.hp[0] + e.hp[1]) / 2)), will: average(of.map((e) => e.escapeStart)), turnAverage: average(of.map((e) => turnAverage(e.moves, e.pattern))) }];
+    }),
+  );
 }
 
 /** Returns a list of human-readable problems; empty means the content is valid. */

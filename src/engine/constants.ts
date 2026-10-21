@@ -121,3 +121,11 @@ export const TROPHY_POOL_PERCENT = 140;
 export const TROPHY_DAMAGE_PERCENT = 120;
 /** A trophy-size catch sells for this share of its value, in percent (`trophyElites`). */
 export const TROPHY_SELL_PERCENT = 200;
+
+/**
+ * Creatures' own stats (`ownStats`): an ordinary fight scales each creature by its pool ÷ its
+ * tier's average (Health, Will, damage) instead of raising everyone to the same pools, then
+ * clamps it between these shares of the pool, in percent.
+ */
+export const OWN_STATS_MIN_PERCENT = 70;
+export const OWN_STATS_MAX_PERCENT = 140;

@@ -5,6 +5,8 @@ import {
   HOLD_PER_PATIENCE,
   MAX_PATIENCE,
   MOVE_INTENSITY,
+  OWN_STATS_MAX_PERCENT,
+  OWN_STATS_MIN_PERCENT,
   PACE_WILL_PERCENT,
   PLAYER_ID,
   SKITTISH_CARDS,
@@ -14,6 +16,7 @@ import {
   TROPHY_POOL_PERCENT,
   WIND_UP_PERCENT,
 } from './constants';
+import { hasFeature } from './features';
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
@@ -104,16 +107,38 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
     });
   });
 
+  // Creatures' own stats: each one scaled from its tier's average to its share of the pools, its spread kept within bounds.
+  const averages = hasFeature(data, 'ownStats') && !config.bosses ? data.tierAverages : undefined;
+  const average = (enemy: EnemyState) => averages?.[data.enemies[enemy.defId].tier ?? 1];
+  const ownShare = (value: number, share: number) => Math.min((share * OWN_STATS_MAX_PERCENT) / 100, Math.max((share * OWN_STATS_MIN_PERCENT) / 100, value));
   const rolled = state.enemies.reduce((sum, e) => sum + e.maxHp, 0);
-  if (config.hpPool && rolled > 0 && rolled < config.hpPool) {
-    for (const enemy of state.enemies) enemy.hp = enemy.maxHp = Math.ceil((enemy.maxHp * config.hpPool) / rolled);
-  }
-  const will = state.enemies.reduce((sum, e) => sum + e.escape, 0);
-  if (config.willPool && will > 0 && will < config.willPool) {
+  if (averages) {
     for (const enemy of state.enemies) {
-      enemy.escape = Math.round((enemy.escape * config.willPool) / will);
-      enemy.escapeAt = Math.round((enemy.escapeAt * config.willPool) / will);
-      enemy.escapeRate = Math.round((enemy.escapeRate * config.willPool) / will);
+      const tier = average(enemy);
+      if (!tier) continue;
+      if (config.hpPool) {
+        const share = config.hpPool / state.enemies.length;
+        enemy.hp = enemy.maxHp = Math.ceil(ownShare((enemy.maxHp * share) / tier.hp, share));
+      }
+      if (config.willPool && enemy.escape > 0) {
+        const share = config.willPool / state.enemies.length;
+        const factor = ownShare((enemy.escape * share) / tier.will, share) / enemy.escape;
+        enemy.escape = Math.round(enemy.escape * factor);
+        enemy.escapeAt = Math.round(enemy.escapeAt * factor);
+        enemy.escapeRate = Math.round(enemy.escapeRate * factor);
+      }
+    }
+  } else {
+    if (config.hpPool && rolled > 0 && rolled < config.hpPool) {
+      for (const enemy of state.enemies) enemy.hp = enemy.maxHp = Math.ceil((enemy.maxHp * config.hpPool) / rolled);
+    }
+    const will = state.enemies.reduce((sum, e) => sum + e.escape, 0);
+    if (config.willPool && will > 0 && will < config.willPool) {
+      for (const enemy of state.enemies) {
+        enemy.escape = Math.round((enemy.escape * config.willPool) / will);
+        enemy.escapeAt = Math.round((enemy.escapeAt * config.willPool) / will);
+        enemy.escapeRate = Math.round((enemy.escapeRate * config.willPool) / will);
+      }
     }
   }
   if (config.trophy) {
@@ -129,8 +154,11 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   }
   if (config.damage) {
     for (const enemy of state.enemies) {
-      const average = turnAverage(data.enemies[enemy.defId].moves, patternOf(enemy, data));
-      if (average > 0) enemy.damageScale = config.damage / average;
+      const moves = turnAverage(data.enemies[enemy.defId].moves, patternOf(enemy, data));
+      // Its own stats: its moves keep their size against its tier's average, within bounds.
+      const tier = average(enemy);
+      const dealt = tier?.turnAverage ? ownShare((moves * config.damage) / tier.turnAverage, config.damage) : config.damage;
+      if (moves > 0) enemy.damageScale = dealt / moves;
       enemy.fightScale = config.damage / ENCOUNTER_TURN_AVERAGE;
     }
   }

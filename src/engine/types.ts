@@ -756,6 +756,8 @@ export interface GameData {
   coast: CoastDef;
   /** The fight-variety features on (`hasFeature`); none when omitted. */
   features?: Features;
+  /** Each creature tier's average Health (middle of its range), starting Will and Strike or Pull per turn (`turnAverage`), for `ownStats`. */
+  tierAverages?: Record<number, { hp: number; will: number; turnAverage: number }>;
 }
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,17 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | 2. Gear relics | 0% | 11.0 | 7.9 | 7.9 | relics after each mini-boss (the bot takes one at random) |
 | 3. Trophy fights | 0% | 9.3 | 8.0 | 7.9 | trophy fights cost Grit before the mini-boss |
 | 4. Boss pools | 0% | 9.1 | 8.3 | 8.1 | kid mini-boss won 44% (59% before): Pike and the pufferfish hit harder than the Blue crab |
+| 5. Own stats | 0% | 8.9 | 8.4 | 8.4 | ordinary fights spread wider: see below |
+
+### Phase 5: shortest and longest ordinary fights per level
+
+| | Kid turns (p10–p90) | Kid Health pools | Adult turns (p10–p90) | Adult Health pools |
+|---|---|---|---|---|
+| Before (no features) | 1–24 (6–11) | 50–62 | 1–19 (4–11) | 59–71 |
+| After phase 4 | 1–27 (6–12) | 50–88 (trophies) | 1–24 (4–11) | 59–97 |
+| After phase 5 | 1–36 (5–13) | 35–115 | 1–24 (4–13) | 46–113 |
+
+The 1-turn fights are creatures that flee or are caught at once (bait, a lucky Drain); the middle 80% of fights went from 6–11 to 5–13 turns as a Kid.
 
 ## Decisions
 
@@ -39,3 +50,4 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 - **"All unique across the run"** is guaranteed by the content: a creature may be a candidate of one slot only (checked on startup), so no draw can repeat one.
 - **Boss patterns:** predator, venomous, puffer, ambusher, fighter and armored had none; each got a `bossPattern` sequence in `behaviors.ts`, and the Pike one for its own moves. They only matter for creatures fought as mini-bosses or bosses.
 - **The map names the drawn creature** on the mini-boss and boss labels when `bossPools` is on (the place name otherwise).
+- **Own stats, read literally:** each creature is scaled by (its share of the pool) ÷ (its tier's average), Health from the middle of its range, Will from its starting Will (its top and rise follow, as the Will pool already did), damage from its pattern's `turnAverage`; then clamped to 70–140% of its share. The tier's averages come from every creature of the tier, met at that level or not.
