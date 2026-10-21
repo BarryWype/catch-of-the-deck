@@ -227,6 +227,8 @@ const deckCards = computed(() =>
       @keep="game.keepWaiting"
       @sell="game.sellWaiting"
       @bait="game.baitWaiting"
+      @sell-creature="game.sell"
+      @bait-creature="game.bait"
     />
     <EventScreen v-else-if="screen === 'event' && eventId" :event-id="eventId" :run="run" :data="data" @choose="game.chooseEvent" />
     <FishermanScreen

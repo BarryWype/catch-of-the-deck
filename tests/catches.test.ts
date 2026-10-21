@@ -8,6 +8,7 @@ import {
   recordSizes,
   rollSize,
   sellCatch,
+  sellCreature,
   sizeOdds,
   travelTo,
   type CatchSize,
@@ -38,8 +39,10 @@ describe('the bucket limit', () => {
     let after = finishCombat(run, combat, testData);
     expect(after.bucket).toHaveLength(7);
     expect(after.waiting).toHaveLength(3);
-    // Keep the first in place of a cycler (sold for its value plus the 10% companion sell bonus).
-    after = keepCatch(after, 1, testData);
+    // No room yet: keeping needs a free slot first.
+    expect(() => keepCatch(after)).toThrow();
+    // Sell a cycler (its value plus the 10% companion sell bonus), then keep the first.
+    after = keepCatch(sellCreature(after, 1, testData));
     expect(ids(after.bucket)).toEqual(['shellA', 'cycler', 'cycler', 'cycler', 'cycler', 'cycler', 'dummy']);
     expect(after.waiting).toHaveLength(2);
     // Sell the second: 5 + 10%, rounded up.
@@ -47,13 +50,13 @@ describe('the bucket limit', () => {
     after = sellCatch(after, testData);
     expect(after.coins).toBe(coins + 6);
     expect(after.waiting).toHaveLength(1);
-    // Keep the last in place of the companion: its bonus ends.
-    after = keepCatch(after, 0, testData);
+    // Sell the companion (its bonus ends) and a cycler: room for the last, and one slot to spare.
+    after = keepCatch(sellCreature(sellCreature(after, 0, testData), 0, testData));
     expect(after.companions).toEqual([]);
-    expect(after.bucket).toHaveLength(7);
+    expect(after.bucket).toHaveLength(6);
     expect(after.waiting).toEqual([]);
     expect(() => sellCatch(after, testData)).toThrow();
-    expect(() => keepCatch(after, 0, testData)).toThrow();
+    expect(() => keepCatch(after)).toThrow();
   });
 
   it('the choice survives a reload: the waiting catches are saved with the run', () => {
@@ -62,7 +65,7 @@ describe('the bucket limit', () => {
     const after = finishCombat(run, combat, testData);
     const reloaded = JSON.parse(JSON.stringify(after));
     expect(reloaded.waiting).toEqual(after.waiting);
-    expect(keepCatch(reloaded, 0, testData)).toEqual(keepCatch(after, 0, testData));
+    expect(keepCatch(sellCreature(reloaded, 0, testData))).toEqual(keepCatch(sellCreature(after, 0, testData)));
   });
 
   it('a bucket already over the limit keeps everything but takes nothing more', () => {

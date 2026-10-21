@@ -811,12 +811,14 @@ export const en = {
     },
     bucketFull: {
       title: 'Bucket full ({n}/{max})',
-      text: 'No room for {name}. Sell a creature from your bucket or use it as bait to keep it, or do the same with the new catch.',
+      roomTitle: 'Room in your bucket ({n}/{max})',
+      text: 'No room for {name}. To keep it, make room: sell creatures from your bucket or use them as bait (☰). Or sell the new catch, or use it as bait.',
+      roomText: 'Keep {name}, or sell it or use it as bait.',
       newCatch: 'New catch',
-      sellCatch: 'Sell it',
-      swap: 'Sell, keep {name}',
+      keep: 'Keep',
+      keepBlocked: 'Your bucket is full: make room first (☰).',
+      sellCatch: 'Sell',
       baitCatch: 'Use it as {bait}',
-      baitSwap: 'Use as {bait}, keep {name}',
       more: '{n} more catch waiting after this one.|{n} more catches waiting after this one.',
     },
     book: {

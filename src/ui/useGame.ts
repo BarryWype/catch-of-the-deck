@@ -542,9 +542,9 @@ export function useGame(initialSeed: number) {
     }
   }
 
-  /** Bucket full: the first waiting catch takes the place of the creature at `slot`, which is sold or used as bait. */
-  function keepWaiting(slot: number, asBait = false) {
-    if (run.value) afterBucketFull(keepCatch(run.value, slot, gameData, asBait));
+  /** Bucket full: the first waiting catch goes into the bucket, once the player has made room. */
+  function keepWaiting() {
+    if (run.value) afterBucketFull(keepCatch(run.value));
   }
 
   /** Bucket full: the first waiting catch is sold. */

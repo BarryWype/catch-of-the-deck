@@ -799,12 +799,14 @@ export const fr: Messages = {
     },
     bucketFull: {
       title: 'Seau plein ({n}/{max})',
-      text: 'Pas de place pour {name}. Vends une créature de ton seau ou fais-en un appât pour la garder, ou fais de même avec la nouvelle prise.',
+      roomTitle: 'De la place dans ton seau ({n}/{max})',
+      text: 'Pas de place pour {name}. Pour la garder, fais de la place : vends des créatures de ton seau ou fais-en des appâts (☰). Sinon, vends la nouvelle prise ou fais-en un appât.',
+      roomText: 'Garde {name}, ou vends-la ou fais-en un appât.',
       newCatch: 'Nouvelle prise',
-      sellCatch: 'La vendre',
-      swap: 'Vendre, garder {name}',
+      keep: 'Garder',
+      keepBlocked: 'Ton seau est plein : fais d’abord de la place (☰).',
+      sellCatch: 'Vendre',
       baitCatch: 'En faire un {bait}',
-      baitSwap: 'En faire un {bait}, garder {name}',
       more: 'Encore {n} prise en attente après celle-ci.|Encore {n} prises en attente après celle-ci.',
     },
     book: {
