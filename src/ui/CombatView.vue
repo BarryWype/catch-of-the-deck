@@ -1350,12 +1350,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     justify-content: safe center;
     overflow-x: auto;
     min-height: 0;
-    padding: 20px 6px 8px;
+    /* A scroll container clips at its own edges, so the top padding holds the whole hover lift
+       (16px, plus the scale-up) and the matching negative margin keeps the layout where it was.
+       Only the slots take pointer events, so that top strip never covers the buttons above. */
+    margin-top: -16px;
+    padding: 36px 6px 8px;
     scrollbar-width: none;
+    pointer-events: none;
     /* No part of the card is hidden here, so the normal lift is enough. */
     --card-hover-lift: -16px;
   }
-  .hand .slot { flex-shrink: 0; margin-bottom: 0; }
+  .hand .slot { flex-shrink: 0; margin-bottom: 0; pointer-events: auto; }
   .hand :deep(.card) { flex-shrink: 0; touch-action: pan-x; }
   /* A dragged card goes fixed to escape the scrolling hand's clip, pinned where it was picked up
      (a fixed card's own position would ignore the hand's scroll); its slot keeps the card's size
