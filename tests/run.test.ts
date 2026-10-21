@@ -357,9 +357,9 @@ describe('equipment', () => {
     ]);
   });
 
-  it('extraCatch drags one more creature of its types into ordinary fights at its spots only', () => {
+  it('extraCatch drags no creature beyond MAX_CREATURES_PER_FIGHT', () => {
     const run = { ...createRun(5, withItems, 'basic'), equipment: ['hook'] };
-    expect(travelTo(run, '1a', withItems).combat.enemies.map((e) => e.defId)).toEqual(['dummy', 'cycler']);
+    expect(travelTo(run, '1a', withItems).combat.enemies.map((e) => e.defId)).toEqual(['dummy']);
     const atMiniBoss = travelTo(travelTo(run, '1a', withItems).run, '2', withItems);
     expect(atMiniBoss.combat.enemies.map((e) => e.defId)).toEqual(['gambler']);
     // Only at its spots: 1b has fixed enemies and no spot.

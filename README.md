@@ -221,7 +221,7 @@ To give one creature its own moves, add a `moves` object; it is used instead of 
 },
 ```
 
-Every creature is automatically a one-on-one encounter at its tier. For fights with several creatures, add a group in `src/content/encounters.ts`, e.g. `{ id: 'pilchardShoal', name: 'Pilchard shoal', tier: 2, enemies: ['europeanPilchard', 'europeanPilchard', 'europeanPilchard'] }`.
+Every creature is automatically a one-on-one encounter at its tier. For fights with several creatures, add a group in `src/content/encounters.ts` (only offered once `MAX_CREATURES_PER_FIGHT` in `src/engine/constants.ts` allows its size; it's 1 for now), e.g. `{ id: 'pilchardShoal', name: 'Pilchard shoal', tier: 2, enemies: ['europeanPilchard', 'europeanPilchard', 'europeanPilchard'] }`.
 
 The intent icons come from the move's effects. Damage shows as 🗡️, block as 🛡️, a status the creature applies to itself as 💢, and a status it applies to you as 🌀.
 
