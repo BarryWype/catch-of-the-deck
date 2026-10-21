@@ -452,6 +452,81 @@ export const frContent: ContentTranslations = {
       description: 'À moitié enfoui dans le sable, un vieux coffre. La serrure a lâché depuis des années.',
       choices: ['Prendre les pièces', 'Chercher quelque chose d’utile'],
     },
+    gull: {
+      name: 'Goéland effronté',
+      description: 'Un goéland se pose sur ta boîte à pêche, attrape une bouchée et s’envole le long de la jetée, très content de lui.',
+      choices: ['Le laisser faire', 'Le poursuivre sur la jetée'],
+    },
+    tangledNet: {
+      name: 'Filet emmêlé',
+      description: 'Un vieux filet dérive contre les rochers, quelque chose s’y débat encore. Son propriétaire y a aussi laissé quelques affaires.',
+      choices: ['Entrer dans l’eau et le libérer', 'Récupérer le filet'],
+    },
+    oldFisherman: {
+      name: 'La leçon du vieux pêcheur',
+      description: 'Un vieil homme qui répare ses lignes te fait signe. « Tu te charges trop, petit. Assieds-toi. Laisse-moi te raconter l’été 62… »',
+      choices: ['Écouter toute l’histoire', 'Hocher la tête poliment et repartir'],
+    },
+    storm: {
+      name: 'L’orage arrive',
+      description: 'Des nuages noirs s’amoncellent sur le cap. Les poissons mordent toujours mieux juste avant la pluie.',
+      choices: ['S’abriter sous la falaise', 'Pêcher sous la bourrasque'],
+    },
+    bottleMap: {
+      name: 'Une bouteille avec une carte',
+      description: 'Une bouteille bouchée flotte près du bord. Dedans, une carte dessinée à la main marque un endroit avec un gros poisson et le mot « ÉNORME ».',
+      choices: ['Suivre la carte', 'Vendre la bouteille à un collectionneur'],
+    },
+    kidSwap: {
+      name: 'Un enfant veut échanger',
+      description: 'Un enfant avec son propre seau regarde dans le tien. « Je te donne ma meilleure carte pour une de celles-là ! »',
+      choices: ['Échanger une créature', 'Lui apprendre à lancer à la place'],
+    },
+    rivalAngler: {
+      name: 'Un pêcheur rival',
+      description: 'Un pêcheur bruyant, chapeau tout neuf, parie que tu ne sortiras pas la prochaine prise.',
+      choices: ['Tenir le pari', 'Lui souhaiter bonne chance'],
+    },
+    junkPool: {
+      name: 'Une flaque pleine de bric-à-brac',
+      description: 'La marée a laissé une flaque pleine de capsules, de vieux leurres et de quelques pièces. Il y a aussi quelque chose de pointu.',
+      choices: ['Fouiller dedans', 'Ne pas y toucher'],
+    },
+    lighthouseKeeper: {
+      name: 'Le gardien du phare',
+      description: 'Le gardien est un vieil ami de tes grands-parents. La lampe clignote, et la bouilloire chauffe.',
+      choices: ['Se reposer près de la lampe', 'Aider à réparer la lampe'],
+    },
+    grandpaTackle: {
+      name: 'La boîte à pêche de papi',
+      description: 'Papi a laissé sa boîte à pêche ouverte sur le perron, avec un mot : « Emprunte ce que tu veux. Rapporte-le. »',
+      choices: ['Emprunter son leurre porte-bonheur', 'La ranger pour lui'],
+    },
+    seaFog: {
+      name: 'Brouillard de mer',
+      description: 'Un épais brouillard arrive. Tu entends quelque chose de gros éclabousser tout près, mais tu ne vois rien.',
+      choices: ['Attendre qu’il se lève', 'Lancer à l’aveugle dans le brouillard'],
+    },
+    seal: {
+      name: 'Un phoque affamé',
+      description: 'Un phoque se hisse sur les rochers à côté de toi et fixe ton seau. Quelque chose de brillant est emmêlé autour de sa nageoire.',
+      choices: ['Lui lancer une créature', 'Le chasser'],
+    },
+    beachClean: {
+      name: 'Nettoyage de plage',
+      description: 'Les voisins nettoient la plage. Ils te tendent un sac et une pince.',
+      choices: ['Aider tout l’après-midi', 'Empocher les pièces perdues que tu trouves'],
+    },
+    nightFishing: {
+      name: 'Pêche de nuit',
+      description: 'Le soleil est couché et l’eau est lisse. Les gros sortent la nuit, à ce qu’on dit.',
+      choices: ['Pêcher à la lanterne', 'Dormir un peu'],
+    },
+    thermos: {
+      name: 'Un thermos de chocolat',
+      description: 'Mamie a glissé un thermos dans ton sac. Encore chaud.',
+      choices: ['Le boire maintenant', 'Le garder pour le prochain coin'],
+    },
   },
 
   shop: {

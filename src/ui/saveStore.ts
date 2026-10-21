@@ -8,8 +8,8 @@ import type { Screen } from './useGame';
  * - `profile`: what lasts between runs (the home aquarium, the creature book, the Logbook).
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
-export const SAVE_VERSION = 21;
-export const PROFILE_VERSION = 9;
+export const SAVE_VERSION = 22;
+export const PROFILE_VERSION = 10;
 
 /** Everything needed to pick a run up exactly where it was left. */
 export interface SavedGame {
@@ -41,6 +41,8 @@ export interface Profile {
   logbook: string[];
   /** Companions back injured from runs that ended badly, resting apart from the home aquarium. */
   recovering: RecoveringCreature[];
+  /** The tutorials already shown (`TutorialId`): each plays once, until replayed from the options. */
+  tutorials: string[];
 }
 
 type DataFile = 'save' | 'profile';
@@ -140,6 +142,9 @@ export function upgradeSave(save: SavedGame): SavedGame | null {
     const run = { ...save.run, nodesDone: Math.max(0, (save.run.visited?.length ?? 1) - 1), companionBondsAtStart: (save.run.companions ?? []).map((c) => c.bond) };
     save = { ...save, version: 21, run };
   }
+  // v21 runs were before the fight-variety features: no event seen yet. Their other new fields
+  // (relics on offer, trophies, drawn bosses…) are optional and read as absent.
+  if (save.version === 21) save = { ...save, version: 22, run: { ...save.run, seenEvents: [] } };
   // v4 runs were on a generated map, before hand-made levels, v5 runs on the hand-made coast,
   // before coast features, v11 runs on the old 1000×150 coast art and v12 runs on a coast laid out
   // each run, before the static map: they can't be resumed.
@@ -192,6 +197,10 @@ export function upgradeProfile(profile: Profile): Profile | null {
     const hatched = eggs.map((id) => ({ id, size: 'small' as const, bond: bondThreshold(id, 1, gameData) }));
     profile = { ...rest, version: 9, homeAquarium: [...rest.homeAquarium, ...hatched] };
   }
+  // v9 was before the tutorial: a player who has met creatures already knows the game.
+  if (profile.version === 9) {
+    profile = { ...profile, version: 10, tutorials: Object.keys(profile.creatureBook).length ? ['map', 'fight'] : [] };
+  }
   return profile.version === PROFILE_VERSION ? profile : null;
 }
 
@@ -209,6 +218,7 @@ export async function loadProfile(): Promise<Profile> {
       goldenShells: 0,
       logbook: [],
       recovering: [],
+      tutorials: [],
     }
   );
 }

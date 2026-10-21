@@ -874,7 +874,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :card="data.cards[card.defId]"
             :description="cardText(card)"
             :playable="isCardPlayable(state, card.uid, data)"
-            :cost="cardCost(state, data.cards[card.defId])"
+            :cost="cardCost(state, data.cards[card.defId], card.uid)"
             :selected="selectedUid === card.uid || (drag?.uid === card.uid && drag.aimed)"
             :data-card-uid="card.uid"
             :class="{ held: drag?.uid === card.uid && drag.moved && !drag.aimed }"
@@ -941,7 +941,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :key="card.uid"
             :card="data.cards[card.defId]"
             :description="cardText(card)"
-            :cost="cardCost(state, data.cards[card.defId])"
+            :cost="cardCost(state, data.cards[card.defId], card.uid)"
             :data-pick-uid="card.uid"
             @click="emit('action', { type: 'pickCard', cardUid: card.uid })"
           />

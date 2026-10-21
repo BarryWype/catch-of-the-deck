@@ -17,6 +17,7 @@ import {
 } from '../engine';
 import { t, type TextKey } from './i18n';
 import { deleteScenario, saveScenario, savedScenarios } from './debugStore';
+import { readFeatures, writeFeatures } from './featureStore';
 
 /**
  * The debug drawer's content on the menu (see README → Debug panel): a scenario to set up, save,
@@ -46,6 +47,11 @@ const startIds = computed(() => {
   if (type === 'fisherman') return fishermen.value;
   return [];
 });
+
+/** The fight-variety features: changing one saves it and reloads the game. */
+const features = readFeatures();
+const featureIds = Object.keys(features) as (keyof typeof features)[];
+const setAllFeatures = (on: boolean) => writeFeatures(Object.fromEntries(featureIds.map((id) => [id, on])) as unknown as typeof features);
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 const firstCreature = () => creatures.value[0]?.id ?? '';
@@ -237,6 +243,18 @@ function applyPasted() {
 <template>
   <div class="debug-tools">
     <p class="hint">{{ t('debug.hint') }}</p>
+    <section>
+      <h3>{{ t('debug.features') }}</h3>
+      <p class="hint">{{ t('debug.featuresHint') }}</p>
+      <label v-for="id in featureIds" :key="id" class="check">
+        <input type="checkbox" :checked="features[id]" @change="writeFeatures({ ...features, [id]: ($event.target as HTMLInputElement).checked })" />
+        {{ t(`debug.feature.${id}`) }}
+      </label>
+      <div class="presets">
+        <button class="ghost" @click="setAllFeatures(true)">{{ t('debug.allOn') }}</button>
+        <button class="ghost" @click="setAllFeatures(false)">{{ t('debug.allOff') }}</button>
+      </div>
+    </section>
     <section>
       <h3>{{ t('debug.presets') }}</h3>
       <div class="presets">

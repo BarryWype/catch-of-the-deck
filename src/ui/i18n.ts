@@ -1,5 +1,6 @@
 import { buildGameData, formatMessage, lookupMessage, setText, type MessageParams } from '../engine';
-import { contentSource, gameData as englishGameData } from '../content';
+import { contentSource } from '../content';
+import { readFeatures } from './featureStore';
 import { localizeContent } from '../content/localize';
 import { LANGUAGES, type LanguageCode, type Messages } from '../locales';
 
@@ -29,8 +30,8 @@ const plurals = new Intl.PluralRules(language);
 setText(messages.engine, messages.terms, language);
 document.documentElement.lang = language;
 
-/** The game content, with names and descriptions in the current language. */
-export const gameData = language === 'en' ? englishGameData : buildGameData(localizeContent(contentSource, content));
+/** The game content, with names and descriptions in the current language, and the features this device plays with. */
+export const gameData = buildGameData({ ...(language === 'en' ? contentSource : localizeContent(contentSource, content)), features: readFeatures() });
 
 /** Every dotted key of the screens' text, e.g. 'menu.newRun'. */
 type Paths<T> = { [K in keyof T & string]: T[K] extends string ? K : `${K}.${Paths<T[K]>}` }[keyof T & string];

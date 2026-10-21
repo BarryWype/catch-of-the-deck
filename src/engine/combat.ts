@@ -44,6 +44,8 @@ export interface CombatConfig {
   damage?: number;
   /** A mini-boss or boss fight: the creatures follow their `bossPattern`, their Wind-ups also give Strength, and they have a Second Wind. */
   bosses?: boolean;
+  /** A card (id) that starts in hand, free to play this fight (an event's `freeNextFight`). */
+  freeCard?: string;
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -129,6 +131,10 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   }
 
   shuffleInPlace(state, state.piles.draw);
+  if (config.freeCard) {
+    state.piles.hand.push({ uid: 'free0', defId: config.freeCard });
+    state.freeCards = ['free0'];
+  }
   for (const enemy of state.enemies) chooseIntent(state, enemy, data);
   startPlayerTurn(state, data);
   fireTriggers(state, 'combatStart');
@@ -149,7 +155,7 @@ export function validateAction(state: CombatState, action: CombatAction, data: G
   const def = data.cards[card.defId];
   if (!def) return `Unknown card "${card.defId}".`;
   if (def.unplayable) return text('invalid.unplayable');
-  if (cardCost(state, def) > state.player.energy) return text('invalid.noEnergy');
+  if (cardCost(state, def, card.uid) > state.player.energy) return text('invalid.noEnergy');
   if ((def.patienceCost ?? 0) > state.player.patience) return text('invalid.noPatience');
   if (def.target === 'enemy') {
     const target = state.enemies.find((e) => e.id === action.targetId);
@@ -174,11 +180,12 @@ export function isCardPlayable(state: CombatState, cardUid: string, data: GameDa
   if (state.phase !== 'playerTurn') return false;
   const card = state.piles.hand.find((c) => c.uid === cardUid);
   const def = card && data.cards[card.defId];
-  return !!def && !state.pick && !def.unplayable && cardCost(state, def) <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
+  return !!def && !state.pick && !def.unplayable && cardCost(state, def, cardUid) <= state.player.energy && (def.patienceCost ?? 0) <= state.player.patience;
 }
 
-/** A card's energy cost right now: Numb Fingers makes Attack cards cost more, Tangled Drain cards. */
-export function cardCost(state: CombatState, def: CardDef): number {
+/** A card's energy cost right now: Numb Fingers makes Attack cards cost more, Tangled Drain cards. A free card (`uid` in `freeCards`) costs nothing. */
+export function cardCost(state: CombatState, def: CardDef, uid?: string): number {
+  if (uid && state.freeCards?.includes(uid)) return 0;
   const has = (id: StatusId) => getStatus(state.player, id) > 0;
   return def.cost + ((def.type === 'attack' && has('numbFingers')) || (def.type === 'drain' && has('tangled')) ? TAX_COST : 0);
 }
@@ -306,7 +313,7 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   const [card] = state.piles.hand.splice(index, 1);
   const def = data.cards[card.defId];
   const tension = state.player.maxEnergy - state.player.energy;
-  state.player.energy -= cardCost(state, def);
+  state.player.energy -= cardCost(state, def, card.uid);
   state.player.patience -= def.patienceCost ?? 0;
   addLog(state, text('log.plays', { who: state.player.name, card: def.name }));
   // Skittish: a busy turn raises the Will of the creatures that made the player skittish.

@@ -9,10 +9,11 @@ import { rollSize, type Catch } from './sizes';
 import { isAlive } from './effects';
 import { progressionTotal } from './progression';
 import { creatureFamilies } from './families';
+import { hasFeature } from './features';
 import { text } from './text';
 import { questsShownTo } from './unlocks';
 import type { ShopVisit } from './shop';
-import type { BuildDef, CardDef, CombatState, CompanionEffect, EnemyState, GameData } from './types';
+import type { BuildDef, CardDef, CombatState, CompanionEffect, EnemyState, EventEffect, EventReward, GameData } from './types';
 import { addLog, clone } from './util';
 
 /** Everything that persists between fights. */
@@ -85,6 +86,12 @@ export interface RunState {
   spareHooks: number;
   /** Logbook nodes bought when the run started (see progression.ts). */
   progression: string[];
+  /** Events met this run (`moreEvents`): they don't come up again while unseen ones remain. */
+  seenEvents?: string[];
+  /** The fight in progress was started by an event: what winning it gives on top. */
+  eventFight?: { reward?: EventReward; coins?: number };
+  /** The next fight starts with a copy of this card in hand, free to play (an event's `freeNextFight`). */
+  freeCard?: string;
 }
 
 /**
@@ -278,6 +285,8 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   const enemies = [...encounter.enemies, ...extra];
   const growth = 100 + ENCOUNTER_GROWTH_PERCENT * next.fights;
   next.fights++;
+  const freeCard = next.freeCard;
+  delete next.freeCard;
   const bossDamage = node.kind === 'miniBoss' ? MINI_BOSS_DAMAGE : node.kind === 'boss' ? BOSS_DAMAGE : null;
   const damage = bossDamage ? nextInt(next, bossDamage[0], bossDamage[1]) : (ENCOUNTER_TURN_AVERAGE * growth) / 100;
   return createCombat(
@@ -293,9 +302,31 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
       willPool: Math.ceil((ENCOUNTER_WILL_POOL * growth) / 100),
       damage: enemies.length > 1 ? (damage / enemies.length) * (GROUP_DAMAGE_PERCENT / 100) : damage,
       bosses: !!bossDamage,
+      ...(freeCard ? { freeCard } : {}),
     },
     data,
   );
+}
+
+/**
+ * An event's fight (`fight` effect), at the event's node: against its `enemies`, or a creature of
+ * the level's tier. What winning it gives on top waits in `eventFight` (`finishCombat`).
+ */
+export function startEventFight(run: RunState, effect: Extract<EventEffect, { type: 'fight' }>, data: GameData): { run: RunState; combat: CombatState } {
+  const node = findNode(run.map, run.position);
+  if (!node) throw new Error(`No node at "${run.position}".`);
+  const next = clone(run);
+  if (effect.reward || effect.coins) next.eventFight = { ...(effect.reward ? { reward: effect.reward } : {}), ...(effect.coins ? { coins: effect.coins } : {}) };
+  const combat = startFight(next, { ...node, kind: 'fight', spot: null, enemies: effect.enemies ? [...effect.enemies] : null }, data);
+  return { run: next, combat };
+}
+
+/**
+ * An event's `reward`: a rare in the next card reward (`luckyLure`), or a choice of relics
+ * (a rare card instead when relics are off). `cardReward`: a card reward comes next.
+ */
+export function grantReward(run: RunState, _reward: EventReward, _data: GameData): { run: RunState; cardReward: boolean } {
+  return { run: { ...run, luckyLure: true }, cardReward: true };
 }
 
 /**
@@ -336,17 +367,26 @@ export function visitEvent(
   if (nextFloat(next) < EVENT_FIGHT_CHANCE) {
     return { run: next, combat: startFight(next, { ...node, kind: 'fight', spot: null, enemies: null }, data) };
   }
-  const ids = Object.values(data.events)
-    .filter((e) => !e.treasure && node.column >= (e.minColumn ?? 0))
-    .map((e) => e.id);
-  if (!ids.length) throw new Error(`No event can happen at column ${node.column}.`);
-  return { run: next, eventId: ids[nextInt(next, 0, ids.length - 1)] };
+  const level = data.levels[next.level]?.id;
+  const eligible = Object.values(data.events).filter(
+    (e) => !e.treasure && node.column >= (e.minColumn ?? 0) && (!e.feature || hasFeature(data, e.feature)) && (!e.levels || e.levels.includes(level)),
+  );
+  if (!eligible.length) throw new Error(`No event can happen at column ${node.column}.`);
+  // More events: one already met this run comes back only once every other one has.
+  const more = hasFeature(data, 'moreEvents');
+  const unseen = more ? eligible.filter((e) => !next.seenEvents?.includes(e.id)) : [];
+  const ids = (unseen.length ? unseen : eligible).map((e) => e.id);
+  const eventId = ids[nextInt(next, 0, ids.length - 1)];
+  if (more) next.seenEvents = [...(next.seenEvents ?? []), eventId];
+  return { run: next, eventId };
 }
 
 /** Move to an adjacent treasure: one of the treasure events, drawn on arrival. */
 export function visitTreasure(run: RunState, nodeId: string, data: GameData): { run: RunState; eventId: string } {
   const { next } = moveTo(run, nodeId, 'treasure');
-  const ids = Object.values(data.events).filter((e) => e.treasure).map((e) => e.id);
+  const ids = Object.values(data.events)
+    .filter((e) => e.treasure && (!e.feature || hasFeature(data, e.feature)))
+    .map((e) => e.id);
   if (!ids.length) throw new Error('There is no treasure event.');
   return { run: next, eventId: ids[nextInt(next, 0, ids.length - 1)] };
 }
@@ -414,7 +454,17 @@ export function finishCombat(run: RunState, combat: CombatState, data: GameData)
     else if (next.bucket.length < next.bucketSize) next.bucket.push(caught);
     else next.waiting.push(caught);
   }
-  return wearBoons(next);
+  return wearBoons(eventFightWon(next, combat, data));
+}
+
+/** An event's fight is over: winning it gives its coins and reward. */
+function eventFightWon(run: RunState, combat: CombatState, data: GameData): RunState {
+  const prize = run.eventFight;
+  if (!prize) return run;
+  delete run.eventFight;
+  if (combat.phase !== 'won') return run;
+  run.coins += prize.coins ?? 0;
+  return prize.reward ? grantReward(run, prize.reward, data).run : run;
 }
 
 /** One fight less on every boon; those used up are dropped, and a max Grit boon takes its Grit back off the cap. */

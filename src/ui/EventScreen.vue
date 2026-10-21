@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import KeywordText from './KeywordText.vue';
 import GameIcon from './GameIcon.vue';
-import { computed } from 'vue';
+import CardView from './CardView.vue';
+import { computed, ref } from 'vue';
 import { t } from './i18n';
-import { describeEventEffect, eventChoiceBlocked, type GameData, type RunState } from '../engine';
+import { describeCard, describeEventEffect, eventChoiceBlocked, eventChoicePick, type GameData, type RunState } from '../engine';
 
 const props = defineProps<{ eventId: string; run: RunState; data: GameData }>();
-const emit = defineEmits<{ choose: [choiceIndex: number] }>();
+const emit = defineEmits<{ choose: [choiceIndex: number, pick?: number] }>();
 
 const event = computed(() => props.data.events[props.eventId]);
 const choices = computed(() =>
@@ -14,8 +15,17 @@ const choices = computed(() =>
     label: choice.label,
     text: choice.effects.map((e) => describeEventEffect(e, props.run, props.data)).join(' ') || t('event.nothing'),
     blocked: eventChoiceBlocked(choice, props.run),
+    pick: eventChoicePick(choice),
   })),
 );
+
+/** The choice waiting for a deck card or a bucket creature to be picked. */
+const choosing = ref<number | null>(null);
+const picking = computed(() => (choosing.value === null ? null : choices.value[choosing.value]));
+function choose(i: number) {
+  if (choices.value[i].pick) choosing.value = i;
+  else emit('choose', i);
+}
 </script>
 
 <template>
@@ -23,14 +33,29 @@ const choices = computed(() =>
     <div class="icon"><GameIcon :icon="event.icon ?? '❓'" /></div>
     <h2>{{ event.name }}</h2>
     <p class="description">{{ event.description }}</p>
-    <div class="choices">
+    <div v-if="picking" class="picking">
+      <p><strong>{{ picking.label }}</strong> · <KeywordText :text="picking.text" /></p>
+      <h3>{{ picking.pick === 'card' ? t('event.chooseCard') : t('event.chooseCreature') }}</h3>
+      <div v-if="picking.pick === 'card'" class="deck">
+        <button v-for="(id, i) in run.deck" :key="i" class="pick-card" @click="emit('choose', choosing!, i)">
+          <CardView :card="data.cards[id]" :description="describeCard(data.cards[id])" :zoomable="false" />
+        </button>
+      </div>
+      <div v-else class="creatures">
+        <button v-for="(c, i) in run.bucket" :key="i" class="choice" @click="emit('choose', choosing!, i)">
+          <strong>{{ data.enemies[c.id]?.name ?? c.id }}</strong>
+        </button>
+      </div>
+      <button class="ghost" @click="choosing = null">{{ t('event.cancel') }}</button>
+    </div>
+    <div v-else class="choices">
       <button
         v-for="(choice, i) in choices"
         :key="i"
         class="choice"
         :disabled="!!choice.blocked"
         v-tip="choice.blocked"
-        @click="emit('choose', i)"
+        @click="choose(i)"
       >
         <strong>{{ choice.label }}</strong>
         <span><KeywordText :text="choice.blocked ?? choice.text" /></span>
@@ -61,4 +86,9 @@ const choices = computed(() =>
   .choice:hover:not(:disabled) { transform: translateY(-2px); border-color: rgb(245 215 110 / 0.55); box-shadow: 0 8px 20px rgb(0 0 0 / 0.4); }
 }
 .choice span { font-weight: 400; font-size: 0.9rem; color: var(--muted); }
+.picking { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.picking p, .picking h3 { margin: 0; }
+.deck { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 100%; }
+.pick-card { padding: 0; background: none; border: 0; box-shadow: none; }
+.creatures { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 </style>

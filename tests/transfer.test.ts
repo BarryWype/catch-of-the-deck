@@ -35,6 +35,7 @@ const profile = {
   goldenShells: 3,
   logbook: ['tackleBox'],
   recovering: [{ id: 'guppy', bond: 2, size: 'normal' as const, nodesLeft: 4, nodes: 9 }],
+  tutorials: ['map'],
 };
 const save = {
   version: SAVE_VERSION,

@@ -54,7 +54,14 @@ const quests = computed(() =>
     return { id: build.id, text: t(key, params) };
   }),
 );
-const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [DebugScenario]; buyNode: [id: string] }>();
+const emit = defineEmits<{ resume: []; newRun: []; reset: []; playScenario: [DebugScenario]; buyNode: [id: string]; replayTutorial: [] }>();
+
+/** The options' Replay button: pressed once per visit to the menu, so it shows it worked. */
+const tutorialReplayed = ref(false);
+function replayTutorial() {
+  tutorialReplayed.value = true;
+  emit('replayTutorial');
+}
 
 
 /** The guide's bullet points (`guide.<key>` in the language files), and the numbers they quote. */
@@ -249,6 +256,15 @@ onBeforeUnmount(stopTheme);
         </span>
         <input type="checkbox" role="switch" :checked="debug" @change="setDebug(($event.target as HTMLInputElement).checked)" />
       </label>
+      <div class="option">
+        <span>
+          {{ t('options.tutorial') }}
+          <small>{{ t('options.tutorialHint') }}</small>
+        </span>
+        <button class="ghost" :disabled="tutorialReplayed" @click="replayTutorial">
+          {{ tutorialReplayed ? t('options.tutorialReplayed') : t('options.replayTutorial') }}
+        </button>
+      </div>
       <footer>
         <button autofocus @click="options?.close()">{{ t('options.done') }}</button>
       </footer>

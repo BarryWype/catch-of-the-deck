@@ -12,7 +12,7 @@ vi.mock('../src/ui/saveStore', () => ({
   SAVE_VERSION: 1,
   PROFILE_VERSION: 1,
   loadSavedGame: async () => null,
-  loadProfile: async () => ({ version: 1, homeAquarium: [], creatureBook: {}, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 4, logbook: ['tackleBox'], recovering: [] }),
+  loadProfile: async () => ({ version: 1, homeAquarium: [], creatureBook: {}, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 4, logbook: ['tackleBox'], recovering: [], tutorials: [] }),
   writeProfile: writes.profile,
   writeSavedGame: () => {},
   clearSavedGame: () => {},

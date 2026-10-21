@@ -1,4 +1,5 @@
 import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
+import { FEATURES, type Features } from './constants';
 import { STORE_KINDS } from './map';
 
 /** Content as authored: plain arrays, easy to edit by hand. */
@@ -21,6 +22,8 @@ export interface ContentSource {
   /** In play order. */
   levels: LevelDef[];
   coast: CoastDef;
+  /** The fight-variety features to play with; all off when omitted. */
+  features?: Features;
 }
 
 /** Index content by id, throwing a readable error if anything is inconsistent. */
@@ -45,6 +48,7 @@ export function buildGameData(source: ContentSource): GameData {
     spots: Object.fromEntries(source.spots.map((s) => [s.id, s])),
     levels: source.levels,
     coast: source.coast,
+    ...(source.features ? { features: source.features } : {}),
   };
 }
 
@@ -204,7 +208,16 @@ export function validateContent(source: ContentSource): string[] {
   const eventIds = new Set<string>();
   for (const event of source.events) {
     checkDuplicate(eventIds, event.id, 'event');
-    if (event.choices.length === 0) errors.push(`Event "${event.id}" has no choices.`);
+    const where = `Event "${event.id}"`;
+    if (event.choices.length === 0) errors.push(`${where} has no choices.`);
+    for (const id of event.levels ?? []) if (!source.levels.some((l) => l.id === id)) errors.push(`${where}: unknown level "${id}".`);
+    if (event.feature && !(event.feature in FEATURES)) errors.push(`${where}: unknown feature "${event.feature}".`);
+    for (const effect of event.choices.flatMap((c) => c.effects)) {
+      if (effect.type === 'addJunk' && source.cards.find((c) => c.id === effect.card)?.type !== 'junk') errors.push(`${where}: "${effect.card}" isn't a junk card.`);
+      if (effect.type === 'freeNextFight' && effect.cardId && !cardIds.has(effect.cardId)) errors.push(`${where}: unknown card "${effect.cardId}".`);
+      if (effect.type === 'gainEquipment' && effect.id && !equipmentIds.has(effect.id)) errors.push(`${where}: unknown equipment "${effect.id}".`);
+      for (const id of effect.type === 'fight' ? (effect.enemies ?? []) : []) if (!enemyIds.has(id)) errors.push(`${where}: unknown enemy "${id}".`);
+    }
   }
 
   const shopIds = new Set<string>();

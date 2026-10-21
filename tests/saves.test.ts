@@ -84,19 +84,19 @@ describe('saves from before stars, sizes and the bucket limit', () => {
   it('profile v5: keeps everything, with only the default builds unlocked and no fisherman met', () => {
     const old = { version: 5, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {} };
     const profile = upgradeProfile({ ...old, eggs: [] } as never)!;
-    expect(profile).toEqual({ ...old, version: PROFILE_VERSION, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [] });
+    expect(profile).toEqual({ ...old, version: PROFILE_VERSION, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [], tutorials: ['map', 'fight'] });
   });
 });
 
 describe('saves from before the Logbook', () => {
   it('profile v6: keeps everything, with no golden shells and no Logbook node bought', () => {
     const old = { version: 6, homeAquarium: [{ id: 'clownfish', bond: 8, size: 'normal' }], creatureBook: { clownfish: 'captured' }, biggestCatch: {}, unlockedBuilds: ['fly'], fishermenMet: ['oldNed'] };
-    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, goldenShells: 0, logbook: [], recovering: [] });
+    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, goldenShells: 0, logbook: [], recovering: [], tutorials: ['map', 'fight'] });
   });
 
   it('profile v7: no companion resting', () => {
     const old = { version: 7, homeAquarium: [], creatureBook: {}, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 2, logbook: ['tackleBox'] };
-    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, recovering: [] });
+    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, recovering: [], tutorials: [] });
   });
 
   it('profile v8: waiting eggs hatch into the home aquarium, small and at bond level 1', () => {
@@ -107,7 +107,14 @@ describe('saves from before the Logbook', () => {
       ...rest,
       version: PROFILE_VERSION,
       homeAquarium: [old.homeAquarium[0], { id: 'clownfish', size: 'small', bond: 8 }, { id: 'clownfish', size: 'small', bond: 8 }],
+      tutorials: [],
     });
+  });
+
+  it('profile v9: a player who has met creatures has seen the tutorial; a fresh one hasn’t', () => {
+    const old = { version: 9, homeAquarium: [], creatureBook: { clownfish: 'seen' }, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [] };
+    expect(upgradeProfile(old as never)).toEqual({ ...old, version: PROFILE_VERSION, tutorials: ['map', 'fight'] });
+    expect(upgradeProfile({ ...old, creatureBook: {} } as never)!.tutorials).toEqual([]);
   });
 
   it('run save v20: the nodes done are this level’s, and the companions start from today’s bond', () => {

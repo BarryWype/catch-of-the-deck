@@ -1,3 +1,4 @@
+import type { FeatureId, Features } from './constants';
 import type { CatchSize } from './sizes';
 
 // ---------------------------------------------------------------------------
@@ -365,15 +366,37 @@ export interface CompanionBonusDef {
   fullSchool: CompanionEffect[];
 }
 
+/** What an event gives for a trade or a won fight: a card reward with a rare in it, or a relic choice (a rare card when relics are off). */
+export type EventReward = 'rareCard' | 'relic';
+
 /** What a map event's choice does. Percentages are whole numbers (30 = 30%). */
 export type EventEffect =
   | { type: 'heal'; percent: number }
   | { type: 'loseHp'; amount: number }
   | { type: 'gainCoins'; amount: number }
+  /** Pay coins: the choice can't be picked without them. */
+  | { type: 'loseCoins'; amount: number }
   /** Coins for each creature in the bucket (raised by passerby equipment bonuses). The creatures stay. */
   | { type: 'coinsPerCreature'; amount: number }
-  /** Offer the usual pick-1-of-3 card reward afterwards. */
-  | { type: 'cardReward' };
+  /** Offer the usual pick-1-of-3 card reward afterwards; `rare`: with at least one rare card. */
+  | { type: 'cardReward'; rare?: boolean }
+  /** The player picks a deck card to remove. */
+  | { type: 'removeCard' }
+  /** A random deck card is lost. */
+  | { type: 'loseCard' }
+  /** A junk card (`card`) joins the run's deck for good, until a card removal takes it out. */
+  | { type: 'addJunk'; card: string }
+  /**
+   * A fight against `enemies`, or a creature of the level's tier when omitted (`trophy`: a trophy
+   * fight). Winning it also gives `reward` and `coins`.
+   */
+  | { type: 'fight'; enemies?: string[]; trophy?: boolean; reward?: EventReward; coins?: number }
+  /** The player gives up a creature from the bucket for `reward`. */
+  | { type: 'tradeCatch'; reward: EventReward }
+  /** The next fight starts with a copy of `cardId` (or of a deck card the player picks) in hand, free to play that fight. */
+  | { type: 'freeNextFight'; cardId?: string }
+  /** The equipment `id`, or a choice of 1 of 3 relics when omitted. */
+  | { type: 'gainEquipment'; id?: string };
 
 export interface EventChoice {
   label: string;
@@ -391,6 +414,10 @@ export interface EventDef {
   minColumn?: number;
   /** Only met on treasure nodes, never as an ordinary event. */
   treasure?: boolean;
+  /** Only met on these levels (ids). Every level if omitted. */
+  levels?: string[];
+  /** Only met while this feature is on (`hasFeature`). */
+  feature?: FeatureId;
   choices: EventChoice[];
 }
 
@@ -708,6 +735,8 @@ export interface GameData {
   /** Played in order, one per act of a run. */
   levels: LevelDef[];
   coast: CoastDef;
+  /** The fight-variety features on (`hasFeature`); none when omitted. */
+  features?: Features;
 }
 
 // ---------------------------------------------------------------------------
@@ -808,6 +837,8 @@ export interface CombatState {
   keepHold?: boolean;
   /** How much escape bars can be slowed this fight, in percent, when a card raised it (`slowCap`). `MAX_SLOW_PERCENT` otherwise. */
   slowCap?: number;
+  /** Cards (uids) that cost no energy this fight (an event's `freeNextFight`). */
+  freeCards?: string[];
 }
 
 /** Effects that happen at the start of the player's next turns, on the target they were played on. */

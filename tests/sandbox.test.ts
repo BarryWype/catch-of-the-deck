@@ -13,7 +13,7 @@ vi.mock('../src/ui/saveStore', () => ({
   SAVE_VERSION: 1,
   PROFILE_VERSION: 1,
   loadSavedGame: async () => null,
-  loadProfile: async () => ({ version: 1, homeAquarium: home, creatureBook: {}, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [] }),
+  loadProfile: async () => ({ version: 1, homeAquarium: home, creatureBook: {}, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [], tutorials: [] }),
   writeProfile: writes.profile,
   writeSavedGame: writes.save,
   clearSavedGame: writes.clearSave,
@@ -84,7 +84,7 @@ describe('the debug sandbox', () => {
     await nextTick();
     const contents = {
       save: null,
-      profile: { version: 1, homeAquarium: [{ id: 'guppy', bond: 0, size: 'large' as const }], creatureBook: { guppy: 'captured' as const }, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [] },
+      profile: { version: 1, homeAquarium: [{ id: 'guppy', bond: 0, size: 'large' as const }], creatureBook: { guppy: 'captured' as const }, biggestCatch: {}, unlockedBuilds: [], fishermenMet: [], goldenShells: 0, logbook: [], recovering: [], tutorials: [] },
     };
     game.playScenario({ seed: 5, build: 'net', level: 0, start: { type: 'creature', id: 'clownfish' } });
     expect(game.importTransfer(contents)).toBe(false);

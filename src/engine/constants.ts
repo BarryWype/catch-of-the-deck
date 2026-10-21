@@ -61,3 +61,46 @@ export const GROUP_DAMAGE_PERCENT = 110;
 /** What a mini-boss's and a boss's moves average per turn (rolled each fight, no growth). */
 export const MINI_BOSS_DAMAGE: [number, number] = [9, 10];
 export const BOSS_DAMAGE: [number, number] = [10, 12];
+
+/**
+ * The fight-variety features, each with its own toggle, so they can be tried one by one (the debug
+ * panel's Features). The engine reads them from `GameData.features` (`hasFeature`); content built
+ * without any (`buildGameData` alone, as the tests do) has them all off, which plays as before.
+ */
+export interface Features {
+  /** More events, spread across the levels, never twice in a run while unseen ones remain. */
+  moreEvents: boolean;
+  /** Gear earned mid-run as relics: after mini-bosses, on treasures and after trophy fights. */
+  gearRelics: boolean;
+  /** About 1 in 6 fights per level is a tougher trophy fight, with a better reward. */
+  trophyElites: boolean;
+  /** Each mini-boss and boss is drawn from a few candidates per run. */
+  bossPools: boolean;
+  /** Creatures keep their own Health, Will and damage spread instead of all being raised to the same pools. */
+  ownStats: boolean;
+  /** Each temperament has a signature trait. */
+  traits: boolean;
+  /** Trophy creatures, and some adult and elder ones, roll an affix. */
+  affixes: boolean;
+  /** Bosses play their own move sets, each with a signature mechanic. */
+  bossGimmicks: boolean;
+  /** Long ordinary fights tighten: more Pulls, fewer pace moves. */
+  escalation: boolean;
+  /** Two-creature fights in the adult and elder levels. */
+  groupFights: boolean;
+}
+export type FeatureId = keyof Features;
+/** What the game plays with unless the debug panel says otherwise. */
+export const FEATURES: Features = {
+  moreEvents: true,
+  gearRelics: true,
+  trophyElites: true,
+  bossPools: true,
+  ownStats: true,
+  traits: true,
+  affixes: true,
+  bossGimmicks: true,
+  escalation: true,
+  groupFights: true,
+};
+export const NO_FEATURES: Features = Object.fromEntries(Object.keys(FEATURES).map((id) => [id, false])) as unknown as Features;
