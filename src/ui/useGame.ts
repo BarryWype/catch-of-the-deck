@@ -107,6 +107,8 @@ export function useGame(initialSeed: number) {
   const logbook = ref<Logbook>({ shells: 0, unlocked: [] });
   /** Companions back injured from runs that ended badly: they rejoin the home aquarium after enough map nodes. */
   const recovering = ref<RecoveringCreature[]>([]);
+  /** The tutorials already shown (TutorialOverlay.vue). All of them until the profile is read, so none flashes up for a returning player. */
+  const tutorialsSeen = ref<string[]>(['map', 'fight']);
   function setProfile(profile: Profile) {
     homeAquarium.value = profile.homeAquarium;
     creatureBook.value = profile.creatureBook;
@@ -115,8 +117,21 @@ export function useGame(initialSeed: number) {
     fishermenMet.value = profile.fishermenMet;
     logbook.value = { shells: profile.goldenShells, unlocked: profile.logbook };
     recovering.value = profile.recovering;
+    tutorialsSeen.value = profile.tutorials;
   }
   loadProfile().then(setProfile);
+
+  /** A tutorial played to its end or skipped: it won't show again. */
+  function tutorialDone(id: string) {
+    if (tutorialsSeen.value.includes(id)) return;
+    tutorialsSeen.value = [...tutorialsSeen.value, id];
+    saveProfile();
+  }
+  /** From the options: every tutorial shows again, on its screen. */
+  function replayTutorials() {
+    tutorialsSeen.value = [];
+    saveProfile();
+  }
   /** The builds a run can start with. */
   const builds = computed(() => unlockedBuilds(gameData, unlocked.value));
   /** The finish node the player clicked, waiting for them to confirm on the leave screen. */
@@ -153,6 +168,7 @@ export function useGame(initialSeed: number) {
       goldenShells: logbook.value.shells,
       logbook: logbook.value.unlocked,
       recovering: recovering.value,
+      tutorials: tutorialsSeen.value,
     });
   }
 
@@ -286,6 +302,7 @@ export function useGame(initialSeed: number) {
     fishermenMet.value = [];
     logbook.value = { shells: 0, unlocked: [] };
     recovering.value = [];
+    tutorialsSeen.value = [];
     broughtSlots.value = [];
     creatureBook.value = {};
     biggestCatch.value = {};
@@ -707,6 +724,9 @@ export function useGame(initialSeed: number) {
     fishermenMet,
     logbook,
     recovering,
+    tutorialsSeen,
+    tutorialDone,
+    replayTutorials,
     shellsWon,
     buyLogbookNode,
     newlyUnlocked,
