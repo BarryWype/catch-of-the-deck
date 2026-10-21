@@ -14,6 +14,7 @@ The game runs on desktop (Electron and browser), tablets and phones, with a mous
 
 - Everything playable by drag is also playable by tap: a tap selects, a second tap (or a tap on the target) acts.
 - Explanations go in `v-tip`, which works with hover, keyboard focus, a long press, and a tap on information that isn't a button. Wrap game text in `<KeywordText>` so its keywords explain themselves; a keyword with an icon (`ICONS` in `src/ui/keywords.ts`) shows as that icon instead of the word.
+- Holding a finger on a card (`CardView`) shows it full screen until the next tap (`ui/cardZoom.ts`, drawn by `CardZoom.vue`); the hold zooms the card instead of opening the tips inside it, and a fight's hand stops its drag when the zoom opens. Pass `:zoomable="false"` to a card that mustn't zoom.
 - New text goes in both locales (docs/agents/changes.md → Text).
 
 ## Verifying

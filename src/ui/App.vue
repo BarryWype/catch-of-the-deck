@@ -19,6 +19,7 @@ import RewardScreen from './RewardScreen.vue';
 import SessionSlots from './SessionSlots.vue';
 import ShopScreen from './ShopScreen.vue';
 import TooltipLayer from './TooltipLayer.vue';
+import CardZoom from './CardZoom.vue';
 import { useGame } from './useGame';
 
 function randomSeed() {
@@ -300,6 +301,8 @@ const deckCards = computed(() =>
     </footer>
   </dialog>
 
+  <!-- A card held under a finger, full screen. -->
+  <CardZoom />
   <!-- Every hover text in the app (v-tip) is drawn here. -->
   <TooltipLayer />
 </template>
