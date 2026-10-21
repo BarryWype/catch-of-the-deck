@@ -1259,7 +1259,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     justify-content: safe center;
     overflow-x: auto;
     overflow-y: hidden;
-    min-height: 0;
+    /* Its paddings and a card: an empty hand keeps its height, so the battlefield doesn't grow. */
+    min-height: 288px;
     margin-top: -60px;
     padding: 84px 45px 8px;
     --card-hover-lift: -60px;
@@ -1379,7 +1380,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     flex-wrap: nowrap;
     justify-content: safe center;
     overflow-x: auto;
-    min-height: 0;
+    /* Its paddings and a card: an empty hand keeps its height, so the battlefield doesn't grow. */
+    min-height: 210px;
     /* A scroll container clips at its own edges, so the top padding holds the whole hover lift
        (16px, plus the scale-up) and the matching negative margin keeps the layout where it was.
        Only the slots take pointer events, so that top strip never covers the buttons above. */
