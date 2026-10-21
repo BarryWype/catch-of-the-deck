@@ -14,10 +14,10 @@ import { applyDamage, calculateDamage } from './damage';
 import { drawCards, reshuffleDiscardIntoDraw } from './piles';
 import { reportEvent } from './report';
 import { nextInt } from './rng';
-import { addStatus, getStatus, statusName } from './statuses';
+import { addStatus, getStatus, isDebuff, statusName } from './statuses';
 import { text } from './text';
-import { traitOf } from './traits';
-import type { Combatant, CombatState, CompanionTrigger, Effect, EffectTarget, EnemyMove, EnemyState, GameData, PerStatus, PowerId } from './types';
+import { movesOf, traitOf } from './traits';
+import type { Combatant, CombatState, CompanionTrigger, Effect, EffectTarget, EnemyMove, EnemyState, GameData, PerStatus, PowerId, StatusId } from './types';
 import { addLog } from './util';
 
 export interface EffectContext {
@@ -149,6 +149,10 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
           // Burrow: the player's attacks do less until the creature's next turn.
           if (fromPlayer && getStatus(t, 'burrowed') > 0) amount = Math.floor((amount * (100 - BURROW_PERCENT)) / 100);
+          // In its hole: nothing gets through until its next turn.
+          if (fromPlayer && getStatus(t, 'hiding') > 0) amount = 0;
+          // Breach: double when the player has little Hold left.
+          if (!fromPlayer && effect.doubleIfHoldBelow !== undefined && state.player.block < effect.doubleIfHoldBelow) amount *= 2;
           // Drifting: so do they while its next move is its pace.
           const guard = fromPlayer && 'escape' in t ? traitOf(t as EnemyState, ctx.data) : undefined;
           if (guard?.type === 'paceGuard' && ctx.data && intentMove(t as EnemyState, ctx.data)?.role === 'pace') amount = Math.floor((amount * (100 - guard.percent)) / 100);
@@ -180,7 +184,10 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           else if (enemyAttack) addLog(state, text('log.wornDown', params));
           else addLog(state, text('log.hit', params));
           if (enemyAttack) afterEnemyHit(state, source.id, amount, hpLost, ctx.data);
-          else if (fromPlayer && 'escape' in t) afterPlayerHit(state, t as EnemyState, amount, blocked, hpLost, ctx.data);
+          else if (fromPlayer && 'escape' in t) {
+            afterPlayerHit(state, t as EnemyState, amount, blocked, hpLost, ctx.data);
+            takeBack(state, t as EnemyState, hpLost, ctx.data);
+          }
         }
       }
       if (strikeBlocked + strikeHpLost > 0) reportEvent({ kind: 'strike', blocked: strikeBlocked, hpLost: strikeHpLost });
@@ -335,7 +342,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (!('intent' in t) || !ctx.data) continue;
         const enemy = t as EnemyState;
         const current = intentMove(enemy, ctx.data);
-        const moves = ctx.data.enemies[enemy.defId]?.moves ?? [];
+        const moves = movesOf(enemy, ctx.data);
         // A flip turns a Strike into a Pull and back. Heavy moves only come after a Wind-up.
         const other = current?.tag === 'strike' ? 'pull' : 'strike';
         const options = moves.filter((m) => m.id !== current?.id && m.role !== 'heavy' && (effect.type === 'rerollIntent' || m.tag === other));
@@ -350,7 +357,7 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
       for (const t of resolveTargets(state, effect.target ?? 'target', ctx, source)) {
         if (!('intent' in t) || !ctx.data) continue;
         const enemy = t as EnemyState;
-        const pace = ctx.data.enemies[enemy.defId]?.moves.find((m) => m.role === 'pace');
+        const pace = movesOf(enemy, ctx.data).find((m) => m.role === 'pace');
         // A move is put off once: a second bait on the same creature changes nothing.
         if (!pace || enemy.intent === null || enemy.delayedIntent !== undefined) continue;
         enemy.delayedIntent = enemy.intent;
@@ -439,6 +446,15 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
         if (healed) addLog(state, text('log.heal', { who: t.name, n: healed }));
       }
       return;
+    case 'grabCard':
+      if ('escape' in source) (source as EnemyState).grabbing = effect.returnAt;
+      return;
+    case 'shedDebuffs':
+      for (const id of Object.keys(source.statuses) as StatusId[]) {
+        if (isDebuff(id, source.statuses[id] ?? 0)) delete source.statuses[id];
+      }
+      addLog(state, text('log.shedDebuffs', { name: source.name }));
+      return;
     case 'slowCap':
       if (effect.amount > (state.slowCap ?? MAX_SLOW_PERCENT)) {
         state.slowCap = effect.amount;
@@ -526,7 +542,7 @@ export function doubled(effect: Effect): Effect {
 
 /** The creature's next move. */
 function intentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
-  return data.enemies[enemy.defId]?.moves.find((m) => m.id === enemy.intent);
+  return movesOf(enemy, data).find((m) => m.id === enemy.intent);
 }
 
 /**
@@ -606,4 +622,15 @@ function afterPlayerHit(state: CombatState, enemy: EnemyState, amount: number, b
     enemy.escape = Math.min(enemy.escapeAt, enemy.escape + Math.round(rule.will * (enemy.fightScale ?? 1)));
     addLog(state, text('log.trait', { name: enemy.name, trait: name }));
   }
+}
+
+/** Eight Arms: the cards a creature holds come back to the hand once it has lost `returnAt` Health this turn, or once it's out of the fight. */
+function takeBack(state: CombatState, enemy: EnemyState, hpLost: number, data?: GameData): void {
+  if (!enemy.held) return;
+  enemy.damageThisTurn = (enemy.damageThisTurn ?? 0) + hpLost;
+  if (enemy.damageThisTurn < enemy.held.returnAt && isAlive(enemy)) return;
+  state.piles.hand.push(...enemy.held.cards);
+  const cards = enemy.held.cards.map((c) => data?.cards[c.defId]?.name ?? c.defId).join(', ');
+  delete enemy.held;
+  addLog(state, text('log.cardBack', { who: state.player.name, name: enemy.name, card: cards }));
 }

@@ -14,6 +14,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | 5. Own stats | 0% | 8.9 | 8.4 | 8.4 | ordinary fights spread wider: see below |
 | 6. Traits | 0% | 7.8 | 8.5 | 8.6 | traits mostly favour the creatures: the biggest drop so far |
 | 7. Affixes | 0% | 8 | 8.7 | 8.7 | trophies now get an affix instead of +1 Strength |
+| 8. Boss gimmicks | 0% | 7.9 | 8.7 | 8.8 | kid boss won 25% (32% before): Common lobster 4/24 (8/24), Catfish 4/19 (6/19), Giant octopus 8/22 (7/22); the adult and elder bosses were reached once |
 
 ### Phase 5: shortest and longest ordinary fights per level
 
@@ -63,25 +64,29 @@ The 1-turn fights are creatures that flee or are caught at once (bait, a lucky D
 - **Affixes per creature:** in a group fight each creature rolls its own (at most one each).
 - **"Armored (scaled)"** scales its 4 Block by the fight's damage scale (`fightScale`), as Skittish and Second Wind do; it also has that Block on the fight's first turn.
 - **The affix roll** happens in `startFight` with the run's RNG, only while `affixes` is on, so with it off the RNG is drawn as before.
+- **Boss move sets live in `bossMoveSets`** (behaviors.ts), each creature pointing at its own (`bossMoves` in creatures.ts). They reuse the temperament's move ids where the move is the same, so they keep its French name; only the new moves have `<creature>.<id>` names.
+- **Bosses only:** none of the nine creatures is a mini-boss candidate, and ordinary fights against them keep the temperament's set. No lighter mini-boss versions.
+- **`movesOf` is in traits.ts**, not intents.ts: effects.ts needs it, and intents.ts already imports effects.ts.
+- **Phases don't nest** (`PhasePattern`: a sequence or weighted pattern). The change is for good: Second Wind lifting the squid's Health back above half doesn't bring its first phase back. It waits until a Wind-up's heavy move has been played.
+- **Eight Arms** counts the Health it loses (Block soaked doesn't count), 10 as written (not scaled by the fight). The card is gone for the fight only, never from the deck; a second grab adds to what it holds; it gives everything back if it leaves the fight.
+- **In its hole** the player's hits deal 0 (Spines still prick); Venom isn't affected, since it hits after the creature's turn has started.
+- **Breach** doubles each hit after Strength and Weak, before the creature's own statuses (Cowed…), against the Hold left when the hit lands; the intent shows it against the Hold the player has now, so it updates as they gain Hold.
+- **Sprint** (2) doubles the Will rise on its own turn and the next. **Molting** sheds every debuff (Venom, Slow, Snared included) and keeps Strength. **The Catfish** burrows on its Wind-up turn.
+- **Omen's intent** shows the Tangled special icon (its first status); its description names both.
+- **The simulator** counts each held card as 6 points lost (`evaluate`), so the bot hits the octopus to get them back.
 
-## Handoff: phases 8–10 still to do
+## Handoff: phases 9–10 still to do
 
-Phases 1–7 are done and committed on `fight-variety`. The last commit, "WIP phase 8", is unfinished and **does not compile**: finish it (or rework it) before anything else. The original brief is the prompt this work started from (ten phases: phase 8 boss gimmicks, phase 9 escalating intents, phase 10 two-creature fights, then the final report). Keep following what phases 1–7 did:
+Phases 1–7 are committed on `fight-variety`; phase 8 is done (commit it before phase 9). The original brief is the prompt this work started from (ten phases: phase 8 boss gimmicks, phase 9 escalating intents, phase 10 two-creature fights, then the final report). Keep following what phases 1–8 did:
 
 - Every feature behind its flag in `Features` (`src/engine/constants.ts`), read with `hasFeature(data, id)`. Content built without features (the tests' `gameData`) plays as before, so existing tests must pass unchanged; new tests build `buildGameData({ ...contentSource, features: … })`.
 - New numbers in `constants.ts` or the content file, each with a one-line comment. Every player-facing text in `en.ts`, `fr.ts` and `fr-content.ts`.
 - Per phase: `npm run typecheck`, `npm test`, `npm run simulate -- --runs 100 --out fv-phaseN > simulation/fv-phaseN.txt` (read its "Summary" line), a row in the table above, decisions in "Decisions", docs (GAME_MECHANICS.md, ARCHITECTURE.md → Fight-variety features, CREATURE_BEHAVIOUR.md), then one commit per phase. No push.
 - Run-state fields stay optional (save version 22 needs no new bump for optional fields).
 
-### Phase 8: boss gimmicks (`bossGimmicks`), in progress
+### Phase 8: boss gimmicks (`bossGimmicks`), done
 
-Decided, and already in the WIP commit's `src/engine/types.ts` and `statuses.ts`:
-- **A boss's own move set lives in `EnemyDef.bossMoves`** (`{ moves, pattern }`), never in `moves`, so the flag off changes nothing (the behaviours test reads `moves`). Content: a `bossMoves?: Behavior` on the creature in `creatures.ts`, copied by `toEnemy` (`content/enemies.ts`).
-- `createCombat` should set `EnemyState.gimmick` for a boss (`config.bosses`) whose def has `bossMoves`, with the flag on. Then a `movesOf(enemy, data)` helper (intents.ts) must replace every `data.enemies[x].moves` read: `combat.ts` (turnAverage call), `intents.ts` (getIntentMove, nextMove, chooseIntent), `effects.ts` (flip/reroll intent, delayMove, intentMove), `debug.ts`, `DebugCombatTools.vue`, `CombatView.vue` (~line 356), `scripts/simulate.ts` (creatureTurns). `patternOf` returns `bossMoves.pattern` for a gimmick creature.
-- New: statuses `hiding` (moray's Retreat into the Hole: the player's damage to it is 0, Drain works; removed at its turn start like `burrowed`) and `sprinting` (tuna's Sprint, decays: its Will rises double in `endTurn`); effects `grabCard { returnAt }` (octopus's Eight Arms: sets `EnemyState.grabbing`; after the player's next draw it takes a random hand card into `held`; `damageThisTurn` ≥ `returnAt` gives the cards back) and `shedDebuffs` (lobster's Molting); `dealDamage.doubleIfHoldBelow` (mako's Breach, after a Wind-up); the pattern `{ type: 'phased', below, first, then }` (giant squid: Ink and Pulls above 50% Health, multi-hit Strikes below; `EnemyState.phaseFrom`).
-- `src/engine/data.ts` move checks were refactored into `checkMoveSet` (handles phased patterns and `bossMoves`).
-
-Still to do: `turnAverage` for phased patterns (`combat.ts` ~line 278 doesn't compile yet: average both phases); `nextMove` for phased; implement the effects and statuses above (and in `previewIntent`, `specialOf`, `describe.ts`, `StatusList.vue` icons, both locales: `status.hiding`, `status.sprinting`, `intent.special.*`, log lines); the nine `bossMoves` (Giant octopus, Common lobster, Catfish, Giant moray, Giant clam, Bluefin tuna, Giant squid, Mako, Oarfish; the last three examples aren't in the brief: proposed Catfish burrows then Ambushes, Giant clam snaps shut for 20 Block and Burrow, Oarfish's Omen puts both Tangled and Numb Fingers on the player), French move names (`moves['<creature>.<id>']`), a test per mechanic, README's effect table. Second Wind stays as it is. Lighter mini-boss versions are optional.
+The nine sets are in `bossMoveSets` (behaviors.ts); see Decisions and ARCHITECTURE.md → Fight-variety features.
 
 ### Phase 9: escalating intents (`escalation`)
 
@@ -93,12 +98,12 @@ From turn `ESCALATION_TURN = 5`, an ordinary creature's weighted pattern shifts 
 
 ### At the end
 
-Fill in "every new constant with its starting value" and "left unfinished or unverified" below, and the final report (what's in, each flag, the debug panel's Features section, the three things to tune first). From phases 1–7 so far, the tuning candidates are: traits mostly help the creatures (floor 8.9 → 7.8 at phase 6); trophy fights cost a lot of Grit before the mini-boss (11.0 → 9.3); the Crab trap's +1 Hold (as briefed) is nearly worthless.
+Fill in "every new constant with its starting value" and "left unfinished or unverified" below, and the final report (what's in, each flag, the debug panel's Features section, the three things to tune first). From phases 1–8 so far, the tuning candidates are: traits mostly help the creatures (floor 8.9 → 7.8 at phase 6); trophy fights cost a lot of Grit before the mini-boss (11.0 → 9.3); the Crab trap's +1 Hold (as briefed) is nearly worthless.
 
 ### Constants so far
 
-`FEATURES`, `RELIC_CHOICES` 3, `RELIC_ODDS` 60/30/10 · 45/35/20 · 30/40/30, `TROPHY_NODE_SHARE` 6, `TROPHY_MIN_NODES` 2, `TROPHY_POOL_PERCENT` 140, `TROPHY_DAMAGE_PERCENT` 120, `TROPHY_SELL_PERCENT` 200, `OWN_STATS_MIN_PERCENT` 70, `OWN_STATS_MAX_PERCENT` 140, `AFFIX_CHANCE_PERCENT` 15. Relic, trait and affix numbers are in `content/equipment.ts`, `behaviors.ts` and `affixes.ts`.
+`FEATURES`, `RELIC_CHOICES` 3, `RELIC_ODDS` 60/30/10 · 45/35/20 · 30/40/30, `TROPHY_NODE_SHARE` 6, `TROPHY_MIN_NODES` 2, `TROPHY_POOL_PERCENT` 140, `TROPHY_DAMAGE_PERCENT` 120, `TROPHY_SELL_PERCENT` 200, `OWN_STATS_MIN_PERCENT` 70, `OWN_STATS_MAX_PERCENT` 140, `AFFIX_CHANCE_PERCENT` 15. Relic, trait and affix numbers are in `content/equipment.ts`, `behaviors.ts` and `affixes.ts`; the boss gimmicks' in `bossMoveSets` (Eight Arms 10 Health, Snap Shut 20 Block, Sprint 2 turns, Breach below 10 Hold, the squid's phase at 50%).
 
 ### Not verified yet
 
-The UI added in phases 1–7 (event pickers, relic choice overlay, map trophy marks and boss names, creature badges, the sonar's "→ move", the Features section) passes typecheck but hasn't been checked in the browser.
+The UI added in phases 1–8 (event pickers, relic choice overlay, map trophy marks and boss names, creature badges, the sonar's "→ move", the Features section, the held-cards badge and the In Its Hole and Sprinting icons) passes typecheck but hasn't been checked in the browser. The adult and elder boss gimmicks are covered by tests but the simulator's bot almost never reaches them (one fight each in 100 runs), so their balance is unmeasured.

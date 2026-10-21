@@ -24,6 +24,7 @@ import {
   HOLD_PER_PATIENCE,
   MAX_HAND_SIZE,
   MAX_PATIENCE,
+  movesOf,
   PATIENCE_ESCAPE_PERCENT,
   validateAction,
   type CardInstance,
@@ -122,6 +123,11 @@ function badgesOf(enemy: EnemyState) {
   if (trait) badges.push({ key: 'trait', label: trait.name, tip: t('combat.badge.trait', { text: trait.description }), tone: 'trait' });
   const affix = enemy.affix ? props.data.affixes?.[enemy.affix] : undefined;
   if (affix) badges.push({ key: 'affix', label: affix.name, tip: affix.description, tone: 'affix' });
+  if (enemy.held) {
+    const cards = enemy.held.cards.map((c) => props.data.cards[c.defId]?.name ?? c.defId).join(', ');
+    const left = Math.max(0, enemy.held.returnAt - (enemy.damageThisTurn ?? 0));
+    badges.push({ key: 'held', label: t('combat.badge.held', { n: enemy.held.cards.length }), tip: t('combat.badge.heldTip', { cards, left }), tone: 'warn' });
+  }
   if (previewIntent(shownState.value, enemy, props.data)?.mayBluff) badges.push({ key: 'bluff', label: t('combat.badge.bluff'), tip: t('combat.badge.bluffTip'), tone: 'warn' });
   return badges;
 }
@@ -353,7 +359,7 @@ watch(
         animate(enemy.id, 'flee');
       } else if (enemy.moveHistory.length > before.moveHistory.length) {
         const moveId = enemy.moveHistory[enemy.moveHistory.length - 1];
-        const move = props.data.enemies[enemy.defId].moves.find((m) => m.id === moveId);
+        const move = movesOf(enemy, props.data).find((m) => m.id === moveId);
         if (move?.effects.some((e) => e.type === 'dealDamage' || e.type === 'pull')) animate(enemy.id, 'attack');
         if (move) playMotion(enemy.id, moveMotion(move), MOTION_STAGGER_MS * acted++);
       }

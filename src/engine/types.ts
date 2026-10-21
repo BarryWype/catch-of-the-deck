@@ -582,13 +582,16 @@ export interface SpriteRef {
   index: number;
 }
 
-export type IntentPattern =
+export type PhasePattern =
   /** Play `moves` in order; after the last one, loop back to index `loopFrom` (default 0). */
   | { type: 'sequence'; moves: string[]; loopFrom?: number }
   /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row. A special never follows a special, and a Wind-up never follows Ink. */
-  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number }
-  /** Two phases: `first` while its Health is at least `below` percent of its max, `then` once it drops below (a sequence counts from where the phase began). */
-  | { type: 'phased'; below: number; first: IntentPattern; then: IntentPattern };
+  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number };
+
+export type IntentPattern =
+  | PhasePattern
+  /** Two phases: `first` until its Health drops below `below` percent of its max, then `then` for the rest of the fight (a sequence counts from where the phase began). */
+  | { type: 'phased'; below: number; first: PhasePattern; then: PhasePattern };
 
 /**
  * What a temperament's signature trait does (`traits`), each rule worked out where it acts (see

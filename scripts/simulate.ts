@@ -54,6 +54,7 @@ import {
   FULL_SCHOOL,
   keepCatch,
   MAX_BOND_LEVEL,
+  movesOf,
   restAtHome,
   restingBondLevel,
   saleValue,
@@ -213,6 +214,8 @@ function evaluate(s: CombatState): number {
     const will = 1 - e.escape / e.escapeAt;
     score += 100 * Math.max(health, will) + 30 * Math.min(health, will);
     for (const id of DEBUFFS) score += 2 * (e.statuses[id] ?? 0);
+    // Cards a creature holds (Eight Arms): worth getting back.
+    score -= 6 * (e.held?.cards.length ?? 0);
     // A move put off by bait (its Pace now) counts as a turn it does nothing.
     const p = e.delayedIntent === undefined ? previewIntent(s, e, data) : null;
     const hit = (p?.damage ?? 0) * (p?.hits ?? 1);
@@ -318,7 +321,7 @@ const ROLES = ['normal', 'pace', 'special', 'windUp', 'heavy'] as const;
 
 function creatureTurns(combat: CombatState) {
   const roles = combat.enemies.flatMap((e) => {
-    const moves = e.moveHistory.map((id) => data.enemies[e.defId].moves.find((m) => m.id === id));
+    const moves = e.moveHistory.map((id) => movesOf(e, data).find((m) => m.id === id));
     return moves.map((m, i) => (moves[i - 1]?.role === 'windUp' ? 'heavy' : (m?.role ?? 'normal')));
   });
   const count = (role: (typeof ROLES)[number]) => roles.filter((r) => r === role).length;

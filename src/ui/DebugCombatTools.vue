@@ -9,6 +9,7 @@ import {
   debugSetPlayer,
   debugSetStatus,
   isAlive,
+  movesOf,
   SECOND_WIND_ID,
   STATUS_META,
   statusName,
@@ -37,7 +38,7 @@ const statusPick = ref<Record<string, { status: StatusId; stacks: number }>>({})
 const pick = (id: string) => (statusPick.value[id] ??= { status: 'vulnerable', stacks: 1 });
 
 const moves = (enemy: EnemyState) => [
-  ...props.data.enemies[enemy.defId].moves.map((m) => ({ id: m.id, name: m.name })),
+  ...movesOf(enemy, props.data).map((m) => ({ id: m.id, name: m.name })),
   ...(enemy.boss ? [{ id: SECOND_WIND_ID, name: t('debug.secondWind') }] : []),
 ];
 const statusList = (statuses: CombatState['player']['statuses']) => Object.entries(statuses) as [StatusId, number][];

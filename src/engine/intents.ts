@@ -4,7 +4,7 @@ import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { nextInt, pickWeighted } from './rng';
-import { affixOf, traitOf } from './traits';
+import { affixOf, movesOf, traitOf } from './traits';
 import { nextMoveMods, statusDescription, statusName } from './statuses';
 import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveIntensity, MoveRole, MoveTag } from './types';
 import { text } from './text';
@@ -48,12 +48,13 @@ function secondWindMove(): EnemyMove {
 
 export function getIntentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
   if (enemy.intent === SECOND_WIND_ID) return secondWindMove();
-  return data.enemies[enemy.defId]?.moves.find((m) => m.id === enemy.intent);
+  return movesOf(enemy, data).find((m) => m.id === enemy.intent);
 }
 
-/** The pattern a creature follows in this fight: its `bossPattern` as a mini-boss or boss. */
+/** The pattern a creature follows in this fight: its own boss set's (`bossMoves`), or its `bossPattern` as a mini-boss or boss. */
 export function patternOf(enemy: EnemyState, data: GameData): IntentPattern {
   const def = data.enemies[enemy.defId];
+  if (enemy.gimmick && def.bossMoves) return def.bossMoves.pattern;
   return (enemy.boss && def.bossPattern) || def.pattern;
 }
 
@@ -89,6 +90,10 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
     enemy.inkLeft--;
   }
   if (telegraphSecondWind(enemy, data)) return;
+  // A phased pattern moves on to its second phase once, when its Health drops low enough (a Wind-up's heavy move first).
+  const pattern = patternOf(enemy, data);
+  const windingUp = movesOf(enemy, data).find((m) => m.id === enemy.moveHistory[enemy.moveHistory.length - 1])?.role === 'windUp';
+  if (pattern.type === 'phased' && enemy.phaseFrom === undefined && !windingUp && enemy.hp * 100 < enemy.maxHp * pattern.below) enemy.phaseFrom = enemy.moveHistory.length;
   // After the Pace bait put in, the move it put off.
   if (enemy.delayedIntent !== undefined) {
     enemy.intent = enemy.delayedIntent;
@@ -104,7 +109,7 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
   }
   if (bonusTotal(state.bonuses, 'foresight') > 0) enemy.foresight = nextMove(state, enemy, data, [...enemy.moveHistory, enemy.intent]);
   const rule = traitOf(enemy, data);
-  const moves = data.enemies[enemy.defId].moves;
+  const moves = movesOf(enemy, data);
   // Second Run: low on Will, it trades a rest for one more pull.
   if (rule?.type === 'lastRun' && !enemy.traitUsed && enemy.escape * 100 < enemy.escapeAt * rule.percent && getIntentMove(enemy, data)?.role === 'pace') {
     const pull = moves.find((m) => m.tag === 'pull' && m.intensity === 'normal' && !m.role);
@@ -122,8 +127,12 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
 
 /** The creature's next move from its pattern, after these moves. */
 function nextMove(state: CombatState, enemy: EnemyState, data: GameData, history: string[]): string {
-  const moves = data.enemies[enemy.defId].moves;
-  const pattern = patternOf(enemy, data);
+  const moves = movesOf(enemy, data);
+  const own = patternOf(enemy, data);
+  // A phased pattern: the phase it's in, its sequence counted from where that phase began.
+  const phased = own.type === 'phased' && enemy.phaseFrom !== undefined;
+  if (phased) history = history.slice(enemy.phaseFrom);
+  const pattern = own.type !== 'phased' ? own : phased ? own.then : own.first;
 
   if (pattern.type === 'sequence') {
     const loopFrom = pattern.loopFrom ?? 0;
@@ -199,6 +208,8 @@ function specialOf(move: EnemyMove, data: GameData): IntentPreview['special'] {
     if (e.type === 'addJunk') return { key: 'junk', card: data.cards[e.card]?.name ?? e.card };
     if (e.type === 'stealPatience') return { key: 'steal' };
     if (e.type === 'secondWind') return { key: 'secondWind' };
+    if (e.type === 'grabCard') return { key: 'grab' };
+    if (e.type === 'shedDebuffs') return { key: 'molt' };
     if (e.type === 'pull' && e.heavyIfNoHold) return { key: 'shake' };
     if (e.type === 'applyStatus' && move.role === 'special') return { key: e.status };
   }
@@ -233,11 +244,14 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   const size = enemy.damageScale ?? 1;
   for (const effect of move.effects) {
     switch (effect.type) {
-      case 'dealDamage':
+      case 'dealDamage': {
         addKind('attack');
-        preview.damage ??= Math.max(0, Math.floor(calculateDamage((effect.amount * size * (100 + (enemy.strikePercent ?? 0))) / 100, enemy.statuses, state.player.statuses) * scale) - less);
+        // Breach: double against the player's Hold as it is now.
+        const breach = effect.doubleIfHoldBelow !== undefined && state.player.block < effect.doubleIfHoldBelow ? 2 : 1;
+        preview.damage ??= Math.max(0, Math.floor(calculateDamage((effect.amount * size * (100 + (enemy.strikePercent ?? 0))) / 100, enemy.statuses, state.player.statuses) * breach * scale) - less);
         preview.hits ??= effect.hits ?? 1;
         break;
+      }
       case 'pull': {
         addKind('pull');
         const firstPull = state.bonusTracker.firstPullDone ? 0 : Math.min(100, bonusTotal(state.bonuses, 'firstPullPercent'));
@@ -257,6 +271,8 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
       case 'addJunk':
       case 'stealPatience':
       case 'secondWind':
+      case 'grabCard':
+      case 'shedDebuffs':
         break;
       case 'drawCards':
       case 'gainEnergy':

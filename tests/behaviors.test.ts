@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gameData } from '../src/content';
-import { behaviors, move, WIND_UP } from '../src/content/behaviors';
+import { behaviors, bossMoveSets, move, WIND_UP } from '../src/content/behaviors';
 import { creatures } from '../src/content/creatures';
 import {
   applyAction,
@@ -260,6 +260,7 @@ describe('the move sets', () => {
   const sets: [string, EnemyMove[]][] = [
     ...Object.entries(behaviors).map(([id, b]): [string, EnemyMove[]] => [id, b.moves]),
     ...creatures.filter((c) => c.moves).map((c): [string, EnemyMove[]] => [c.id, c.moves!.moves]),
+    ...Object.entries(bossMoveSets).map(([id, b]): [string, EnemyMove[]] => [`${id} (boss)`, b.moves]),
   ];
 
   it.each(sets)('%s: one pace, at most two specials, all light like its Wind-up', (_, moves) => {
@@ -268,8 +269,8 @@ describe('the move sets', () => {
     for (const m of moves.filter((m) => m.role === 'pace' || m.role === 'special' || m.role === 'windUp')) expect(m.intensity, m.id).toBe('light');
   });
 
-  it('only predators, Pike and Red piranha gain Strength from their moves', () => {
+  it('only predators (the Mako as a boss too), Pike and Red piranha gain Strength from their moves', () => {
     const givesStrength = (moves: EnemyMove[]) => moves.some((m) => m.effects.some((e) => e.type === 'applyStatus' && e.status === 'strength' && e.target === 'self'));
-    expect(sets.filter(([, moves]) => givesStrength(moves)).map(([id]) => id).sort()).toEqual(['pike', 'predator', 'redPiranha']);
+    expect(sets.filter(([, moves]) => givesStrength(moves)).map(([id]) => id).sort()).toEqual(['pike', 'predator', 'redPiranha', 'shortfinMakoShark (boss)']);
   });
 });

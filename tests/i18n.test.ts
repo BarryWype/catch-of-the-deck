@@ -44,7 +44,7 @@ describe.each(codes)('the %s language', (code) => {
     const run = { ...createRun(1, gameData, 'rod'), bucket: caught('clownfish') };
     const texts = [
       ...Object.values(gameData.cards).map((c) => describeCard(c)),
-      ...Object.values(gameData.enemies).flatMap((e) => e.moves.map((m) => describeEffects(m.effects, { byCreature: true }))),
+      ...Object.values(gameData.enemies).flatMap((e) => [...e.moves, ...(e.bossMoves?.moves ?? [])].map((m) => describeEffects(m.effects, { byCreature: true }))),
       ...Object.values(gameData.companionBonuses).flatMap((b) => [...b.effects, ...b.fullSchool].map(describeCompanionEffect)),
       ...Object.values(gameData.events).flatMap((e) => e.choices.flatMap((c) => c.effects.map((x) => describeEventEffect(x, run, gameData)))),
       ...(Object.keys(STATUS_META) as StatusId[]).flatMap((id) => [statusName(id), statusDescription(id)]),
@@ -97,7 +97,7 @@ describe.each(codes.filter((code) => code !== 'en'))('the %s content', (code) =>
 
   it('names every creature move', () => {
     const untranslated = contentSource.enemies.flatMap((e) =>
-      e.moves.filter((m) => !tr.moves?.[`${e.id}.${m.id}`] && !tr.moves?.[`${e.temperament}.${m.id}`]).map((m) => `${e.id}.${m.id}`),
+      [...e.moves, ...(e.bossMoves?.moves ?? [])].filter((m) => !tr.moves?.[`${e.id}.${m.id}`] && !tr.moves?.[`${e.temperament}.${m.id}`]).map((m) => `${e.id}.${m.id}`),
     );
     expect(untranslated).toEqual([]);
   });

@@ -57,6 +57,9 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       ...e,
       name: tr.creatures?.[e.id] ?? e.name,
       moves: e.moves.map((m) => ({ ...m, name: tr.moves?.[`${e.id}.${m.id}`] ?? tr.moves?.[`${e.temperament}.${m.id}`] ?? m.name })),
+      ...(e.bossMoves
+        ? { bossMoves: { ...e.bossMoves, moves: e.bossMoves.moves.map((m) => ({ ...m, name: tr.moves?.[`${e.id}.${m.id}`] ?? tr.moves?.[`${e.temperament}.${m.id}`] ?? m.name })) } }
+        : {}),
       ...(e.trait ? { trait: { ...e.trait, ...tr.traits?.[e.temperament ?? ''] } } : {}),
     })),
     cards: source.cards.map((c) => ({ ...c, name: tr.cards?.[c.id] ?? c.name })),

@@ -17,7 +17,7 @@ import {
   WIND_UP_PERCENT,
 } from './constants';
 import { hasFeature } from './features';
-import { affixOf, traitOf } from './traits';
+import { affixOf, movesOf, traitOf } from './traits';
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
@@ -107,6 +107,8 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
       escapeAt: def.escapeAt,
       escapeRate: def.escapeRate,
       ...(config.bosses ? { boss: true } : {}),
+      // A boss with a move set of its own plays it, and its mechanic.
+      ...(config.bosses && def.bossMoves && hasFeature(data, 'bossGimmicks') ? { gimmick: true } : {}),
     });
   });
 
@@ -173,7 +175,7 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   });
   if (config.damage) {
     for (const enemy of state.enemies) {
-      const moves = turnAverage(data.enemies[enemy.defId].moves, patternOf(enemy, data));
+      const moves = turnAverage(movesOf(enemy, data), patternOf(enemy, data));
       // Its own stats: its moves keep their size against its tier's average, within bounds.
       const tier = average(enemy);
       const dealt = tier?.turnAverage ? ownShare((moves * config.damage) / tier.turnAverage, config.damage) : config.damage;
@@ -261,9 +263,11 @@ export function cardCost(state: CombatState, def: CardDef, uid?: string): number
 /**
  * A creature's average Strike or Pull per turn as written (its moves' intensities), over its moves
  * as often as its pattern plays them: each Wind-up is followed by its heavy move, played heavy and
- * `WIND_UP_PERCENT` bigger. The fight scales it to its damage (`damageScale`).
+ * `WIND_UP_PERCENT` bigger. A phased pattern counts both phases alike. The fight scales it to its
+ * damage (`damageScale`).
  */
 export function turnAverage(moves: EnemyMove[], pattern: IntentPattern): number {
+  if (pattern.type === 'phased') return (turnAverage(moves, pattern.first) + turnAverage(moves, pattern.then)) / 2;
   const byId = (id: string | undefined) => moves.find((m) => m.id === id);
   const heavy = (move: EnemyMove) => ((moveValue(move) * MOVE_INTENSITY.heavy) / MOVE_INTENSITY[move.intensity]) * (1 + WIND_UP_PERCENT / 100);
   const turns: { weight: number; value: number }[] = [];
@@ -344,6 +348,7 @@ function startPlayerTurn(state: CombatState, data: GameData): void {
   for (const enemy of state.enemies) {
     delete enemy.hitsThisTurn;
     delete enemy.drainedThisTurn;
+    delete enemy.damageThisTurn;
   }
   state.player.block = Math.min(state.player.block, keptBlock(state));
   state.keepHold = false;
@@ -362,6 +367,14 @@ function startPlayerTurn(state: CombatState, data: GameData): void {
     const [card] = state.piles.hand.splice(nextInt(state, 0, state.piles.hand.length - 1), 1);
     state.piles.discard.push(card);
     addLog(state, text('log.baitGrabbed', { who: state.player.name, card: data.cards[card.defId]?.name ?? card.defId }));
+  }
+  // Eight Arms: it takes a random card from the new hand, until it's hurt enough this turn.
+  for (const enemy of state.enemies) {
+    if (enemy.grabbing === undefined || !isAlive(enemy) || !state.piles.hand.length) continue;
+    const [card] = state.piles.hand.splice(nextInt(state, 0, state.piles.hand.length - 1), 1);
+    enemy.held = { cards: [...(enemy.held?.cards ?? []), card], returnAt: enemy.grabbing };
+    delete enemy.grabbing;
+    addLog(state, text('log.grabCard', { name: enemy.name, card: data.cards[card.defId]?.name ?? card.defId, n: enemy.held.returnAt }));
   }
   if (state.turn === 2) fireTriggers(state, 'secondTurnStart', undefined, data);
 }
@@ -510,6 +523,7 @@ function endTurn(state: CombatState, data: GameData): void {
     // Hard Shell keeps some of its Block; anyone else's is gone.
     enemy.block = rule?.type === 'keepBlock' ? Math.floor((enemy.block * rule.percent) / 100) : 0;
     delete enemy.statuses.burrowed;
+    delete enemy.statuses.hiding;
     // Regrowth and other turn-start traits.
     if (rule?.type === 'turnStart') resolveEffect(state, rule.effect, { sourceId: enemy.id, targetId: enemy.id, data });
     // An Armored affix: Block at the start of each of its turns.
@@ -526,6 +540,8 @@ function endTurn(state: CombatState, data: GameData): void {
     let rise = escapeRise(enemy, state.player.patience, state.slowCap);
     // Deep Runs: the Will rises only one turn in a few, by that much more.
     if (rule?.type === 'slowWill') rise = enemy.moveHistory.length % rule.every === 0 ? rise * rule.times : 0;
+    // Sprint: its Will rises double meanwhile.
+    if (getStatus(enemy, 'sprinting') > 0) rise *= 2;
     const paced = move?.role === 'pace' ? Math.ceil((rise * PACE_WILL_PERCENT) / 100) : rise;
     if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + paced);
     if (checkCombatEnd(state)) return;

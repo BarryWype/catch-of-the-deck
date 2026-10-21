@@ -46,5 +46,17 @@ One per temperament (`trait` in behaviors.ts, a `TraitRule`), badge on the creat
 ## Bosses
 Kid: Blue crab (mini, clawed), Giant octopus (boss, cephalopod). Adult: Common octopus (cephalopod), Giant moray eel (eel). Elder: Starry sturgeon (giant), Atlantic giant squid (cephalopod). With `bossPools`, one candidate per slot per run (shown on the map): Kid mini Blue crab / Spotted pufferfish / Pike, boss Giant octopus / Common lobster / Catfish; Adult mini Common octopus / Lionfish / Atlantic salmon, boss Giant moray / Giant clam / Bluefin tuna; Elder mini Starry sturgeon / Stonefish / Swordfish, boss Giant squid / Mako / Oarfish. Released after the fight; a boss escaping ends the run. A boss rolling 10 hits about 11 with a normal move and gains +1 Str per Wind-up.
 
+## Boss move sets (`bossGimmicks` feature)
+`bossMoveSets` in behaviors.ts → `bossMoves` on the creature; played instead of its temperament's set (and `bossPattern`) when fought as a boss. Same rules (1 pace, ≤2 specials, light roles). Trait and Second Wind unchanged. All `seq` but the squid.
+- **Giant octopus** — Grip (S N, 3 hits); Rock Anchor (P N); Eight Arms (S L; grabs a random card from the next hand, back once it loses 10 Health in that turn) [special]; Ink Cloud (P L; 3 Blk, Ink) [special]; Hover [pace]. `seq` Grip, Eight Arms, Anchor, Ink Cloud, Grip, Hover.
+- **Common lobster** — clawed set with Molt (P L; sheds all its debuffs) [special] instead of Kick Up Sand. `seq` Pinch, Wedge, Molt, Raise the Claws, Crushing Pinch, Scuttle.
+- **Catfish** — ambusher set with Into the Mud (P L; Burrow) [wind-up → Ambush] instead of Lie in Wait. `seq` Snap, Into the Weed, Into the Mud, Ambush, Stir the Silt, Settle.
+- **Giant moray** — Wriggle (S N, 4 hits); Hide in the Rocks (P N; 4 Blk); Retreat into the Hole (P L; Hiding: player damage 0 until its next turn, Drain works) [special]; Lunge from the Hole (S N, 2 hits); Slime the Line [special]; Crevice [pace]. `seq` Wriggle, Retreat, Lunge, Hide, Slime, Retreat, Lunge, Crevice.
+- **Giant clam** — armored set with Snap Shut (P L; 20 Blk, Burrow) [special] instead of Clamp Shut. `seq` Squirt, Bury, Snap Shut, Clamp the Fingers, Squirt, Rest.
+- **Bluefin tuna** — giant set with Sprint (P L; Sprinting 2: Will rise ×2, 2 turns) [special] instead of Sound Deep. `seq` Dead Weight, Sprint, Long Run, Heave, Dead Weight, Drift.
+- **Giant squid** — `phased` below 50% Health. First: `seq` Ink Cloud, Rock Anchor, Jet Away (P N; 3 Blk), Hover. Then (from its start): `seq` Grip (S N, 3 hits), Arm Frenzy (S N, 5 hits), Venomous Bite, Arm Frenzy, Hover.
+- **Mako** — predator set with Breach (S H; ×2 if the player has < 10 Hold when it lands) [heavy after Size Up] instead of Head Shake. `seq` Jolt, Run, Size Up, Breach, Grab, Circle.
+- **Oarfish** — giant set plus Omen (P L; Tangled + Numb Fingers) [special]. `seq` Long Run, Omen, Dead Weight, Sound Deep, Heave, Dead Weight, Drift.
+
 ## Tuning
 Move sets → `behaviors.ts`; one creature → its own `moves` in `creatures.ts`; Will/HP/Strength → `creatures.ts`; global → `ENCOUNTER_TURN_AVERAGE`, `ENCOUNTER_GROWTH_PERCENT`, `GROUP_DAMAGE_PERCENT`, `MINI_BOSS_DAMAGE`, `BOSS_DAMAGE`, `MOVE_INTENSITY`, `WIND_UP_PERCENT`, `PACE_WILL_PERCENT`, `MAX_MOVE_STRENGTH` and the special constants in `src/engine/constants.ts`. Since moves are scaled to an average, intensities, weights, extras and order shape a creature; the constants set how hard fights are. Check with `npm run simulate`.

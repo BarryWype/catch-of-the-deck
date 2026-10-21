@@ -239,6 +239,17 @@ export const frContent: ContentTranslations = {
     'pike.lurk': 'À l’affût dans les roseaux',
     'pike.grab': 'Arrache l’appât',
     'pike.holdStill': 'Reste immobile',
+    'giantPacificOctopus.eightArms': 'Huit bras',
+    'commonLobster.molt': 'Mue',
+    'catfish.digIn': 'Dans la vase',
+    'giantMorayEel.retreat': 'Retraite dans le trou',
+    'giantMorayEel.lunge': 'Jaillit du trou',
+    'giantClam.snapShut': 'Se referme d’un coup',
+    'bluefinTuna.sprint': 'Sprint',
+    'atlanticGiantSquid.armFrenzy': 'Frénésie de bras',
+    'atlanticGiantSquid.jet': 'Jet de fuite',
+    'shortfinMakoShark.breach': 'Bond hors de l’eau',
+    'oarfish.omen': 'Présage',
   },
 
   cards: {

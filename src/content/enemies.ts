@@ -27,6 +27,7 @@ function toEnemy(creature: CreatureDef): EnemyDef {
     moves: behavior.moves,
     pattern: behavior.pattern,
     ...('bossPattern' in behavior && behavior.bossPattern ? { bossPattern: behavior.bossPattern } : {}),
+    ...(creature.bossMoves ? { bossMoves: { moves: creature.bossMoves.moves, pattern: creature.bossMoves.pattern } } : {}),
     tags: [creature.type],
     startingStatuses: { ...creature.statuses, ...(creature.strength ? { strength: creature.strength } : {}) },
     sprite: creature.sprite ?? { sheet: 'fishes', index: creature.no },

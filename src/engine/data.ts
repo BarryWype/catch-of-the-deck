@@ -1,4 +1,4 @@
-import type { AffixDef, IntentPattern, BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
+import type { AffixDef, IntentPattern, PhasePattern, BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
 import { FEATURES, type Features } from './constants';
 import { turnAverage } from './combat';
 import { STORE_KINDS } from './map';
@@ -159,7 +159,7 @@ export function validateContent(source: ContentSource): string[] {
   }
 
   /** A move set and its patterns (a phased pattern's phases each checked as a pattern). */
-  const flatten = (p: IntentPattern): IntentPattern[] => (p.type === 'phased' ? [...flatten(p.first), ...flatten(p.then)] : [p]);
+  const flatten = (p: IntentPattern): PhasePattern[] => (p.type === 'phased' ? [p.first, p.then] : [p]);
   const checkMoveSet = (where: string, moves: EnemyDef['moves'], patterns: IntentPattern[]) => {
     const moveIds = new Set<string>();
     for (const move of moves) {
