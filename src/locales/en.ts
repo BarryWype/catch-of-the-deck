@@ -133,6 +133,7 @@ export const en = {
         strike: 'If the creature is about to Strike: {rules}',
         pull: 'If the creature is about to Pull: {rules}',
         otherwise: 'Otherwise: {rules}',
+        and: ' and ',
       },
       ifNoAttack: "If you haven't played an attack this turn: {rules}",
       ifStatus: 'If the creature has {status}: {rules}',

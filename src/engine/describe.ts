@@ -81,19 +81,16 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
       return text('describe.delayed', { n: effect.turns, rules: rules.charAt(0).toLowerCase() + rules.slice(1) });
     }
     case 'ifIntent': {
-      const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
-      const then = text(`describe.if.${effect.tag}`, { rules: lower(describeEffects(effect.then, opts)) });
-      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
+      const then = text(`describe.if.${effect.tag}`, { rules: describeBranch(effect.then, opts) });
+      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: describeBranch(effect.else, opts) })}` : then;
     }
     case 'ifStatus': {
-      const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
-      const then = text('describe.ifStatus', { status: statusName(effect.status), rules: lower(describeEffects(effect.then, opts)) });
-      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
+      const then = text('describe.ifStatus', { status: statusName(effect.status), rules: describeBranch(effect.then, opts) });
+      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: describeBranch(effect.else, opts) })}` : then;
     }
     case 'ifNoAttack': {
-      const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
-      const then = text('describe.ifNoAttack', { rules: lower(describeEffects(effect.then, opts)) });
-      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
+      const then = text('describe.ifNoAttack', { rules: describeBranch(effect.then, opts) });
+      return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: describeBranch(effect.else, opts) })}` : then;
     }
     case 'ifLastCard':
       return describeIf('describe.ifLastCard', { type: text(`describe.cardType.${effect.cardType}`) }, effect, opts);
@@ -154,9 +151,14 @@ export function describeEffect(effect: Effect, opts: DescribeOptions = {}): stri
 
 /** A condition's text (`key`, with its `then` rules as `{rules}`), then "Otherwise:" and its `else` rules. */
 function describeIf(key: string, params: Record<string, string | number>, effect: { then: Effect[]; else?: Effect[] }, opts: DescribeOptions): string {
-  const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
-  const then = text(key, { ...params, rules: lower(describeEffects(effect.then, opts)) });
-  return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: lower(describeEffects(effect.else, opts)) })}` : then;
+  const then = text(key, { ...params, rules: describeBranch(effect.then, opts) });
+  return effect.else?.length ? `${then} ${text('describe.if.otherwise', { rules: describeBranch(effect.else, opts) })}` : then;
+}
+
+/** One branch of a condition as a single clause ("gain 6 Hold and 4 drain…"), so every effect reads as part of it. */
+function describeBranch(effects: Effect[], opts: DescribeOptions): string {
+  const parts = effects.map((e) => describeEffect(e, opts));
+  return parts.map((p, i) => (i < parts.length - 1 ? p.replace(/\.$/, '') : p).replace(/^./, (c) => c.toLowerCase())).join(text('describe.if.and'));
 }
 
 export function describeEffects(effects: Effect[], opts: DescribeOptions = {}): string {

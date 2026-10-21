@@ -204,7 +204,7 @@ describe('cards that read or change the next move', () => {
     const pull = playCard(about(s0, 'dartAway'), 'duckAndJab');
     expect(s0.enemies[0].hp - pull.enemies[0].hp).toBe(4);
     expect(describeCard(gameData.cards.duckAndJab)).toBe(
-      'If the creature is about to Strike: 12 damage. The creature gains 6 Will. Otherwise: 4 damage.',
+      'If the creature is about to Strike: 12 damage and the creature gains 6 Will. Otherwise: 4 damage.',
     );
   });
 
@@ -590,6 +590,7 @@ describe('Kid reward cards: rhythm, thresholds and Tension', () => {
     const almost = playCard(atTension(s0, 2), 'atTheLimit');
     expect(almost.player.block).toBe(0);
     expect(almost.enemies.map((e) => e.escape)).toEqual(s0.enemies.map((e) => e.escape));
+    expect(describeCard(gameData.cards.atTheLimit)).toBe('If your Tension is full before this card: gain 6 Hold and 4 drain to a random creature.');
   });
 
   it('Slack Water: Drain 8 at 0 Tension, 2 otherwise', () => {
