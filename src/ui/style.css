@@ -31,6 +31,9 @@
   --block: #6fb6ea;
   --highlight: #f5d76e;
   color-scheme: dark;
+  /* A pull down at the top of the page doesn't reload it (phones' pull-to-refresh), which would
+     drop the player on the menu. The page still scrolls, so the browser's bar still hides. */
+  overscroll-behavior-y: none;
   font-family: 'Monogram', system-ui, sans-serif;
   -webkit-font-smoothing: none;
   color: var(--text);
