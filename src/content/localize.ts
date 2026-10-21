@@ -81,8 +81,18 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
     levels: source.levels.map((l) => ({
       ...l,
       name: tr.levels?.[l.id] ?? l.name,
-      miniBoss: l.miniBoss && { ...l.miniBoss, label: place(l.miniBoss.label), releaseReason: reason(l.miniBoss.releaseReason) },
-      boss: l.boss && { ...l.boss, label: place(l.boss.label), releaseReason: reason(l.boss.releaseReason) },
+      miniBoss: l.miniBoss && {
+        ...l.miniBoss,
+        label: place(l.miniBoss.label),
+        releaseReason: reason(l.miniBoss.releaseReason),
+        candidates: l.miniBoss.candidates?.map((c) => ({ ...c, releaseReason: reason(c.releaseReason) })),
+      },
+      boss: l.boss && {
+        ...l.boss,
+        label: place(l.boss.label),
+        releaseReason: reason(l.boss.releaseReason),
+        candidates: l.boss.candidates?.map((c) => ({ ...c, releaseReason: reason(c.releaseReason) })),
+      },
       firstColumn: l.firstColumn?.map((s) => ({ ...s, label: place(s.label) })),
       nodes: l.nodes?.map((n) => ({ ...n, label: n.label && place(n.label), releaseReason: n.releaseReason && reason(n.releaseReason) })),
     })),

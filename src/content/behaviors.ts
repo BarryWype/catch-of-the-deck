@@ -100,6 +100,7 @@ export const behaviors = {
       move('circleLure', 'Circle the Lure', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { lunge: 30, circle: 20, sizeUp: 15, grab: 15, circleLure: 20 } },
+    bossPattern: { type: 'sequence', moves: ['lunge', 'circle', 'sizeUp', 'bite', 'grab', 'lunge', 'circleLure'] },
   },
 
   /** Spines and venom. */
@@ -112,6 +113,7 @@ export const behaviors = {
       move('lieStill', 'Lie Still', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { venomStrike: 25, raiseSpines: 25, sting: 15, bristle: 15, lieStill: 20 } },
+    bossPattern: { type: 'sequence', moves: ['venomStrike', 'sting', 'raiseSpines', 'bristle', 'venomStrike', 'lieStill'] },
   },
 
   /** Inflates and pokes, then has to deflate. */
@@ -124,6 +126,7 @@ export const behaviors = {
       move('deflate', 'Deflate', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { spikeJab: 30, paddle: 25, puffUp: 20, bump: 10, deflate: 15 } },
+    bossPattern: { type: 'sequence', moves: ['spikeJab', 'puffUp', 'paddle', 'bump', 'spikeJab', 'deflate'] },
   },
 
   /** Hides, waits, then strikes hard. Hit it while it's hiding! */
@@ -137,6 +140,7 @@ export const behaviors = {
       move('settle', 'Settle in the Sand', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { snap: 25, lurk: 25, stirSilt: 15, lieInWait: 15, settle: 20 } },
+    bossPattern: { type: 'sequence', moves: ['snap', 'stirSilt', 'lurk', 'lieInWait', 'ambush', 'settle'] },
   },
 
   /** Game fish that put up a fight on the line, and need to catch their breath. */
@@ -149,6 +153,7 @@ export const behaviors = {
       move('catchBreath', 'Catch Breath', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { tailSlap: 30, leap: 25, thrash: 10, shake: 15, catchBreath: 20 } },
+    bossPattern: { type: 'sequence', moves: ['tailSlap', 'leap', 'shake', 'thrash', 'tailSlap', 'catchBreath'] },
   },
 
   /** Huge and slow: sounds deep, heaves, then hangs off the line like dead weight. */
@@ -187,6 +192,7 @@ export const behaviors = {
       move('restOnRocks', 'Rest on the Rocks', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { spit: 25, clampShut: 25, clampTight: 15, snap: 15, restOnRocks: 20 } },
+    bossPattern: { type: 'sequence', moves: ['spit', 'clampShut', 'snap', 'clampTight', 'spit', 'restOnRocks'] },
   },
 
   /** Drifting stingers. */

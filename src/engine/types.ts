@@ -662,6 +662,8 @@ export interface FixedFightDef {
   enemies: string[];
   /** Why it's let go after the fight (see `LevelNodeDef.releaseReason`). */
   releaseReason: string;
+  /** With `bossPools`: who it can be instead, one drawn per run (`enemies` and its release reason). */
+  candidates?: { enemies: string[]; releaseReason: string }[];
 }
 
 /** A fight node of a generated level that's always there, e.g. on the base map's own rocks. */

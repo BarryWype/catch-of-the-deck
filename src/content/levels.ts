@@ -8,7 +8,9 @@ import type { LevelDef } from '../engine';
  * To edit a level:
  * - `height`: how much of the art it shows, from the top (300 = the land and the shallows).
  * - `miniBoss`, `boss`: where they are, who they are (`enemies`), and why they're let go after the
- *   fight (`releaseReason`: "<creature> is <reason>, so you let it go.").
+ *   fight (`releaseReason`: "<creature> is <reason>, so you let it go."). With the `bossPools`
+ *   feature, one of `candidates` is drawn per run instead, each with its own reason; a creature
+ *   is a candidate in one slot only.
  * - `escape`: the leave node offered right after the mini-boss (ends the run, bucket brought home).
  * - `firstColumn`: fights that make up column 1 every run, instead of the coast's places.
  * - `eventBand`: the band of the art (top, bottom) where events fill in when a column runs short of places.
@@ -28,8 +30,30 @@ export const levels: LevelDef[] = [
     tier: 1,
     start: HOME,
     height: 300,
-    miniBoss: { x: 692, y: 206, label: 'Estuary', enemies: ['blueCrab'], releaseReason: 'too feisty to keep' },
-    boss: { x: 1262, y: 230, label: 'Lighthouse Point', enemies: ['giantPacificOctopus'], releaseReason: 'a protected species here' },
+    miniBoss: {
+      x: 692,
+      y: 206,
+      label: 'Estuary',
+      enemies: ['blueCrab'],
+      releaseReason: 'too feisty to keep',
+      candidates: [
+        { enemies: ['blueCrab'], releaseReason: 'too feisty to keep' },
+        { enemies: ['spottedPufferfish'], releaseReason: 'too prickly to handle' },
+        { enemies: ['pike'], releaseReason: 'the old champion of the river' },
+      ],
+    },
+    boss: {
+      x: 1262,
+      y: 230,
+      label: 'Lighthouse Point',
+      enemies: ['giantPacificOctopus'],
+      releaseReason: 'a protected species here',
+      candidates: [
+        { enemies: ['giantPacificOctopus'], releaseReason: 'a protected species here' },
+        { enemies: ['commonLobster'], releaseReason: 'older than your grandpa' },
+        { enemies: ['catfish'], releaseReason: 'the oldest fish in the lake' },
+      ],
+    },
     escape: ESCAPE,
     // The base map's own spots by the house: its rocks, the sea beside them, and its creek.
     firstColumn: [
@@ -45,8 +69,30 @@ export const levels: LevelDef[] = [
     tier: 2,
     start: HOME,
     height: 375,
-    miniBoss: { x: 692, y: 330, label: 'Middle of the bay', enemies: ['commonOctopus'], releaseReason: 'a protected species' },
-    boss: { x: 1250, y: 340, label: 'Reef edge', enemies: ['giantMorayEel'], releaseReason: 'far too aggressive to keep' },
+    miniBoss: {
+      x: 692,
+      y: 330,
+      label: 'Middle of the bay',
+      enemies: ['commonOctopus'],
+      releaseReason: 'a protected species',
+      candidates: [
+        { enemies: ['commonOctopus'], releaseReason: 'a protected species' },
+        { enemies: ['lionfish'], releaseReason: 'far too venomous to keep' },
+        { enemies: ['atlanticSalmon'], releaseReason: 'on its way upriver to spawn' },
+      ],
+    },
+    boss: {
+      x: 1250,
+      y: 340,
+      label: 'Reef edge',
+      enemies: ['giantMorayEel'],
+      releaseReason: 'far too aggressive to keep',
+      candidates: [
+        { enemies: ['giantMorayEel'], releaseReason: 'far too aggressive to keep' },
+        { enemies: ['giantClam'], releaseReason: 'the heart of the reef' },
+        { enemies: ['bluefinTuna'], releaseReason: 'tagged by a research team' },
+      ],
+    },
     escape: ESCAPE,
     eventBand: [30, 360],
   },
@@ -56,8 +102,30 @@ export const levels: LevelDef[] = [
     tier: 3,
     start: HOME,
     height: 450,
-    miniBoss: { x: 692, y: 206, label: 'Estuary crossing', enemies: ['starrySturgeon'], releaseReason: 'a protected species' },
-    boss: { x: 1240, y: 430, label: 'The drop-off', enemies: ['atlanticGiantSquid'], releaseReason: 'far too big to keep' },
+    miniBoss: {
+      x: 692,
+      y: 206,
+      label: 'Estuary crossing',
+      enemies: ['starrySturgeon'],
+      releaseReason: 'a protected species',
+      candidates: [
+        { enemies: ['starrySturgeon'], releaseReason: 'a protected species' },
+        { enemies: ['stonefish'], releaseReason: 'far too dangerous to handle' },
+        { enemies: ['swordfish'], releaseReason: 'too big for the boat' },
+      ],
+    },
+    boss: {
+      x: 1240,
+      y: 430,
+      label: 'The drop-off',
+      enemies: ['atlanticGiantSquid'],
+      releaseReason: 'far too big to keep',
+      candidates: [
+        { enemies: ['atlanticGiantSquid'], releaseReason: 'far too big to keep' },
+        { enemies: ['shortfinMakoShark'], releaseReason: 'a shark, and sharks go back' },
+        { enemies: ['oarfish'], releaseReason: 'a creature of legend' },
+      ],
+    },
     escape: ESCAPE,
     eventBand: [30, 435],
   },

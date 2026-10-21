@@ -378,6 +378,7 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
   }
 
   const nodeIds = new Set<string>();
+  const bossCandidates = new Set<string>();
   for (const level of source.levels) {
     const where = `Level "${level.id}"`;
     if (!(Number.isInteger(level.tier) && level.tier >= 1)) errors.push(`${where}: tier must be a whole number ≥ 1.`);
@@ -387,6 +388,16 @@ function validateLevels(source: ContentSource, typeIds: Set<string>, enemyIds: S
       for (const stop of level.firstColumn ?? []) if (!spotIds.has(stop.spot)) errors.push(`${where}: unknown fishing spot "${stop.spot}".`);
       for (const fight of [level.miniBoss, level.boss]) {
         for (const id of fight?.enemies ?? []) if (!enemyIds.has(id)) errors.push(`${where}: unknown enemy "${id}".`);
+        for (const candidate of fight?.candidates ?? []) {
+          for (const id of candidate.enemies) {
+            if (!enemyIds.has(id)) errors.push(`${where}: unknown boss candidate "${id}".`);
+            // A creature is a candidate of one mini-boss or boss only, so a run never meets it twice.
+            if (bossCandidates.has(id)) errors.push(`${where}: "${id}" is already a candidate of another mini-boss or boss.`);
+            bossCandidates.add(id);
+          }
+          const def = source.enemies.find((e) => e.id === candidate.enemies[0]);
+          if (def && def.bossPattern?.type !== 'sequence') errors.push(`${where}: boss candidate "${def.id}" needs a bossPattern sequence.`);
+        }
       }
       if (!hasEvents || !hasTreasures || !storesStocked) errors.push(`${where}: generated maps need events, treasure events and something in every store.`);
       continue;

@@ -140,6 +140,7 @@ export const creatures: CreatureDef[] = [
         move('holdStill', 'Hold Still', 'pull', 'light', { role: 'pace' }),
       ],
       pattern: { type: 'weighted', weights: { snap: 30, thrash: 20, lurk: 20, grab: 15, holdStill: 15 } },
+      bossPattern: { type: 'sequence', moves: ['snap', 'thrash', 'lurk', 'snap', 'grab', 'holdStill'] },
     },
   },
   { no: 55, id: 'commonBarbel', name: 'Common barbel', scientific: 'Barbus barbus', type: 'sportFish', water: 'fresh', tier: 1, hp: [26, 30], sellValue: 6, escapeAt: 105, escapeStart: 31, escapeRate: 15, temperament: 'fighter' },

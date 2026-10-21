@@ -6,6 +6,7 @@ import { storeEffectChips } from './storeEffects';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   activeBonuses,
+  hasFeature,
   progressionTotal,
   storeItems,
   availableDestinations,
@@ -337,7 +338,7 @@ function choose(node: MapNode) {
           </template>
           <text v-if="nodeState(node) === 'visited' && node.kind !== 'start'" class="check" x="8" y="-8">✓</text>
           <text v-if="node.label && (node.kind === 'miniBoss' || node.kind === 'boss')" class="label" :text-anchor="labelAnchor(node)" :x="labelAnchor(node) === 'end' ? 18 : 0" :y="node.kind === 'boss' ? -28 : -22">
-            {{ t(node.kind === 'boss' ? 'map.bossLabel' : 'map.miniBossLabel') }} · {{ node.label }}
+            {{ t(node.kind === 'boss' ? 'map.bossLabel' : 'map.miniBossLabel') }} · {{ hasFeature(data, 'bossPools') ? creatureNames(node) : node.label }}
           </text>
         </g>
       </svg>

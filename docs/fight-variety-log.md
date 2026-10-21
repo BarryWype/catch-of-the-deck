@@ -10,6 +10,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | 1. More events | 0% | 10.2 | 8.0 | 8.0 | |
 | 2. Gear relics | 0% | 11.0 | 7.9 | 7.9 | relics after each mini-boss (the bot takes one at random) |
 | 3. Trophy fights | 0% | 9.3 | 8.0 | 7.9 | trophy fights cost Grit before the mini-boss |
+| 4. Boss pools | 0% | 9.1 | 8.3 | 8.1 | kid mini-boss won 44% (59% before): Pike and the pufferfish hit harder than the Blue crab |
 
 ## Decisions
 
@@ -34,3 +35,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 - **Trophy markers are drawn last** on the map (after the stores), so turning `trophyElites` off or on changes nothing else on a seed's map.
 - **"Sells for 200%"** applies to every trophy-size catch while `trophyElites` is on (sizes had no other use), not only to trophy fights' catches.
 - **One relic offer at a time:** a trophy fight from an event that also promises a relic (the bottle with a map) offers one choice, not two.
+- **Candidates carry their own reason:** `candidates` is a list of `{ enemies, releaseReason }` rather than `string[][]`, since each one needs its `releaseReason`. `enemies` and `releaseReason` stay as they were, for when `bossPools` is off. The draw happens when each level's map is built (the run's start, then each `enterNextLevel`), after the trophies.
+- **"All unique across the run"** is guaranteed by the content: a creature may be a candidate of one slot only (checked on startup), so no draw can repeat one.
+- **Boss patterns:** predator, venomous, puffer, ambusher, fighter and armored had none; each got a `bossPattern` sequence in `behaviors.ts`, and the Pike one for its own moves. They only matter for creatures fought as mini-bosses or bosses.
+- **The map names the drawn creature** on the mini-boss and boss labels when `bossPools` is on (the place name otherwise).

@@ -35,7 +35,7 @@ describe('trophy fights on the map', () => {
   });
 
   it('none with the feature off, and the map is otherwise the same', () => {
-    const on = createRun(4, data, 'rod');
+    const on = createRun(4, { ...data, features: { ...NO_FEATURES, trophyElites: true } }, 'rod');
     const off = createRun(4, gameData, 'rod');
     expect(trophyNodes(off)).toEqual([]);
     const strip = (r: RunState) => r.map.columns.flat().map(({ trophy, ...n }) => n);

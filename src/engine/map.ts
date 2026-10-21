@@ -53,7 +53,18 @@ export function buildLevelMap(data: GameData, levelIndex: number, holder: RngHol
     assignStores(map, holder);
   }
   if (hasFeature(data, 'trophyElites')) markTrophies(map, holder);
+  if (hasFeature(data, 'bossPools')) drawBosses(map, level, holder);
   return map;
+}
+
+/** The mini-boss and boss this run meets on the level, each drawn among its `candidates` (`bossPools`). */
+function drawBosses(map: GameMap, level: LevelDef, holder: RngHolder) {
+  for (const [kind, def] of [['miniBoss', level.miniBoss], ['boss', level.boss]] as const) {
+    const node = map.columns.flat().find((n) => n.kind === kind);
+    if (!node || !def?.candidates?.length) continue;
+    const drawn = def.candidates[nextInt(holder, 0, def.candidates.length - 1)];
+    Object.assign(node, { enemies: [...drawn.enemies], releaseReason: drawn.releaseReason });
+  }
 }
 
 /**
