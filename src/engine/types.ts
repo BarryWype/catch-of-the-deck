@@ -578,6 +578,46 @@ export type IntentPattern =
   /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row. A special never follows a special, and a Wind-up never follows Ink. */
   | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number };
 
+/**
+ * What a temperament's signature trait does (`traits`), each rule worked out where it acts (see
+ * traits.ts). Effects are resolved as the creature, numbers as written.
+ */
+export type TraitRule =
+  /** After this many hits from the player in one turn: `effect` (once a turn). */
+  | { type: 'afterHits'; hits: number; effect: Effect }
+  /** It keeps this share of its Block into its next turn. */
+  | { type: 'keepBlock'; percent: number }
+  /** Its Will rises only one turn in `every`, `times` as much. */
+  | { type: 'slowWill'; every: number; times: number }
+  /** The player's first Drain on it each turn drains this share of itself (rounded up). */
+  | { type: 'firstDrain'; percent: number }
+  /** The first time its Health drops below `percent`, its Will jumps by `will` (× the fight's scale). */
+  | { type: 'belowHealth'; percent: number; will: number }
+  /** Its Ink hides this many of its moves. */
+  | { type: 'inkMoves'; moves: number }
+  /** The first time the player's Grit drops below `percent` from a creature's hit: `effect`. */
+  | { type: 'playerBelow'; percent: number; effect: Effect }
+  /** Once, while its Will is below `percent`, a pace move it would play becomes its normal Pull. */
+  | { type: 'lastRun'; percent: number }
+  /** Venom it puts on the player loses no charge the first time it hits. */
+  | { type: 'lingeringVenom' }
+  /** Every `every`th move it shows a random move of its set instead, played for real only if it's the one (a "?" warns of it). */
+  | { type: 'bluff'; every: number }
+  /** While its next move is its pace, the player's attacks deal this share less. */
+  | { type: 'paceGuard'; percent: number }
+  /** At the start of each of its turns: `effect`. */
+  | { type: 'turnStart'; effect: Effect }
+  /** When its Block soaks a whole hit of the player's, it deals this much back. */
+  | { type: 'counter'; damage: number };
+
+/** A temperament's signature trait, shown as a labelled badge on its creatures. */
+export interface TraitDef {
+  name: string;
+  /** Player-facing rules text, for the badge's tip. */
+  description: string;
+  rule: TraitRule;
+}
+
 export interface EnemyDef {
   id: string;
   name: string;
@@ -608,6 +648,8 @@ export interface EnemyDef {
   habitat?: Habitat;
   /** Picks its companion bonus (`GameData.companionBonuses`) when brought from the home aquarium. */
   temperament?: string;
+  /** Its temperament's signature trait (`traits`). */
+  trait?: TraitDef;
   /** Bond points to be fully bonded once it lives in the home aquarium (see bond.ts). Defaults to 100. */
   bondToFull?: number;
   /** 'fresh', 'salt' or 'brackish': which fishing spots it can be met at (`SpotDef.waters`). */
@@ -812,6 +854,12 @@ export interface EnemyState extends Combatant {
   foresight?: string;
   /** A trophy fight's creature: bigger bars and moves, always caught at trophy size (`trophyElites`). */
   trophy?: boolean;
+  /** Its trait's bookkeeping (`traits`): hits taken and a Drain received this player turn, a once-a-fight trait used, Ink moves still to hide, the move shown while it bluffs. */
+  hitsThisTurn?: number;
+  drainedThisTurn?: boolean;
+  traitUsed?: boolean;
+  inkLeft?: number;
+  bluff?: string;
 }
 
 export interface CardInstance {
@@ -864,6 +912,8 @@ export interface CombatState {
   slowCap?: number;
   /** Cards (uids) that cost no energy this fight (an event's `freeNextFight`). */
   freeCards?: string[];
+  /** The player's Venom loses no charge at its next hit (a `lingeringVenom` trait). */
+  venomLinger?: boolean;
 }
 
 /** Effects that happen at the start of the player's next turns, on the target they were played on. */

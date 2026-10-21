@@ -3,7 +3,8 @@ import { bonusTotal } from './companions';
 import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
-import { pickWeighted } from './rng';
+import { nextInt, pickWeighted } from './rng';
+import { traitOf } from './traits';
 import { nextMoveMods, statusDescription, statusName } from './statuses';
 import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveIntensity, MoveRole, MoveTag } from './types';
 import { text } from './text';
@@ -35,6 +36,8 @@ export interface IntentPreview {
   intensity?: MoveIntensity;
   /** The move bait put off (`delayMove`): it comes on the creature's turn after this one. */
   delayed?: string;
+  /** This may be a bluff (a Dazzle trait): the creature shows a random move of its set. */
+  mayBluff?: boolean;
 }
 
 /** A mini-boss's or boss's Second Wind: not in its move set, telegraphed once (`telegraphSecondWind`). */
@@ -67,6 +70,7 @@ export function telegraphSecondWind(enemy: EnemyState, data: GameData): boolean 
   enemy.secondWindUsed = true;
   enemy.intent = SECOND_WIND_ID;
   enemy.intentHidden = false;
+  delete enemy.bluff;
   return true;
 }
 
@@ -78,6 +82,12 @@ export function telegraphSecondWind(enemy: EnemyState, data: GameData): boolean 
 export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameData): void {
   enemy.intentHidden = !!enemy.inked;
   enemy.inked = false;
+  delete enemy.bluff;
+  // Ink Sense: the Ink hides more moves to come.
+  if (enemy.inkLeft) {
+    enemy.inked = true;
+    enemy.inkLeft--;
+  }
   if (telegraphSecondWind(enemy, data)) return;
   // After the Pace bait put in, the move it put off.
   if (enemy.delayedIntent !== undefined) {
@@ -93,6 +103,21 @@ export function chooseIntent(state: CombatState, enemy: EnemyState, data: GameDa
     enemy.intent = nextMove(state, enemy, data, enemy.moveHistory);
   }
   if (bonusTotal(state.bonuses, 'foresight') > 0) enemy.foresight = nextMove(state, enemy, data, [...enemy.moveHistory, enemy.intent]);
+  const rule = traitOf(enemy, data);
+  const moves = data.enemies[enemy.defId].moves;
+  // Second Run: low on Will, it trades a rest for one more pull.
+  if (rule?.type === 'lastRun' && !enemy.traitUsed && enemy.escape * 100 < enemy.escapeAt * rule.percent && getIntentMove(enemy, data)?.role === 'pace') {
+    const pull = moves.find((m) => m.tag === 'pull' && m.intensity === 'normal' && !m.role);
+    if (pull) {
+      enemy.intent = pull.id;
+      enemy.traitUsed = true;
+    }
+  }
+  // Dazzle: every few moves it shows a random one of its moves instead.
+  if (rule?.type === 'bluff' && (enemy.moveHistory.length + 1) % rule.every === 0) {
+    const shown = moves.filter((m) => m.role !== 'heavy');
+    enemy.bluff = shown[nextInt(state, 0, shown.length - 1)].id;
+  }
 }
 
 /** The creature's next move from its pattern, after these moves. */
@@ -138,6 +163,8 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
   const move = getIntentMove(enemy, data);
   if (!move) return;
   enemy.intentHidden = false;
+  if (enemy.bluff !== undefined && enemy.bluff !== move.id) addLog(state, text('log.bluff', { name: enemy.name }));
+  delete enemy.bluff;
   addLog(state, text('log.uses', { name: enemy.name, move: move.name }));
   // Statuses the player put on it change this move, and are used up by it.
   const mods = moveMods(state, enemy, move);
@@ -176,6 +203,11 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
   const move = getIntentMove(enemy, data);
   if (!move) return null;
   if (enemy.intentHidden) return { moveName: '?', tag: move.tag, hidden: true, description: '', kinds: [] };
+  // Dazzle: it shows the move it bluffs with, flagged as maybe a bluff.
+  if (enemy.bluff !== undefined) {
+    const shown = previewIntent(state, { ...enemy, intent: enemy.bluff, bluff: undefined, delayedIntent: undefined }, data);
+    return shown && { ...shown, mayBluff: true };
+  }
   const preview: IntentPreview = {
     moveName: move.name,
     tag: move.id === SECOND_WIND_ID ? 'secondWind' : move.tag,

@@ -19,6 +19,9 @@ export const fr: Messages = {
       secondWind: 'Second souffle',
     },
     log: {
+      trait: '{name} : {trait} !',
+      counter: '{name} : {trait} ! Tu perds {n} de {@grit}.',
+      bluff: '{name} bluffait !',
       turn: '— Tour {n} —',
       plays: '{who} joue {card}.',
       uses: '{name} utilise {move}.',
@@ -370,6 +373,9 @@ export const fr: Messages = {
     },
     combat: {
       badge: {
+        trait: 'Le trait de son tempérament : {text}',
+        bluff: '?',
+        bluffTip: 'Elle bluffe peut-être : l’action affichée peut être fausse. Tu le sauras quand elle jouera.',
         trophy: '🏆 Trophée',
         trophyTip: 'Un combat trophée : plus de Vie et de Volonté, des coups plus durs, et 1 Force. Gagne-le pour un équipement ; la prise est de taille trophée.',
       },

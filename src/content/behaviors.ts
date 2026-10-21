@@ -1,4 +1,4 @@
-import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type MoveIntensity, type MoveRole, type MoveTag, type StatusId } from '../engine';
+import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type MoveIntensity, type MoveRole, type MoveTag, type StatusId, type TraitDef } from '../engine';
 
 /**
  * Shared move sets. A creature in creatures.ts picks one by name, so
@@ -18,12 +18,15 @@ import { MOVE_INTENSITY, type Effect, type EnemyMove, type IntentPattern, type M
  * bosses (whose Wind-ups also give 1), MAX_MOVE_STRENGTH per fight at most.
  * Patterns: 'weighted' for ordinary creatures; `bossPattern`, a fixed 'sequence', when the
  * creature is a mini-boss or boss.
+ * Traits (`trait`, the `traits` feature): one rule per temperament (TraitRule), its numbers here.
  */
 export interface Behavior {
   moves: EnemyMove[];
   pattern: IntentPattern;
   /** Its pattern as a mini-boss or boss. */
   bossPattern?: IntentPattern;
+  /** The temperament's signature trait (the `traits` feature), shown as a badge on its creatures. */
+  trait?: TraitDef;
 }
 
 /** A normal move's Strike or Pull before the fight scales it (only the ratios between moves matter). */
@@ -75,6 +78,7 @@ export const behaviors = {
       move('flashColors', 'Flashy Zigzag', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { nip: 35, dartAway: 25, nibble: 20, flashColors: 20 } },
+    trait: { name: 'Dazzle', description: 'Every third move, it shows a random move of its set: a "?" warns it may be a bluff.', rule: { type: 'bluff', every: 3 } },
   },
 
   /** Tiny fish in a shoal: many small bites, and they get under your skin. */
@@ -87,6 +91,7 @@ export const behaviors = {
       move('weave', 'Weave Through the Line', 'pull', 'light', { ...special, extras: [junk('tangledLine')] }),
     ],
     pattern: { type: 'weighted', weights: { swarm: 30, scatter: 25, regroup: 20, startle: 12, weave: 13 } },
+    trait: { name: 'Scatter', description: 'The first time its Health drops below 50%, its Will jumps by 10.', rule: { type: 'belowHealth', percent: 50, will: 10 } },
   },
 
   /** Hunters: they size up the lure, then shake hard and run. */
@@ -101,6 +106,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { lunge: 30, circle: 20, sizeUp: 15, grab: 15, circleLure: 20 } },
     bossPattern: { type: 'sequence', moves: ['lunge', 'circle', 'sizeUp', 'bite', 'grab', 'lunge', 'circleLure'] },
+    trait: { name: 'Bloodlust', description: 'The first time a creature’s hit drops your Grit below 50%, it gains 1 Strength.', rule: { type: 'playerBelow', percent: 50, effect: { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' } } },
   },
 
   /** Spines and venom. */
@@ -114,6 +120,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { venomStrike: 25, raiseSpines: 25, sting: 15, bristle: 15, lieStill: 20 } },
     bossPattern: { type: 'sequence', moves: ['venomStrike', 'sting', 'raiseSpines', 'bristle', 'venomStrike', 'lieStill'] },
+    trait: { name: 'Toxic', description: 'Venom it gives you doesn’t wear off the first time it hits.', rule: { type: 'lingeringVenom' } },
   },
 
   /** Inflates and pokes, then has to deflate. */
@@ -127,6 +134,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { spikeJab: 30, paddle: 25, puffUp: 20, bump: 10, deflate: 15 } },
     bossPattern: { type: 'sequence', moves: ['spikeJab', 'puffUp', 'paddle', 'bump', 'spikeJab', 'deflate'] },
+    trait: { name: 'Inflate', description: 'After taking 3 hits in one turn, it puffs up: you get 2 Spines.', rule: { type: 'afterHits', hits: 3, effect: { type: 'applyStatus', status: 'spines', amount: 2 } } },
   },
 
   /** Hides, waits, then strikes hard. Hit it while it's hiding! */
@@ -141,6 +149,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { snap: 25, lurk: 25, stirSilt: 15, lieInWait: 15, settle: 20 } },
     bossPattern: { type: 'sequence', moves: ['snap', 'stirSilt', 'lurk', 'lieInWait', 'ambush', 'settle'] },
+    trait: { name: 'Camouflage', description: 'It starts each of its turns hidden behind 3 Block.', rule: { type: 'turnStart', effect: { type: 'gainBlock', amount: 3 } } },
   },
 
   /** Game fish that put up a fight on the line, and need to catch their breath. */
@@ -154,6 +163,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { tailSlap: 30, leap: 25, thrash: 10, shake: 15, catchBreath: 20 } },
     bossPattern: { type: 'sequence', moves: ['tailSlap', 'leap', 'shake', 'thrash', 'tailSlap', 'catchBreath'] },
+    trait: { name: 'Second Run', description: 'Once, when its Will is below 25%, it skips a rest for one more normal Pull.', rule: { type: 'lastRun', percent: 25 } },
   },
 
   /** Huge and slow: sounds deep, heaves, then hangs off the line like dead weight. */
@@ -167,6 +177,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { ram: 25, longRun: 25, dive: 15, heave: 15, drift: 20 } },
     bossPattern: { type: 'sequence', moves: ['ram', 'longRun', 'dive', 'heave', 'ram', 'drift'] },
+    trait: { name: 'Deep Runs', description: 'Its Will rises only every other turn, but twice as much.', rule: { type: 'slowWill', every: 2, times: 2 } },
   },
 
   /** Wriggles, hides in the rocks, coils, then wriggles hard. */
@@ -180,6 +191,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { doubleBite: 30, coil: 25, coilUp: 15, slime: 15, crevice: 15 } },
     bossPattern: { type: 'sequence', moves: ['doubleBite', 'slime', 'coil', 'coilUp', 'doubleBite', 'crevice'] },
+    trait: { name: 'Slippery', description: 'Your first Drain on it each turn drains half.', rule: { type: 'firstDrain', percent: 50 } },
   },
 
   /** Shells: very hard to crack. */
@@ -193,6 +205,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { spit: 25, clampShut: 25, clampTight: 15, snap: 15, restOnRocks: 20 } },
     bossPattern: { type: 'sequence', moves: ['spit', 'clampShut', 'snap', 'clampTight', 'spit', 'restOnRocks'] },
+    trait: { name: 'Hard Shell', description: 'It keeps half its Block from one turn to the next.', rule: { type: 'keepBlock', percent: 50 } },
   },
 
   /** Drifting stingers. */
@@ -205,6 +218,7 @@ export const behaviors = {
       move('pulse', 'Pulse', 'pull', 'light', pace),
     ],
     pattern: { type: 'weighted', weights: { wrap: 25, drift: 25, sting: 15, tangle: 15, pulse: 20 } },
+    trait: { name: 'Drifting', description: 'While its next move is its rest, your attacks deal 25% less.', rule: { type: 'paceGuard', percent: 25 } },
   },
 
   /** Octopus and squid: ink, many suckers, a change of colour, then anchored to a rock. */
@@ -219,6 +233,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { tentacles: 25, squeeze: 20, inkCloud: 15, venomBite: 10, changeColour: 15, hover: 15 } },
     bossPattern: { type: 'sequence', moves: ['tentacles', 'inkCloud', 'squeeze', 'venomBite', 'changeColour', 'tentacles', 'hover'] },
+    trait: { name: 'Ink Sense', description: 'Its Ink hides its next two moves instead of one.', rule: { type: 'inkMoves', moves: 2 } },
   },
 
   /** Crabs, lobsters and other crustaceans: pinch, wedge in, raise the claws, crush. */
@@ -233,6 +248,7 @@ export const behaviors = {
     ],
     pattern: { type: 'weighted', weights: { pinch: 30, shellUp: 25, brandishClaws: 15, kickSand: 15, raiseClaws: 15 } },
     bossPattern: { type: 'sequence', moves: ['pinch', 'shellUp', 'kickSand', 'brandishClaws', 'crush', 'raiseClaws'] },
+    trait: { name: 'Counter-pinch', description: 'When its Block soaks a whole hit, it pinches back for 2.', rule: { type: 'counter', damage: 2 } },
   },
 
   /** Slugs, stars, worms and other things on the sea floor: they also stop to graze. */
@@ -245,6 +261,7 @@ export const behaviors = {
       move('graze', 'Graze', 'pull', 'light', { ...pace, extras: [{ type: 'healPercent', percent: 5, target: 'self' }] }),
     ],
     pattern: { type: 'weighted', weights: { prickle: 30, harden: 25, ooze: 15, stirSilt: 10, graze: 20 } },
+    trait: { name: 'Regrowth', description: 'It heals 3% of its Health at the start of each of its turns.', rule: { type: 'turnStart', effect: { type: 'healPercent', percent: 3, target: 'self' } } },
   },
 } satisfies Record<string, Behavior>;
 

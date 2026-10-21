@@ -17,6 +17,7 @@ import {
   WIND_UP_PERCENT,
 } from './constants';
 import { hasFeature } from './features';
+import { traitOf } from './traits';
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
@@ -182,7 +183,7 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
   config.extraCards?.forEach((defId, i) => state.piles.hand.push({ uid: `x${i}`, defId }));
   for (const enemy of state.enemies) chooseIntent(state, enemy, data);
   startPlayerTurn(state, data);
-  fireTriggers(state, 'combatStart');
+  fireTriggers(state, 'combatStart', undefined, data);
   checkCombatEnd(state);
   return state;
 }
@@ -314,14 +315,20 @@ function onRandomCreature(state: CombatState, effect: Effect): void {
 function startPlayerTurn(state: CombatState, data: GameData): void {
   state.turn++;
   addLog(state, text('log.turn', { n: state.turn }));
-  venomStrikes(state, state.player);
+  // Toxic: Venom put on by such a creature loses no charge the first time it hits.
+  venomHits(state, state.player, !state.venomLinger);
+  delete state.venomLinger;
   if (checkCombatEnd(state)) return;
+  for (const enemy of state.enemies) {
+    delete enemy.hitsThisTurn;
+    delete enemy.drainedThisTurn;
+  }
   state.player.block = Math.min(state.player.block, keptBlock(state));
   state.keepHold = false;
   state.bonusTracker.carriedBlock = 0;
   state.bonusTracker.attacksThisTurn = 0;
   state.thisTurn = {};
-  if (runDelayedEffects(state)) return;
+  if (runDelayedEffects(state, data)) return;
   // Dead Weight: every creature gains Slow now, and it slows their coming turn.
   const deadWeight = powerTotal(state, 'deadWeight');
   if (deadWeight > 0) resolveEffect(state, { type: 'applyStatus', status: 'slow', amount: deadWeight, target: 'allEnemies' }, { sourceId: PLAYER_ID, raw: true });
@@ -334,16 +341,16 @@ function startPlayerTurn(state: CombatState, data: GameData): void {
     state.piles.discard.push(card);
     addLog(state, text('log.baitGrabbed', { who: state.player.name, card: data.cards[card.defId]?.name ?? card.defId }));
   }
-  if (state.turn === 2) fireTriggers(state, 'secondTurnStart');
+  if (state.turn === 2) fireTriggers(state, 'secondTurnStart', undefined, data);
 }
 
 /** Effects waiting for this turn (`delayed`, `echoDamage`), after the Hold reset. True if they ended the fight. */
-function runDelayedEffects(state: CombatState): boolean {
+function runDelayedEffects(state: CombatState, data: GameData): boolean {
   const due = state.delayed ?? [];
   state.delayed = [];
   for (const d of due) {
     for (const effect of d.effects) {
-      resolveEffect(state, effect, { sourceId: PLAYER_ID, targetId: d.targetId, raw: d.raw, fromCard: true });
+      resolveEffect(state, effect, { sourceId: PLAYER_ID, targetId: d.targetId, raw: d.raw, fromCard: true, data });
       if (checkCombatEnd(state)) return true;
     }
     if (d.turnsLeft > 1) state.delayed.push({ ...d, turnsLeft: d.turnsLeft - 1 });
@@ -412,8 +419,8 @@ function playCard(state: CombatState, cardUid: string, targetId: string | undefi
   if (state.phase === 'playerTurn' && (firstOfTurn || firstOfFight)) {
     // Cards hitting every enemy have no chosen target: the bonus lands on the first one still in.
     const hit = ctx.targetId ?? state.enemies.find(isAlive)?.id;
-    if (firstOfTurn) fireTriggers(state, 'firstAttackEachTurn', hit);
-    if (firstOfFight) fireTriggers(state, 'firstAttackEachFight', hit);
+    if (firstOfTurn) fireTriggers(state, 'firstAttackEachTurn', hit, data);
+    if (firstOfFight) fireTriggers(state, 'firstAttackEachFight', hit, data);
     checkCombatEnd(state);
   }
 
@@ -459,7 +466,7 @@ function endTurn(state: CombatState, data: GameData): void {
   }
   // A turn without an attack: gear and companion bonuses that reward it.
   if (state.bonusTracker.attacksThisTurn === 0) {
-    fireTriggers(state, 'quietTurnEnd');
+    fireTriggers(state, 'quietTurnEnd', undefined, data);
     if (checkCombatEnd(state)) return;
   }
   gainPatience(state, state.player.energy, 'waits');
@@ -477,8 +484,12 @@ function endTurn(state: CombatState, data: GameData): void {
 
   for (const enemy of state.enemies) {
     if (!isAlive(enemy)) continue;
-    enemy.block = 0;
+    const rule = traitOf(enemy, data);
+    // Hard Shell keeps some of its Block; anyone else's is gone.
+    enemy.block = rule?.type === 'keepBlock' ? Math.floor((enemy.block * rule.percent) / 100) : 0;
     delete enemy.statuses.burrowed;
+    // Regrowth and other turn-start traits.
+    if (rule?.type === 'turnStart') resolveEffect(state, rule.effect, { sourceId: enemy.id, targetId: enemy.id, data });
     venomStrikes(state, enemy);
     // Venom can wear a creature out before it acts: it's caught.
     if (checkCombatEnd(state)) return;
@@ -487,7 +498,9 @@ function endTurn(state: CombatState, data: GameData): void {
     executeIntent(state, enemy, data);
     if (checkCombatEnd(state)) return;
     // A pace move: its Will rises half as much this turn.
-    const rise = escapeRise(enemy, state.player.patience, state.slowCap);
+    let rise = escapeRise(enemy, state.player.patience, state.slowCap);
+    // Deep Runs: the Will rises only one turn in a few, by that much more.
+    if (rule?.type === 'slowWill') rise = enemy.moveHistory.length % rule.every === 0 ? rise * rule.times : 0;
     const paced = move?.role === 'pace' ? Math.ceil((rise * PACE_WILL_PERCENT) / 100) : rise;
     if (isAlive(enemy)) enemy.escape = Math.min(enemy.escapeAt, enemy.escape + paced);
     if (checkCombatEnd(state)) return;

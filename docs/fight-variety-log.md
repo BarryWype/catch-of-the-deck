@@ -12,6 +12,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | 3. Trophy fights | 0% | 9.3 | 8.0 | 7.9 | trophy fights cost Grit before the mini-boss |
 | 4. Boss pools | 0% | 9.1 | 8.3 | 8.1 | kid mini-boss won 44% (59% before): Pike and the pufferfish hit harder than the Blue crab |
 | 5. Own stats | 0% | 8.9 | 8.4 | 8.4 | ordinary fights spread wider: see below |
+| 6. Traits | 0% | 7.8 | 8.5 | 8.6 | traits mostly favour the creatures: the biggest drop so far |
 
 ### Phase 5: shortest and longest ordinary fights per level
 
@@ -51,3 +52,9 @@ The 1-turn fights are creatures that flee or are caught at once (bait, a lucky D
 - **Boss patterns:** predator, venomous, puffer, ambusher, fighter and armored had none; each got a `bossPattern` sequence in `behaviors.ts`, and the Pike one for its own moves. They only matter for creatures fought as mini-bosses or bosses.
 - **The map names the drawn creature** on the mini-boss and boss labels when `bossPools` is on (the place name otherwise).
 - **Own stats, read literally:** each creature is scaled by (its share of the pool) ÷ (its tier's average), Health from the middle of its range, Will from its starting Will (its top and rise follow, as the Will pool already did), damage from its pattern's `turnAverage`; then clamped to 70–140% of its share. The tier's averages come from every creature of the tier, met at that level or not.
+- **Fourteen temperaments, not thirteen:** the ambusher had no trait in the brief; it got **Camouflage** (3 Block at the start of each of its turns), reusing the `turnStart` rule.
+- **Traits are rules, not code per temperament:** a `TraitRule` union (afterHits, keepBlock, slowWill, firstDrain, belowHealth, inkMoves, playerBelow, lastRun, lingeringVenom, bluff, paceGuard, turnStart, counter), each implemented once at its hook, with its numbers in `behaviors.ts`.
+- **Inflate** "gains 2 Spines": Spines is a status on the player in this game (each attack hit costs Grit), so the puffer gives the player 2 Spines.
+- **Second Run** replaces the pace by the set's normal-intensity Pull without a role (the fighter's Leap Out).
+- **Dazzle** shows a random move of its set (heavy moves aside) every third move; it can be the real one, so the "?" means "maybe". Cards that read the intent still read the real move; the bar preview leaves it out so it doesn't give the bluff away.
+- **Bloodlust** watches creature hits only (not Venom or Spines).

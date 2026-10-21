@@ -171,6 +171,8 @@ export function validateContent(source: ContentSource): string[] {
       errors.push(`${where}: sprite index must be a whole number ≥ 1.`);
     }
     checkTags(where, enemy.tags ?? []);
+    const rule = enemy.trait?.rule;
+    if (rule && 'effect' in rule) checkEffects(`${where} trait`, [rule.effect]);
     const moveIds = new Set<string>();
     for (const move of enemy.moves) {
       if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);

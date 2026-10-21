@@ -32,6 +32,8 @@ function toEnemy(creature: CreatureDef): EnemyDef {
     sprite: creature.sprite ?? { sheet: 'fishes', index: creature.no },
     habitat: creature.habitat ?? HABITAT_BY_TEMPERAMENT[creature.temperament] ?? 'swim',
     temperament: creature.temperament,
+    // The trait is the temperament's, even with a move set of its own.
+    ...(behaviors[creature.temperament].trait ? { trait: behaviors[creature.temperament].trait } : {}),
     water: creature.water,
   };
 }

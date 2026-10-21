@@ -14,6 +14,7 @@ import {
   PLAYER_ID,
   previewCard,
   previewForesight,
+  hasFeature,
   previewIntent,
   previewIntents,
   progressionTotal,
@@ -117,6 +118,9 @@ const releasedNames = computed(() => [...new Set(props.state.enemies.map((e) => 
 function badgesOf(enemy: EnemyState) {
   const badges: { key: string; label: string; tip: string; tone?: 'trait' | 'affix' | 'warn' }[] = [];
   if (enemy.trophy) badges.push({ key: 'trophy', label: t('combat.badge.trophy'), tip: t('combat.badge.trophyTip'), tone: 'affix' });
+  const trait = hasFeature(props.data, 'traits') ? props.data.enemies[enemy.defId]?.trait : undefined;
+  if (trait) badges.push({ key: 'trait', label: trait.name, tip: t('combat.badge.trait', { text: trait.description }), tone: 'trait' });
+  if (previewIntent(shownState.value, enemy, props.data)?.mayBluff) badges.push({ key: 'bluff', label: t('combat.badge.bluff'), tip: t('combat.badge.bluffTip'), tone: 'warn' });
   return badges;
 }
 

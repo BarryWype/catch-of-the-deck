@@ -24,6 +24,9 @@ export const en = {
       secondWind: 'Second Wind',
     },
     log: {
+      trait: '{name}: {trait}!',
+      counter: '{name}: {trait}! You lose {n} {@grit}.',
+      bluff: '{name} was bluffing!',
       turn: '— Turn {n} —',
       plays: '{who} plays {card}.',
       uses: '{name} uses {move}.',
@@ -382,6 +385,9 @@ export const en = {
     },
     combat: {
       badge: {
+        trait: 'Its temperament’s trait: {text}',
+        bluff: '?',
+        bluffTip: 'It may be bluffing: the move shown could be a fake. You’ll know when it plays.',
         trophy: '🏆 Trophy',
         trophyTip: 'A trophy fight: more Health and Will, harder hits, and 1 Strength. Win it for a piece of gear, and it’s caught at trophy size.',
       },

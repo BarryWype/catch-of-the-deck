@@ -455,6 +455,23 @@ export const frContent: ContentTranslations = {
     bottomDweller: { name: 'Charognard', temperamentName: 'Benthique', description: '+10 % de pièces pour chaque capture.' },
   },
 
+  traits: {
+    reefFish: { name: 'Éblouissement', description: 'Une action sur trois, elle montre une action au hasard : un « ? » prévient que c’est peut-être du bluff.' },
+    schooling: { name: 'Dispersion', description: 'La première fois que sa Vie passe sous 50 %, sa Volonté bondit de 10.' },
+    predator: { name: 'Soif de sang', description: 'La première fois qu’un coup de créature fait passer ta Ténacité sous 50 %, elle gagne 1 Force.' },
+    venomous: { name: 'Toxique', description: 'Le Venin qu’elle te donne ne s’estompe pas la première fois qu’il frappe.' },
+    puffer: { name: 'Gonflement', description: 'Après 3 coups reçus dans un même tour, elle se gonfle : tu reçois 2 Épines.' },
+    ambusher: { name: 'Camouflage', description: 'Elle commence chacun de ses tours cachée derrière 3 de Blocage.' },
+    fighter: { name: 'Second rush', description: 'Une fois, quand sa Volonté est sous 25 %, elle saute un repos pour une Traction normale de plus.' },
+    giant: { name: 'Plongées profondes', description: 'Sa Volonté ne monte qu’un tour sur deux, mais deux fois plus.' },
+    eel: { name: 'Glissante', description: 'Ton premier Drainage sur elle à chaque tour draine moitié moins.' },
+    armored: { name: 'Carapace dure', description: 'Elle garde la moitié de son Blocage d’un tour à l’autre.' },
+    jellyfish: { name: 'Dérive', description: 'Quand sa prochaine action est son repos, tes attaques infligent 25 % de moins.' },
+    cephalopod: { name: 'Sens de l’encre', description: 'Son Encre cache ses deux prochaines actions au lieu d’une.' },
+    clawed: { name: 'Contre-pince', description: 'Quand son Blocage absorbe un coup entier, elle pince en retour pour 2.' },
+    bottomDweller: { name: 'Repousse', description: 'Elle récupère 3 % de sa Vie au début de chacun de ses tours.' },
+  },
+
   events: {
     passerby: {
       name: 'Passant enthousiaste',

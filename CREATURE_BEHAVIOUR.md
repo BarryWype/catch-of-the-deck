@@ -37,6 +37,9 @@ Format: Move (S/P intensity; extras) [role]. L/N/H = light/normal/heavy, Blk = B
 
 (+N after a name = starting Strength.)
 
+## Traits (`traits` feature)
+One per temperament (`trait` in behaviors.ts, a `TraitRule`), badge on the creature: reefFish Dazzle (every 3rd move shows a random move of its set, "?" badge; bar preview skips it) · schooling Scatter (1st time <50% Health: Will +10 × fight scale) · predator Bloodlust (1st time a creature's hit drops the player <50% Grit: +1 Str) · venomous Toxic (its Venom loses no charge on its first hit) · puffer Inflate (3rd player hit in a turn: player gets 2 Spines) · ambusher Camouflage (3 Blk at the start of each of its turns) · fighter Second Run (once, Will <25%: a pace becomes its normal Pull) · giant Deep Runs (Will rises every 2nd turn, ×2) · eel Slippery (1st Drain each turn ×50%, rounded up) · armored Hard Shell (keeps 50% Blk) · jellyfish Drifting (player attacks −25% while its next move is its pace) · cephalopod Ink Sense (Ink hides 2 moves) · clawed Counter-pinch (Blk soaks a whole hit: 2 damage back) · bottomDweller Regrowth (heals 3% at its turn start). Pike and Red piranha use the predator's.
+
 ## Bosses
 Kid: Blue crab (mini, clawed), Giant octopus (boss, cephalopod). Adult: Common octopus (cephalopod), Giant moray eel (eel). Elder: Starry sturgeon (giant), Atlantic giant squid (cephalopod). With `bossPools`, one candidate per slot per run (shown on the map): Kid mini Blue crab / Spotted pufferfish / Pike, boss Giant octopus / Common lobster / Catfish; Adult mini Common octopus / Lionfish / Atlantic salmon, boss Giant moray / Giant clam / Bluefin tuna; Elder mini Starry sturgeon / Stonefish / Swordfish, boss Giant squid / Mako / Oarfish. Released after the fight; a boss escaping ends the run. A boss rolling 10 hits about 11 with a normal move and gains +1 Str per Wind-up.
 

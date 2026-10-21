@@ -22,6 +22,8 @@ export interface ContentTranslations {
   families?: Record<string, { name?: string; identity?: string; focus?: string }>;
   /** Keyed by temperament id. */
   companions?: Record<string, { name?: string; temperamentName?: string; description?: string }>;
+  /** Temperament id → its trait's name and description. */
+  traits?: Record<string, { name?: string; description?: string }>;
   /** Event id → its name, text and choice labels (in order). */
   events?: Record<string, { name?: string; description?: string; choices?: string[] }>;
   /** Shop item id → name. */
@@ -53,6 +55,7 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       ...e,
       name: tr.creatures?.[e.id] ?? e.name,
       moves: e.moves.map((m) => ({ ...m, name: tr.moves?.[`${e.id}.${m.id}`] ?? tr.moves?.[`${e.temperament}.${m.id}`] ?? m.name })),
+      ...(e.trait ? { trait: { ...e.trait, ...tr.traits?.[e.temperament ?? ''] } } : {}),
     })),
     cards: source.cards.map((c) => ({ ...c, name: tr.cards?.[c.id] ?? c.name })),
     builds: source.builds.map((b) => {

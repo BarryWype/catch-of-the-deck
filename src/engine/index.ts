@@ -17,6 +17,7 @@ export * from './map';
 export * from './run';
 export * from './equipment';
 export * from './relics';
+export * from './traits';
 export * from './events';
 export * from './report';
 export * from './shop';
