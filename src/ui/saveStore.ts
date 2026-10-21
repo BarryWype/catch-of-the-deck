@@ -9,7 +9,7 @@ import type { Screen } from './useGame';
  * Bump a version when that file's shape changes, and upgrade older files in its `upgrade…`.
  */
 export const SAVE_VERSION = 21;
-export const PROFILE_VERSION = 9;
+export const PROFILE_VERSION = 10;
 
 /** Everything needed to pick a run up exactly where it was left. */
 export interface SavedGame {
@@ -41,6 +41,8 @@ export interface Profile {
   logbook: string[];
   /** Companions back injured from runs that ended badly, resting apart from the home aquarium. */
   recovering: RecoveringCreature[];
+  /** The tutorials already shown (`TutorialId`): each plays once, until replayed from the options. */
+  tutorials: string[];
 }
 
 type DataFile = 'save' | 'profile';
@@ -192,6 +194,10 @@ export function upgradeProfile(profile: Profile): Profile | null {
     const hatched = eggs.map((id) => ({ id, size: 'small' as const, bond: bondThreshold(id, 1, gameData) }));
     profile = { ...rest, version: 9, homeAquarium: [...rest.homeAquarium, ...hatched] };
   }
+  // v9 was before the tutorial: a player who has met creatures already knows the game.
+  if (profile.version === 9) {
+    profile = { ...profile, version: 10, tutorials: Object.keys(profile.creatureBook).length ? ['map', 'fight'] : [] };
+  }
   return profile.version === PROFILE_VERSION ? profile : null;
 }
 
@@ -209,6 +215,7 @@ export async function loadProfile(): Promise<Profile> {
       goldenShells: 0,
       logbook: [],
       recovering: [],
+      tutorials: [],
     }
   );
 }

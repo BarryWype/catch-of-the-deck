@@ -19,6 +19,7 @@ import RewardScreen from './RewardScreen.vue';
 import SessionSlots from './SessionSlots.vue';
 import ShopScreen from './ShopScreen.vue';
 import TooltipLayer from './TooltipLayer.vue';
+import TutorialOverlay, { type TutorialStep } from './TutorialOverlay.vue';
 import CardZoom from './CardZoom.vue';
 import { useGame } from './useGame';
 
@@ -34,10 +35,38 @@ function initialSeed() {
 }
 
 const game = useGame(initialSeed());
-const { data, seed, run, combat, screen, canReturnToShop, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked, logbook, recovering, shellsWon } = game;
+const { data, seed, run, combat, screen, canReturnToShop, debugScenario, infiniteEnergy, rewardChoices, eventId, shopVisit, savedGame, homeAquarium, creatureBook, biggestCatch, brought, homeLeft, runEnd, rewardLeft, builds, unlocked, fishermenMet, newlyUnlocked, logbook, recovering, shellsWon, tutorialsSeen } = game;
 
 /** Stars the Logbook adds to every companion: the profile's before a run, the run's during it. */
 const homeExtraStars = computed(() => progressionTotal(logbook.value.unlocked, data, 'companionStars'));
+
+/**
+ * The tutorials (TutorialOverlay): the map's on the first map screen, the fight's on the first turn
+ * of the next fight. Each plays once per profile (`tutorialsSeen`), never in a debug scenario.
+ */
+const TUTORIALS: Record<'map' | 'fight', TutorialStep[]> = {
+  map: [
+    { target: '.map-layout > .aquarium', text: t('tutorial.map.bucket') },
+    { target: '.node.miniBoss, .node.boss', text: t('tutorial.map.bosses') },
+    { target: '.node.leave', text: t('tutorial.map.home') },
+    { target: '.node.available', text: t('tutorial.map.next') },
+  ],
+  fight: [
+    { target: '.globe', text: t('tutorial.fight.grit') },
+    { target: '.tension', text: t('tutorial.fight.tension') },
+    { target: '.patience', text: t('tutorial.fight.patience') },
+    { target: '.enemies > .combatant:first-child .panicbar', text: t('tutorial.fight.will') },
+    { target: '.enemies > .combatant:first-child .healthbar', text: t('tutorial.fight.health') },
+    { target: '.enemies > .combatant:first-child .intent-slot', text: t('tutorial.fight.intent') },
+    { target: '.hand', text: t('tutorial.fight.hand') },
+    { target: '.end-turn', text: t('tutorial.fight.endTurn') },
+  ],
+};
+const tutorial = computed(() => {
+  if (debugScenario.value) return null;
+  const id = screen.value === 'map' ? 'map' : screen.value === 'combat' && combat.value?.turn === 1 && combat.value.phase === 'playerTurn' ? 'fight' : null;
+  return id && !tutorialsSeen.value.includes(id) ? id : null;
+});
 const runExtraStars = computed(() => (run.value ? progressionTotal(run.value.progression, data, 'companionStars') : 0));
 
 /**
@@ -167,6 +196,7 @@ const deckCards = computed(() =>
       :import-transfer="game.importTransfer"
       @reset="game.resetProgress"
       @play-scenario="game.playScenario"
+      @replay-tutorial="game.replayTutorials"
     />
     <!-- The bucket stays in view on the map and in shops, where selling pays for the shopping. -->
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
@@ -307,6 +337,7 @@ const deckCards = computed(() =>
   <CardZoom />
   <!-- Every hover text in the app (v-tip) is drawn here. -->
   <TooltipLayer />
+  <TutorialOverlay v-if="tutorial" :key="tutorial" :steps="TUTORIALS[tutorial]" @done="game.tutorialDone(tutorial)" />
 </template>
 
 <style scoped>
