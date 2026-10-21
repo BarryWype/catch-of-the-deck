@@ -6,7 +6,7 @@ import tackleUrl from './assets/stores/tackle-shop.png';
 import tackleKeeperUrl from './assets/stores/tackle-keeper.png';
 import baitUrl from './assets/stores/bait-shop.png';
 import baitKeeperUrl from './assets/stores/bait-keeper.png';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   aquariumPrice,
   creatureBlocked,
@@ -28,7 +28,7 @@ import SpriteView from './SpriteView.vue';
 import { blessingText } from './storeEffects';
 
 const props = defineProps<{ run: RunState; data: GameData; visit: ShopVisit }>();
-const emit = defineEmits<{ buy: [itemId: string, choice?: number]; leave: [] }>();
+const emit = defineEmits<{ buy: [itemId: string, choice?: number]; leave: []; picking: [active: boolean] }>();
 
 /**
  * The store scenes (src/ui/assets/stores, made by scripts/generate-store-art.mjs), 240x160 art
@@ -93,6 +93,8 @@ const soldSprite = computed(() => props.visit.sold && props.data.enemies[props.v
 
 /** The item waiting for the player to pick a card (`removeCard`) or a bucket creature. */
 const picking = ref<ShopItemDef | null>(null);
+// App hides the bucket meanwhile, so the list has the whole screen.
+watch(picking, (item) => emit('picking', !!item));
 
 const blocked = (item: ShopItemDef) => shopItemBlocked(item, props.run, props.visit, props.data);
 
@@ -166,7 +168,10 @@ function hush(e: PointerEvent) {
   if (said.value >= 0 && !bubble.value?.contains(target) && !keeper.value?.contains(target)) said.value = -1;
 }
 onMounted(() => document.addEventListener('pointerdown', hush));
-onUnmounted(() => document.removeEventListener('pointerdown', hush));
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', hush);
+  emit('picking', false);
+});
 </script>
 
 <template>
