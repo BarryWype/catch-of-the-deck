@@ -48,6 +48,8 @@ export const ENCOUNTER_HP_POOL = 50;
 export const ENCOUNTER_TURN_AVERAGE = 5.5;
 /** How much a fight's Health pool and damage grow, in percent, per fight already gone through this run. */
 export const ENCOUNTER_GROWTH_PERCENT = 2;
+/** Most creatures in an ordinary fight: larger groups and `extraCatch` creatures beyond it are left out (several stack too tall on phones). */
+export const MAX_CREATURES_PER_FIGHT = 1;
 /** A creature's share of the damage in a group of several, in percent. */
 export const GROUP_DAMAGE_PERCENT = 110;
 /** What a mini-boss's and a boss's moves average per turn (rolled each fight, no growth). */

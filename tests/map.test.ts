@@ -130,10 +130,12 @@ describe('encounters at a fishing spot', () => {
       encounters: [
         { id: 'a', name: 'A', enemies: ['dummy'] },
         { id: 'shell', name: 'Shell', enemies: ['cycler'] },
-        { id: 'deep', name: 'Deep', tier: 2, enemies: ['dummy', 'dummy'] },
+        { id: 'deep', name: 'Deep', tier: 2, enemies: ['dummy'] },
+        { id: 'group', name: 'Group', tier: 2, enemies: ['dummy', 'dummy'] },
       ],
     };
     expect(encountersFor(node, data).map((e) => e.id)).toEqual(['a']);
+    // Groups are left out (MAX_CREATURES_PER_FIGHT).
     expect(encountersFor({ ...node, tier: 2 }, data).map((e) => e.id)).toEqual(['deep']);
     // Nothing of the spot's types at this tier: any type from its waters, then any tier.
     expect(encountersFor({ ...node, tier: 3 }, data).map((e) => e.id)).toEqual(['a', 'deep']);

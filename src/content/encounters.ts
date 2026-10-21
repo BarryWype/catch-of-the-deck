@@ -3,7 +3,8 @@ import { creatures } from './creatures';
 
 /**
  * Hand-made fights with several creatures. Enemy ids are creature ids.
- * `tier` decides how deep in the map the group can appear (1–3).
+ * `tier` decides how deep in the map the group can appear (1–3). Left out of runs while
+ * `MAX_CREATURES_PER_FIGHT` (engine/constants.ts) is 1; the debug panel can still start them.
  */
 const groups: EncounterDef[] = [
   { id: 'pilchardShoal', name: 'Pilchard shoal', tier: 2, enemies: ['europeanPilchard', 'europeanPilchard', 'europeanPilchard'] },

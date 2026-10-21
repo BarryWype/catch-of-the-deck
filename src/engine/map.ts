@@ -1,3 +1,4 @@
+import { MAX_CREATURES_PER_FIGHT } from './constants';
 import { nextFloat, nextInt, shuffleInPlace, type RngHolder } from './rng';
 import type { EncounterDef, GameData, LevelDef, LevelNodeKind, StoreKind } from './types';
 
@@ -263,9 +264,10 @@ export function encounterTier(encounter: EncounterDef): number {
 }
 
 /**
- * Encounters a fight node can lead to. Fixed `enemies` win. Otherwise, encounters whose creatures
- * all live at the node's fishing spot (its waters and creature types), at the node's tier. When that's empty it relaxes, in order: the spot's creature types, then the
- * tier, then the spot altogether.
+ * Encounters a fight node can lead to. Fixed `enemies` win. Otherwise, encounters of at most
+ * `MAX_CREATURES_PER_FIGHT` creatures that all live at the node's fishing spot (its waters and
+ * creature types), at the node's tier. When that's empty it relaxes, in order: the spot's creature
+ * types, then the tier, then the spot altogether.
  */
 export function encountersFor(node: MapNode, data: GameData): EncounterDef[] {
   if (node.enemies) return [{ id: node.id, name: node.label ?? node.id, enemies: node.enemies }];
@@ -277,15 +279,16 @@ export function encountersFor(node: MapNode, data: GameData): EncounterDef[] {
       if (!spot || anySpot) return true;
       return spot.waters.includes(enemy?.water ?? '') && (!spotTypes || !spot.types || spot.types.includes(type));
     });
-  const atTier = data.encounters.filter((e) => encounterTier(e) === node.tier);
+  const allowed = data.encounters.filter((e) => e.enemies.length <= MAX_CREATURES_PER_FIGHT);
+  const atTier = allowed.filter((e) => encounterTier(e) === node.tier);
   const pools = [
     atTier.filter((e) => fits(e, true)),
     atTier.filter((e) => fits(e, false)),
-    data.encounters.filter((e) => fits(e, true)),
-    data.encounters.filter((e) => fits(e, false)),
+    allowed.filter((e) => fits(e, true)),
+    allowed.filter((e) => fits(e, false)),
     atTier.filter((e) => fits(e, false, true)),
   ];
-  return pools.find((pool) => pool.length) ?? data.encounters;
+  return pools.find((pool) => pool.length) ?? allowed;
 }
 
 export function findNode(map: GameMap, id: string): MapNode | undefined {

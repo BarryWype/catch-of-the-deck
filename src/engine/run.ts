@@ -1,6 +1,6 @@
 import { addBond, bondPerFight, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
-import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
+import { BOSS_DAMAGE, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, GROUP_DAMAGE_PERCENT, MAX_CREATURES_PER_FIGHT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
@@ -273,7 +273,8 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   const combatSeed = nextInt(next, 0, 0x7fffffff);
   const bond = bondPerFight(data.levels[next.level].tier, node.kind !== 'fight');
   next.companions = next.companions.map((c) => addBond(c, bond, data));
-  const enemies = [...encounter.enemies, ...extraCatch(next, node, data)];
+  const extra = extraCatch(next, node, data).slice(0, Math.max(0, MAX_CREATURES_PER_FIGHT - encounter.enemies.length));
+  const enemies = [...encounter.enemies, ...extra];
   const growth = 100 + ENCOUNTER_GROWTH_PERCENT * next.fights;
   next.fights++;
   const bossDamage = node.kind === 'miniBoss' ? MINI_BOSS_DAMAGE : node.kind === 'boss' ? BOSS_DAMAGE : null;
