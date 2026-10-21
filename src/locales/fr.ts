@@ -128,6 +128,7 @@ export const fr: Messages = {
         strike: 'Si la créature s’apprête à Frapper : {rules}',
         pull: 'Si la créature s’apprête à Tirer : {rules}',
         otherwise: 'Sinon : {rules}',
+        and: ' et ',
       },
       ifNoAttack: 'Si tu n’as pas encore attaqué ce tour : {rules}',
       ifStatus: 'Si la créature a {status} : {rules}',
