@@ -129,3 +129,6 @@ export const TROPHY_SELL_PERCENT = 200;
  */
 export const OWN_STATS_MIN_PERCENT = 70;
 export const OWN_STATS_MAX_PERCENT = 140;
+
+/** Creature affixes (`affixes`): chance, in percent, that a creature of an ordinary fight in the adult and elder levels rolls one (trophy fights always do). */
+export const AFFIX_CHANCE_PERCENT = 15;

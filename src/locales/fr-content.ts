@@ -455,6 +455,14 @@ export const frContent: ContentTranslations = {
     bottomDweller: { name: 'Charognard', temperamentName: 'Benthique', description: '+10 % de pièces pour chaque capture.' },
   },
 
+  affixes: {
+    oldAndWily: { name: 'Vieux routier', title: '{name} · Vieux routier', description: 'Elle cache sa première action, comme après une Encre.' },
+    hungry: { name: 'Vorace', title: '{name} vorace', description: 'Chacun de ses Élans lui donne aussi 1 Force.' },
+    skittish: { name: 'Farouche', title: '{name} farouche', description: 'Elle commence avec 15 % de Volonté en plus.' },
+    hookScarred: { name: 'Cicatrices d’hameçon', title: '{name} · Cicatrices d’hameçon', description: 'Sa Volonté monte 25 % moins vite, mais ses Frappes infligent 20 % de plus.' },
+    armored: { name: 'Cuirasse', title: '{name} · Cuirasse', description: 'Elle commence le combat, et chacun de ses tours, avec 4 de Blocage.' },
+    frenzied: { name: 'Frénésie', title: '{name} · Frénésie', description: 'Elle ne se repose pas pendant ses 3 premières actions.' },
+  },
   traits: {
     reefFish: { name: 'Éblouissement', description: 'Une action sur trois, elle montre une action au hasard : un « ? » prévient que c’est peut-être du bluff.' },
     schooling: { name: 'Dispersion', description: 'La première fois que sa Vie passe sous 50 %, sa Volonté bondit de 10.' },

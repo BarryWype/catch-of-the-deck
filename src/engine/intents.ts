@@ -4,7 +4,7 @@ import { calculateDamage } from './damage';
 import { describeEffects } from './describe';
 import { resolveEffect } from './effects';
 import { nextInt, pickWeighted } from './rng';
-import { traitOf } from './traits';
+import { affixOf, traitOf } from './traits';
 import { nextMoveMods, statusDescription, statusName } from './statuses';
 import type { CombatState, Effect, EnemyMove, EnemyState, GameData, IntentPattern, MoveIntensity, MoveRole, MoveTag } from './types';
 import { text } from './text';
@@ -138,9 +138,13 @@ function nextMove(state: CombatState, enemy: EnemyState, data: GameData, history
   if (history.length === 0 && pattern.firstMove) return pattern.firstMove;
   const max = pattern.maxConsecutive ?? Infinity;
   const recent = history.slice(-max);
+  // A Frenzied creature doesn't rest at first.
+  const frenzy = affixOf(enemy, data);
+  const restless = frenzy?.type === 'noPaceFor' && history.length < frenzy.turns;
   const allowed = (id: string) => {
     const move = moves.find((m) => m.id === id);
     if (!move || move.role === 'heavy') return false;
+    if (restless && move.role === 'pace') return false;
     if (last?.role === 'special' && move.role === 'special') return false;
     if (last?.effects.some((e) => e.type === 'ink') && move.role === 'windUp') return false;
     return !(recent.length >= max && recent.every((m) => m === id));
@@ -174,8 +178,10 @@ export function executeIntent(state: CombatState, enemy: EnemyState, data: GameD
     resolveEffect(state, effect, ctx);
     if (state.player.hp <= 0) break;
   }
-  // A mini-boss's or boss's Wind-up also makes it stronger.
+  // A mini-boss's or boss's Wind-up also makes it stronger, and a Hungry creature's.
   if (move.role === 'windUp' && enemy.boss) resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: 1, target: 'self' }, ctx);
+  const affix = affixOf(enemy, data);
+  if (move.role === 'windUp' && affix?.type === 'windUpStrength') resolveEffect(state, { type: 'applyStatus', status: 'strength', amount: affix.amount, target: 'self' }, ctx);
   // A move played in place of one put off by bait isn't part of its pattern.
   if (move.id !== SECOND_WIND_ID && enemy.delayedIntent === undefined) enemy.moveHistory.push(move.id);
 }
@@ -229,7 +235,7 @@ export function previewIntent(state: CombatState, enemy: EnemyState, data: GameD
     switch (effect.type) {
       case 'dealDamage':
         addKind('attack');
-        preview.damage ??= Math.max(0, Math.floor(calculateDamage(effect.amount * size, enemy.statuses, state.player.statuses) * scale) - less);
+        preview.damage ??= Math.max(0, Math.floor(calculateDamage((effect.amount * size * (100 + (enemy.strikePercent ?? 0))) / 100, enemy.statuses, state.player.statuses) * scale) - less);
         preview.hits ??= effect.hits ?? 1;
         break;
       case 'pull': {

@@ -141,7 +141,9 @@ export function resolveEffect(state: CombatState, effect: Effect, ctx: EffectCon
           const fromPlayer = source.id === PLAYER_ID;
           const companionBonus = fromPlayer && !ctx.raw ? bonusTotal(state.bonuses, 'bonusDamage') : 0;
           const venomBonus = ctx.attack && getStatus(t, 'venom') > 0 ? (state.thisTurn?.venomBonus ?? 0) : 0;
-          const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : (ctx.amountScale ?? 1));
+          // A creature's Strike at the fight's size, and a Hook-scarred one's bigger.
+          const scarred = fromPlayer ? 100 : 100 + ((source as EnemyState).strikePercent ?? 0);
+          const written = effect.fromHold ? state.player.block : effect.amount * (fromPlayer ? 1 : ((ctx.amountScale ?? 1) * scarred) / 100);
           const base = written + (effect.perTension ?? 0) * (ctx.tension ?? 0) + companionBonus + venomBonus + perStatusBonus(effect.perStatus, t);
           let amount = ctx.raw ? base : calculateDamage(base, source.statuses, t.statuses);
           if (ctx.damagePercent) amount = Math.floor((amount * (100 + ctx.damagePercent)) / 100);
@@ -534,7 +536,7 @@ function intentMove(enemy: EnemyState, data: GameData): EnemyMove | undefined {
 export function moveValue(move: EnemyMove, enemy?: EnemyState, player?: Combatant): number {
   const scale = enemy?.damageScale ?? 1;
   const value = move.effects.reduce((sum, e) => {
-    if (e.type === 'dealDamage') return sum + (enemy && player ? calculateDamage(e.amount * scale, enemy.statuses, player.statuses) : e.amount) * (e.hits ?? 1);
+    if (e.type === 'dealDamage') return sum + (enemy && player ? calculateDamage((e.amount * scale * (100 + (enemy.strikePercent ?? 0))) / 100, enemy.statuses, player.statuses) : e.amount) * (e.hits ?? 1);
     if (e.type === 'pull') return sum + e.amount * (enemy ? scale : 1);
     return sum;
   }, 0);

@@ -17,7 +17,7 @@ import {
   WIND_UP_PERCENT,
 } from './constants';
 import { hasFeature } from './features';
-import { traitOf } from './traits';
+import { affixOf, traitOf } from './traits';
 import { text } from './text';
 import { equipmentEffects, escapeRateReduction } from './equipment';
 import { doubled, fireTriggers, isAlive, moveValue, powerCount, powerTotal, resolveEffect, venomHits } from './effects';
@@ -53,8 +53,10 @@ export interface CombatConfig {
   freeCard?: string;
   /** Cards (ids) that start in hand, for this fight only (`baitChance` gear). */
   extraCards?: string[];
-  /** A trophy fight: Health and Will `TROPHY_POOL_PERCENT` bigger after the pools, and 1 Strength (`damage` is already bigger). */
+  /** A trophy fight: Health and Will `TROPHY_POOL_PERCENT` bigger after the pools, and 1 Strength unless it has an affix (`damage` is already bigger). */
   trophy?: boolean;
+  /** Each creature's affix (`affixes`), in the order of `enemies`; null for none. */
+  affixes?: (string | null)[];
 }
 
 export function createCombat(config: CombatConfig, data: GameData): CombatState {
@@ -150,9 +152,25 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
       enemy.escapeAt = bigger(enemy.escapeAt);
       enemy.escapeRate = bigger(enemy.escapeRate);
       enemy.trophy = true;
-      enemy.statuses.strength = (enemy.statuses.strength ?? 0) + 1;
     }
   }
+  state.enemies.forEach((enemy, i) => {
+    const affix = config.affixes?.[i] ? data.affixes?.[config.affixes[i]!] : undefined;
+    // A trophy without an affix (affixes off) gets 1 Strength instead.
+    if (!affix) {
+      if (enemy.trophy) enemy.statuses.strength = (enemy.statuses.strength ?? 0) + 1;
+      return;
+    }
+    enemy.affix = affix.id;
+    enemy.name = affix.title.replace('{name}', enemy.name);
+    const rule = affix.rule;
+    if (rule.type === 'startWill') enemy.escape = Math.min(enemy.escapeAt - 1, Math.round((enemy.escape * (100 + rule.percent)) / 100));
+    if (rule.type === 'scarred') {
+      enemy.escapeRate -= escapeRateReduction(enemy.escapeRate, rule.willPercent);
+      enemy.strikePercent = rule.strikePercent;
+    }
+    if (rule.type === 'turnBlock') enemy.block = Math.round((rule.amount * (config.damage ?? ENCOUNTER_TURN_AVERAGE)) / ENCOUNTER_TURN_AVERAGE);
+  });
   if (config.damage) {
     for (const enemy of state.enemies) {
       const moves = turnAverage(data.enemies[enemy.defId].moves, patternOf(enemy, data));
@@ -181,7 +199,11 @@ export function createCombat(config: CombatConfig, data: GameData): CombatState 
     state.freeCards = ['free0'];
   }
   config.extraCards?.forEach((defId, i) => state.piles.hand.push({ uid: `x${i}`, defId }));
-  for (const enemy of state.enemies) chooseIntent(state, enemy, data);
+  for (const enemy of state.enemies) {
+    chooseIntent(state, enemy, data);
+    // Old and Wily: its first move is hidden.
+    if (affixOf(enemy, data)?.type === 'hiddenStart') enemy.intentHidden = true;
+  }
   startPlayerTurn(state, data);
   fireTriggers(state, 'combatStart', undefined, data);
   checkCombatEnd(state);
@@ -490,6 +512,9 @@ function endTurn(state: CombatState, data: GameData): void {
     delete enemy.statuses.burrowed;
     // Regrowth and other turn-start traits.
     if (rule?.type === 'turnStart') resolveEffect(state, rule.effect, { sourceId: enemy.id, targetId: enemy.id, data });
+    // An Armored affix: Block at the start of each of its turns.
+    const affix = affixOf(enemy, data);
+    if (affix?.type === 'turnBlock') enemy.block += Math.round(affix.amount * (enemy.fightScale ?? 1));
     venomStrikes(state, enemy);
     // Venom can wear a creature out before it acts: it's caught.
     if (checkCombatEnd(state)) return;

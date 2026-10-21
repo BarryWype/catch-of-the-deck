@@ -13,6 +13,7 @@ What each phase of the fight-variety work did, measured with the simulator (`npm
 | 4. Boss pools | 0% | 9.1 | 8.3 | 8.1 | kid mini-boss won 44% (59% before): Pike and the pufferfish hit harder than the Blue crab |
 | 5. Own stats | 0% | 8.9 | 8.4 | 8.4 | ordinary fights spread wider: see below |
 | 6. Traits | 0% | 7.8 | 8.5 | 8.6 | traits mostly favour the creatures: the biggest drop so far |
+| 7. Affixes | 0% | 8 | 8.7 | 8.7 | trophies now get an affix instead of +1 Strength |
 
 ### Phase 5: shortest and longest ordinary fights per level
 
@@ -58,3 +59,7 @@ The 1-turn fights are creatures that flee or are caught at once (bait, a lucky D
 - **Second Run** replaces the pace by the set's normal-intensity Pull without a role (the fighter's Leap Out).
 - **Dazzle** shows a random move of its set (heavy moves aside) every third move; it can be the real one, so the "?" means "maybe". Cards that read the intent still read the real move; the bar preview leaves it out so it doesn't give the bluff away.
 - **Bloodlust** watches creature hits only (not Venom or Spines).
+- **Affix names in French** are written per affix (`title`, e.g. "{name} vorace"), since an adjective in front doesn't work in French.
+- **Affixes per creature:** in a group fight each creature rolls its own (at most one each).
+- **"Armored (scaled)"** scales its 4 Block by the fight's damage scale (`fightScale`), as Skittish and Second Wind do; it also has that Block on the fight's first turn.
+- **The affix roll** happens in `startFight` with the run's RNG, only while `affixes` is on, so with it off the RNG is drawn as before.

@@ -22,6 +22,8 @@ export interface ContentTranslations {
   families?: Record<string, { name?: string; identity?: string; focus?: string }>;
   /** Keyed by temperament id. */
   companions?: Record<string, { name?: string; temperamentName?: string; description?: string }>;
+  /** Affix id → its name, its title (with {name}) and description. */
+  affixes?: Record<string, { name?: string; title?: string; description?: string }>;
   /** Temperament id → its trait's name and description. */
   traits?: Record<string, { name?: string; description?: string }>;
   /** Event id → its name, text and choice labels (in order). */
@@ -76,6 +78,7 @@ export function localizeContent(source: ContentSource, tr: ContentTranslations):
       };
     }),
     shop: source.shop.map((s) => ({ ...s, name: tr.shop?.[s.id] ?? s.name })),
+    affixes: source.affixes?.map((a) => ({ ...a, ...tr.affixes?.[a.id] })),
     progression: source.progression.map((n) => ({ ...n, ...tr.progression?.[n.id] })),
     spots: source.spots.map((s) => ({ ...s, name: tr.spots?.[s.id] ?? s.name })),
     coast: {

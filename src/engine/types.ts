@@ -610,6 +610,32 @@ export type TraitRule =
   /** When its Block soaks a whole hit of the player's, it deals this much back. */
   | { type: 'counter'; damage: number };
 
+/** What a creature affix does (`affixes`, see affixes.ts in content). */
+export type AffixRule =
+  /** Its first move is hidden, as after Ink. */
+  | { type: 'hiddenStart' }
+  /** Each of its Wind-ups also gives it this much Strength. */
+  | { type: 'windUpStrength'; amount: number }
+  /** It starts with this much more Will, in percent. */
+  | { type: 'startWill'; percent: number }
+  /** Its Will rises `willPercent` slower and its Strikes deal `strikePercent` more. */
+  | { type: 'scarred'; willPercent: number; strikePercent: number }
+  /** It starts the fight, and each of its turns, with this much Block (× the fight's scale). */
+  | { type: 'turnBlock'; amount: number }
+  /** Its weighted pattern skips its pace for its first `turns` moves. */
+  | { type: 'noPaceFor'; turns: number };
+
+/** A creature affix: rolled on trophy fights and some adult and elder ones, it changes one creature for one fight. */
+export interface AffixDef {
+  id: string;
+  /** Its badge, e.g. "Hungry". */
+  name: string;
+  /** The creature's name with it, `{name}` its own, e.g. "Hungry {name}". */
+  title: string;
+  description: string;
+  rule: AffixRule;
+}
+
 /** A temperament's signature trait, shown as a labelled badge on its creatures. */
 export interface TraitDef {
   name: string;
@@ -796,6 +822,8 @@ export interface GameData {
   /** Played in order, one per act of a run. */
   levels: LevelDef[];
   coast: CoastDef;
+  /** Creature affixes, by id (`affixes`). */
+  affixes?: Record<string, AffixDef>;
   /** The fight-variety features on (`hasFeature`); none when omitted. */
   features?: Features;
   /** Each creature tier's average Health (middle of its range), starting Will and Strike or Pull per turn (`turnAverage`), for `ownStats`. */
@@ -860,6 +888,9 @@ export interface EnemyState extends Combatant {
   traitUsed?: boolean;
   inkLeft?: number;
   bluff?: string;
+  /** Its affix this fight (`affixes`), and how much more its Strikes deal from it, in percent. */
+  affix?: string;
+  strikePercent?: number;
 }
 
 export interface CardInstance {

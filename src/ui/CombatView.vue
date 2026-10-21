@@ -120,6 +120,8 @@ function badgesOf(enemy: EnemyState) {
   if (enemy.trophy) badges.push({ key: 'trophy', label: t('combat.badge.trophy'), tip: t('combat.badge.trophyTip'), tone: 'affix' });
   const trait = hasFeature(props.data, 'traits') ? props.data.enemies[enemy.defId]?.trait : undefined;
   if (trait) badges.push({ key: 'trait', label: trait.name, tip: t('combat.badge.trait', { text: trait.description }), tone: 'trait' });
+  const affix = enemy.affix ? props.data.affixes?.[enemy.affix] : undefined;
+  if (affix) badges.push({ key: 'affix', label: affix.name, tip: affix.description, tone: 'affix' });
   if (previewIntent(shownState.value, enemy, props.data)?.mayBluff) badges.push({ key: 'bluff', label: t('combat.badge.bluff'), tip: t('combat.badge.bluffTip'), tone: 'warn' });
   return badges;
 }

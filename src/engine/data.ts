@@ -1,4 +1,4 @@
-import type { BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
+import type { AffixDef, BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
 import { FEATURES, type Features } from './constants';
 import { turnAverage } from './combat';
 import { STORE_KINDS } from './map';
@@ -23,6 +23,8 @@ export interface ContentSource {
   /** In play order. */
   levels: LevelDef[];
   coast: CoastDef;
+  /** Creature affixes (`affixes`). */
+  affixes?: AffixDef[];
   /** The fight-variety features to play with; all off when omitted. */
   features?: Features;
 }
@@ -50,6 +52,7 @@ export function buildGameData(source: ContentSource): GameData {
     levels: source.levels,
     coast: source.coast,
     ...(source.features ? { features: source.features } : {}),
+    ...(source.affixes ? { affixes: Object.fromEntries(source.affixes.map((a) => [a.id, a])) } : {}),
     tierAverages: tierAverages(source.enemies),
   };
 }
@@ -225,6 +228,12 @@ export function validateContent(source: ContentSource): string[] {
     }
   }
   if (source.encounters.length === 0) errors.push('There must be at least one encounter.');
+
+  const affixIds = new Set<string>();
+  for (const affix of source.affixes ?? []) {
+    checkDuplicate(affixIds, affix.id, 'affix');
+    if (!affix.title.includes('{name}')) errors.push(`Affix "${affix.id}": its title needs {name}.`);
+  }
 
   const eventIds = new Set<string>();
   for (const event of source.events) {

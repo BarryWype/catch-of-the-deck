@@ -1,6 +1,6 @@
 import { addBond, bondPerFight, bondToFull, type HomeCreature } from './bond';
 import { createCombat } from './combat';
-import { BOSS_DAMAGE, TROPHY_DAMAGE_PERCENT, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, ENCOUNTER_WILL_POOL, GROUP_DAMAGE_PERCENT, MAX_CREATURES_PER_FIGHT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
+import { AFFIX_CHANCE_PERCENT, BOSS_DAMAGE, TROPHY_DAMAGE_PERCENT, ENCOUNTER_TURN_AVERAGE, ENCOUNTER_GROWTH_PERCENT, ENCOUNTER_HP_POOL, ENCOUNTER_WILL_POOL, GROUP_DAMAGE_PERCENT, MAX_CREATURES_PER_FIGHT, MAX_HAND_SIZE, MINI_BOSS_DAMAGE } from './constants';
 import { bonusTotal, companionEffects } from './companions';
 import { equipmentEffects, instantSaleValue, saleValue } from './equipment';
 import { buildLevelMap, encountersFor, encounterTier, findNode, START_NODE_ID, type GameMap, type MapNode } from './map';
@@ -295,6 +295,7 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
   const trophy = !!node.trophy && hasFeature(data, 'trophyElites');
   const rolled = bossDamage ? nextInt(next, bossDamage[0], bossDamage[1]) : (ENCOUNTER_TURN_AVERAGE * growth) / 100;
   const damage = trophy ? (rolled * TROPHY_DAMAGE_PERCENT) / 100 : rolled;
+  const affixes = rollAffixes(next, node, enemies.length, trophy, data);
   return createCombat(
     {
       seed: combatSeed,
@@ -311,9 +312,22 @@ function startFight(next: RunState, node: MapNode, data: GameData): CombatState 
       ...(freeCard ? { freeCard } : {}),
       ...(extraCards.length ? { extraCards } : {}),
       ...(trophy ? { trophy } : {}),
+      ...(affixes ? { affixes } : {}),
     },
     data,
   );
+}
+
+/**
+ * Each creature's affix (`affixes`): one for every creature of a trophy fight, and in ordinary
+ * fights past the first level, one with `AFFIX_CHANCE_PERCENT` each. Never on a mini-boss or boss.
+ */
+function rollAffixes(next: RunState, node: MapNode, count: number, trophy: boolean, data: GameData): (string | null)[] | undefined {
+  const ids = Object.keys(data.affixes ?? {});
+  if (!hasFeature(data, 'affixes') || !ids.length || node.kind !== 'fight') return undefined;
+  if (!trophy && next.level < 1) return undefined;
+  const rolled = Array.from({ length: count }, () => (trophy || nextFloat(next) * 100 < AFFIX_CHANCE_PERCENT ? ids[nextInt(next, 0, ids.length - 1)] : null));
+  return rolled.some(Boolean) ? rolled : undefined;
 }
 
 /**
