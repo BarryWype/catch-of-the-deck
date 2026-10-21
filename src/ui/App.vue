@@ -77,6 +77,8 @@ const picker = ref<InstanceType<typeof CompanionPicker>>();
 
 /** The deck dialog (the deck pill in the top bar): every card in it, by type, then by name. */
 const deckDialog = ref<HTMLDialogElement>();
+/** A shop item waits for a card or a creature to be picked: its list replaces the bucket below the shop. */
+const shopPicking = ref(false);
 const TYPE_ORDER: CardDef['type'][] = ['attack', 'defense', 'drain', 'support', 'power', 'junk'];
 const deckCards = computed(() =>
   (run.value?.deck ?? [])
@@ -169,8 +171,9 @@ const deckCards = computed(() =>
     <div v-else-if="screen === 'map' || screen === 'shop'" class="map-layout">
       <MapView v-if="screen === 'map'" :run="run" :data="data" @travel="game.travel" />
       <CreatureBook v-if="screen === 'map'" :data="data" :home-aquarium="homeAquarium.map((c) => c.id)" :discovered="creatureBook" :biggest="biggestCatch" />
-      <ShopScreen v-else class="shop-panel" :run="run" :data="data" :visit="shopVisit" @buy="game.buy" @leave="game.leaveShop" />
+      <ShopScreen v-else class="shop-panel" :run="run" :data="data" :visit="shopVisit" @buy="game.buy" @leave="game.leaveShop" @picking="shopPicking = $event" />
       <Aquarium
+        v-show="screen !== 'shop' || !shopPicking"
         class="aquarium"
         :creatures="run.bucket"
         :capacity="run.bucketSize"
