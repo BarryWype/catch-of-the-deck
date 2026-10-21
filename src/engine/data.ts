@@ -1,4 +1,4 @@
-import type { AffixDef, BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
+import type { AffixDef, IntentPattern, BuildDef, CardDef, CharacterDef, CoastDef, CompanionBonusDef, CreatureTypeDef, FamilyDef, LevelDef, SpotDef, EncounterDef, EnemyDef, Effect, EquipmentDef, EventDef, FishermanDef, GameData, ShopItemDef, BlessingDef, ProgressionNodeDef } from './types';
 import { FEATURES, type Features } from './constants';
 import { turnAverage } from './combat';
 import { STORE_KINDS } from './map';
@@ -158,6 +158,49 @@ export function validateContent(source: ContentSource): string[] {
     }
   }
 
+  /** A move set and its patterns (a phased pattern's phases each checked as a pattern). */
+  const flatten = (p: IntentPattern): IntentPattern[] => (p.type === 'phased' ? [...flatten(p.first), ...flatten(p.then)] : [p]);
+  const checkMoveSet = (where: string, moves: EnemyDef['moves'], patterns: IntentPattern[]) => {
+    const moveIds = new Set<string>();
+    for (const move of moves) {
+      if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);
+      moveIds.add(move.id);
+      checkEffects(`${where} move "${move.id}"`, move.effects);
+      // Strikes deal damage and Pulls pull, and nothing else does.
+      const effectType = move.tag === 'strike' ? 'dealDamage' : move.tag === 'pull' ? 'pull' : undefined;
+      if (!effectType) errors.push(`${where} move "${move.id}": tag must be 'strike' or 'pull'.`);
+      else if (!move.effects.some((e) => e.type === effectType)) errors.push(`${where} move "${move.id}": a ${move.tag} move needs a "${effectType}" effect.`);
+      if (move.tag !== 'strike' && move.effects.some((e) => e.type === 'dealDamage')) errors.push(`${where} move "${move.id}": only Strikes deal damage.`);
+      if (move.tag !== 'pull' && move.effects.some((e) => e.type === 'pull')) errors.push(`${where} move "${move.id}": only Pulls pull.`);
+      if (!['light', 'normal', 'heavy'].includes(move.intensity)) errors.push(`${where} move "${move.id}": intensity must be light, normal or heavy.`);
+      if (move.role === 'windUp' && !moves.some((m) => m.id === move.followUp)) errors.push(`${where} move "${move.id}": a Wind-up needs a \`followUp\` move.`);
+      if (move.role === 'windUp' && !move.effects.some((e) => e.type === 'applyStatus' && e.status === 'windUp')) {
+        errors.push(`${where} move "${move.id}": a Wind-up applies the windUp status to itself.`);
+      }
+    }
+    for (const p of patterns.flatMap(flatten)) {
+      const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : [])];
+      for (const id of referenced) {
+        if (!moveIds.has(id)) errors.push(`${where}: pattern references unknown move "${id}".`);
+      }
+      const move = (id: string) => moves.find((m) => m.id === id);
+      if (p.type === 'sequence') {
+        if (p.moves.length === 0) errors.push(`${where}: sequence pattern has no moves.`);
+        const loopFrom = p.loopFrom ?? 0;
+        if (loopFrom < 0 || loopFrom >= p.moves.length) errors.push(`${where}: loopFrom is out of range.`);
+        // Heavy moves come right after their Wind-up, and only then.
+        p.moves.forEach((id, i) => {
+          const prev = move(p.moves[(i + p.moves.length - 1) % p.moves.length]);
+          if (prev?.role === 'windUp' && prev.followUp && prev.followUp !== id) errors.push(`${where}: "${prev.id}" must be followed by "${prev.followUp}".`);
+          if (move(id)?.role === 'heavy' && prev?.role !== 'windUp') errors.push(`${where}: heavy move "${id}" only comes right after a Wind-up.`);
+        });
+      } else {
+        if (!Object.values(p.weights).some((w) => w > 0)) errors.push(`${where}: weighted pattern needs at least one positive weight.`);
+        for (const id of Object.keys(p.weights)) if (move(id)?.role === 'heavy') errors.push(`${where}: heavy move "${id}" can't have a weight (it follows its Wind-up).`);
+      }
+    }
+  };
+
   for (const enemy of source.enemies) {
     checkDuplicate(enemyIds, enemy.id, 'enemy');
     const where = `Enemy "${enemy.id}"`;
@@ -176,44 +219,8 @@ export function validateContent(source: ContentSource): string[] {
     checkTags(where, enemy.tags ?? []);
     const rule = enemy.trait?.rule;
     if (rule && 'effect' in rule) checkEffects(`${where} trait`, [rule.effect]);
-    const moveIds = new Set<string>();
-    for (const move of enemy.moves) {
-      if (moveIds.has(move.id)) errors.push(`${where}: duplicate move id "${move.id}".`);
-      moveIds.add(move.id);
-      checkEffects(`${where} move "${move.id}"`, move.effects);
-      // Strikes deal damage and Pulls pull, and nothing else does.
-      const effectType = move.tag === 'strike' ? 'dealDamage' : move.tag === 'pull' ? 'pull' : undefined;
-      if (!effectType) errors.push(`${where} move "${move.id}": tag must be 'strike' or 'pull'.`);
-      else if (!move.effects.some((e) => e.type === effectType)) errors.push(`${where} move "${move.id}": a ${move.tag} move needs a "${effectType}" effect.`);
-      if (move.tag !== 'strike' && move.effects.some((e) => e.type === 'dealDamage')) errors.push(`${where} move "${move.id}": only Strikes deal damage.`);
-      if (move.tag !== 'pull' && move.effects.some((e) => e.type === 'pull')) errors.push(`${where} move "${move.id}": only Pulls pull.`);
-      if (!['light', 'normal', 'heavy'].includes(move.intensity)) errors.push(`${where} move "${move.id}": intensity must be light, normal or heavy.`);
-      if (move.role === 'windUp' && !enemy.moves.some((m) => m.id === move.followUp)) errors.push(`${where} move "${move.id}": a Wind-up needs a \`followUp\` move.`);
-      if (move.role === 'windUp' && !move.effects.some((e) => e.type === 'applyStatus' && e.status === 'windUp')) {
-        errors.push(`${where} move "${move.id}": a Wind-up applies the windUp status to itself.`);
-      }
-    }
-    for (const p of [enemy.pattern, ...(enemy.bossPattern ? [enemy.bossPattern] : [])]) {
-      const referenced = p.type === 'sequence' ? p.moves : [...Object.keys(p.weights), ...(p.firstMove ? [p.firstMove] : [])];
-      for (const id of referenced) {
-        if (!moveIds.has(id)) errors.push(`${where}: pattern references unknown move "${id}".`);
-      }
-      const move = (id: string) => enemy.moves.find((m) => m.id === id);
-      if (p.type === 'sequence') {
-        if (p.moves.length === 0) errors.push(`${where}: sequence pattern has no moves.`);
-        const loopFrom = p.loopFrom ?? 0;
-        if (loopFrom < 0 || loopFrom >= p.moves.length) errors.push(`${where}: loopFrom is out of range.`);
-        // Heavy moves come right after their Wind-up, and only then.
-        p.moves.forEach((id, i) => {
-          const prev = move(p.moves[(i + p.moves.length - 1) % p.moves.length]);
-          if (prev?.role === 'windUp' && prev.followUp && prev.followUp !== id) errors.push(`${where}: "${prev.id}" must be followed by "${prev.followUp}".`);
-          if (move(id)?.role === 'heavy' && prev?.role !== 'windUp') errors.push(`${where}: heavy move "${id}" only comes right after a Wind-up.`);
-        });
-      } else {
-        if (!Object.values(p.weights).some((w) => w > 0)) errors.push(`${where}: weighted pattern needs at least one positive weight.`);
-        for (const id of Object.keys(p.weights)) if (move(id)?.role === 'heavy') errors.push(`${where}: heavy move "${id}" can't have a weight (it follows its Wind-up).`);
-      }
-    }
+    checkMoveSet(where, enemy.moves, [enemy.pattern, ...(enemy.bossPattern ? [enemy.bossPattern] : [])]);
+    if (enemy.bossMoves) checkMoveSet(`${where} boss moves`, enemy.bossMoves.moves, [enemy.bossMoves.pattern]);
   }
 
   const encounterIds = new Set<string>();

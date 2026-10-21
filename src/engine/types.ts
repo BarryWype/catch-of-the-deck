@@ -28,7 +28,10 @@ export type StatusId =
   | 'pinchedHand'
   | 'skittish'
   | 'spines'
-  | 'baitGrabbed';
+  | 'baitGrabbed'
+  // A boss's own mechanics (`bossGimmicks`): in its hole until its next turn (attacks do nothing), sprinting (Will rises double).
+  | 'hiding'
+  | 'sprinting';
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /**
@@ -71,8 +74,11 @@ export interface PerStatus {
 
 /** The reusable building blocks that every card and enemy move is made of. */
 export type Effect =
-  /** `fromHold`: the amount is the player's current Hold instead. `perTension`: plus this much per Tension before the card. */
-  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean; perTension?: number }
+  /**
+   * `fromHold`: the amount is the player's current Hold instead. `perTension`: plus this much per Tension before the card.
+   * `doubleIfHoldBelow` (creature moves): double if the player has less Hold than this when it lands.
+   */
+  | { type: 'dealDamage'; amount: number; hits?: number; target?: EffectTarget; perStatus?: PerStatus; fromHold?: boolean; perTension?: number; doubleIfHoldBelow?: number }
   /** The player loses this share of their Hold (0.5 = half, rounded down). */
   | { type: 'loseHold'; share: number }
   /** The player loses all their Patience (it isn't spent) and gains `per` Hold for each point lost. */
@@ -143,6 +149,10 @@ export type Effect =
   | { type: 'stealPatience'; amount: number }
   /** A mini-boss's or boss's Second Wind: points move from its higher bar into the low one. */
   | { type: 'secondWind' }
+  /** Creature moves: once the player has drawn next turn, it takes a random card from their hand; `returnAt` damage dealt to it in one turn gives it back. */
+  | { type: 'grabCard'; returnAt: number }
+  /** Creature moves: it loses every debuff it has. */
+  | { type: 'shedDebuffs' }
   /** For the rest of the fight, escape bars can be slowed by up to `amount` percent (instead of `MAX_SLOW_PERCENT`); it never lowers it. */
   | { type: 'slowCap'; amount: number }
   /** Creature moves only: it pulls on the line. The player's Hold takes it first; the rest raises its escape bar. */
@@ -576,7 +586,9 @@ export type IntentPattern =
   /** Play `moves` in order; after the last one, loop back to index `loopFrom` (default 0). */
   | { type: 'sequence'; moves: string[]; loopFrom?: number }
   /** Pick by weight. `maxConsecutive` caps how often the same move can repeat in a row. A special never follows a special, and a Wind-up never follows Ink. */
-  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number };
+  | { type: 'weighted'; weights: Record<string, number>; firstMove?: string; maxConsecutive?: number }
+  /** Two phases: `first` while its Health is at least `below` percent of its max, `then` once it drops below (a sequence counts from where the phase began). */
+  | { type: 'phased'; below: number; first: IntentPattern; then: IntentPattern };
 
 /**
  * What a temperament's signature trait does (`traits`), each rule worked out where it acts (see
@@ -663,6 +675,8 @@ export interface EnemyDef {
   pattern: IntentPattern;
   /** Its pattern as a mini-boss or boss (a fixed `sequence`); `pattern` otherwise. */
   bossPattern?: IntentPattern;
+  /** Its own moves and pattern as a mini-boss or boss, with its signature mechanic (`bossGimmicks`), instead of `moves` and `bossPattern`. */
+  bossMoves?: { moves: EnemyMove[]; pattern: IntentPattern };
   /** Statuses the enemy starts every fight with, e.g. `{ strength: 2 }`. */
   startingStatuses?: Statuses;
   /** Creature type ids, matched by card damage bonuses. */
@@ -891,6 +905,15 @@ export interface EnemyState extends Combatant {
   /** Its affix this fight (`affixes`), and how much more its Strikes deal from it, in percent. */
   affix?: string;
   strikePercent?: number;
+  /** A boss playing its own move set (`bossGimmicks`, `EnemyDef.bossMoves`). */
+  gimmick?: boolean;
+  /** Damage the player dealt it this turn (cards it holds come back at `held.returnAt`). */
+  damageThisTurn?: number;
+  /** `grabCard`: it takes a card from the next hand (`grabbing`, the damage that gets it back), then holds it. */
+  grabbing?: number;
+  held?: { cards: CardInstance[]; returnAt: number };
+  /** Where its current phase began in its move history (a `phased` pattern). */
+  phaseFrom?: number;
 }
 
 export interface CardInstance {
