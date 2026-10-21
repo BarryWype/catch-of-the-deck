@@ -8,6 +8,7 @@ The game runs on desktop (Electron and browser), tablets and phones, with a mous
 - **Touch** is `TOUCH_QUERY` (`(pointer: coarse)`): bigger tap targets.
 - Hover effects (lifts, highlights) go inside `@media (hover: hover)`, so a tap doesn't leave them stuck.
 - The app fills the screen (`#app`, 100dvh) and each screen scrolls inside `main`. Size things from their container, never from `100vh` minus a guessed top bar.
+- `:root` has `overscroll-behavior-y: none`, so a pull down at the top of the page never reloads it (pull-to-refresh) and drops the player on the menu. Keep it.
 - Content that hides off an edge (the side drawers) sits in a container that never scrolls; let the panel inside scroll instead.
 
 ## Interaction
