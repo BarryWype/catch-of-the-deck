@@ -845,6 +845,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :intent="previewIntent(shownState, enemy, data)"
           :then="previewForesight(shownState, enemy, data)"
           :badges="badgesOf(enemy)"
+          :at-home="homeAquarium.filter((c) => c.id === enemy.defId).length"
           :escape-bar="{
             escape: enemy.escape,
             escapeAt: enemy.escapeAt,

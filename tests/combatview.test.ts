@@ -13,7 +13,7 @@ vi.stubGlobal('navigator', { language: 'en' });
 vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} });
 
 /** The fight screen's HTML: the real content, a fight against a schooling creature. */
-async function renderFight(hold = 0, spot?: string, compact = false): Promise<string> {
+async function renderFight(hold = 0, spot?: string, compact = false, homeAquarium: { id: string; size: 'small'; bond: number }[] = []): Promise<string> {
   compactMatches = compact;
   const { default: CombatView } = await import('../src/ui/CombatView.vue');
   const { createCombat } = await import('../src/engine');
@@ -40,7 +40,7 @@ async function renderFight(hold = 0, spot?: string, compact = false): Promise<st
   state.player.block = hold;
   // `v-tip` is a client directive; the server render only needs it to resolve to nothing.
   const app = createSSRApp({
-    render: () => h(CombatView, { state, data, equipment: [], releaseReason: null, spot, homeAquarium: [], creatureBook: {}, unlocked: [], fishermenMet: [] }),
+    render: () => h(CombatView, { state, data, equipment: [], releaseReason: null, spot, homeAquarium, creatureBook: {}, unlocked: [], fishermenMet: [] }),
   });
   app.directive('tip', { getSSRProps: () => ({}) });
   return renderToString(app);
@@ -108,6 +108,16 @@ describe('CombatView', () => {
     const html = await renderFight();
     expect(html).toContain('width:240px');
     expect(html).toContain('width:192px');
+  });
+
+  it('marks a creature already in the home aquarium with a 🏠 badge, with the count past one', async () => {
+    expect(await renderFight()).not.toContain('badge home');
+    const one = await renderFight(0, undefined, false, [{ id: 'creature', size: 'small', bond: 0 }]);
+    expect(one).toMatch(/class="badge home"[^>]*aria-label="1 in your home aquarium\."/);
+    const two = await renderFight(0, undefined, false, [{ id: 'creature', size: 'small', bond: 0 }, { id: 'creature', size: 'small', bond: 0 }]);
+    const badge = (html: string) => html.slice(html.indexOf('class="badge home"'), html.indexOf('</span>', html.indexOf('class="badge home"')));
+    expect(badge(one)).not.toMatch(/>\d</);
+    expect(badge(two)).toMatch(/>2</);
   });
 
   it('leaves the turn counter to the top bar', async () => {

@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { isAlive, PLAYER_ID, type Combatant, type IntentPreview, type SpriteRef } from '../engine';
 import type { TipValue } from './tooltip';
 import AnimatedSprite from './AnimatedSprite.vue';
+import GameIcon from './GameIcon.vue';
+import { t } from './i18n';
 import HealthBar from './HealthBar.vue';
 import IntentBadge from './IntentBadge.vue';
 import SpriteView from './SpriteView.vue';
@@ -45,8 +47,10 @@ const props = withDefaults(
     then?: IntentPreview | null;
     /** Labelled badges under its name (a trait, an affix, a warning), each with its tip. */
     badges?: { key: string; label: string; tip: TipValue; tone?: 'trait' | 'affix' | 'warn' }[];
+    /** How many of its kind are in the home aquarium: a 🏠 badge leads the badges when there are some. */
+    atHome?: number;
   }>(),
-  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false, motion: null, then: null, badges: () => [] },
+  { clip: undefined, animationKey: 0, sprite: undefined, intent: null, tip: undefined, escapeBar: undefined, healthPreview: undefined, frame: 4, bare: false, motion: null, then: null, badges: () => [], atHome: 0 },
 );
 defineEmits<{ select: []; animationDone: [] }>();
 const compact = useMedia(COMPACT_QUERY);
@@ -70,10 +74,13 @@ const portraitStyle = computed(() => ({
     </div>
     <!-- Everything about it in one block above the sprite, the bars the same width: its name, its
          Will, its health, then its statuses. Compact screens drop the name (it stays in the
-         creature's tip). -->
+         creature's tip), but keep the badges, so a creature already at home shows it everywhere. -->
     <div v-if="!bare" class="hud">
       <div v-if="combatant.id !== PLAYER_ID" class="name">{{ combatant.name }}</div>
-      <div v-if="badges.length" class="badges">
+      <div v-if="badges.length || atHome" class="badges">
+        <span v-if="atHome" v-tip="t('combat.creatureTip.atHome', { n: atHome })" class="badge home" role="img" :aria-label="t('combat.creatureTip.atHome', { n: atHome })" tabindex="0">
+          <GameIcon icon="🏠" /><template v-if="atHome > 1">{{ atHome }}</template>
+        </span>
         <span v-for="b in badges" :key="b.key" v-tip="b.tip" class="badge" :class="b.tone" tabindex="0">{{ b.label }}</span>
       </div>
       <PanicBar v-if="escapeBar" v-bind="escapeBar" />
@@ -138,6 +145,7 @@ const portraitStyle = computed(() => ({
 .badge { padding: 0 6px; border-radius: 8px; font-size: 0.65rem; line-height: 1.5; white-space: nowrap; background: #2a2f45; box-shadow: inset 0 0 0 1px #8c94c9; cursor: help; }
 .badge.affix { background: #4a2f17; box-shadow: inset 0 0 0 1px #c97a3a; }
 .badge.warn { background: #4a1717; box-shadow: inset 0 0 0 1px #c93a3a; }
+.badge.home { display: inline-flex; align-items: center; gap: 2px; background: #173a2a; box-shadow: inset 0 0 0 1px #4fb37a; }
 .portrait {
   display: grid;
   place-items: center;

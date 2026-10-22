@@ -148,7 +148,7 @@ There are two separate collections of creatures. They never share creatures, exc
 | What | The creatures caught during the current run | The creatures brought back from won runs |
 | Where in code | `RunState.bucket`: one `Catch` `{ id, size }` per creature, at most `BUCKET_SIZE` (7), companions included | `Profile.homeAquarium` (`ui/saveStore.ts`): one `HomeCreature` `{ id, size, bond }` per creature |
 | Saved in | `save.json` (with the run) | `profile.json` (lasts forever) |
-| Shown | Below the map and the shop, and on the bucket-full screen (🪣 Bucket, with an "n/7" count, more with a bucket extension) | Menu background, companions screen (🏠 Home aquarium) |
+| Shown | Below the map and the shop, and on the bucket-full screen (🪣 Bucket, with an "n/7" count, more with a bucket extension) | Menu background, companions screen (🏠 Home aquarium); in a fight, a green 🏠 badge on a creature already in it (with the count past one) |
 | Interactive | Yes: click a creature to see its size and sell it for coins (on the bucket-full screen: sell it to keep the waiting catch) | On the companions screen only: click a creature to bring it for the session |
 
 **Lifecycle:**
