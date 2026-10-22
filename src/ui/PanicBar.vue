@@ -128,6 +128,9 @@ const escapesNext = computed(
 .escapes.now { color: #ff8177; font-weight: 800; }
 @media (max-width: 700px), (max-height: 500px) {
   .panicbar { height: 32px; }
-  .end { font-size: 1.2rem; }
+  /* Small enough to stay clear of the values on a narrow bar. */
+  .end { font-size: 0.9rem; }
+  .end.left { left: 4px; }
+  .end.right { right: 4px; }
 }
 </style>
